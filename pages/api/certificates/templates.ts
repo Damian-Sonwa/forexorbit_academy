@@ -36,3 +36,6 @@ export default withAuth(getTemplates);
 
 
 
+
+
+
