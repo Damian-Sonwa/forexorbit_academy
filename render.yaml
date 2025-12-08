@@ -1,0 +1,33 @@
+# Render Blueprint Configuration
+# This file configures your app for deployment on Render
+
+services:
+  # Main Web Service (Next.js + Socket.io)
+  - type: web
+    name: forex-elearning-app
+    env: node
+    region: oregon  # Change to your preferred region: oregon, frankfurt, singapore, mumbai, sydney
+    plan: starter  # Options: free, starter, standard, pro
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: MONGO_URI
+        sync: false  # Set this in Render dashboard
+      - key: JWT_SECRET
+        sync: false  # Set this in Render dashboard - use a strong random string
+      - key: NEXT_PUBLIC_SOCKET_URL
+        value: https://forex-elearning-app.onrender.com  # Update with your actual Render URL
+    healthCheckPath: /
+    autoDeploy: true  # Automatically deploy on git push
+
+# Optional: Add a MongoDB service if you want Render to manage your database
+# Uncomment below if you want to use Render's MongoDB instead of MongoDB Atlas
+# databases:
+#   - name: forex-elearning-db
+#     databaseName: Forex_elearning
+#     plan: starter  # Options: starter, standard, pro
+
