@@ -29,16 +29,16 @@ This is a **Next.js full-stack application** where frontend and backend are in t
 
 ## Deployment Options
 
-### ⚠️ Important: Netlify Limitations
+### ⚠️ Important: Serverless Platform Limitations
 
-**Netlify does NOT support:**
+**Vercel and Netlify do NOT support:**
 - Custom Node.js servers (`server.js`)
 - Socket.io persistent connections
 - Real-time features (chat, live updates)
 
-**If you deploy to Netlify:**
+**If you deploy to Vercel/Netlify:**
 - Real-time features will NOT work
-- You'll need to disable Socket.io or use a separate service
+- You'll need to disable Socket.io or use a separate service for Socket.io
 
 ---
 
@@ -98,6 +98,88 @@ Render supports custom servers and Socket.io, making it ideal for this app.
 - Visit your Render URL: `https://your-app-name.onrender.com`
 - Test all features including real-time chat
 - Check Socket.io connection in browser console
+
+---
+
+## Vercel Deployment (Recommended for Frontend, Socket.io Needs Separate Service)
+
+Vercel is excellent for Next.js apps, but **Socket.io won't work** because Vercel uses serverless functions, not persistent servers.
+
+### Option A: Vercel + Separate Socket.io Server (Recommended)
+
+Deploy the main app to Vercel and run Socket.io on a separate service (Render).
+
+#### Step 1: Deploy Main App to Vercel
+
+1. **Go to Vercel Dashboard**: https://vercel.com
+2. **Import Project**:
+   - Click "Add New" → "Project"
+   - Import from GitHub: `Damian-Sonwa/forexorbit_academy`
+   - Select branch: `master`
+
+3. **Configure Project**:
+   - **Framework Preset**: Next.js (auto-detected)
+   - **Root Directory**: `./` (root)
+   - **Build Command**: `npm run build` (auto-detected)
+   - **Output Directory**: `.next` (auto-detected)
+   - **Install Command**: `npm install`
+
+4. **Environment Variables** (in Vercel dashboard):
+   ```
+   NODE_ENV=production
+   MONGO_URI=your_mongodb_atlas_connection_string
+   JWT_SECRET=your_strong_random_secret_key
+   NEXT_PUBLIC_SOCKET_URL=https://your-socket-server.onrender.com
+   ```
+
+5. **Deploy**:
+   - Click "Deploy"
+   - Wait for build to complete (2-5 minutes)
+
+#### Step 2: Deploy Socket.io Server to Render
+
+1. **Create a separate Socket.io service** on Render:
+   - Use the same GitHub repo
+   - Build Command: `npm install`
+   - Start Command: `node server.js` (or create a minimal Socket.io server)
+   - Set the same environment variables
+
+2. **Update `NEXT_PUBLIC_SOCKET_URL`** in Vercel to point to your Render Socket.io service
+
+### Option B: Vercel Only (Socket.io Disabled)
+
+If you don't need real-time features:
+
+1. **Follow Step 1 above** (deploy to Vercel)
+2. **Disable Socket.io** in your code:
+   - Comment out Socket.io connections in `hooks/useSocket.ts`
+   - Remove Socket.io dependencies (optional)
+   - Update components that use Socket.io
+
+**Note**: Real-time chat, progress updates, and market signals will NOT work.
+
+### Vercel Configuration
+
+The `vercel.json` file is already configured with:
+- API route handling
+- Function timeouts (30 seconds)
+- Proper routing
+
+### Vercel Advantages
+
+✅ Excellent Next.js support  
+✅ Fast global CDN  
+✅ Automatic HTTPS  
+✅ Free tier with generous limits  
+✅ Easy GitHub integration  
+✅ Preview deployments for PRs  
+
+### Vercel Limitations
+
+❌ No custom Node.js servers (`server.js` won't run)  
+❌ No Socket.io persistent connections  
+❌ Serverless functions (not persistent)  
+❌ 30-second function timeout limit  
 
 ---
 
@@ -193,12 +275,19 @@ git push origin master
 
 ## Recommended Architecture
 
-For best results:
+### Best Option: Single Service (Render)
 - **Frontend + Backend + Socket.io**: Deploy to **Render** (single service)
-- **OR**: 
-  - Frontend: Netlify
-  - Backend API: Render
-  - Socket.io Server: Separate Render service
+- ✅ Everything works together
+- ✅ Socket.io works perfectly
+- ✅ Simpler setup
+
+### Alternative: Split Architecture
+- **Frontend**: Vercel (excellent Next.js support)
+- **Backend API**: Vercel (API routes work fine)
+- **Socket.io Server**: Separate Render service
+- ⚠️ More complex setup
+- ⚠️ Need to manage two services
+- ✅ Best performance for frontend
 
 ---
 
