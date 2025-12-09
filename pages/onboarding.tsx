@@ -81,7 +81,7 @@ export default function Onboarding() {
 
   const loadOnboardingData = async () => {
     try {
-      const data = await apiClient.get('/auth/me');
+      const data = await apiClient.get('/auth/me') as any;
       if (data.studentDetails || data.profilePhoto) {
         setFormData({
           fullName: data.studentDetails?.fullName || data.name || '',
@@ -137,7 +137,7 @@ export default function Onboarding() {
         },
       });
 
-      setFormData((prev) => ({ ...prev, profilePhoto: response.imageUrl }));
+      setFormData((prev) => ({ ...prev, profilePhoto: (response as any).imageUrl }));
       setSelectedPhoto(null);
     } catch (error: any) {
       setError(error.response?.data?.error || error.message || 'Failed to upload photo');
@@ -230,7 +230,7 @@ export default function Onboarding() {
         await apiClient.put('/student/onboarding/complete');
       }
       // Refresh user data
-      const userData = await apiClient.get('/auth/me');
+      const userData = await apiClient.get('/auth/me') as any;
       // Update local storage
       const updatedUser = { ...user, ...userData };
       localStorage.setItem('user', JSON.stringify(updatedUser));

@@ -51,13 +51,13 @@ interface Quiz {
 }
 
 interface Course {
-  _id: string;
-  id: string;
+  _id?: string;
+  id?: string;
   title: string;
   description: string;
   difficulty: 'beginner' | 'intermediate' | 'advanced';
   category: string;
-  instructorId: string;
+  instructorId?: string;
   thumbnail?: string;
 }
 
@@ -85,13 +85,12 @@ export default function InstructorDashboard() {
   const [newsItems, setNewsItems] = useState<any[]>([]);
   const [editingNews, setEditingNews] = useState<any>(null);
   // const [newsForm, setNewsForm] = useState({ // Reserved for future use
-  const [, setNewsForm] = useState({
-    title: '',
-    description: '',
-    category: 'market',
-    content: '',
-    link: '',
-  });
+  //   title: '',
+  //   description: '',
+  //   category: 'market',
+  //   content: '',
+  //   link: '',
+  // });
   const [newsEditForm, setNewsEditForm] = useState({
     title: '',
     description: '',
@@ -157,7 +156,7 @@ export default function InstructorDashboard() {
   const loadAllCourses = async () => {
     try {
       // Load ALL courses for instructors (full access)
-      setAllCourses(courses);
+      setAllCourses(courses as Course[]);
     } catch (error) {
       console.error('Failed to load courses:', error);
     }
@@ -166,7 +165,7 @@ export default function InstructorDashboard() {
   const loadNews = async () => {
     try {
       const data = await apiClient.get('/community/news');
-      setNewsItems(data);
+      setNewsItems(data as any[]);
     } catch (error) {
       console.error('Failed to load news:', error);
     }
@@ -175,7 +174,7 @@ export default function InstructorDashboard() {
   const loadAnalytics = async () => {
     try {
       const data = await apiClient.get('/instructor/analytics');
-      setAnalytics(data);
+      setAnalytics(data as any);
     } catch {
       setAnalytics({
         totalCourses: allCourses.length,
@@ -223,7 +222,7 @@ export default function InstructorDashboard() {
   };
 
   const handleEditCourse = (course: Course) => {
-    setEditingCourse(course._id || course.id);
+    setEditingCourse(course._id || course.id || null);
     setCourseForm({
       title: course.title,
       description: course.description,
@@ -237,10 +236,13 @@ export default function InstructorDashboard() {
   const handleCreateCourse = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      if (!user?.id) {
+        throw new Error('User ID is required');
+      }
       setLoading(true);
       await apiClient.post('/courses', {
         ...courseForm,
-        instructorId: user?.id || user?._id,
+        instructorId: user.id,
       });
       await refetch();
       await loadAllCourses();
@@ -657,7 +659,7 @@ export default function InstructorDashboard() {
                         }`}
                       >
                         <button
-                          onClick={() => handleSelectCourse(course._id || course.id)}
+                          onClick={() => handleSelectCourse(course._id || course.id || '')}
                           className="w-full text-left p-3"
                         >
                           <p className="font-semibold text-sm text-gray-900 dark:text-white">{course.title}</p>
@@ -697,7 +699,7 @@ export default function InstructorDashboard() {
                         }`}
                       >
                         <button
-                          onClick={() => handleSelectCourse(course._id || course.id)}
+                          onClick={() => handleSelectCourse(course._id || course.id || '')}
                           className="w-full text-left p-3"
                         >
                           <p className="font-semibold text-sm text-gray-900 dark:text-white">{course.title}</p>
@@ -737,7 +739,7 @@ export default function InstructorDashboard() {
                         }`}
                       >
                         <button
-                          onClick={() => handleSelectCourse(course._id || course.id)}
+                          onClick={() => handleSelectCourse(course._id || course.id || '')}
                           className="w-full text-left p-3"
                         >
                           <p className="font-semibold text-sm text-gray-900 dark:text-white">{course.title}</p>

@@ -9,7 +9,7 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import CourseCard from '@/components/CourseCard';
 import { useCourses } from '@/hooks/useCourses';
-import { useAuth } from '@/hooks/useAuth';
+// import { useAuth } from '@/hooks/useAuth'; // Reserved for future use
 import { apiClient } from '@/lib/api-client';
 
 export default function Home() {

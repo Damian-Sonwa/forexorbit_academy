@@ -25,8 +25,7 @@ export default function Chat({ lessonId }: ChatProps) {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const { joinLesson, leaveLesson, sendChatMessage, onChatMessage } = useSocket();
-  // const { socket, connected } = useSocket(); // Reserved for future use
+  const { joinLesson, leaveLesson, sendChatMessage, onChatMessage, connected } = useSocket();
 
   useEffect(() => {
     // Load existing messages

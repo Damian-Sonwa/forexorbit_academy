@@ -13,7 +13,7 @@ import VideoPlayer from '@/components/VideoPlayer';
 import MarketSignal from '@/components/MarketSignal';
 import Quiz from '@/components/Quiz';
 import { useLesson, useLessons } from '@/hooks/useLesson';
-import { useCourse } from '@/hooks/useCourses';
+// import { useCourse } from '@/hooks/useCourses'; // Reserved for future use
 import { useSocket } from '@/hooks/useSocket';
 import { useAuth } from '@/hooks/useAuth';
 import LessonSummaryView from '@/components/LessonSummaryView';

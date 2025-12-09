@@ -161,7 +161,7 @@ export default function Leaderboard() {
                     <tr
                       key={entry.userId}
                       className={`hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors ${
-                        entry.userId === user.userId ? 'bg-primary-50 dark:bg-primary-900/20' : ''
+                        entry.userId === user.id ? 'bg-primary-50 dark:bg-primary-900/20' : ''
                       }`}
                     >
                       <td className="px-4 py-3 whitespace-nowrap">
@@ -176,7 +176,7 @@ export default function Leaderboard() {
                           </div>
                           <div>
                             <p className="text-sm font-bold text-gray-900 dark:text-white">
-                              {entry.name} {entry.userId === user.userId && '(You)'}
+                              {entry.name} {entry.userId === user.id && '(You)'}
                             </p>
                             <p className="text-xs text-gray-500 dark:text-gray-400">{entry.email}</p>
                           </div>

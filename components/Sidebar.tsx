@@ -85,11 +85,10 @@ const ApprovalsIcon = ({ className }: { className?: string }) => (
 );
 
 // const LeaderboardIcon = ({ className }: { className?: string }) => ( // Reserved for future use
-const LeaderboardIconUnused = ({ className }: { className?: string }) => (
-  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-  </svg>
-);
+//   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+//     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+//   </svg>
+// );
 
 const CommunityIcon = ({ className }: { className?: string }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -116,11 +115,10 @@ const CloseIcon = ({ className }: { className?: string }) => (
 );
 
 // const ChevronDownIcon = ({ className }: { className?: string }) => ( // Reserved for future use
-const ChevronDownIconUnused = ({ className }: { className?: string }) => (
-  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-  </svg>
-);
+//   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+//     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+//   </svg>
+// );
 
 export default function Sidebar({ }: SidebarProps) {
   // courseId, lessons, currentLessonId parameters reserved for future use
@@ -223,17 +221,16 @@ export default function Sidebar({ }: SidebarProps) {
   };
 
   // const toggleSection = (section: string) => { // Reserved for future use
-  const _toggleSection = (section: string) => {
-    setExpandedSections((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(section)) {
-        newSet.delete(section);
-      } else {
-        newSet.add(section);
-      }
-      return newSet;
-    });
-  };
+  //   setExpandedSections((prev) => {
+  //     const newSet = new Set(prev);
+  //     if (newSet.has(section)) {
+  //       newSet.delete(section);
+  //     } else {
+  //       newSet.add(section);
+  //     }
+  //     return newSet;
+  //   });
+  // };
 
   const navItems = getNavItems();
   const profilePhoto = profileData?.profilePhoto;

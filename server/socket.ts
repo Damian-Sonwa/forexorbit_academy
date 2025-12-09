@@ -7,6 +7,7 @@ import { Server as SocketIOServer } from 'socket.io';
 import { Server as HTTPServer } from 'http';
 import { verifyToken } from '@/lib/jwt';
 import { getDb } from '@/lib/mongodb';
+import { ObjectId } from 'mongodb';
 
 interface SocketAuth {
   userId: string;
@@ -62,11 +63,11 @@ export function initializeSocket(server: HTTPServer) {
         const users = db.collection('users');
 
         const userDoc = await users.findOne(
-          { _id: user.userId },
+          { _id: new ObjectId(user.userId) },
           { projection: { name: 1 } }
         );
 
-        const message = {
+        const message: any = {
           lessonId: data.lessonId,
           userId: user.userId,
           senderName: userDoc?.name || 'Anonymous',

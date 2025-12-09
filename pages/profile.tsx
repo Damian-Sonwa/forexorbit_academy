@@ -70,7 +70,7 @@ export default function Profile() {
 
   const loadProfileData = async () => {
     try {
-      const data = await apiClient.get('/auth/me');
+      const data = await apiClient.get('/auth/me') as any;
       if (data.studentDetails || data.profilePhoto) {
         setFormData({
           fullName: data.studentDetails?.fullName || data.name || '',
@@ -158,7 +158,7 @@ export default function Profile() {
         },
       });
 
-      setFormData((prev) => ({ ...prev, profilePhoto: response.imageUrl }));
+      setFormData((prev) => ({ ...prev, profilePhoto: (response as any).imageUrl }));
       setSelectedPhoto(null);
       setSuccess('Profile photo uploaded successfully!');
       setTimeout(() => setSuccess(''), 3000);
@@ -180,7 +180,7 @@ export default function Profile() {
         await apiClient.put('/student/onboarding/complete');
       }
       // Refresh user data
-      const userData = await apiClient.get('/auth/me');
+      const userData = await apiClient.get('/auth/me') as any;
       localStorage.setItem('user', JSON.stringify({ ...user, ...userData }));
       setIsEditing(false);
       setSuccess('Profile updated successfully!');
