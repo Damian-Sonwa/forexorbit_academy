@@ -67,7 +67,9 @@ async function getCertificates(req: AuthRequest, res: NextApiResponse) {
         try {
           user = await users.findOne({ _id: new ObjectId(cert.userId) });
         } catch (e) {
-          user = await users.findOne({ _id: cert.userId });
+          // If userId is already an ObjectId, use it directly
+          const userId = cert.userId instanceof ObjectId ? cert.userId : new ObjectId(cert.userId);
+          user = await users.findOne({ _id: userId });
         }
         
         if (course?.instructorId) {
