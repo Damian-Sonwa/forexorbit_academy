@@ -12,9 +12,9 @@ import { canAccessRoom } from '@/lib/learning-level';
 async function addReaction(req: AuthRequest, res: NextApiResponse) {
   try {
     const { id } = req.query;
-    const { emoji } = req.body;
+    const { emoji } = req.body as { emoji?: string };
 
-    if (!id || typeof id !== 'string' || !emoji) {
+    if (!id || typeof id !== 'string' || !emoji || typeof emoji !== 'string') {
       return res.status(400).json({ error: 'Message ID and emoji are required' });
     }
 
@@ -69,8 +69,8 @@ async function addReaction(req: AuthRequest, res: NextApiResponse) {
       return res.status(403).json({ error: 'Access denied' });
     }
 
-    const existingReaction = message.reactions?.find(
-      (r: any) => r.userId === req.user!.userId && r.emoji === emoji
+    const existingReaction = (message.reactions as Array<{ userId: string; emoji: string }> | undefined)?.find(
+      (r) => r.userId === req.user!.userId && r.emoji === emoji
     );
 
     if (existingReaction) {
@@ -79,9 +79,9 @@ async function addReaction(req: AuthRequest, res: NextApiResponse) {
         { _id: new ObjectId(id) },
         {
           $pull: {
-            reactions: { userId: req.user!.userId, emoji },
+            reactions: { userId: req.user!.userId, emoji: emoji as string },
           },
-        }
+        } as any
       );
     } else {
       // Add reaction
@@ -100,9 +100,10 @@ async function addReaction(req: AuthRequest, res: NextApiResponse) {
     }
 
     res.json({ success: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Add reaction error:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
+    res.status(500).json({ error: errorMessage });
   }
 }
 
