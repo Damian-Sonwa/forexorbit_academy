@@ -16,7 +16,7 @@ async function getForumPosts(req: AuthRequest, res: NextApiResponse) {
     const forumPosts = db.collection('forumPosts');
     const users = db.collection('users');
 
-    let query: any = {};
+    const query: Record<string, unknown> = {};
     if (courseId) query.courseId = courseId;
     if (lessonId) query.lessonId = lessonId;
 

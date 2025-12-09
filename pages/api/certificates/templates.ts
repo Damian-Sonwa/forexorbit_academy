@@ -14,7 +14,7 @@ async function getTemplates(req: AuthRequest, res: NextApiResponse) {
     const certificateTemplates = db.collection('certificateTemplates');
     const { level } = req.query;
 
-    let query: any = {};
+    const query: Record<string, unknown> = {};
     if (level) {
       query.level = level;
     }

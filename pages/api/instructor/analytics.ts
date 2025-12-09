@@ -3,10 +3,10 @@
  * Returns analytics for instructor's courses
  */
 
-import type { NextApiRequest, NextApiResponse } from 'next';
+import type { NextApiResponse } from 'next';
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
-import { ObjectId } from 'mongodb';
+// import { ObjectId } from 'mongodb'; // Reserved for future use
 
 async function handler(req: AuthRequest, res: NextApiResponse) {
   try {
@@ -14,7 +14,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
     const courses = db.collection('courses');
     const lessons = db.collection('lessons');
     const progress = db.collection('progress');
-    const users = db.collection('users');
+    // const users = db.collection('users'); // Reserved for future use
 
     const instructorId = req.user!.userId;
 

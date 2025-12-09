@@ -104,7 +104,7 @@ async function updateProgress(req: AuthRequest, res: NextApiResponse) {
     const lessons = db.collection('lessons');
 
     // Get course progress
-    let courseProgress = await progress.findOne({ userId, courseId });
+    const courseProgress = await progress.findOne({ userId, courseId });
 
     const completedLessons = courseProgress?.completedLessons || [];
     if (!completedLessons.includes(lessonId)) {

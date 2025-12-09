@@ -10,7 +10,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Header from '@/components/Header';
-import Footer from '@/components/Footer';
+// import Footer from '@/components/Footer'; // Reserved for future use
 import BackButton from '@/components/BackButton';
 import { useAuth } from '@/hooks/useAuth';
 import { useSocket } from '@/hooks/useSocket';

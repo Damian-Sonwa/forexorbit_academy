@@ -7,7 +7,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
-import { ObjectId } from 'mongodb';
+// import { ObjectId } from 'mongodb'; // Reserved for future use
 
 // GET all courses
 async function getCourses(req: AuthRequest, res: NextApiResponse) {
@@ -96,7 +96,7 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
       const payload = jwtLib.verifyToken(token);
       authReq.user = payload;
     }
-  } catch (error) {
+  } catch {
     // No token or invalid token - continue without user
   }
   return getCourses(authReq, res);

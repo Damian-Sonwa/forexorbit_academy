@@ -15,7 +15,7 @@ import { apiClient } from '@/lib/api-client';
 export default function Home() {
   const [filters, setFilters] = useState({ category: '', difficulty: '', search: '' });
   const { courses, loading, enroll, unenroll } = useCourses(filters);
-  const { isAuthenticated } = useAuth();
+  // const { isAuthenticated } = useAuth(); // Reserved for future use
   const [stats, setStats] = useState({ users: 0, courses: 0, success: 0, time: 0 });
   const [instructors, setInstructors] = useState<any[]>([]);
 

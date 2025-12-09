@@ -16,9 +16,9 @@ async function getCertificates(req: AuthRequest, res: NextApiResponse) {
     const certificates = db.collection('certificates');
     const courses = db.collection('courses');
     const users = db.collection('users');
-    const progress = db.collection('progress');
+    // const progress = db.collection('progress'); // Reserved for future use
 
-    let query: any = {};
+    const query: Record<string, unknown> = {};
 
     // Student: only their certificates
     if (req.user!.role === 'student') {
@@ -60,13 +60,13 @@ async function getCertificates(req: AuthRequest, res: NextApiResponse) {
         
         try {
           course = await courses.findOne({ _id: new ObjectId(cert.courseId) });
-        } catch (e) {
+        } catch {
           course = await courses.findOne({ _id: cert.courseId });
         }
         
         try {
           user = await users.findOne({ _id: new ObjectId(cert.userId) });
-        } catch (e) {
+        } catch {
           // If userId is already an ObjectId, use it directly
           const userId = cert.userId instanceof ObjectId ? cert.userId : new ObjectId(cert.userId);
           user = await users.findOne({ _id: userId });
@@ -75,7 +75,7 @@ async function getCertificates(req: AuthRequest, res: NextApiResponse) {
         if (course?.instructorId) {
           try {
             instructor = await users.findOne({ _id: new ObjectId(course.instructorId) });
-          } catch (e) {
+          } catch {
             instructor = await users.findOne({ _id: course.instructorId });
           }
         }

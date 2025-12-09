@@ -9,7 +9,7 @@ import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 
-const SUPER_ADMIN_EMAIL = 'madudamian25@gmail.com';
+// const SUPER_ADMIN_EMAIL = 'madudamian25@gmail.com'; // Reserved for future use
 
 /**
  * GET: Fetch pending instructor/admin registrations

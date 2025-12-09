@@ -7,7 +7,7 @@
 import type { NextApiResponse } from 'next';
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
-import { ObjectId } from 'mongodb';
+// import { ObjectId } from 'mongodb'; // Reserved for future use
 
 async function getAssignments(req: AuthRequest, res: NextApiResponse) {
   try {
@@ -15,7 +15,7 @@ async function getAssignments(req: AuthRequest, res: NextApiResponse) {
     const db = await getDb();
     const assignments = db.collection('assignments');
 
-    let query: any = {};
+    const query: Record<string, unknown> = {};
     if (courseId) query.courseId = courseId;
     if (lessonId) query.lessonId = lessonId;
 

@@ -66,7 +66,7 @@ export default function Community() {
   const [newsItems, setNewsItems] = useState<NewsItem[]>([]);
   const [input, setInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const [showNews, setShowNews] = useState(false);
+  // const [showNews, setShowNews] = useState(false); // Reserved for future use
   const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
   const [isTyping, setIsTyping] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);

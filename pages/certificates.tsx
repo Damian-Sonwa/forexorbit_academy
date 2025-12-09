@@ -10,7 +10,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Header from '@/components/Header';
-import Footer from '@/components/Footer';
+// import Footer from '@/components/Footer'; // Reserved for future use
 import BackButton from '@/components/BackButton';
 import { useAuth } from '@/hooks/useAuth';
 import { useSocket } from '@/hooks/useSocket';
@@ -57,7 +57,7 @@ export default function Certificates() {
   const [certificates, setCertificates] = useState<Certificate[]>([]);
   const [templates, setTemplates] = useState<CertificateTemplate[]>([]);
   const [loading, setLoading] = useState(true);
-  const [generating, setGenerating] = useState<string | null>(null);
+  // const [generating, setGenerating] = useState<string | null>(null); // Reserved for future use
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [showUploadForm, setShowUploadForm] = useState(false);
@@ -85,13 +85,13 @@ export default function Certificates() {
     if (!socket || !connected || !user) return;
 
     if (user.role === 'student') {
-      socket.on('courseCompleted', (data: { courseId: string; message: string }) => {
+      socket.on('courseCompleted', () => {
         fetchCertificates();
       });
     }
 
     if (user.role === 'instructor' || user.role === 'admin') {
-      socket.on('certificateIssued', (data: { userId: string; courseId: string; certificateId: string }) => {
+      socket.on('certificateIssued', () => {
         fetchCertificates();
       });
     }

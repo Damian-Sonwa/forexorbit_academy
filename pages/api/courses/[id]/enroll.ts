@@ -7,7 +7,7 @@
 import type { NextApiResponse } from 'next';
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
-import { ObjectId } from 'mongodb';
+// import { ObjectId } from 'mongodb'; // Reserved for future use
 
 async function enroll(req: AuthRequest, res: NextApiResponse) {
   try {
