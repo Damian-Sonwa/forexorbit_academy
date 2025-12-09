@@ -108,15 +108,15 @@ export default function LessonSummaryEditor({ lessonId, lesson, onSave }: Lesson
     setError('');
 
     try {
-      const formData = new FormData();
-      formData.append('file', file);
+      const uploadFormData = new FormData();
+      uploadFormData.append('file', file);
 
       const response = await fetch('/api/upload/visual-aid', {
         method: 'POST',
         headers: {
           // Don't set Content-Type, let browser set it with boundary
         },
-        body: formData,
+        body: uploadFormData,
       });
 
       if (!response.ok) {
