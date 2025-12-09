@@ -48,9 +48,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const parsedUser: User = JSON.parse(savedUser);
         setUser(parsedUser);
         // Verify token is still valid and fetch latest user data
-        apiClient.get('/auth/me').then((userData) => {
+        apiClient.get<User>('/auth/me').then((userData) => {
           // Update user with latest data including onboarding status
-          const updatedUser = { ...parsedUser, ...userData };
+          const updatedUser: User = { ...parsedUser, ...userData };
           setUser(updatedUser);
           localStorage.setItem('user', JSON.stringify(updatedUser));
         }).catch(() => {
@@ -72,13 +72,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       localStorage.setItem('token', response.token);
       // Fetch full user data including onboarding status
-      const userData = await apiClient.get('/auth/me');
-      const fullUser = { ...response.user, ...userData };
+      const userData = await apiClient.get<User>('/auth/me');
+      const fullUser: User = { ...response.user, ...userData };
       localStorage.setItem('user', JSON.stringify(fullUser));
       setUser(fullUser);
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Extract error message from API response
-      const errorMessage = error.response?.data?.error || error.message || 'Login failed. Please check your credentials.';
+      let errorMessage = 'Login failed. Please check your credentials.';
+      if (error && typeof error === 'object' && 'response' in error) {
+        const apiError = error as { response?: { data?: { error?: string } }; message?: string };
+        errorMessage = apiError.response?.data?.error || apiError.message || errorMessage;
+      } else if (error instanceof Error) {
+        errorMessage = error.message || errorMessage;
+      }
       throw new Error(errorMessage);
     }
   };
@@ -96,8 +102,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.setItem('token', response.token);
       // Fetch full user data including onboarding status for approved users
       try {
-        const userData = await apiClient.get('/auth/me');
-        const fullUser = { ...response.user, ...userData };
+        const userData = await apiClient.get<User>('/auth/me');
+        const fullUser: User = { ...response.user, ...userData };
         localStorage.setItem('user', JSON.stringify(fullUser));
         setUser(fullUser);
       } catch {
