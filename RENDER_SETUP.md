@@ -42,7 +42,10 @@ PORT=3000
 MONGO_URI=your_mongodb_atlas_connection_string
 JWT_SECRET=your_strong_random_secret_key
 NEXT_PUBLIC_SOCKET_URL=https://your-app-name.onrender.com
+ALLOWED_ORIGINS=https://forexorbit-academy001.vercel.app,https://forexorbit-academy.onrender.com
 ```
+
+**Note**: `ALLOWED_ORIGINS` is a comma-separated list of URLs allowed to connect to Socket.io (CORS). Add your Vercel URL here if using Vercel for frontend.
 
 **Important**: 
 - Replace `your-app-name` with your actual Render service name

@@ -58,14 +58,31 @@ app.prepare().then(() => {
     }
   });
 
-  // Initialize Socket.io
-  const socketOrigin = process.env.NEXT_PUBLIC_SOCKET_URL || 
-    (dev ? 'http://localhost:3000' : process.env.RENDER_EXTERNAL_URL || 'http://localhost:3000');
+  // Initialize Socket.io with CORS support for multiple origins
+  // Allow both Render URL and Vercel URL (or any URLs in ALLOWED_ORIGINS env var)
+  const allowedOrigins = process.env.ALLOWED_ORIGINS 
+    ? process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim())
+    : [
+        process.env.NEXT_PUBLIC_SOCKET_URL || 
+        (dev ? 'http://localhost:3000' : process.env.RENDER_EXTERNAL_URL || 'http://localhost:3000'),
+        'https://forexorbit-academy001.vercel.app',
+        'https://forexorbit-academy.onrender.com'
+      ];
   
   const io = new Server(server, {
     path: '/api/socket',
     cors: {
-      origin: socketOrigin,
+      origin: (origin, callback) => {
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) return callback(null, true);
+        
+        // Check if origin is in allowed list
+        if (allowedOrigins.includes(origin)) {
+          callback(null, true);
+        } else {
+          callback(new Error('Not allowed by CORS'));
+        }
+      },
       methods: ['GET', 'POST'],
       credentials: true,
     },
