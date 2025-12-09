@@ -80,8 +80,8 @@ export default function Consultations() {
 
   const loadExperts = async () => {
     try {
-      const data = await apiClient.get('/consultations/experts');
-      setExperts(data.filter((expert: Expert) => expert.expertAvailable));
+      const data = await apiClient.get<Expert[]>('/consultations/experts');
+      setExperts(data.filter((expert) => expert.expertAvailable));
     } catch (error) {
       console.error('Failed to load experts:', error);
     }
@@ -89,7 +89,7 @@ export default function Consultations() {
 
   const loadRequests = async () => {
     try {
-      const data = await apiClient.get('/consultations/requests');
+      const data = await apiClient.get<ConsultationRequest[]>('/consultations/requests');
       setRequests(data);
     } catch (error) {
       console.error('Failed to load requests:', error);
@@ -98,7 +98,7 @@ export default function Consultations() {
 
   const loadSessions = async () => {
     try {
-      const data = await apiClient.get('/consultations/sessions');
+      const data = await apiClient.get<ConsultationSession[]>('/consultations/sessions');
       setSessions(data);
     } catch (error) {
       console.error('Failed to load sessions:', error);
@@ -118,8 +118,15 @@ export default function Consultations() {
       alert('Consultation request submitted successfully!');
       setRequestForm({ expertId: '', topic: '', description: '', consultationType: 'live-chat' });
       await loadRequests();
-    } catch (error: any) {
-      alert(error.response?.data?.error || error.message || 'Failed to submit request');
+    } catch (error: unknown) {
+      let errorMessage = 'Failed to submit request';
+      if (error && typeof error === 'object' && 'response' in error) {
+        const apiError = error as { response?: { data?: { error?: string } }; message?: string };
+        errorMessage = apiError.response?.data?.error || apiError.message || errorMessage;
+      } else if (error instanceof Error) {
+        errorMessage = error.message || errorMessage;
+      }
+      alert(errorMessage);
     } finally {
       setLoading(false);
     }
