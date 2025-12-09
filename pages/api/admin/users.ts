@@ -16,7 +16,7 @@ async function getUsers(req: AuthRequest, res: NextApiResponse) {
     const usersList = await users.find({}, { projection: { password: 0 } }).sort({ createdAt: -1 }).toArray();
 
     res.json(usersList);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Get users error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
