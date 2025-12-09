@@ -7,6 +7,7 @@
 import type { NextApiResponse } from 'next';
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
+import { ObjectId } from 'mongodb';
 
 async function getMessages(req: AuthRequest, res: NextApiResponse) {
   try {
@@ -25,7 +26,7 @@ async function getMessages(req: AuthRequest, res: NextApiResponse) {
       .toArray();
 
     res.json(messagesList);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Get messages error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
@@ -46,7 +47,7 @@ async function sendMessage(req: AuthRequest, res: NextApiResponse) {
 
     // Get user info
     const user = await users.findOne(
-      { _id: userId },
+      { _id: new ObjectId(userId) },
       { projection: { name: 1, email: 1 } }
     );
 
@@ -66,7 +67,7 @@ async function sendMessage(req: AuthRequest, res: NextApiResponse) {
       text,
       createdAt: new Date(),
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Send message error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
