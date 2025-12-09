@@ -168,15 +168,15 @@ export default function LessonPage() {
               )}
             </div>
             
-            {user?.role === 'instructor' && showSummaryEditor ? (
-              <LessonSummaryEditor lessonId={lessonId as string} lesson={currentLesson || lesson} onSave={() => {
+            {user?.role === 'instructor' && showSummaryEditor && (currentLesson || lesson) ? (
+              <LessonSummaryEditor lessonId={lessonId as string} lesson={currentLesson || lesson!} onSave={() => {
                 setShowSummaryEditor(false);
                 // Refetch lesson data to show updated summary
                 router.replace(router.asPath);
               }} />
-            ) : (
-              <LessonSummaryView lesson={currentLesson || lesson} />
-            )}
+            ) : (currentLesson || lesson) ? (
+              <LessonSummaryView lesson={currentLesson || lesson!} />
+            ) : null}
           </div>
 
           {/* Lesson Resources */}
