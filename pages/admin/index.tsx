@@ -28,24 +28,43 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 
+interface Analytics {
+  totalCourses?: number;
+  totalLessons?: number;
+  totalStudents?: number;
+  totalEnrollments?: number;
+  [key: string]: unknown;
+}
+
+interface User {
+  _id?: string;
+  name?: string;
+  email?: string;
+  role?: string;
+  [key: string]: unknown;
+}
+
+interface NewsItem {
+  _id?: string;
+  title?: string;
+  description?: string;
+  category?: string;
+  content?: string;
+  link?: string;
+  [key: string]: unknown;
+}
+
 export default function AdminPanel() {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const router = useRouter();
   const { courses, refetch } = useCourses();
-  const [analytics, setAnalytics] = useState<any>(null);
-  const [users, setUsers] = useState<any[]>([]);
-  const [instructors, setInstructors] = useState<any[]>([]);
-  const [pendingUsers, setPendingUsers] = useState<any[]>([]);
+  const [analytics, setAnalytics] = useState<Analytics | null>(null);
+  const [users, setUsers] = useState<User[]>([]);
+  const [instructors, setInstructors] = useState<User[]>([]);
+  const [pendingUsers, setPendingUsers] = useState<User[]>([]);
   const [showNewsModal, setShowNewsModal] = useState(false);
-  const [newsItems, setNewsItems] = useState<any[]>([]);
-  const [editingNews, setEditingNews] = useState<any>(null);
-  const [newsForm, setNewsForm] = useState({
-    title: '',
-    description: '',
-    category: 'market',
-    content: '',
-    link: '',
-  });
+  const [newsItems, setNewsItems] = useState<NewsItem[]>([]);
+  const [editingNews, setEditingNews] = useState<NewsItem | null>(null);
   const [newsEditForm, setNewsEditForm] = useState({
     title: '',
     description: '',
@@ -59,7 +78,7 @@ export default function AdminPanel() {
     if (router.query.tab && typeof router.query.tab === 'string') {
       const validTabs = ['courses', 'users', 'instructors', 'analytics', 'approvals', 'certificates'];
       if (validTabs.includes(router.query.tab)) {
-        return router.query.tab as any;
+        return router.query.tab as 'courses' | 'users' | 'instructors' | 'analytics' | 'approvals' | 'certificates';
       }
     }
     return 'courses';
@@ -439,7 +458,7 @@ export default function AdminPanel() {
 
   // Check if user is admin or superadmin
   const isAdminOrSuperAdmin = user?.role === 'admin' || user?.role === 'superadmin' || user?.email === 'madudamian25@gmail.com';
-  const isSuperAdmin = user?.role === 'superadmin' || user?.email === 'madudamian25@gmail.com';
+  // const isSuperAdmin = user?.role === 'superadmin' || user?.email === 'madudamian25@gmail.com';
 
   if (authLoading || !isAuthenticated || !isAdminOrSuperAdmin) {
     return (
