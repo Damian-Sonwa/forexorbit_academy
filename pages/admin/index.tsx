@@ -27,6 +27,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
+import { formatDistanceToNow } from 'date-fns';
 
 interface Analytics {
   totalCourses?: number;
@@ -51,6 +52,12 @@ interface NewsItem {
   category?: string;
   content?: string;
   link?: string;
+  [key: string]: unknown;
+}
+
+interface ApiResponse {
+  success?: boolean;
+  message?: string;
   [key: string]: unknown;
 }
 
@@ -214,11 +221,17 @@ export default function AdminPanel() {
     }
 
     try {
-      const response = await apiClient.put(`/admin/users/${userId}`, { role: newRole });
+      const response = await apiClient.put<ApiResponse>(`/admin/users/${userId}`, { role: newRole });
       await loadUsers();
       alert(response?.message || 'User role updated successfully');
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.error || error.message || 'Failed to update user role';
+    } catch (error: unknown) {
+      let errorMessage = 'Failed to update user role';
+      if (error && typeof error === 'object' && 'response' in error) {
+        const apiError = error as { response?: { data?: { error?: string } }; message?: string };
+        errorMessage = apiError.response?.data?.error || apiError.message || errorMessage;
+      } else if (error instanceof Error) {
+        errorMessage = error.message || errorMessage;
+      }
       alert(errorMessage);
       console.error('Update user role error:', error);
       // Reload users to revert the UI change if update failed
@@ -237,7 +250,7 @@ export default function AdminPanel() {
     }
     
     try {
-      const response = await apiClient.delete(`/admin/users/${userId}`);
+      const response = await apiClient.delete<ApiResponse>(`/admin/users/${userId}`);
       await loadUsers();
       alert(response?.message || 'User deleted successfully');
     } catch (error: any) {
@@ -267,12 +280,16 @@ export default function AdminPanel() {
 
   const handleApproveUser = async (userId: string) => {
     try {
-      await apiClient.post('/admin/approvals', { userId, action: 'approve' });
+      await apiClient.post<ApiResponse>('/admin/approvals', { userId, action: 'approve' });
       await loadPendingUsers();
       await loadUsers(); // Refresh users list
       alert('User approved successfully');
-    } catch (error: any) {
-      alert(error.message || 'Failed to approve user');
+    } catch (error: unknown) {
+      let errorMessage = 'Failed to approve user';
+      if (error instanceof Error) {
+        errorMessage = error.message || errorMessage;
+      }
+      alert(errorMessage);
     }
   };
 
@@ -281,12 +298,16 @@ export default function AdminPanel() {
       return;
     }
     try {
-      await apiClient.post('/admin/approvals', { userId, action: 'reject' });
+      await apiClient.post<ApiResponse>('/admin/approvals', { userId, action: 'reject' });
       await loadPendingUsers();
       await loadUsers(); // Refresh users list
       alert('User rejected successfully');
-    } catch (error: any) {
-      alert(error.message || 'Failed to reject user');
+    } catch (error: unknown) {
+      let errorMessage = 'Failed to reject user';
+      if (error instanceof Error) {
+        errorMessage = error.message || errorMessage;
+      }
+      alert(errorMessage);
     }
   };
 
@@ -300,7 +321,7 @@ export default function AdminPanel() {
 
     setSendingCertificate(true);
     try {
-      const response = await apiClient.post('/admin/send-certificate', {
+      const response = await apiClient.post<ApiResponse>('/admin/send-certificate', {
         studentIdentifier: certificateForm.studentIdentifier.trim(),
         courseId: certificateForm.courseId,
         sendEmail: certificateForm.sendEmail,
@@ -322,7 +343,7 @@ export default function AdminPanel() {
   const handleCreateCourse = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await apiClient.post('/courses', courseForm);
+      await apiClient.post<ApiResponse>('/courses', courseForm);
       setShowCourseForm(false);
       setCourseForm({ title: '', description: '', category: '', difficulty: 'beginner', thumbnail: '' });
       refetch();
@@ -338,7 +359,7 @@ export default function AdminPanel() {
     }
     try {
       // Delete from backend
-      await apiClient.delete(`/courses/${courseId}`);
+      await apiClient.delete<ApiResponse>(`/courses/${courseId}`);
       
       // Refetch courses to update the UI - ensure it's properly awaited
       await refetch();
@@ -427,10 +448,10 @@ export default function AdminPanel() {
       };
 
       if (editingInstructor) {
-        await apiClient.put(`/instructors/${editingInstructor}`, formData);
+        await apiClient.put<ApiResponse>(`/instructors/${editingInstructor}`, formData);
         alert('Instructor updated successfully');
       } else {
-        await apiClient.post('/instructors', formData);
+        await apiClient.post<ApiResponse>('/instructors', formData);
         alert('Instructor created successfully');
       }
       setShowInstructorForm(false);
@@ -462,7 +483,7 @@ export default function AdminPanel() {
       return;
     }
     try {
-      await apiClient.delete(`/instructors/${instructorId}`);
+      await apiClient.delete<ApiResponse>(`/instructors/${instructorId}`);
       loadInstructors();
       alert('Instructor deleted successfully');
     } catch (error: any) {
@@ -1502,7 +1523,7 @@ export default function AdminPanel() {
                               e.stopPropagation();
                               if (!confirm('Are you sure you want to delete this news update?')) return;
                               try {
-                                await apiClient.delete(`/community/news/${news._id}`);
+                                await apiClient.delete<ApiResponse>(`/community/news/${news._id}`);
                                 await loadNews();
                                 setShowNewsModal(false);
                                 alert('News deleted successfully');
@@ -1573,10 +1594,10 @@ export default function AdminPanel() {
                 setSubmittingNews(true);
                 try {
                   if (editingNews._id) {
-                    await apiClient.put(`/community/news/${editingNews._id}`, newsEditForm);
+                    await apiClient.put<ApiResponse>(`/community/news/${editingNews._id}`, newsEditForm);
                     alert('News updated successfully!');
                   } else {
-                    await apiClient.post('/community/news', newsEditForm);
+                    await apiClient.post<ApiResponse>('/community/news', newsEditForm);
                     alert('News posted successfully!');
                   }
                   setEditingNews(null);
