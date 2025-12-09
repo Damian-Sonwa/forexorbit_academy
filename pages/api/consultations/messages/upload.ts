@@ -102,7 +102,7 @@ async function uploadMessageFile(req: AuthRequest, res: NextApiResponse) {
       { 
         $push: { messages: result.insertedId },
         $set: { updatedAt: new Date() }
-      }
+      } as any
     );
 
     // Emit socket event
