@@ -72,7 +72,7 @@ export default function ExpertConsultation() {
 
   const loadRequests = async () => {
     try {
-      const data = await apiClient.get('/consultations/requests');
+      const data = await apiClient.get<ConsultationRequest[]>('/consultations/requests');
       setRequests(data);
     } catch (error) {
       console.error('Failed to load requests:', error);
@@ -81,7 +81,7 @@ export default function ExpertConsultation() {
 
   const loadSessions = async () => {
     try {
-      const data = await apiClient.get('/consultations/sessions');
+      const data = await apiClient.get<ConsultationSession[]>('/consultations/sessions');
       setSessions(data);
     } catch (error) {
       console.error('Failed to load sessions:', error);
@@ -90,10 +90,10 @@ export default function ExpertConsultation() {
 
   const loadAvailability = async () => {
     try {
-      const data = await apiClient.get('/consultations/experts');
-      const currentExpert = data.find((expert: any) => expert._id === user?.id);
+      const data = await apiClient.get<Array<{ _id: string; expertAvailable?: boolean; [key: string]: unknown }>>('/consultations/experts');
+      const currentExpert = data.find((expert) => expert._id === user?.id);
       if (currentExpert) {
-        setExpertAvailable(currentExpert.expertAvailable);
+        setExpertAvailable(currentExpert.expertAvailable || false);
       }
     } catch (error) {
       console.error('Failed to load availability:', error);
@@ -103,7 +103,7 @@ export default function ExpertConsultation() {
   const handleAcceptRequest = async (requestId: string) => {
     setLoading(true);
     try {
-      const response = await apiClient.put(`/consultations/requests/${requestId}`, { action: 'accept' });
+      const response = await apiClient.put<{ sessionId?: string; [key: string]: unknown }>(`/consultations/requests/${requestId}`, { action: 'accept' });
       alert('Request accepted! Consultation session created.');
       await loadRequests();
       await loadSessions();
@@ -111,7 +111,7 @@ export default function ExpertConsultation() {
       if (response.sessionId) {
         router.push(`/consultations/chat/${response.sessionId}`);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       alert(error.response?.data?.error || error.message || 'Failed to accept request');
     } finally {
       setLoading(false);
@@ -127,8 +127,15 @@ export default function ExpertConsultation() {
       await apiClient.put(`/consultations/requests/${requestId}`, { action: 'reject' });
       alert('Request rejected');
       await loadRequests();
-    } catch (error: any) {
-      alert(error.response?.data?.error || error.message || 'Failed to reject request');
+    } catch (error: unknown) {
+      let errorMessage = 'Failed to reject request';
+      if (error && typeof error === 'object' && 'response' in error) {
+        const apiError = error as { response?: { data?: { error?: string } }; message?: string };
+        errorMessage = apiError.response?.data?.error || apiError.message || errorMessage;
+      } else if (error instanceof Error) {
+        errorMessage = error.message || errorMessage;
+      }
+      alert(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -140,8 +147,15 @@ export default function ExpertConsultation() {
       await apiClient.put('/consultations/experts', { available: !expertAvailable });
       setExpertAvailable(!expertAvailable);
       alert(`You are now ${!expertAvailable ? 'available' : 'unavailable'} for consultations`);
-    } catch (error: any) {
-      alert(error.response?.data?.error || error.message || 'Failed to update availability');
+    } catch (error: unknown) {
+      let errorMessage = 'Failed to update availability';
+      if (error && typeof error === 'object' && 'response' in error) {
+        const apiError = error as { response?: { data?: { error?: string } }; message?: string };
+        errorMessage = apiError.response?.data?.error || apiError.message || errorMessage;
+      } else if (error instanceof Error) {
+        errorMessage = error.message || errorMessage;
+      }
+      alert(errorMessage);
     } finally {
       setLoading(false);
     }
