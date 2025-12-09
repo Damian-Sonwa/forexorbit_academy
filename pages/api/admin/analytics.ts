@@ -101,7 +101,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
       enrollmentTrends,
       courseCompletion,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Get analytics error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }

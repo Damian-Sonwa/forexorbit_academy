@@ -12,13 +12,6 @@ import { ObjectId } from 'mongodb';
 const SUPER_ADMIN_EMAIL = 'madudamian25@gmail.com';
 
 /**
- * Check if user is Super Admin
- */
-function isSuperAdmin(email: string): boolean {
-  return email === SUPER_ADMIN_EMAIL;
-}
-
-/**
  * GET: Fetch pending instructor/admin registrations
  * All admins can view pending users, but only Super Admin can approve/reject
  */
@@ -52,7 +45,7 @@ async function getPendingUsers(req: AuthRequest, res: NextApiResponse) {
         createdAt: user.createdAt,
       }))
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Get pending users error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
@@ -110,7 +103,7 @@ async function handleApproval(req: AuthRequest, res: NextApiResponse) {
         status: newStatus,
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Approval action error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }

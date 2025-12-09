@@ -53,7 +53,7 @@ async function sendCertificate(req: AuthRequest, res: NextApiResponse) {
           role: 'student'
         });
       }
-    } catch (error) {
+    } catch {
       // If ObjectId conversion fails, try email
       student = await users.findOne({ 
         email: studentIdentifier,
@@ -71,7 +71,7 @@ async function sendCertificate(req: AuthRequest, res: NextApiResponse) {
     let course;
     try {
       course = await courses.findOne({ _id: new ObjectId(courseId) });
-    } catch (error) {
+    } catch {
       return res.status(400).json({ error: 'Invalid course ID format' });
     }
 
@@ -159,7 +159,7 @@ async function sendCertificate(req: AuthRequest, res: NextApiResponse) {
         },
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Send certificate error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
