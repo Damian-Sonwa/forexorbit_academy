@@ -24,7 +24,7 @@ export default function Home() {
     const loadInstructors = async () => {
       try {
         const data = await apiClient.get('/instructors');
-        setInstructors(data);
+        setInstructors(data as any[]);
       } catch (error) {
         console.error('Failed to load instructors:', error);
         // Fallback to default instructors if API fails
