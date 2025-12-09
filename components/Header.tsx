@@ -8,7 +8,7 @@ import { useRouter } from 'next/router';
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
 import { useState, useEffect, useRef } from 'react';
-import { apiClient } from '@/lib/api-client';
+// import { apiClient } from '@/lib/api-client'; // Reserved for future use
 
 export default function Header() {
   const { user, logout, isAuthenticated } = useAuth();

@@ -19,7 +19,8 @@ interface QuizProps {
   };
 }
 
-export default function Quiz({ lessonId, courseId, quiz }: QuizProps) {
+export default function Quiz({ lessonId, quiz }: QuizProps) {
+  // courseId parameter reserved for future use
   const [answers, setAnswers] = useState<number[]>([]);
   const [submitted, setSubmitted] = useState(false);
   const [results, setResults] = useState<any>(null);

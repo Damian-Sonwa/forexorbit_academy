@@ -3,7 +3,7 @@
  * Allows instructors to edit lesson summary
  */
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { apiClient } from '@/lib/api-client';
 
 interface Lesson {

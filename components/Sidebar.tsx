@@ -84,7 +84,8 @@ const ApprovalsIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-const LeaderboardIcon = ({ className }: { className?: string }) => (
+// const LeaderboardIcon = ({ className }: { className?: string }) => ( // Reserved for future use
+const LeaderboardIconUnused = ({ className }: { className?: string }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
   </svg>
@@ -114,19 +115,21 @@ const CloseIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-const ChevronDownIcon = ({ className }: { className?: string }) => (
+// const ChevronDownIcon = ({ className }: { className?: string }) => ( // Reserved for future use
+const ChevronDownIconUnused = ({ className }: { className?: string }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
   </svg>
 );
 
-export default function Sidebar({ courseId, lessons, currentLessonId }: SidebarProps) {
+export default function Sidebar({ }: SidebarProps) {
+  // courseId, lessons, currentLessonId parameters reserved for future use
   const router = useRouter();
   const { user } = useAuth();
   const [profileData, setProfileData] = useState<any>(null);
   const [isOpen, setIsOpen] = useState(false); // Mobile menu state
   const [isCollapsed, setIsCollapsed] = useState(false); // Desktop collapse state
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['main']));
+  // const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['main'])); // Reserved for future use
 
   // Role-based navigation items
   // Student navigation
@@ -219,7 +222,8 @@ export default function Sidebar({ courseId, lessons, currentLessonId }: SidebarP
     }
   };
 
-  const toggleSection = (section: string) => {
+  // const toggleSection = (section: string) => { // Reserved for future use
+  const _toggleSection = (section: string) => {
     setExpandedSections((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(section)) {

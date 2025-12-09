@@ -157,8 +157,8 @@ export default function Dashboard() {
   }
 
   const enrolledCourses = courses.filter((c) => c.enrolled);
-  const completedCourses = progress.filter((p) => p.progress >= 100);
-  const activeCourses = progress.filter((p) => p.progress > 0 && p.progress < 100);
+  // const completedCourses = progress.filter((p) => p.progress >= 100); // Reserved for future use
+  // const activeCourses = progress.filter((p) => p.progress > 0 && p.progress < 100); // Reserved for future use
   const completedModules = progress.reduce((sum, p) => sum + (p.completedLessons?.length || 0), 0);
   const recommendedCourses = courses.filter((c) => !c.enrolled).slice(0, 3);
 

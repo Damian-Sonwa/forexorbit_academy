@@ -199,7 +199,7 @@ export default function Certificates() {
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
-    } catch (error: any) {
+    } catch {
       alert('Failed to download certificate');
     }
   };
@@ -559,7 +559,7 @@ export default function Certificates() {
                           try {
                             await apiClient.delete(`/certificates/${cert._id}`);
                             await fetchCertificates();
-                          } catch (error: any) {
+                          } catch {
                             alert('Failed to delete certificate');
                           }
                         }

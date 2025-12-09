@@ -976,7 +976,7 @@ export default function Community() {
                 rooms.map((room) => {
                   const onlineCount = room.participants?.filter((p) => onlineUsers.has(p)).length || 0;
                   const isLocked = room.isLocked || false;
-                  const userRole = user?.role;
+                  // const userRole = user?.role; // Reserved for future use
                   
                   // Students can see all rooms but locked ones are disabled
                   // This ensures students can see the community page UI normally

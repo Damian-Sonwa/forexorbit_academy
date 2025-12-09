@@ -78,7 +78,7 @@ export default function Progress() {
 
     // Listen for student progress (instructor/admin)
     if (user.role === 'instructor' || user.role === 'admin') {
-      socket.on('studentProgress', (data: { userId: string; courseId: string; progress: number }) => {
+      socket.on('studentProgress', () => {
         fetchProgress(); // Refetch to get updated data
       });
     }

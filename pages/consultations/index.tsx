@@ -3,14 +3,14 @@
  * Request consultations, join live sessions, view history
  */
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
 import { useAuth } from '@/hooks/useAuth';
 import { useSocket } from '@/hooks/useSocket';
 import { apiClient } from '@/lib/api-client';
-import { format, formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow } from 'date-fns';
 
 interface Expert {
   _id: string;
@@ -50,12 +50,12 @@ interface ConsultationSession {
 export default function Consultations() {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const router = useRouter();
-  const { socket, connected } = useSocket();
+  // const { socket, connected } = useSocket(); // Reserved for future use
   const [view, setView] = useState<'request' | 'history' | 'chat'>('request');
   const [experts, setExperts] = useState<Expert[]>([]);
   const [requests, setRequests] = useState<ConsultationRequest[]>([]);
   const [sessions, setSessions] = useState<ConsultationSession[]>([]);
-  const [selectedSession, setSelectedSession] = useState<ConsultationSession | null>(null);
+  // const [selectedSession, setSelectedSession] = useState<ConsultationSession | null>(null); // Reserved for future use
   const [requestForm, setRequestForm] = useState({
     expertId: '',
     topic: '',

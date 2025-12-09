@@ -25,7 +25,7 @@ export default function LessonPage() {
   const { id: courseId, lessonId } = router.query;
   const { lesson, loading: lessonLoading } = useLesson(lessonId);
   const { lessons } = useLessons(courseId);
-  const { course } = useCourse(courseId);
+  // const { course } = useCourse(courseId); // Reserved for future use
   const { isAuthenticated } = useAuth();
   const { updateProgress, joinLesson, leaveLesson, socket, connected } = useSocket();
   const { user } = useAuth();

@@ -17,7 +17,8 @@ export default function CourseDetailPage() {
   const router = useRouter();
   const { id } = router.query;
   const { course, loading } = useCourse(id);
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated } = useAuth();
+  // const { user } = useAuth(); // Reserved for future use
   const [enrolling, setEnrolling] = useState(false);
 
   const handleEnroll = async () => {

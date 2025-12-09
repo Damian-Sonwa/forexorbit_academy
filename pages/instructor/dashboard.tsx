@@ -12,7 +12,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import Link from 'next/link';
+// import Link from 'next/link'; // Reserved for future use
 import Header from '@/components/Header';
 import { useAuth } from '@/hooks/useAuth';
 import { useSocket } from '@/hooks/useSocket';
@@ -84,7 +84,8 @@ export default function InstructorDashboard() {
   const [showNewsModal, setShowNewsModal] = useState(false);
   const [newsItems, setNewsItems] = useState<any[]>([]);
   const [editingNews, setEditingNews] = useState<any>(null);
-  const [newsForm, setNewsForm] = useState({
+  // const [newsForm, setNewsForm] = useState({ // Reserved for future use
+  const [, setNewsForm] = useState({
     title: '',
     description: '',
     category: 'market',
@@ -175,7 +176,7 @@ export default function InstructorDashboard() {
     try {
       const data = await apiClient.get('/instructor/analytics');
       setAnalytics(data);
-    } catch (error) {
+    } catch {
       setAnalytics({
         totalCourses: allCourses.length,
         totalLessons: 0,
@@ -202,7 +203,7 @@ export default function InstructorDashboard() {
     try {
       const quiz = await apiClient.get<Quiz>(`/quizzes/${lessonId}`);
       setQuizForm(quiz);
-    } catch (error: any) {
+    } catch {
       // Quiz might not exist yet
       setQuizForm({ lessonId, courseId: selectedCourse || '', questions: [] });
     }
