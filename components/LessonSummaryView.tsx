@@ -51,7 +51,7 @@ export default function LessonSummaryView({ lesson }: LessonSummaryViewProps) {
   ];
 
   // Get screenshots from lessonSummary or directly from lesson - prioritize lesson.lessonSummary.screenshots
-  const screenshots = (lesson.lessonSummary?.screenshots || summary?.screenshots || []) as Array<{ url: string; caption?: string }>;
+  const screenshots = (lesson.lessonSummary?.screenshots || (summary && 'screenshots' in summary ? summary.screenshots : undefined) || []) as Array<{ url: string; caption?: string }>;
 
   // Update summary to include combined resources and screenshots
   const enrichedSummary = summary ? {
