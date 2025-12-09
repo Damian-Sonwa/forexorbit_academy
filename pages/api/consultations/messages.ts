@@ -125,7 +125,7 @@ async function sendMessage(req: AuthRequest, res: NextApiResponse) {
       { 
         $push: { messages: result.insertedId },
         $set: { updatedAt: new Date() }
-      }
+      } as any
     );
 
     // Emit socket event to both users
