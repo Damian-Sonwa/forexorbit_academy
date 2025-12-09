@@ -325,7 +325,7 @@ export default function LessonSummaryEditor({ lessonId, lesson, onSave }: Lesson
                 {/* Image Upload Button */}
                 <div className="flex-shrink-0">
                   <input
-                    ref={(el) => (fileInputRefs.current[index] = el)}
+                    ref={(el) => { fileInputRefs.current[index] = el; }}
                     type="file"
                     accept="image/*"
                     onChange={(e) => handleFileInputChange(index, e)}
