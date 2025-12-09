@@ -34,7 +34,7 @@ export default function LessonSummaryView({ lesson }: LessonSummaryViewProps) {
 
   // Also check for resources directly on lesson object (from instructor dashboard)
   const lessonResources = (lesson as any).resources || [];
-  const summaryResources = summary?.resources || [];
+  const summaryResources = (summary && 'resources' in summary) ? (summary.resources || []) : [];
   
   // Combine resources from both locations, converting format if needed
   const allResources = [
@@ -56,8 +56,8 @@ export default function LessonSummaryView({ lesson }: LessonSummaryViewProps) {
   // Update summary to include combined resources and screenshots
   const enrichedSummary = summary ? {
     ...summary,
-    resources: allResources.length > 0 ? allResources : summary.resources,
-    screenshots: screenshots.length > 0 ? screenshots : summary.screenshots,
+    resources: allResources.length > 0 ? allResources : ('resources' in summary ? summary.resources : []),
+    screenshots: screenshots.length > 0 ? screenshots : ('screenshots' in summary ? summary.screenshots : []),
   } : null;
 
   // Check if there's any visual content (excluding overview which is now in content section and resources which are in Lesson Resources section)
