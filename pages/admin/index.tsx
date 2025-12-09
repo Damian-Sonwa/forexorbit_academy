@@ -152,11 +152,18 @@ export default function AdminPanel() {
 
   const loadAnalytics = async () => {
     try {
-      const data = await apiClient.get('/admin/analytics');
+      const data = await apiClient.get<Analytics>('/admin/analytics');
       setAnalytics(data);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to load analytics:', error);
-      console.error('Error details:', error.response?.data || error.message);
+      let errorDetails: string | undefined;
+      if (error && typeof error === 'object' && 'response' in error) {
+        const apiError = error as { response?: { data?: unknown }; message?: string };
+        errorDetails = apiError.response?.data ? String(apiError.response.data) : apiError.message;
+      } else if (error instanceof Error) {
+        errorDetails = error.message;
+      }
+      console.error('Error details:', errorDetails);
       // Set default analytics on error
       setAnalytics({
         totalUsers: 0,
@@ -174,7 +181,7 @@ export default function AdminPanel() {
 
   const loadNews = async () => {
     try {
-      const data = await apiClient.get('/community/news');
+      const data = await apiClient.get<NewsItem[]>('/community/news');
       setNewsItems(data);
     } catch (error) {
       console.error('Failed to load news:', error);
@@ -183,11 +190,18 @@ export default function AdminPanel() {
 
   const loadUsers = async () => {
     try {
-      const data = await apiClient.get('/admin/users');
+      const data = await apiClient.get<User[]>('/admin/users');
       setUsers(data || []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to load users:', error);
-      console.error('Error details:', error.response?.data || error.message);
+      let errorDetails: string | undefined;
+      if (error && typeof error === 'object' && 'response' in error) {
+        const apiError = error as { response?: { data?: unknown }; message?: string };
+        errorDetails = apiError.response?.data ? String(apiError.response.data) : apiError.message;
+      } else if (error instanceof Error) {
+        errorDetails = error.message;
+      }
+      console.error('Error details:', errorDetails);
       // Set empty array on error to prevent undefined issues
       setUsers([]);
     }
@@ -235,7 +249,7 @@ export default function AdminPanel() {
 
   const loadInstructors = async () => {
     try {
-      const data = await apiClient.get('/instructors');
+      const data = await apiClient.get<User[]>('/instructors');
       setInstructors(data);
     } catch (error) {
       console.error('Failed to load instructors:', error);
@@ -244,7 +258,7 @@ export default function AdminPanel() {
 
   const loadPendingUsers = async () => {
     try {
-      const data = await apiClient.get('/admin/approvals');
+      const data = await apiClient.get<User[]>('/admin/approvals');
       setPendingUsers(data);
     } catch (error) {
       console.error('Failed to load pending users:', error);
