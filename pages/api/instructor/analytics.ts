@@ -32,7 +32,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
       courseId: { $in: courseIds },
     }).toArray();
 
-    const uniqueStudentIds = [...new Set(enrollments.map((e) => e.userId))];
+    const uniqueStudentIds = Array.from(new Set(enrollments.map((e) => e.userId)));
     const totalStudents = uniqueStudentIds.length;
 
     res.json({
