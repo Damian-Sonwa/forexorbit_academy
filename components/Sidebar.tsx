@@ -135,7 +135,6 @@ export default function Sidebar({ courseId, lessons, currentLessonId }: SidebarP
     { href: '/courses', label: 'My Courses', icon: CoursesIcon },
     { href: '/progress', label: 'Progress', icon: ProgressIcon },
     { href: '/certificates', label: 'Certificates', icon: CertificatesIcon },
-    { href: '/leaderboard', label: 'Leaderboard', icon: LeaderboardIcon },
     { href: '/community', label: 'Community', icon: CommunityIcon },
     { href: '/consultations', label: 'Expert Consultation', icon: ConsultationIcon },
     { href: '/profile', label: 'Profile', icon: ProfileIcon },
