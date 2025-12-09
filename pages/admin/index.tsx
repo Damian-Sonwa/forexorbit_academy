@@ -34,6 +34,21 @@ interface Analytics {
   totalLessons?: number;
   totalStudents?: number;
   totalEnrollments?: number;
+  totalUsers?: number;
+  activeUsers?: number;
+  recentMessages?: number;
+  usersByRole?: {
+    student?: number;
+    instructor?: number;
+    admin?: number;
+  };
+  coursesByDifficulty?: {
+    beginner?: number;
+    intermediate?: number;
+    advanced?: number;
+  };
+  enrollmentTrends?: Array<{ day: string; enrollments: number }>;
+  courseCompletion?: Array<{ course: string; enrolled: number; completed: number }>;
   [key: string]: unknown;
 }
 
@@ -754,7 +769,12 @@ export default function AdminPanel() {
                         Manage
                       </Link>
                       <button
-                        onClick={() => handleDeleteCourse(course._id || course.id)}
+                        onClick={() => {
+                          const courseId = course._id || course.id;
+                          if (courseId) {
+                            handleDeleteCourse(courseId);
+                          }
+                        }}
                         className="px-4 py-2 bg-red-100 text-red-700 hover:bg-red-200 rounded-lg text-sm font-semibold transition-colors"
                       >
                         Delete
@@ -1425,7 +1445,7 @@ export default function AdminPanel() {
                   <button
                     onClick={() => {
                       setShowNewsModal(false);
-                      setEditingNews({ _id: null });
+                      setEditingNews(null);
                       setNewsEditForm({ title: '', description: '', category: 'market', content: '', link: '' });
                     }}
                     className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-sm transition-colors flex items-center space-x-2"
@@ -1471,7 +1491,7 @@ export default function AdminPanel() {
                           {news.category}
                         </span>
                         <span className="text-xs text-gray-500 dark:text-gray-400">
-                          {formatDistanceToNow(new Date(news.createdAt), { addSuffix: true })}
+                          {news.createdAt ? formatDistanceToNow(new Date(news.createdAt as string | number | Date), { addSuffix: true }) : 'Unknown date'}
                         </span>
                       </div>
                       <h3 className="font-semibold text-gray-900 dark:text-white text-sm mb-2">{news.title}</h3>
@@ -1501,9 +1521,9 @@ export default function AdminPanel() {
                               setTimeout(() => {
                                 setEditingNews(news);
                                 setNewsEditForm({
-                                  title: news.title,
-                                  description: news.description,
-                                  category: news.category,
+                                  title: news.title || '',
+                                  description: news.description || '',
+                                  category: news.category || 'market',
                                   content: news.content || '',
                                   link: news.link || '',
                                 });
