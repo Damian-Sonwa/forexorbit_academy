@@ -51,7 +51,7 @@ async function getProgress(req: AuthRequest, res: NextApiResponse) {
         if (!course && courseIdStr) {
           // Try to find by converting all courses and matching
           const allCourses = await courses.find({}).toArray();
-          course = allCourses.find((c) => c._id.toString() === courseIdStr);
+          course = allCourses.find((c) => c._id.toString() === courseIdStr) || null;
         }
         
         // Log if course is still not found for debugging
