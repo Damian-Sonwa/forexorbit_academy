@@ -90,12 +90,12 @@ async function addReaction(req: AuthRequest, res: NextApiResponse) {
         {
           $push: {
             reactions: {
-              emoji,
+              emoji: emoji as string,
               userId: req.user!.userId,
-              userName: user?.name || 'Unknown',
+              userName: (user?.name as string) || 'Unknown',
             },
           },
-        }
+        } as any
       );
     }
 
