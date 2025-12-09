@@ -10,6 +10,7 @@ import { format } from 'date-fns';
 
 interface Message {
   id: string;
+  lessonId?: string;
   senderName: string;
   text: string;
   createdAt: Date | string;
