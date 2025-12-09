@@ -67,19 +67,19 @@ export default function CourseDetailPage() {
     <div className="min-h-screen flex flex-col">
       <Header />
 
-      <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 md:py-8">
         {/* Back Button */}
-        <div className="mb-6">
+        <div className="mb-4 sm:mb-6">
           <BackButton href="/courses" />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 md:gap-8">
           {/* Main Content */}
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 mb-6">
-              <div className="flex items-start justify-between mb-6">
+            <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 md:p-8 mb-4 sm:mb-6">
+              <div className="flex items-start justify-between mb-4 sm:mb-6">
                 <div className="flex-1">
-                  <h1 className="text-4xl font-display font-bold text-gray-900 mb-3">{course.title}</h1>
+                  <h1 className="text-2xl sm:text-3xl md:text-4xl font-display font-bold text-gray-900 mb-3 break-words">{course.title}</h1>
                   <div className="flex items-center gap-3 mb-4">
                     <span className={`px-4 py-1.5 rounded-full text-sm font-semibold ${difficultyColors[course.difficulty]}`}>
                       {course.difficulty}
@@ -110,8 +110,8 @@ export default function CourseDetailPage() {
             </div>
 
             {/* Lessons */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">Course Lessons</h2>
+            <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 md:p-8">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">Course Lessons</h2>
               {course.lessons && course.lessons.length > 0 ? (
                 <div className="space-y-3">
                   {course.lessons.map((lesson: any, index: number) => (
@@ -147,7 +147,7 @@ export default function CourseDetailPage() {
 
           {/* Sidebar */}
           <div>
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sticky top-24">
+            <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 sticky top-20 sm:top-24">
               <div className="space-y-6">
                 <div>
                   <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Category</span>

@@ -37,9 +37,9 @@ export default function Login() {
     <div className="min-h-screen flex flex-col">
       <Header />
 
-      <main className="flex-1 flex items-center justify-center bg-[#00273F] py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+      <main className="flex-1 flex items-center justify-center bg-[#00273F] py-8 sm:py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
         {/* Subtle background decoration */}
-        <div className="absolute top-0 right-0 w-64 h-64 opacity-10">
+        <div className="absolute top-0 right-0 w-48 h-48 sm:w-64 sm:h-64 opacity-10">
           <svg viewBox="0 0 200 200" className="w-full h-full">
             <path d="M50,50 Q100,0 150,50 T250,50" stroke="#ffffff" strokeWidth="2" fill="none" />
             <path d="M30,100 Q100,50 170,100 T310,100" stroke="#ffffff" strokeWidth="2" fill="none" />
@@ -48,10 +48,10 @@ export default function Login() {
         </div>
 
         <div className="max-w-md w-full relative z-10 animate-fade-in">
-          <div className="bg-[#003153] rounded-2xl shadow-2xl p-8 border border-[#001a2e]">
-            <div className="text-center mb-8">
-              <h2 className="text-white font-bold text-3xl mb-4">Sign In</h2>
-              <p className="text-gray-300">Welcome back to ForexOrbit Academy</p>
+          <div className="bg-[#003153] rounded-xl sm:rounded-2xl shadow-2xl p-6 sm:p-8 border border-[#001a2e]">
+            <div className="text-center mb-6 sm:mb-8">
+              <h2 className="text-white font-bold text-2xl sm:text-3xl mb-3 sm:mb-4">Sign In</h2>
+              <p className="text-sm sm:text-base text-gray-300">Welcome back to ForexOrbit Academy</p>
             </div>
 
             {error && (

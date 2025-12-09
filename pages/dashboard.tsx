@@ -169,15 +169,15 @@ export default function Dashboard() {
       <div className="flex flex-1 relative overflow-hidden lg:items-start">
         <Sidebar />
 
-        <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:ml-0 pt-14 lg:pt-6 bg-white lg:bg-gray-50 overflow-y-auto w-full">
+        <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:ml-0 pt-14 lg:pt-6 bg-white lg:bg-gray-50 overflow-y-auto w-full">
           {/* Welcome Section */}
-          <div className="mb-6 bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="mb-4 sm:mb-6 bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
               <div className="flex-1">
-                <h1 className="text-3xl sm:text-4xl font-display font-bold text-gray-900 mb-2">
+                <h1 className="text-2xl sm:text-3xl md:text-4xl font-display font-bold text-gray-900 mb-2">
                   Welcome back, {user?.name?.split(' ')[0] || 'Student'}!
                 </h1>
-                <p className="text-gray-600">Continue your learning journey</p>
+                <p className="text-sm sm:text-base text-gray-600">Continue your learning journey</p>
                 {user?.learningLevel && (
                   <div className="mt-3 flex items-center space-x-2">
                     <span className="text-sm text-gray-500">Current Level:</span>
@@ -189,7 +189,7 @@ export default function Dashboard() {
               </div>
               <Link
                 href="/onboarding"
-                className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-semibold transition-colors text-sm shadow-md hover:shadow-lg whitespace-nowrap flex-shrink-0"
+                className="w-full sm:w-auto px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-semibold transition-colors text-sm shadow-md hover:shadow-lg whitespace-nowrap flex-shrink-0 text-center"
               >
                 Edit Profile
               </Link>
@@ -197,14 +197,14 @@ export default function Dashboard() {
           </div>
 
           {/* Course Benefits Card */}
-          <div className="mb-6 bg-white rounded-xl shadow-lg border-l-4 border-blue-700 p-6 hover:shadow-xl transition-shadow">
+          <div className="mb-4 sm:mb-6 bg-white rounded-xl shadow-lg border-l-4 border-blue-700 p-4 sm:p-6 hover:shadow-xl transition-shadow">
             <div className="flex items-start justify-between">
               <div className="flex-1">
-                <h2 className="text-2xl sm:text-3xl font-bold mb-4 flex items-center text-gray-900">
-                  <span className="mr-3 text-3xl sm:text-4xl">📈</span>
-                  Forex Training – What You Will Gain
+                <h2 className="text-xl sm:text-2xl md:text-3xl font-bold mb-3 sm:mb-4 flex items-center text-gray-900">
+                  <span className="mr-2 sm:mr-3 text-2xl sm:text-3xl md:text-4xl">📈</span>
+                  <span className="break-words">Forex Training – What You Will Gain</span>
                 </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mt-4 sm:mt-6">
                   <div className="flex items-start space-x-3">
                     <span className="text-2xl">💹</span>
                     <div>
@@ -239,9 +239,9 @@ export default function Dashboard() {
           </div>
 
           {/* Overview Section */}
-          <div className="mb-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Overview</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+          <div className="mb-4 sm:mb-6">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">Overview</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
               {/* Enrolled Courses Card */}
               <div className="bg-white rounded-xl shadow-md border border-gray-100 p-6 hover:shadow-lg transition-shadow flex flex-col h-full">
                 <div className="flex items-center justify-between mb-4">
@@ -278,15 +278,15 @@ export default function Dashboard() {
           </div>
 
           {/* My Enrolled Courses */}
-          <div className="mb-6 bg-white rounded-xl shadow-md border border-gray-100 p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-gray-900">My Enrolled Courses</h2>
+          <div className="mb-4 sm:mb-6 bg-white rounded-xl shadow-md border border-gray-100 p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 sm:mb-6 gap-2">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900">My Enrolled Courses</h2>
               <Link href="/courses" className="text-primary-600 hover:text-primary-700 font-medium text-sm">
                 Browse All →
               </Link>
             </div>
             {enrolledCourses.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                 {enrolledCourses.map((course) => (
                   <CourseCard key={course._id || course.id} course={course} />
                 ))}
@@ -302,8 +302,8 @@ export default function Dashboard() {
           </div>
 
           {/* Upcoming Classes */}
-          <div className="mb-6 bg-white rounded-xl shadow-md border border-gray-100 p-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Upcoming Classes</h2>
+          <div className="mb-4 sm:mb-6 bg-white rounded-xl shadow-md border border-gray-100 p-4 sm:p-6">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">Upcoming Classes</h2>
             <div className="space-y-4">
               {upcomingLessons.length > 0 ? (
                 upcomingLessons.map((lesson, index) => (
@@ -341,15 +341,15 @@ export default function Dashboard() {
           </div>
 
           {/* Course Recommendations */}
-          <div className="mb-6 bg-white rounded-xl shadow-md border border-gray-100 p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-gray-900">Course Recommendations</h2>
+          <div className="mb-4 sm:mb-6 bg-white rounded-xl shadow-md border border-gray-100 p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 sm:mb-6 gap-2">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Course Recommendations</h2>
               <Link href="/courses" className="text-primary-600 hover:text-primary-700 font-medium text-sm">
                 View All →
               </Link>
             </div>
             {recommendedCourses.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                 {recommendedCourses.map((course) => (
                   <div key={course._id || course.id} className="bg-gray-50 rounded-xl p-6 border border-gray-200 hover:shadow-lg transition-shadow flex flex-col h-full">
                     <h3 className="font-bold text-gray-900 mb-2">{course.title}</h3>
@@ -369,9 +369,9 @@ export default function Dashboard() {
           </div>
 
           {/* Leaderboard */}
-          <div className="mb-6 bg-white rounded-xl shadow-md border border-gray-100 p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-gray-900">Leaderboard</h2>
+          <div className="mb-4 sm:mb-6 bg-white rounded-xl shadow-md border border-gray-100 p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 sm:mb-6 gap-2">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Leaderboard</h2>
               <Link href="/leaderboard" className="text-primary-600 hover:text-primary-700 font-medium text-sm">
                 View Full →
               </Link>
@@ -417,8 +417,8 @@ export default function Dashboard() {
 
           {/* Progress Overview */}
           {progress.length > 0 && (
-            <div className="bg-white rounded-xl shadow-md border border-gray-100 p-6">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">Progress Overview</h2>
+            <div className="bg-white rounded-xl shadow-md border border-gray-100 p-4 sm:p-6">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">Progress Overview</h2>
               <div className="space-y-6">
                 {progress.map((p) => (
                   <div key={p._id || p.courseId} className="border-b border-gray-100 last:border-0 pb-6 last:pb-0">

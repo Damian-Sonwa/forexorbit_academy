@@ -262,10 +262,10 @@ export default function Sidebar({ courseId, lessons, currentLessonId }: SidebarP
       {/* Mobile Hamburger Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="lg:hidden fixed top-[3.5rem] left-4 z-50 p-2 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+        className="lg:hidden fixed top-[3.5rem] left-2 sm:left-4 z-50 p-2 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
         aria-label="Toggle sidebar"
       >
-        {isOpen ? <CloseIcon className="w-6 h-6" /> : <MenuIcon className="w-6 h-6" />}
+        {isOpen ? <CloseIcon className="w-5 h-5 sm:w-6 sm:h-6" /> : <MenuIcon className="w-5 h-5 sm:w-6 sm:h-6" />}
       </button>
 
       {/* Mobile Overlay */}
@@ -281,7 +281,7 @@ export default function Sidebar({ courseId, lessons, currentLessonId }: SidebarP
         className={`
           fixed lg:sticky top-0 left-0 z-40
           h-screen lg:h-auto lg:self-start
-          w-72 lg:w-72
+          w-64 sm:w-72 lg:w-72
           ${user?.role === 'student' ? 'bg-blue-700' : 'bg-white dark:bg-gray-800'}
           shadow-xl lg:shadow-md
           ${user?.role === 'student' ? 'border-r border-blue-600' : 'border-r border-gray-200 dark:border-gray-700'}
@@ -294,7 +294,7 @@ export default function Sidebar({ courseId, lessons, currentLessonId }: SidebarP
         `}
       >
         {/* Sidebar Header */}
-        <div className={`p-4 lg:p-6 ${user?.role === 'student' ? 'border-b border-blue-600' : 'border-b border-gray-200 dark:border-gray-700'} flex-shrink-0`}>
+        <div className={`p-3 sm:p-4 lg:p-6 ${user?.role === 'student' ? 'border-b border-blue-600' : 'border-b border-gray-200 dark:border-gray-700'} flex-shrink-0`}>
           {/* Collapse Toggle (Desktop only) */}
           <div className="hidden lg:flex justify-end mb-4">
             <button
@@ -317,10 +317,10 @@ export default function Sidebar({ courseId, lessons, currentLessonId }: SidebarP
           {user && (
             <Link
               href="/profile"
-              className={`flex items-center space-x-3 p-3 rounded-xl transition-all group ${user?.role === 'student' ? 'hover:bg-blue-600' : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'}`}
+              className={`flex items-center space-x-2 sm:space-x-3 p-2 sm:p-3 rounded-xl transition-all group ${user?.role === 'student' ? 'hover:bg-blue-600' : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'}`}
             >
               <div className="relative flex-shrink-0">
-                <div className={`w-12 h-12 rounded-full overflow-hidden bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center ring-2 ${user?.role === 'student' ? 'ring-blue-500 group-hover:ring-blue-400' : 'ring-primary-200 dark:ring-primary-800 group-hover:ring-primary-400'} transition-all shadow-md`}>
+                <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full overflow-hidden bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center ring-2 ${user?.role === 'student' ? 'ring-blue-500 group-hover:ring-blue-400' : 'ring-primary-200 dark:ring-primary-800 group-hover:ring-primary-400'} transition-all shadow-md`}>
                   {profilePhoto ? (
                     <img
                       src={profilePhoto}
@@ -328,16 +328,16 @@ export default function Sidebar({ courseId, lessons, currentLessonId }: SidebarP
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <span className="text-white text-lg font-bold">
+                    <span className="text-white text-base sm:text-lg font-bold">
                       {displayName.charAt(0).toUpperCase()}
                     </span>
                   )}
                 </div>
-                <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white dark:border-gray-800 shadow-sm"></div>
+                <div className="absolute bottom-0 right-0 w-2.5 h-2.5 sm:w-3 sm:h-3 bg-green-500 rounded-full border-2 border-white dark:border-gray-800 shadow-sm"></div>
               </div>
               {!isCollapsed && (
                 <div className="flex-1 min-w-0">
-                  <p className={`text-sm font-semibold truncate ${user?.role === 'student' ? 'text-white' : 'text-gray-900 dark:text-white'}`}>
+                  <p className={`text-xs sm:text-sm font-semibold truncate ${user?.role === 'student' ? 'text-white' : 'text-gray-900 dark:text-white'}`}>
                     {displayName}
                   </p>
                   <p className={`text-xs truncate ${user?.role === 'student' ? 'text-blue-100' : 'text-gray-500 dark:text-gray-400'}`}>
@@ -355,7 +355,7 @@ export default function Sidebar({ courseId, lessons, currentLessonId }: SidebarP
         </div>
 
         {/* Navigation */}
-        <nav className={`p-4 lg:p-6 ${user?.role === 'student' ? 'space-y-3' : 'space-y-2'}`}>
+        <nav className={`p-3 sm:p-4 lg:p-6 ${user?.role === 'student' ? 'space-y-2 sm:space-y-3' : 'space-y-2'}`}>
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = isActiveRoute(item.href, (item as any).tab);
@@ -425,7 +425,7 @@ export default function Sidebar({ courseId, lessons, currentLessonId }: SidebarP
 
         {/* Footer (optional) */}
         {!isCollapsed && (
-          <div className={`p-4 lg:p-6 ${user?.role === 'student' ? 'border-t border-blue-600' : 'border-t border-gray-200 dark:border-gray-700'} flex-shrink-0`}>
+          <div className={`p-3 sm:p-4 lg:p-6 ${user?.role === 'student' ? 'border-t border-blue-600' : 'border-t border-gray-200 dark:border-gray-700'} flex-shrink-0`}>
             <p className={`text-xs text-center ${user?.role === 'student' ? 'text-blue-100' : 'text-gray-500 dark:text-gray-400'}`}>
               ForexOrbit Academy
             </p>

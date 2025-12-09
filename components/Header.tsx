@@ -89,12 +89,12 @@ export default function Header() {
         <div className="flex justify-between items-center h-14 py-2">
           {/* Logo */}
           <Link href="/" className="flex items-center space-x-2 group">
-            <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-lg flex items-center justify-center shadow-md group-hover:shadow-lg transition-shadow">
-              <span className="text-white font-bold text-base">FA</span>
+            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-lg flex items-center justify-center shadow-md group-hover:shadow-lg transition-shadow">
+              <span className="text-white font-bold text-sm sm:text-base">FA</span>
             </div>
-            <span className="text-xl font-display font-bold">
+            <span className="text-lg sm:text-xl font-display font-bold">
               <span className="bg-gradient-to-r from-primary-400 to-secondary-400 bg-clip-text text-transparent">ForexOrbit</span>
-              <span className="text-white ml-1">Academy</span>
+              <span className="text-white ml-1 hidden sm:inline">Academy</span>
             </span>
           </Link>
 
@@ -252,17 +252,17 @@ export default function Header() {
                   onClick={() => setMenuOpen(!menuOpen)}
                   className="flex items-center space-x-2 px-2 py-1 rounded-lg transition-colors hover:bg-gray-800/50"
                 >
-                  <div className="w-9 h-9 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-md">
+                  <div className="w-8 h-8 sm:w-9 sm:h-9 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-full flex items-center justify-center text-white font-bold text-xs sm:text-sm shadow-md">
                     {user?.name?.charAt(0).toUpperCase()}
                   </div>
-                  <span className="hidden md:block text-gray-300">{user?.name}</span>
-                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <span className="hidden lg:block text-gray-300 text-sm">{user?.name}</span>
+                  <svg className="w-4 h-4 text-gray-400 hidden sm:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
                 </button>
 
                 {menuOpen && (
-                  <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 py-2 overflow-hidden">
+                  <div className="absolute right-0 mt-2 w-48 sm:w-56 bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 py-2 overflow-hidden z-50">
                     <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
                       <p className="text-sm font-bold text-gray-900 dark:text-white">{user?.name}</p>
                       <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{user?.email}</p>
@@ -291,10 +291,10 @@ export default function Header() {
               </div>
             ) : (
               <div className="flex items-center space-x-2">
-                <Link href="/login" className="btn btn-outline">
+                <Link href="/login" className="px-3 sm:px-4 py-1.5 sm:py-2 text-sm sm:text-base text-gray-300 hover:text-white border border-gray-600 hover:border-gray-500 rounded-lg transition-colors">
                   Login
                 </Link>
-                <Link href="/signup" className="btn btn-primary">
+                <Link href="/signup" className="px-3 sm:px-4 py-1.5 sm:py-2 text-sm sm:text-base bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-colors">
                   Sign Up
                 </Link>
               </div>

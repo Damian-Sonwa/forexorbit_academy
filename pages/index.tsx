@@ -86,7 +86,7 @@ export default function Home() {
 
       <main className="flex-1">
         {/* Hero Section with Flipping Slideshow */}
-        <section className="relative h-[600px] md:h-[700px] overflow-hidden">
+        <section className="relative h-[500px] sm:h-[600px] md:h-[700px] overflow-hidden">
           {/* Slideshow Background Images */}
           <div className="absolute inset-0">
             {/* Slide 1: Forex Market Trading */}
@@ -99,8 +99,8 @@ export default function Home() {
               <div className="absolute inset-0 bg-gradient-to-br from-[#1E88E5]/80 via-[#1565C0]/80 to-prussian/80" />
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <div className="text-center text-white px-4">
-                  <p className="text-2xl md:text-3xl font-bold drop-shadow-2xl">Forex Market Analysis</p>
-                  <p className="text-sm md:text-base mt-2 text-white/90 drop-shadow-lg">Real-time trading insights and market trends</p>
+                  <p className="text-xl sm:text-2xl md:text-3xl font-bold drop-shadow-2xl">Forex Market Analysis</p>
+                  <p className="text-xs sm:text-sm md:text-base mt-2 text-white/90 drop-shadow-lg">Real-time trading insights and market trends</p>
                 </div>
               </div>
             </div>
@@ -114,8 +114,8 @@ export default function Home() {
               <div className="absolute inset-0 bg-gradient-to-br from-[#00897B]/80 via-[#00695C]/80 to-prussian/80" />
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <div className="text-center text-white px-4">
-                  <p className="text-2xl md:text-3xl font-bold drop-shadow-2xl">Students Learning Forex</p>
-                  <p className="text-sm md:text-base mt-2 text-white/90 drop-shadow-lg">Interactive courses designed for all skill levels</p>
+                  <p className="text-xl sm:text-2xl md:text-3xl font-bold drop-shadow-2xl">Students Learning Forex</p>
+                  <p className="text-xs sm:text-sm md:text-base mt-2 text-white/90 drop-shadow-lg">Interactive courses designed for all skill levels</p>
                 </div>
               </div>
             </div>
@@ -129,8 +129,8 @@ export default function Home() {
               <div className="absolute inset-0 bg-gradient-to-br from-[#283593]/80 via-[#1A237E]/80 to-prussian/80" />
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <div className="text-center text-white px-4">
-                  <p className="text-2xl md:text-3xl font-bold drop-shadow-2xl">Forex Charts & Graphs</p>
-                  <p className="text-sm md:text-base mt-2 text-white/90 drop-shadow-lg">Advanced technical analysis and data visualization</p>
+                  <p className="text-xl sm:text-2xl md:text-3xl font-bold drop-shadow-2xl">Forex Charts & Graphs</p>
+                  <p className="text-xs sm:text-sm md:text-base mt-2 text-white/90 drop-shadow-lg">Advanced technical analysis and data visualization</p>
                 </div>
               </div>
             </div>
@@ -139,26 +139,26 @@ export default function Home() {
           {/* Overlay Content */}
           <div className="relative z-10 h-full flex items-center justify-center">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-              <div className="bg-black/50 backdrop-blur-sm rounded-3xl p-8 md:p-12 border border-white/20">
-                <h1 className="text-5xl md:text-7xl font-display font-bold mb-6 leading-tight drop-shadow-2xl">
+              <div className="bg-black/50 backdrop-blur-sm rounded-2xl sm:rounded-3xl p-6 sm:p-8 md:p-12 border border-white/20">
+                <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-display font-bold mb-4 sm:mb-6 leading-tight drop-shadow-2xl">
                   <span className="bg-gradient-to-r from-primary-400 via-primary-300 to-secondary-400 bg-clip-text text-transparent">
                     ForexOrbit
                   </span>
-                  <span className="text-white ml-3">Academy</span>
+                  <span className="text-white ml-2 sm:ml-3">Academy</span>
                 </h1>
-                <p className="text-xl md:text-3xl mb-10 text-white/90 max-w-3xl mx-auto leading-relaxed font-medium drop-shadow-lg">
+                <p className="text-base sm:text-lg md:text-xl lg:text-3xl mb-6 sm:mb-8 md:mb-10 text-white/90 max-w-3xl mx-auto leading-relaxed font-medium drop-shadow-lg px-2">
                   Master Forex Trading with Expert Instructors and Real-Time Market Signals
                 </p>
-                <div className="flex flex-col sm:flex-row justify-center items-center gap-4">
+                <div className="flex flex-col sm:flex-row justify-center items-center gap-3 sm:gap-4">
                   <Link 
                     href="/signup" 
-                    className="px-10 py-4 bg-prussian hover:bg-prussian-dark text-white rounded-xl font-bold text-lg shadow-2xl hover:shadow-3xl transition-all transform hover:scale-105"
+                    className="w-full sm:w-auto px-6 sm:px-8 md:px-10 py-3 sm:py-3 md:py-4 bg-prussian hover:bg-prussian-dark text-white rounded-xl font-bold text-base sm:text-lg shadow-2xl hover:shadow-3xl transition-all transform hover:scale-105 text-center"
                   >
                     Start Learning Free
                   </Link>
                   <Link 
                     href="/courses" 
-                    className="px-10 py-4 border-2 border-white text-white hover:bg-white/10 rounded-xl font-bold text-lg transition-all backdrop-blur-sm"
+                    className="w-full sm:w-auto px-6 sm:px-8 md:px-10 py-3 sm:py-3 md:py-4 border-2 border-white text-white hover:bg-white/10 rounded-xl font-bold text-base sm:text-lg transition-all backdrop-blur-sm text-center"
                   >
                     Watch Demo
                   </Link>
@@ -169,50 +169,50 @@ export default function Home() {
         </section>
 
         {/* Stats Section */}
-        <section className="bg-gradient-to-br from-gray-50 to-gray-100 py-16">
+        <section className="bg-gradient-to-br from-gray-50 to-gray-100 py-12 sm:py-16">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 className="text-3xl md:text-4xl font-display font-bold text-center text-gray-900 mb-12">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-display font-bold text-center text-gray-900 mb-8 sm:mb-12">
               Stats Overview
             </h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-              <div className="bg-white rounded-xl p-6 text-center shadow-md border border-gray-200 flex flex-col items-center justify-center h-full">
-                <div className="text-4xl md:text-5xl font-bold text-[#1E88E5] mb-2 count-animate">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
+              <div className="bg-white rounded-xl p-4 sm:p-6 text-center shadow-md border border-gray-200 flex flex-col items-center justify-center h-full">
+                <div className="text-3xl sm:text-4xl md:text-5xl font-bold text-[#1E88E5] mb-2 count-animate">
                   {stats.users.toLocaleString()}+
                 </div>
-                <div className="text-sm md:text-base font-semibold text-gray-700">Active Users</div>
+                <div className="text-xs sm:text-sm md:text-base font-semibold text-gray-700">Active Users</div>
               </div>
-              <div className="bg-white rounded-xl p-6 text-center shadow-md border border-gray-200 flex flex-col items-center justify-center h-full">
-                <div className="text-4xl md:text-5xl font-bold text-[#00897B] mb-2 count-animate">
+              <div className="bg-white rounded-xl p-4 sm:p-6 text-center shadow-md border border-gray-200 flex flex-col items-center justify-center h-full">
+                <div className="text-3xl sm:text-4xl md:text-5xl font-bold text-[#00897B] mb-2 count-animate">
                   {stats.courses}+
                 </div>
-                <div className="text-sm md:text-base font-semibold text-gray-700">Expert Courses</div>
+                <div className="text-xs sm:text-sm md:text-base font-semibold text-gray-700">Expert Courses</div>
               </div>
-              <div className="bg-white rounded-xl p-6 text-center shadow-md border border-gray-200 flex flex-col items-center justify-center h-full">
-                <div className="text-4xl md:text-5xl font-bold text-[#283593] mb-2 count-animate">
+              <div className="bg-white rounded-xl p-4 sm:p-6 text-center shadow-md border border-gray-200 flex flex-col items-center justify-center h-full">
+                <div className="text-3xl sm:text-4xl md:text-5xl font-bold text-[#283593] mb-2 count-animate">
                   {stats.success}%
                 </div>
-                <div className="text-sm md:text-base font-semibold text-gray-700">Success Rate</div>
+                <div className="text-xs sm:text-sm md:text-base font-semibold text-gray-700">Success Rate</div>
               </div>
-              <div className="bg-white rounded-xl p-6 text-center shadow-md border border-gray-200 flex flex-col items-center justify-center h-full">
-                <div className="text-4xl md:text-5xl font-bold text-prussian mb-2 count-animate">
+              <div className="bg-white rounded-xl p-4 sm:p-6 text-center shadow-md border border-gray-200 flex flex-col items-center justify-center h-full">
+                <div className="text-3xl sm:text-4xl md:text-5xl font-bold text-prussian mb-2 count-animate">
                   {stats.time}/7
                 </div>
-                <div className="text-sm md:text-base font-semibold text-gray-700">Activated Time</div>
+                <div className="text-xs sm:text-sm md:text-base font-semibold text-gray-700">Activated Time</div>
               </div>
             </div>
           </div>
         </section>
 
         {/* Why Choose Us Section */}
-        <section className="py-20 bg-white">
+        <section className="py-12 sm:py-16 md:py-20 bg-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 className="text-4xl md:text-5xl font-display font-bold text-center text-gray-900 mb-4">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-display font-bold text-center text-gray-900 mb-4">
               Why Choose Us
             </h2>
-            <p className="text-xl text-gray-600 text-center mb-12 max-w-2xl mx-auto">
+            <p className="text-base sm:text-lg md:text-xl text-gray-600 text-center mb-8 sm:mb-12 max-w-2xl mx-auto px-4">
               Comprehensive Forex education designed for all skill levels
             </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {/* Card 1: Beginner to Advanced */}
               <div className="bg-gradient-to-br from-[#E8F2FB] to-white rounded-xl p-6 shadow-md border-2 border-[#1E88E5]/20 hover:shadow-lg transition-all flex flex-col h-full">
                 <div className="w-16 h-16 bg-[#1E88E5] rounded-xl flex items-center justify-center mb-4 overflow-hidden flex-shrink-0">
@@ -307,12 +307,12 @@ export default function Home() {
         </section>
 
         {/* Instructor Section */}
-        <section className="py-20 bg-gradient-to-br from-gray-50 to-gray-100">
+        <section className="py-12 sm:py-16 md:py-20 bg-gradient-to-br from-gray-50 to-gray-100">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 className="text-4xl md:text-5xl font-display font-bold text-center text-gray-900 mb-4">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-display font-bold text-center text-gray-900 mb-4">
               Learn from the Best
             </h2>
-            <p className="text-xl text-gray-600 text-center mb-12 max-w-2xl mx-auto">
+            <p className="text-base sm:text-lg md:text-xl text-gray-600 text-center mb-8 sm:mb-12 max-w-2xl mx-auto px-4">
               Our expert instructors bring years of real-world trading experience to help you succeed
             </p>
             {instructors.length === 0 ? (
@@ -320,7 +320,7 @@ export default function Home() {
                 <p className="text-gray-500">No instructors available yet.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                 {instructors.map((instructor: any, index: number) => {
                   const colors = [
                     { from: '#1E88E5', to: '#1565C0', text: '#1E88E5' },
@@ -376,24 +376,24 @@ export default function Home() {
           </div>
 
           {/* Filters */}
-          <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 mb-8">
-            <div className="flex flex-col md:flex-row gap-4">
+          <div className="bg-white rounded-xl shadow-md border border-gray-200 p-4 sm:p-6 mb-6 sm:mb-8">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
               <div className="flex-1 relative">
                 <input
                   type="text"
                   placeholder="Search courses..."
                   value={filters.search}
                   onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-2 sm:py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm sm:text-base"
                 />
-                <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
               </div>
               <select
                 value={filters.category}
                 onChange={(e) => setFilters({ ...filters, category: e.target.value })}
-                className="px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white"
+                className="px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white text-sm sm:text-base"
               >
                 <option value="">All Categories</option>
                 <option value="basics">Basics</option>
@@ -404,7 +404,7 @@ export default function Home() {
               <select
                 value={filters.difficulty}
                 onChange={(e) => setFilters({ ...filters, difficulty: e.target.value })}
-                className="px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white"
+                className="px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white text-sm sm:text-base"
               >
                 <option value="">All Levels</option>
                 <option value="beginner">Beginner</option>
@@ -427,7 +427,7 @@ export default function Home() {
               <p className="text-gray-400 text-sm">Try adjusting your filters</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {courses.map((course) => (
                 <CourseCard
                   key={course._id || course.id}

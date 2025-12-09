@@ -110,26 +110,26 @@ export default function LessonPage() {
           currentLessonId={lessonId as string}
         />
 
-        <main className="flex-1 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pt-20 lg:pt-8">
+        <main className="flex-1 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 md:py-8 pt-20 lg:pt-8">
           {/* Lesson Header */}
-          <div className="mb-8">
-            <div className="mb-4">
+          <div className="mb-4 sm:mb-6 md:mb-8">
+            <div className="mb-3 sm:mb-4">
               <BackButton href={`/courses/${courseId}`} label="Back to Course" />
             </div>
-            <h1 className="text-3xl md:text-4xl font-display font-bold text-gray-900 mb-3">{displayLesson.title}</h1>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-display font-bold text-gray-900 mb-3 break-words">{displayLesson.title}</h1>
           </div>
 
           {/* Video Player - Display YouTube videos and other video URLs */}
           {displayLesson.videoUrl && (
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-2 mb-8 overflow-hidden">
+            <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg border border-gray-100 p-2 mb-4 sm:mb-6 md:mb-8 overflow-hidden">
               <VideoPlayer url={displayLesson.videoUrl} onEnded={handleVideoEnd} />
             </div>
           )}
 
           {/* Lesson Description */}
           {displayLesson.content && (
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 mb-8">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">Lesson Description</h2>
+            <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 md:p-8 mb-4 sm:mb-6 md:mb-8">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">Lesson Description</h2>
               
               {/* Original Content - Display all HTML content including embedded videos */}
               <div
@@ -141,8 +141,8 @@ export default function LessonPage() {
 
           {/* Lesson Content */}
           {((displayLesson as any).lessonSummary?.overview || (displayLesson as any).summary) && (
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 mb-8">
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">Lesson Content</h2>
+            <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 md:p-8 mb-4 sm:mb-6 md:mb-8">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-3 sm:mb-4">Lesson Content</h2>
               <div className="prose prose-lg max-w-none text-gray-700">
                 <p className="whitespace-pre-wrap leading-relaxed">
                   {(displayLesson as any).lessonSummary?.overview || (displayLesson as any).summary}
@@ -152,16 +152,16 @@ export default function LessonPage() {
           )}
 
           {/* Visual Aids */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 mb-8">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-1">Visual Aids</h2>
-                <p className="text-gray-600 text-sm">Charts, screenshots, resources, and visual materials for this lesson</p>
+          <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 md:p-8 mb-4 sm:mb-6 md:mb-8">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 sm:mb-6 gap-3">
+              <div className="flex-1">
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1">Visual Aids</h2>
+                <p className="text-gray-600 text-xs sm:text-sm">Charts, screenshots, resources, and visual materials for this lesson</p>
               </div>
               {user?.role === 'instructor' && (
                 <button
                   onClick={() => setShowSummaryEditor(!showSummaryEditor)}
-                  className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold text-sm transition-colors"
+                  className="w-full sm:w-auto px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold text-sm transition-colors"
                 >
                   {showSummaryEditor ? 'Cancel' : 'Edit Visual Aids'}
                 </button>
@@ -181,15 +181,15 @@ export default function LessonPage() {
 
           {/* Lesson Resources */}
           {((displayLesson as any).resources && (displayLesson as any).resources.length > 0) && (
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 mb-8">
-              <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center">
-                <svg className="w-6 h-6 mr-2 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 md:p-8 mb-4 sm:mb-6 md:mb-8">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-3 sm:mb-4 flex items-center">
+                <svg className="w-5 h-5 sm:w-6 sm:h-6 mr-2 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                 </svg>
                 Lesson Resources
               </h2>
-              <p className="text-gray-600 mb-6">Downloadable resources and links for this lesson</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <p className="text-sm sm:text-base text-gray-600 mb-4 sm:mb-6">Downloadable resources and links for this lesson</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                 {(displayLesson as any).resources.map((resource: any, index: number) => (
                   <a
                     key={index}
@@ -237,15 +237,15 @@ export default function LessonPage() {
 
           {/* Quiz */}
           {displayLesson.quiz && (
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 mb-8">
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900 mb-1">Lesson Quiz</h2>
-                  <p className="text-gray-600 text-sm">Test your understanding</p>
+            <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 md:p-8 mb-4 sm:mb-6 md:mb-8">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 sm:mb-6 gap-3">
+                <div className="flex-1">
+                  <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1">Lesson Quiz</h2>
+                  <p className="text-gray-600 text-xs sm:text-sm">Test your understanding</p>
                 </div>
                 <button
                   onClick={() => setShowQuiz(!showQuiz)}
-                  className="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-semibold transition-colors shadow-sm"
+                  className="w-full sm:w-auto px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-semibold transition-colors shadow-sm"
                 >
                   {showQuiz ? 'Hide Quiz' : 'Take Quiz'}
                 </button>
@@ -268,16 +268,17 @@ export default function LessonPage() {
           </div>
 
           {/* Navigation - Moved to end of page */}
-          <div className="flex justify-between items-center mb-8 gap-4">
+          <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center mb-4 sm:mb-6 md:mb-8 gap-3 sm:gap-4">
             {prevLesson ? (
               <Link
                 href={`/courses/${courseId}/lessons/${prevLesson._id || prevLesson.id}`}
-                className="flex items-center px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl font-medium hover:border-primary-500 hover:text-primary-600 transition-colors"
+                className="flex items-center justify-center px-4 sm:px-6 py-2 sm:py-3 border-2 border-gray-300 text-gray-700 rounded-xl font-medium hover:border-primary-500 hover:text-primary-600 transition-colors text-sm sm:text-base"
               >
-                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 sm:w-5 sm:h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
-                Previous Lesson
+                <span className="hidden sm:inline">Previous Lesson</span>
+                <span className="sm:hidden">Previous</span>
               </Link>
             ) : (
               <div />
@@ -285,10 +286,11 @@ export default function LessonPage() {
             {nextLesson ? (
               <Link
                 href={`/courses/${courseId}/lessons/${nextLesson._id || nextLesson.id}`}
-                className="flex items-center px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-semibold transition-colors shadow-sm ml-auto"
+                className="flex items-center justify-center px-4 sm:px-6 py-2 sm:py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-semibold transition-colors shadow-sm sm:ml-auto text-sm sm:text-base"
               >
-                Next Lesson
-                <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <span className="hidden sm:inline">Next Lesson</span>
+                <span className="sm:hidden">Next</span>
+                <svg className="w-4 h-4 sm:w-5 sm:h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
               </Link>
