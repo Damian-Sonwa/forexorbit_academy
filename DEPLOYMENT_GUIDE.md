@@ -70,6 +70,7 @@ Render supports custom servers and Socket.io, making it ideal for this app.
 3. **Configure Service**:
    - **Name**: `forex-elearning-app` (or your preferred name)
    - **Environment**: `Node`
+   - **Root Directory**: `.` (leave empty or set to `.` - this is the repository root)
    - **Build Command**: `npm install && npm run build`
    - **Start Command**: `npm start`
    - **Plan**: Choose `Starter` (free tier available but limited)
