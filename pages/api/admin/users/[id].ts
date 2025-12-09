@@ -4,7 +4,7 @@
  * DELETE: Delete user
  */
 
-import type { NextApiRequest, NextApiResponse } from 'next';
+import type { NextApiResponse } from 'next';
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
@@ -53,9 +53,10 @@ async function updateUser(req: AuthRequest, res: NextApiResponse) {
     }
 
     res.json({ success: true, message: `User role updated to ${role} successfully` });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Update user error:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
+    res.status(500).json({ error: errorMessage });
   }
 }
 
@@ -99,9 +100,10 @@ async function deleteUser(req: AuthRequest, res: NextApiResponse) {
     }
 
     res.json({ success: true, message: 'User deleted successfully' });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Delete user error:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
+    res.status(500).json({ error: errorMessage });
   }
 }
 
