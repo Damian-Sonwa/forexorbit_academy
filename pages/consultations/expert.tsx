@@ -112,7 +112,14 @@ export default function ExpertConsultation() {
         router.push(`/consultations/chat/${response.sessionId}`);
       }
     } catch (error: unknown) {
-      alert(error.response?.data?.error || error.message || 'Failed to accept request');
+      let errorMessage = 'Failed to accept request';
+      if (error && typeof error === 'object' && 'response' in error) {
+        const apiError = error as { response?: { data?: { error?: string } }; message?: string };
+        errorMessage = apiError.response?.data?.error || apiError.message || errorMessage;
+      } else if (error instanceof Error) {
+        errorMessage = error.message || errorMessage;
+      }
+      alert(errorMessage);
     } finally {
       setLoading(false);
     }
