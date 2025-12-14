@@ -11,8 +11,8 @@ import { ObjectId } from 'mongodb';
 
 async function getSettings(req: AuthRequest, res: NextApiResponse) {
   try {
-    // Only super admin can access
-    if (req.user!.email !== 'madudamian25@gmail.com' || req.user!.role !== 'superadmin') {
+    // Only super admin can access (check by email)
+    if (req.user!.email !== 'madudamian25@gmail.com' || req.user!.role !== 'admin') {
       return res.status(403).json({ error: 'Only super admin can access these settings' });
     }
 
@@ -65,7 +65,7 @@ async function getSettings(req: AuthRequest, res: NextApiResponse) {
 async function updateSettings(req: AuthRequest, res: NextApiResponse) {
   try {
     // Only super admin can update
-    if (req.user!.email !== 'madudamian25@gmail.com' || req.user!.role !== 'superadmin') {
+    if (req.user!.email !== 'madudamian25@gmail.com' || req.user!.role !== 'admin') {
       return res.status(403).json({ error: 'Only super admin can update these settings' });
     }
 
@@ -110,7 +110,7 @@ async function updateSettings(req: AuthRequest, res: NextApiResponse) {
 async function getLogs(req: AuthRequest, res: NextApiResponse) {
   try {
     // Only super admin can access
-    if (req.user!.email !== 'madudamian25@gmail.com' || req.user!.role !== 'superadmin') {
+    if (req.user!.email !== 'madudamian25@gmail.com' || req.user!.role !== 'admin') {
       return res.status(403).json({ error: 'Only super admin can access logs' });
     }
 

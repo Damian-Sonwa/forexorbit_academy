@@ -11,6 +11,8 @@ interface User {
   email: string;
   name: string;
   role: 'admin' | 'instructor' | 'student';
+  learningLevel?: 'beginner' | 'intermediate' | 'advanced';
+  points?: number;
 }
 
 interface AuthContextType {

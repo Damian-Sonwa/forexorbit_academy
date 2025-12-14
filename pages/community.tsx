@@ -918,7 +918,7 @@ export default function Community() {
                 </p>
               </div>
               {/* View Updates / Add Update Button - Role-based */}
-              {(user?.role === 'instructor' || user?.role === 'admin' || user?.role === 'superadmin') ? (
+              {(user?.role === 'instructor' || user?.role === 'admin') ? (
                 <button
                   type="button"
                   onClick={(e) => {
@@ -1421,7 +1421,7 @@ export default function Community() {
               </div>
               <div className="flex items-center space-x-2">
                 {/* View Updates / Add Update Button - Role-based */}
-                {(user?.role === 'instructor' || user?.role === 'admin' || user?.role === 'superadmin') ? (
+                {(user?.role === 'instructor' || user?.role === 'admin') ? (
                   <button
                     type="button"
                     onClick={(e) => {
@@ -1737,7 +1737,7 @@ export default function Community() {
                 Forex Updates
               </h2>
               {/* Add Update Button (Admin/Instructor only) */}
-              {(user?.role === 'instructor' || user?.role === 'admin' || user?.role === 'superadmin') && (
+              {(user?.role === 'instructor' || user?.role === 'admin') && (
                 <button
                   type="button"
                   onClick={(e) => {
@@ -1791,7 +1791,7 @@ export default function Community() {
                     </div>
                   </div>
                   {/* Edit/Delete Buttons (Admin/Instructor/Super Admin) */}
-                  {(user?.role === 'admin' || user?.role === 'superadmin' || (user?.role === 'instructor' && news.createdBy === user?.id)) && (
+                  {(user?.role === 'admin' || (user?.role === 'instructor' && news.createdBy === user?.id)) && (
                     <div className="flex items-center space-x-2 mt-3 pt-3 border-t border-gray-200 dark:border-gray-600">
                       <button
                         onClick={(e) => {
@@ -2061,7 +2061,7 @@ export default function Community() {
                   Important Updates
                 </h2>
                 <div className="flex items-center space-x-2">
-                  {(user?.role === 'instructor' || user?.role === 'admin' || user?.role === 'superadmin') && (
+                  {(user?.role === 'instructor' || user?.role === 'admin') && (
                     <button
                       onClick={() => {
                         setShowNewsModal(false);
@@ -2132,7 +2132,7 @@ export default function Community() {
                         {/* Edit/Delete buttons - Admins and Super Admins can edit/delete ANY update, Instructors can only edit/delete their own */}
                         <div className="flex items-center space-x-2">
                           {/* Admins and Super Admins: Show buttons for ALL news items */}
-                          {(user?.role === 'admin' || user?.role === 'superadmin') && (
+                          {(user?.role === 'admin') && (
                             <>
                               <button
                                 onClick={(e) => {

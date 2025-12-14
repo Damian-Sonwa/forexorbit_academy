@@ -86,5 +86,5 @@ async function uploadVisualAid(req: AuthRequest, res: NextApiResponse) {
   }
 }
 
-export default withAuth(uploadVisualAid, ['instructor', 'admin', 'superadmin']);
+export default withAuth(uploadVisualAid, ['instructor', 'admin']);
 

@@ -23,7 +23,7 @@ export default function Home() {
   useEffect(() => {
     const loadInstructors = async () => {
       try {
-        const data = await apiClient.get('/instructors');
+        const data = await apiClient.get<any[]>('/instructors');
         setInstructors(data);
       } catch (error) {
         console.error('Failed to load instructors:', error);

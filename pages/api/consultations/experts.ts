@@ -21,7 +21,7 @@ async function getExperts(req: AuthRequest, res: NextApiResponse) {
         $or: [
           { role: 'instructor' },
           { role: 'admin' },
-          { role: 'superadmin' }
+          { role: 'admin' }
         ]
       })
       .project({ 
@@ -55,7 +55,7 @@ async function getExperts(req: AuthRequest, res: NextApiResponse) {
 async function updateAvailability(req: AuthRequest, res: NextApiResponse) {
   try {
     // Only experts can update their availability
-    if (req.user!.role !== 'instructor' && req.user!.role !== 'admin' && req.user!.role !== 'superadmin') {
+    if (req.user!.role !== 'instructor' && req.user!.role !== 'admin') {
       return res.status(403).json({ error: 'Only experts can update availability' });
     }
 

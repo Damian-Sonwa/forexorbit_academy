@@ -11,8 +11,8 @@ import { ObjectId } from 'mongodb';
 
 async function updateNews(req: AuthRequest, res: NextApiResponse) {
   try {
-    // Only admin, superadmin, and instructors can update news
-    if (req.user!.role !== 'admin' && req.user!.role !== 'superadmin' && req.user!.role !== 'instructor') {
+    // Only admin and instructors can update news
+    if (req.user!.role !== 'admin' && req.user!.role !== 'instructor') {
       return res.status(403).json({ error: 'Only admins and instructors can update news' });
     }
 
@@ -68,8 +68,8 @@ async function updateNews(req: AuthRequest, res: NextApiResponse) {
 
 async function deleteNews(req: AuthRequest, res: NextApiResponse) {
   try {
-    // Only admin, superadmin, and instructors can delete news
-    if (req.user!.role !== 'admin' && req.user!.role !== 'superadmin' && req.user!.role !== 'instructor') {
+    // Only admin and instructors can delete news
+    if (req.user!.role !== 'admin' && req.user!.role !== 'instructor') {
       return res.status(403).json({ error: 'Only admins and instructors can delete news' });
     }
 

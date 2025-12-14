@@ -45,7 +45,7 @@ async function getRequests(req: AuthRequest, res: NextApiResponse) {
       );
 
       res.json(requestsWithExpert);
-    } else if (req.user!.role === 'instructor' || req.user!.role === 'admin' || req.user!.role === 'superadmin') {
+    } else if (req.user!.role === 'instructor' || req.user!.role === 'admin') {
       // Experts see pending requests for them
       const expertRequests = await requests
         .find({ 
@@ -122,7 +122,7 @@ async function createRequest(req: AuthRequest, res: NextApiResponse) {
 
     // Check if consultation feature is enabled (check super admin settings)
     const superAdmin = await users.findOne(
-      { email: 'madudamian25@gmail.com', role: 'superadmin' },
+      { email: 'madudamian25@gmail.com', role: 'admin' },
       { projection: { consultationEnabled: 1 } }
     );
 

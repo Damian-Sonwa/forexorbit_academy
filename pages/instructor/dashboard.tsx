@@ -86,7 +86,7 @@ export default function InstructorDashboard() {
   const loadMyCourses = async () => {
     try {
       // Filter courses where current user is the instructor
-      const userId = user?.id || user?._id;
+      const userId = user?.id;
       const instructorCourses = courses.filter((c) => {
         const courseInstructorId = c.instructorId?.toString() || c.instructorId;
         return courseInstructorId === userId?.toString() || courseInstructorId === userId;

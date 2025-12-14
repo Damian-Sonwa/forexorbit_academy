@@ -22,8 +22,8 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-async function uploadInstructorImage(req: AuthRequest, res: NextApiResponse) {
-  return new Promise((resolve) => {
+async function uploadInstructorImage(req: AuthRequest, res: NextApiResponse): Promise<void> {
+  return new Promise<void>((resolve) => {
     try {
       const form = formidable({
         uploadDir,

@@ -47,8 +47,8 @@ async function getNews(req: AuthRequest, res: NextApiResponse) {
 
 async function createNews(req: AuthRequest, res: NextApiResponse) {
   try {
-    // Only admin, superadmin, and instructors can create news
-    if (req.user!.role !== 'admin' && req.user!.role !== 'superadmin' && req.user!.role !== 'instructor') {
+    // Only admin and instructors can create news
+    if (req.user!.role !== 'admin' && req.user!.role !== 'instructor') {
       return res.status(403).json({ error: 'Only admins and instructors can create news' });
     }
 

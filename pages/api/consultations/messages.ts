@@ -33,7 +33,7 @@ async function getMessages(req: AuthRequest, res: NextApiResponse) {
       return res.status(403).json({ error: 'Access denied' });
     }
 
-    if ((req.user!.role === 'instructor' || req.user!.role === 'admin' || req.user!.role === 'superadmin') 
+    if ((req.user!.role === 'instructor' || req.user!.role === 'admin') 
         && session.expertId !== req.user!.userId) {
       return res.status(403).json({ error: 'Access denied' });
     }
@@ -91,7 +91,7 @@ async function sendMessage(req: AuthRequest, res: NextApiResponse) {
       return res.status(403).json({ error: 'Access denied' });
     }
 
-    if ((req.user!.role === 'instructor' || req.user!.role === 'admin' || req.user!.role === 'superadmin') 
+    if ((req.user!.role === 'instructor' || req.user!.role === 'admin') 
         && session.expertId !== req.user!.userId) {
       return res.status(403).json({ error: 'Access denied' });
     }

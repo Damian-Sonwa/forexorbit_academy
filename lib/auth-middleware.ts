@@ -11,7 +11,9 @@ export interface AuthRequest extends NextApiRequest {
     userId: string;
     email: string;
     role: 'admin' | 'instructor' | 'student';
+    learningLevel?: 'beginner' | 'intermediate' | 'advanced';
   };
+  io?: any; // Socket.io instance
 }
 
 /**

@@ -39,6 +39,17 @@ async function createClass(req: AuthRequest, res: NextApiResponse) {
 
     const db = await getDb();
     const classes = db.collection('upcomingClasses');
+    const users = db.collection('users');
+
+    // Get user's name from database if instructor not provided
+    let instructorName = instructor;
+    if (!instructorName) {
+      const user = await users.findOne(
+        { _id: new ObjectId(req.user!.userId) },
+        { projection: { name: 1 } }
+      );
+      instructorName = user?.name || req.user!.email;
+    }
 
     // Combine date and time into a single Date object
     const classDateTime = new Date(`${date}T${time}`);
@@ -56,7 +67,7 @@ async function createClass(req: AuthRequest, res: NextApiResponse) {
       title,
       description,
       date: classDateTime,
-      instructor: instructor || req.user!.name,
+      instructor: instructorName,
       link: link || '',
       createdAt: new Date(),
       createdBy: req.user!.userId,
@@ -74,13 +85,13 @@ async function createClass(req: AuthRequest, res: NextApiResponse) {
   }
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse): Promise<void> {
   if (req.method === 'GET') {
-    return withAuth(getClasses)(req as AuthRequest, res);
+    await withAuth(getClasses)(req as AuthRequest, res);
   } else if (req.method === 'POST') {
-    return withAuth(createClass, ['instructor', 'admin'])(req as AuthRequest, res);
+    await withAuth(createClass, ['instructor', 'admin'])(req as AuthRequest, res);
   } else {
-    return res.status(405).json({ error: 'Method not allowed' });
+    res.status(405).json({ error: 'Method not allowed' });
   }
 }
 

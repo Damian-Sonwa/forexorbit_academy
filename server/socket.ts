@@ -7,6 +7,7 @@ import { Server as SocketIOServer } from 'socket.io';
 import { Server as HTTPServer } from 'http';
 import { verifyToken } from '@/lib/jwt';
 import { getDb } from '@/lib/mongodb';
+import { ObjectId } from 'mongodb';
 
 interface SocketAuth {
   userId: string;
@@ -62,7 +63,7 @@ export function initializeSocket(server: HTTPServer) {
         const users = db.collection('users');
 
         const userDoc = await users.findOne(
-          { _id: user.userId },
+          { _id: new ObjectId(user.userId) },
           { projection: { name: 1 } }
         );
 
@@ -76,7 +77,10 @@ export function initializeSocket(server: HTTPServer) {
 
         // Save to database
         const result = await messages.insertOne(message);
-        message._id = result.insertedId;
+        const messageWithId = {
+          ...message,
+          _id: result.insertedId,
+        };
 
         // Broadcast to room
         const messageToEmit = {

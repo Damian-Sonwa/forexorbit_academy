@@ -54,7 +54,7 @@ export default function Badges() {
 
   const fetchUserPoints = async () => {
     try {
-      const response = await apiClient.get('/auth/me');
+      const response = await apiClient.get<{ points?: number }>('/auth/me');
       setUserPoints(response.points || 0);
     } catch (error: any) {
       console.error('Fetch user points error:', error);

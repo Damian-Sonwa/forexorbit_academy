@@ -85,7 +85,7 @@ export default function AssignmentAnalytics() {
         router.push('/dashboard');
         return;
       }
-      if (user.role !== 'instructor' && user.role !== 'admin' && user.role !== 'superadmin') {
+      if (user.role !== 'instructor' && user.role !== 'admin') {
         router.push('/dashboard');
         return;
       }
@@ -93,7 +93,7 @@ export default function AssignmentAnalytics() {
   }, [authLoading, isAuthenticated, user, router]);
 
   useEffect(() => {
-    if (assignmentId && isAuthenticated && user && (user.role === 'instructor' || user.role === 'admin' || user.role === 'superadmin')) {
+    if (assignmentId && isAuthenticated && user && (user.role === 'instructor' || user.role === 'admin')) {
       loadAnalytics();
     }
   }, [assignmentId, isAuthenticated, user]);
@@ -120,7 +120,7 @@ export default function AssignmentAnalytics() {
     );
   }
 
-  if (!isAuthenticated || !user || (user.role !== 'instructor' && user.role !== 'admin' && user.role !== 'superadmin')) {
+  if (!isAuthenticated || !user || (user.role !== 'instructor' && user.role !== 'admin')) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
         <p className="text-red-500 text-lg">Access Denied: You do not have permission to view this page.</p>

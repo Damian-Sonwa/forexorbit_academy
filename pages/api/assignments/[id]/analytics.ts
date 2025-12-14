@@ -11,7 +11,7 @@ import { ObjectId } from 'mongodb';
 async function getAssignmentAnalytics(req: AuthRequest, res: NextApiResponse) {
   try {
     // Only instructors and admins can access analytics
-    if (req.user!.role !== 'instructor' && req.user!.role !== 'admin' && req.user!.role !== 'superadmin') {
+    if (req.user!.role !== 'instructor' && req.user!.role !== 'admin') {
       return res.status(403).json({ error: 'Instructor/Admin only' });
     }
 
@@ -164,7 +164,7 @@ async function getAssignmentAnalytics(req: AuthRequest, res: NextApiResponse) {
   }
 }
 
-export default withAuth(getAssignmentAnalytics, ['instructor', 'admin', 'superadmin']);
+export default withAuth(getAssignmentAnalytics, ['instructor', 'admin']);
 
 
 

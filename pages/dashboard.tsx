@@ -245,7 +245,7 @@ export default function Dashboard() {
                           {p.course?.title || `Course ${p.courseId}`}
                         </h3>
                         <p className="text-sm text-gray-500">
-                          {p.completedLessons?.length || 0} of {p.course?.lessons?.length || 0} lessons completed
+                          {p.completedLessons?.length || 0} of {(p.course as any)?.lessons?.length || 0} lessons completed
                         </p>
                       </div>
                       <div className="ml-4 text-right">

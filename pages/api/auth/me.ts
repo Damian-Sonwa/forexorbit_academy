@@ -6,6 +6,7 @@
 import type { NextApiResponse } from 'next';
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
+import { ObjectId } from 'mongodb';
 
 async function handler(req: AuthRequest, res: NextApiResponse) {
   try {
@@ -13,7 +14,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
     const users = db.collection('users');
 
     const user = await users.findOne(
-      { _id: req.user!.userId },
+      { _id: new ObjectId(req.user!.userId) },
       { projection: { password: 0 } }
     );
 

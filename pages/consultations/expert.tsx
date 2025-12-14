@@ -63,7 +63,7 @@ export default function ExpertConsultation() {
   }, [authLoading, isAuthenticated, router]);
 
   useEffect(() => {
-    if (isAuthenticated && (user?.role === 'instructor' || user?.role === 'admin' || user?.role === 'superadmin')) {
+    if (isAuthenticated && (user?.role === 'instructor' || user?.role === 'admin')) {
       loadRequests();
       loadSessions();
       loadAvailability();
@@ -176,7 +176,7 @@ export default function ExpertConsultation() {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
   }
 
-  if (user?.role !== 'instructor' && user?.role !== 'admin' && user?.role !== 'superadmin') {
+  if (user?.role !== 'instructor' && user?.role !== 'admin') {
     return <div className="min-h-screen flex items-center justify-center">Access denied. Only experts can access this page.</div>;
   }
 

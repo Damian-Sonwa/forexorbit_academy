@@ -11,7 +11,7 @@ import { ObjectId } from 'mongodb';
 async function updateRequest(req: AuthRequest, res: NextApiResponse) {
   try {
     // Only experts (instructors/admins) can accept/reject
-    if (req.user!.role !== 'instructor' && req.user!.role !== 'admin' && req.user!.role !== 'superadmin') {
+    if (req.user!.role !== 'instructor' && req.user!.role !== 'admin') {
       return res.status(403).json({ error: 'Only experts can accept or reject requests' });
     }
 

@@ -15,8 +15,8 @@ import { ObjectId } from 'mongodb';
  */
 async function sendCertificate(req: AuthRequest, res: NextApiResponse) {
   try {
-    // Verify user is admin or superadmin
-    if (req.user!.role !== 'admin' && req.user!.role !== 'superadmin') {
+    // Verify user is admin
+    if (req.user!.role !== 'admin') {
       return res.status(403).json({ error: 'Admin access required' });
     }
 

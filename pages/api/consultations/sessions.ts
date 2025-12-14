@@ -22,7 +22,7 @@ async function getSessions(req: AuthRequest, res: NextApiResponse) {
         .find({ studentId: req.user!.userId })
         .sort({ createdAt: -1 })
         .toArray();
-    } else if (req.user!.role === 'instructor' || req.user!.role === 'admin' || req.user!.role === 'superadmin') {
+    } else if (req.user!.role === 'instructor' || req.user!.role === 'admin') {
       // Experts see their sessions
       userSessions = await sessions
         .find({ expertId: req.user!.userId })

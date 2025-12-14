@@ -19,7 +19,7 @@ async function getPendingUsers(req: AuthRequest, res: NextApiResponse) {
   try {
     // Allow all admins to view pending users (for notifications)
     // Only Super Admin can approve/reject (checked in handleApproval)
-    if (req.user!.role !== 'admin' && req.user!.role !== 'superadmin') {
+    if (req.user!.role !== 'admin') {
       return res.status(403).json({ error: 'Admin access required' });
     }
 
@@ -59,7 +59,7 @@ async function getPendingUsers(req: AuthRequest, res: NextApiResponse) {
 async function handleApproval(req: AuthRequest, res: NextApiResponse) {
   try {
     // Allow all admins to approve/reject (not just Super Admin)
-    if (req.user!.role !== 'admin' && req.user!.role !== 'superadmin') {
+    if (req.user!.role !== 'admin') {
       return res.status(403).json({ error: 'Admin access required' });
     }
 

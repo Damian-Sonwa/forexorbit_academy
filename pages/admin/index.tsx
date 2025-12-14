@@ -88,7 +88,7 @@ export default function AdminPanel() {
 
   const loadAnalytics = async () => {
     try {
-      const data = await apiClient.get('/admin/analytics');
+      const data = await apiClient.get<any>('/admin/analytics');
       setAnalytics(data);
     } catch (error) {
       console.error('Failed to load analytics:', error);
@@ -97,7 +97,7 @@ export default function AdminPanel() {
 
   const loadUsers = async () => {
     try {
-      const data = await apiClient.get('/admin/users');
+      const data = await apiClient.get<any[]>('/admin/users');
       setUsers(data);
     } catch (error) {
       console.error('Failed to load users:', error);
@@ -127,7 +127,7 @@ export default function AdminPanel() {
 
   const loadInstructors = async () => {
     try {
-      const data = await apiClient.get('/instructors');
+      const data = await apiClient.get<any[]>('/instructors');
       setInstructors(data);
     } catch (error) {
       console.error('Failed to load instructors:', error);
@@ -425,7 +425,12 @@ export default function AdminPanel() {
                         Manage
                       </Link>
                       <button
-                        onClick={() => handleDeleteCourse(course._id || course.id)}
+                        onClick={() => {
+                          const courseId = course._id || course.id;
+                          if (courseId) {
+                            handleDeleteCourse(courseId);
+                          }
+                        }}
                         className="px-4 py-2 bg-red-100 text-red-700 hover:bg-red-200 rounded-lg text-sm font-semibold transition-colors"
                       >
                         Delete
