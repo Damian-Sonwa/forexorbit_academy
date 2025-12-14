@@ -16,6 +16,16 @@ interface Message {
   lessonId?: string;
 }
 
+// Socket message type (can have additional properties)
+interface SocketMessage {
+  id?: string;
+  _id?: any;
+  senderName?: string;
+  text?: string;
+  createdAt?: Date | string;
+  lessonId?: string;
+}
+
 interface ChatProps {
   lessonId: string;
 }
@@ -48,15 +58,16 @@ export default function Chat({ lessonId }: ChatProps) {
     }
 
     // Listen for new messages
-    const cleanup = onChatMessage((message: any) => {
-      // Ensure lessonId is included from the socket message
-      const incomingLessonId = message.lessonId;
+    const cleanup = onChatMessage((socketMsg: SocketMessage) => {
+      // Extract lessonId from socket message (which may have different structure)
+      const incomingLessonId = socketMsg.lessonId;
       if (incomingLessonId === lessonId) {
+        // Convert socket message to our Message type
         const chatMessage: Message = {
-          id: message.id || message._id?.toString() || '',
-          senderName: message.senderName || 'Unknown',
-          text: message.text || '',
-          createdAt: message.createdAt || new Date(),
+          id: socketMsg.id || socketMsg._id?.toString() || '',
+          senderName: socketMsg.senderName || 'Unknown',
+          text: socketMsg.text || '',
+          createdAt: socketMsg.createdAt || new Date(),
           lessonId: incomingLessonId,
         };
         setMessages((prev) => [...prev, chatMessage]);
