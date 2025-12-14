@@ -195,6 +195,27 @@ export default function Sidebar({ }: SidebarProps) {
     }
   }, [user]);
 
+  // FIX: Refresh profile data periodically to update profile photo live
+  useEffect(() => {
+    if (user) {
+      // Refresh profile data every 5 seconds to catch profile photo updates
+      const interval = setInterval(() => {
+        loadProfileData();
+      }, 5000);
+      
+      // Also refresh when window gains focus (user returns to tab)
+      const handleFocus = () => {
+        loadProfileData();
+      };
+      window.addEventListener('focus', handleFocus);
+      
+      return () => {
+        clearInterval(interval);
+        window.removeEventListener('focus', handleFocus);
+      };
+    }
+  }, [user]);
+
   // Close mobile menu when route changes
   useEffect(() => {
     setIsOpen(false);
@@ -282,9 +303,9 @@ export default function Sidebar({ }: SidebarProps) {
           fixed lg:sticky top-0 left-0 z-40
           h-screen lg:h-auto lg:self-start
           w-64 sm:w-72 lg:w-72
-          ${user?.role === 'student' ? 'bg-blue-700' : 'bg-white dark:bg-gray-800'}
+          ${user?.role === 'student' ? 'bg-gradient-to-b from-indigo-600 via-purple-600 to-blue-700' : 'bg-white dark:bg-gray-800'}
           shadow-xl lg:shadow-md
-          ${user?.role === 'student' ? 'border-r border-blue-600' : 'border-r border-gray-200 dark:border-gray-700'}
+          ${user?.role === 'student' ? 'border-r border-purple-500/30' : 'border-r border-gray-200 dark:border-gray-700'}
           transform transition-transform duration-300 ease-in-out
           ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
           ${isCollapsed ? 'lg:w-20' : 'lg:w-72'}
@@ -294,12 +315,12 @@ export default function Sidebar({ }: SidebarProps) {
         `}
       >
         {/* Sidebar Header */}
-        <div className={`p-3 sm:p-4 lg:p-6 ${user?.role === 'student' ? 'border-b border-blue-600' : 'border-b border-gray-200 dark:border-gray-700'} flex-shrink-0`}>
+        <div className={`p-3 sm:p-4 lg:p-6 ${user?.role === 'student' ? 'border-b border-purple-500/30' : 'border-b border-gray-200 dark:border-gray-700'} flex-shrink-0`}>
           {/* Collapse Toggle (Desktop only) */}
           <div className="hidden lg:flex justify-end mb-4">
             <button
               onClick={() => setIsCollapsed(!isCollapsed)}
-              className={`p-2 rounded-lg ${user?.role === 'student' ? 'text-blue-100 hover:bg-blue-600' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'} transition-colors`}
+              className={`p-2 rounded-lg ${user?.role === 'student' ? 'text-white/80 hover:bg-white/10' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'} transition-colors`}
               aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             >
               <svg
@@ -317,15 +338,28 @@ export default function Sidebar({ }: SidebarProps) {
           {user && (
             <Link
               href="/profile"
-              className={`flex items-center space-x-2 sm:space-x-3 p-2 sm:p-3 rounded-xl transition-all group ${user?.role === 'student' ? 'hover:bg-blue-600' : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'}`}
+              className={`flex items-center space-x-2 sm:space-x-3 p-2 sm:p-3 rounded-xl transition-all group ${user?.role === 'student' ? 'hover:bg-white/10' : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'}`}
             >
               <div className="relative flex-shrink-0">
-                <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full overflow-hidden bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center ring-2 ${user?.role === 'student' ? 'ring-blue-500 group-hover:ring-blue-400' : 'ring-primary-200 dark:ring-primary-800 group-hover:ring-primary-400'} transition-all shadow-md`}>
+                {/* FIX: Profile picture placeholder with live update - uses profilePhoto from profileData */}
+                <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full overflow-hidden bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center ring-2 ${user?.role === 'student' ? 'ring-white/30 group-hover:ring-white/50' : 'ring-primary-200 dark:ring-primary-800 group-hover:ring-primary-400'} transition-all shadow-md`}>
                   {profilePhoto ? (
                     <img
                       src={profilePhoto}
                       alt={displayName}
                       className="w-full h-full object-cover"
+                      onError={(e) => {
+                        // FIX: Fallback to avatar initial if image fails to load
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = 'none';
+                        const parent = target.parentElement;
+                        if (parent) {
+                          const fallback = document.createElement('span');
+                          fallback.className = 'text-white text-base sm:text-lg font-bold';
+                          fallback.textContent = displayName.charAt(0).toUpperCase();
+                          parent.appendChild(fallback);
+                        }
+                      }}
                     />
                   ) : (
                     <span className="text-white text-base sm:text-lg font-bold">
@@ -333,6 +367,7 @@ export default function Sidebar({ }: SidebarProps) {
                     </span>
                   )}
                 </div>
+                {/* FIX: Live update indicator - green dot shows user is online */}
                 <div className="absolute bottom-0 right-0 w-2.5 h-2.5 sm:w-3 sm:h-3 bg-green-500 rounded-full border-2 border-white dark:border-gray-800 shadow-sm"></div>
               </div>
               {!isCollapsed && (
@@ -340,11 +375,11 @@ export default function Sidebar({ }: SidebarProps) {
                   <p className={`text-xs sm:text-sm font-semibold truncate ${user?.role === 'student' ? 'text-white' : 'text-gray-900 dark:text-white'}`}>
                     {displayName}
                   </p>
-                  <p className={`text-xs truncate ${user?.role === 'student' ? 'text-blue-100' : 'text-gray-500 dark:text-gray-400'}`}>
+                  <p className={`text-xs truncate ${user?.role === 'student' ? 'text-white/80' : 'text-gray-500 dark:text-gray-400'}`}>
                     {displayEmail}
                   </p>
                   {tradingLevel && (
-                    <p className={`text-xs mt-1 capitalize font-medium ${user?.role === 'student' ? 'text-blue-200' : 'text-primary-600 dark:text-primary-400'}`}>
+                    <p className={`text-xs mt-1 capitalize font-medium ${user?.role === 'student' ? 'text-white/90' : 'text-primary-600 dark:text-primary-400'}`}>
                       {tradingLevel}
                     </p>
                   )}
@@ -372,8 +407,8 @@ export default function Sidebar({ }: SidebarProps) {
                     transition-all duration-200
                     group shadow-md
                     ${isActive
-                      ? 'bg-blue-600 text-white shadow-lg scale-[1.02]'
-                      : 'bg-blue-600/80 text-white hover:bg-blue-500 hover:shadow-lg'
+                      ? 'bg-white/20 text-white shadow-lg scale-[1.02] backdrop-blur-sm'
+                      : 'bg-white/10 text-white hover:bg-white/15 hover:shadow-lg backdrop-blur-sm'
                     }
                     ${isCollapsed ? 'justify-center' : ''}
                   `}
@@ -425,8 +460,8 @@ export default function Sidebar({ }: SidebarProps) {
 
         {/* Footer (optional) */}
         {!isCollapsed && (
-          <div className={`p-3 sm:p-4 lg:p-6 ${user?.role === 'student' ? 'border-t border-blue-600' : 'border-t border-gray-200 dark:border-gray-700'} flex-shrink-0`}>
-            <p className={`text-xs text-center ${user?.role === 'student' ? 'text-blue-100' : 'text-gray-500 dark:text-gray-400'}`}>
+          <div className={`p-3 sm:p-4 lg:p-6 ${user?.role === 'student' ? 'border-t border-purple-500/30' : 'border-t border-gray-200 dark:border-gray-700'} flex-shrink-0`}>
+            <p className={`text-xs text-center ${user?.role === 'student' ? 'text-white/80' : 'text-gray-500 dark:text-gray-400'}`}>
               ForexOrbit Academy
             </p>
           </div>
