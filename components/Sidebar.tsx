@@ -123,7 +123,7 @@ const CloseIcon = ({ className }: { className?: string }) => (
 export default function Sidebar({ }: SidebarProps) {
   // courseId, lessons, currentLessonId parameters reserved for future use
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const [profileData, setProfileData] = useState<any>(null);
   const [isOpen, setIsOpen] = useState(false); // Mobile menu state
   const [isCollapsed, setIsCollapsed] = useState(false); // Desktop collapse state
@@ -458,14 +458,53 @@ export default function Sidebar({ }: SidebarProps) {
           })}
         </nav>
 
-        {/* Footer (optional) */}
-        {!isCollapsed && (
-          <div className={`p-3 sm:p-4 lg:p-6 ${user?.role === 'student' ? 'border-t border-purple-500/30' : 'border-t border-gray-200 dark:border-gray-700'} flex-shrink-0`}>
-            <p className={`text-xs text-center ${user?.role === 'student' ? 'text-white/80' : 'text-gray-500 dark:text-gray-400'}`}>
-              ForexOrbit Academy
-            </p>
-          </div>
-        )}
+        {/* Footer with Logout Button */}
+        <div className={`${user?.role === 'student' ? 'border-t border-purple-500/30' : 'border-t border-gray-200 dark:border-gray-700'} flex-shrink-0`}>
+          {!isCollapsed ? (
+            <div className="p-3 sm:p-4 lg:p-6">
+              <p className={`text-xs text-center mb-3 ${user?.role === 'student' ? 'text-white/80' : 'text-gray-500 dark:text-gray-400'}`}>
+                ForexOrbit Academy
+              </p>
+              {/* Logout Button */}
+              <button
+                onClick={() => {
+                  logout();
+                  router.push('/login');
+                }}
+                className={`w-full flex items-center justify-center space-x-2 px-4 py-2.5 rounded-lg transition-all duration-200 ${
+                  user?.role === 'student'
+                    ? 'bg-white/10 hover:bg-white/20 text-white border border-white/20'
+                    : 'bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800'
+                }`}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                <span className="font-medium text-sm">Logout</span>
+              </button>
+            </div>
+          ) : (
+            /* Collapsed Logout Button */
+            <div className="p-2 flex justify-center">
+              <button
+                onClick={() => {
+                  logout();
+                  router.push('/login');
+                }}
+                className={`p-2 rounded-lg transition-all duration-200 ${
+                  user?.role === 'student'
+                    ? 'text-white/80 hover:bg-white/10'
+                    : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                }`}
+                title="Logout"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+              </button>
+            </div>
+          )}
+        </div>
       </aside>
     </>
   );
