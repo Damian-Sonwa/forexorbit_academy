@@ -110,6 +110,7 @@ export default function InstructorDashboard() {
   });
   const [submittingClass, setSubmittingClass] = useState(false);
   const [showClassForm, setShowClassForm] = useState(false);
+  const [editingClass, setEditingClass] = useState<any>(null);
 
   // Group courses by difficulty level - Show ALL courses for instructors
   const coursesByLevel = {
@@ -202,12 +203,57 @@ export default function InstructorDashboard() {
       await apiClient.post('/classes', classForm);
       setClassForm({ title: '', description: '', date: '', time: '', meetingLink: '' });
       setShowClassForm(false);
+      setEditingClass(null);
       await loadUpcomingClasses();
       alert('Class created successfully!');
     } catch (error: any) {
       alert(error.response?.data?.error || error.message || 'Failed to create class');
     } finally {
       setSubmittingClass(false);
+    }
+  };
+
+  // FIX: Handle editing a class
+  const handleEditClass = (cls: any) => {
+    setEditingClass(cls);
+    setClassForm({
+      title: cls.title,
+      description: cls.description,
+      date: cls.date,
+      time: cls.time,
+      meetingLink: cls.meetingLink || '',
+    });
+    setShowClassForm(true);
+  };
+
+  // FIX: Handle updating a class
+  const handleUpdateClass = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingClass) return;
+    setSubmittingClass(true);
+    try {
+      await apiClient.put(`/classes?id=${editingClass._id}`, classForm);
+      setClassForm({ title: '', description: '', date: '', time: '', meetingLink: '' });
+      setShowClassForm(false);
+      setEditingClass(null);
+      await loadUpcomingClasses();
+      alert('Class updated successfully!');
+    } catch (error: any) {
+      alert(error.response?.data?.error || error.message || 'Failed to update class');
+    } finally {
+      setSubmittingClass(false);
+    }
+  };
+
+  // FIX: Handle deleting a class
+  const handleDeleteClass = async (classId: string) => {
+    if (!confirm('Are you sure you want to delete this class?')) return;
+    try {
+      await apiClient.delete(`/classes?id=${classId}`);
+      await loadUpcomingClasses();
+      alert('Class deleted successfully!');
+    } catch (error: any) {
+      alert(error.response?.data?.error || error.message || 'Failed to delete class');
     }
   };
 
@@ -638,7 +684,7 @@ export default function InstructorDashboard() {
         {showClassForm && (
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6 mb-3 sm:mb-4">
             <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Create New Class/Event</h3>
-            <form onSubmit={handleCreateClass} className="space-y-4">
+            <form onSubmit={editingClass ? handleUpdateClass : handleCreateClass} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
@@ -726,36 +772,59 @@ export default function InstructorDashboard() {
                   key={cls._id}
                   className="p-4 bg-gray-50 dark:bg-gray-700 rounded-xl border border-gray-200 dark:border-gray-600"
                 >
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                    <div className="flex-1">
-                      <h4 className="font-bold text-gray-900 dark:text-white mb-1">{cls.title}</h4>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">{cls.description}</p>
-                      <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
-                        <span className="flex items-center">
-                          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                      <div className="flex-1">
+                        <h4 className="font-bold text-gray-900 dark:text-white mb-1">{cls.title}</h4>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">{cls.description}</p>
+                        <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
+                          <span className="flex items-center">
+                            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            {cls.date}
+                          </span>
+                          <span className="flex items-center">
+                            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            {cls.time}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {/* FIX: Edit and Delete buttons */}
+                        <button
+                          onClick={() => handleEditClass(cls)}
+                          className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-sm transition-colors flex items-center space-x-1"
+                          title="Edit Class"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                           </svg>
-                          {cls.date}
-                        </span>
-                        <span className="flex items-center">
-                          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          <span className="hidden sm:inline">Edit</span>
+                        </button>
+                        <button
+                          onClick={() => handleDeleteClass(cls._id)}
+                          className="px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold text-sm transition-colors flex items-center space-x-1"
+                          title="Delete Class"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                           </svg>
-                          {cls.time}
-                        </span>
+                          <span className="hidden sm:inline">Delete</span>
+                        </button>
+                        {cls.meetingLink && (
+                          <a
+                            href={cls.meetingLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold text-sm transition-colors whitespace-nowrap"
+                          >
+                            Join Class
+                          </a>
+                        )}
                       </div>
                     </div>
-                    {cls.meetingLink && (
-                      <a
-                        href={cls.meetingLink}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold text-sm transition-colors whitespace-nowrap"
-                      >
-                        Join Class
-                      </a>
-                    )}
-                  </div>
                 </div>
               ))}
             </div>

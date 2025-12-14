@@ -143,6 +143,7 @@ export default function AdminPanel() {
     meetingLink: '',
   });
   const [submittingClass, setSubmittingClass] = useState(false);
+  const [editingClass, setEditingClass] = useState<any>(null);
 
   useEffect(() => {
     // Allow access for both admin and superadmin
@@ -314,12 +315,55 @@ export default function AdminPanel() {
     try {
       await apiClient.post('/classes', classForm);
       setClassForm({ title: '', description: '', date: '', time: '', meetingLink: '' });
+      setEditingClass(null);
       await loadUpcomingClasses();
       alert('Class created successfully!');
     } catch (error: any) {
       alert(error.response?.data?.error || error.message || 'Failed to create class');
     } finally {
       setSubmittingClass(false);
+    }
+  };
+
+  // FIX: Handle editing a class
+  const handleEditClass = (cls: any) => {
+    setEditingClass(cls);
+    setClassForm({
+      title: cls.title,
+      description: cls.description,
+      date: cls.date,
+      time: cls.time,
+      meetingLink: cls.meetingLink || '',
+    });
+  };
+
+  // FIX: Handle updating a class
+  const handleUpdateClass = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingClass) return;
+    setSubmittingClass(true);
+    try {
+      await apiClient.put(`/classes?id=${editingClass._id}`, classForm);
+      setClassForm({ title: '', description: '', date: '', time: '', meetingLink: '' });
+      setEditingClass(null);
+      await loadUpcomingClasses();
+      alert('Class updated successfully!');
+    } catch (error: any) {
+      alert(error.response?.data?.error || error.message || 'Failed to update class');
+    } finally {
+      setSubmittingClass(false);
+    }
+  };
+
+  // FIX: Handle deleting a class
+  const handleDeleteClass = async (classId: string) => {
+    if (!confirm('Are you sure you want to delete this class?')) return;
+    try {
+      await apiClient.delete(`/classes?id=${classId}`);
+      await loadUpcomingClasses();
+      alert('Class deleted successfully!');
+    } catch (error: any) {
+      alert(error.response?.data?.error || error.message || 'Failed to delete class');
     }
   };
 
@@ -1490,7 +1534,7 @@ export default function AdminPanel() {
             {/* Create Class Form */}
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
               <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Create New Class/Event</h3>
-              <form onSubmit={handleCreateClass} className="space-y-4">
+              <form onSubmit={editingClass ? handleUpdateClass : handleCreateClass} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
@@ -1606,16 +1650,39 @@ export default function AdminPanel() {
                             </span>
                           </div>
                         </div>
-                        {cls.meetingLink && (
-                          <a
-                            href={cls.meetingLink}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold text-sm transition-colors whitespace-nowrap"
+                        <div className="flex items-center gap-2">
+                          {/* FIX: Edit and Delete buttons */}
+                          <button
+                            onClick={() => handleEditClass(cls)}
+                            className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-sm transition-colors flex items-center space-x-1"
+                            title="Edit Class"
                           >
-                            Join Class
-                          </a>
-                        )}
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                            <span className="hidden sm:inline">Edit</span>
+                          </button>
+                          <button
+                            onClick={() => handleDeleteClass(cls._id)}
+                            className="px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold text-sm transition-colors flex items-center space-x-1"
+                            title="Delete Class"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                            <span className="hidden sm:inline">Delete</span>
+                          </button>
+                          {cls.meetingLink && (
+                            <a
+                              href={cls.meetingLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold text-sm transition-colors whitespace-nowrap"
+                            >
+                              Join Class
+                            </a>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))}
