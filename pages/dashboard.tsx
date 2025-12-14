@@ -50,7 +50,7 @@ export default function Dashboard() {
 
   const loadUpcomingClasses = async () => {
     try {
-      const data = await apiClient.get('/classes');
+      const data = await apiClient.get<any[]>('/classes');
       setUpcomingClasses(data);
     } catch (error) {
       console.error('Failed to load upcoming classes:', error);
