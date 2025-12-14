@@ -751,13 +751,28 @@ export default function InstructorDashboard() {
                   />
                 </div>
               </div>
-              <button
-                type="submit"
-                disabled={submittingClass}
-                className="w-full md:w-auto px-6 py-3 bg-primary-600 hover:bg-primary-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-xl font-semibold transition-colors"
-              >
-                {submittingClass ? 'Creating...' : 'Create Class'}
-              </button>
+              <div className="flex gap-3">
+                {editingClass && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingClass(null);
+                      setClassForm({ title: '', description: '', date: '', time: '', meetingLink: '' });
+                      setShowClassForm(false);
+                    }}
+                    className="flex-1 px-6 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-xl font-semibold transition-colors"
+                  >
+                    Cancel
+                  </button>
+                )}
+                <button
+                  type="submit"
+                  disabled={submittingClass}
+                  className="flex-1 md:w-auto px-6 py-3 bg-primary-600 hover:bg-primary-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-xl font-semibold transition-colors"
+                >
+                  {submittingClass ? (editingClass ? 'Updating...' : 'Creating...') : (editingClass ? 'Update Class' : 'Create Class')}
+                </button>
+              </div>
             </form>
           </div>
         )}
