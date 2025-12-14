@@ -194,13 +194,24 @@ export default function Profile() {
     setSuccess('');
 
     try {
-      await apiClient.post('/student/onboarding', formData);
+      // FIX: Include profilePhoto in the save request to preserve it
+      await apiClient.post('/student/onboarding', {
+        ...formData,
+        profilePhoto: formData.profilePhoto || photoPreview, // Include current profile photo
+      });
       if (!(user as any)?.onboardingCompleted) {
         await apiClient.put('/student/onboarding/complete');
       }
-      // Refresh user data
+      // FIX: Refresh user data to ensure profilePhoto persists
       const userData = await apiClient.get('/auth/me') as any;
       localStorage.setItem('user', JSON.stringify({ ...user, ...userData }));
+      
+      // FIX: Update formData and photoPreview with refreshed data to ensure image persists
+      if (userData.profilePhoto) {
+        setFormData((prev) => ({ ...prev, profilePhoto: userData.profilePhoto }));
+        setPhotoPreview(userData.profilePhoto);
+      }
+      
       setIsEditing(false);
       setSuccess('Profile updated successfully!');
       setTimeout(() => setSuccess(''), 3000);

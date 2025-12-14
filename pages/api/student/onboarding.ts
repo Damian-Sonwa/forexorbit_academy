@@ -26,6 +26,7 @@ async function saveOnboarding(req: AuthRequest, res: NextApiResponse) {
       yearsOfExperience,
       preferredTopics,
       notificationPreferences,
+      profilePhoto, // FIX: Include profilePhoto to preserve it when saving profile
     } = req.body;
 
     // FIX: Make validation less strict - allow partial updates for profile editing
@@ -42,31 +43,48 @@ async function saveOnboarding(req: AuthRequest, res: NextApiResponse) {
     const db = await getDb();
     const users = db.collection('users');
 
+    // FIX: Get current user to preserve existing profilePhoto if not provided
+    const currentUser = await users.findOne(
+      { _id: new ObjectId(req.user!.userId) },
+      { projection: { profilePhoto: 1 } }
+    );
+
     // Update user with onboarding data
+    // FIX: Preserve profilePhoto - only update if new one is provided, otherwise keep existing
+    const updateData: any = {
+      name: fullName, // Update main name field
+      studentDetails: {
+        fullName,
+        dateOfBirth,
+        gender: gender || null,
+        contactNumber,
+        educationLevel,
+        certifications: certifications || null,
+        tradingLevel,
+        yearsOfExperience,
+        preferredTopics,
+        notificationPreferences: notificationPreferences || {
+          email: true,
+          sms: false,
+          push: true,
+        },
+        completedAt: new Date(),
+      },
+      updatedAt: new Date(),
+    };
+
+    // FIX: Preserve profilePhoto - update only if provided, otherwise keep existing
+    if (profilePhoto) {
+      updateData.profilePhoto = profilePhoto;
+    } else if (currentUser?.profilePhoto) {
+      // Keep existing profilePhoto if not provided in request
+      updateData.profilePhoto = currentUser.profilePhoto;
+    }
+
     const result = await users.updateOne(
       { _id: new ObjectId(req.user!.userId) },
       {
-        $set: {
-          name: fullName, // Update main name field
-          studentDetails: {
-            fullName,
-            dateOfBirth,
-            gender: gender || null,
-            contactNumber,
-            educationLevel,
-            certifications: certifications || null,
-            tradingLevel,
-            yearsOfExperience,
-            preferredTopics,
-            notificationPreferences: notificationPreferences || {
-              email: true,
-              sms: false,
-              push: true,
-            },
-            completedAt: new Date(),
-          },
-          updatedAt: new Date(),
-        },
+        $set: updateData,
       }
     );
 
