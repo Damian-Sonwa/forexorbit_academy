@@ -48,9 +48,13 @@ export default function Chat({ lessonId }: ChatProps) {
     }
 
     // Listen for new messages
-    const cleanup = onChatMessage((message: Message) => {
-      if (message.lessonId === lessonId) {
-        setMessages((prev) => [...prev, message]);
+    const cleanup = onChatMessage((message: any) => {
+      const chatMessage: Message = {
+        ...message,
+        lessonId: message.lessonId,
+      };
+      if (chatMessage.lessonId === lessonId) {
+        setMessages((prev) => [...prev, chatMessage]);
       }
     });
 
