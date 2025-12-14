@@ -19,8 +19,17 @@ export const config = {
 
 async function uploadProfilePhoto(req: AuthRequest, res: NextApiResponse) {
   try {
+    // FIX: Use /tmp for serverless environments (Vercel, etc.) - public folder is read-only
+    const isServerless = process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME;
+    const tempDir = isServerless ? '/tmp' : path.join(process.cwd(), 'public', 'uploads', 'profiles');
+    
+    // Ensure upload directory exists
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+
     const form = formidable({
-      uploadDir: path.join(process.cwd(), 'public', 'uploads', 'profiles'),
+      uploadDir: tempDir,
       keepExtensions: true,
       maxFileSize: 5 * 1024 * 1024, // 5MB
       filter: ({ name, originalFilename, mimetype }) => {
@@ -32,11 +41,9 @@ async function uploadProfilePhoto(req: AuthRequest, res: NextApiResponse) {
       },
     });
 
-    // Ensure upload directory exists
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'profiles');
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
+    // FIX: For serverless, we'll store the file in /tmp and return a data URL or use cloud storage
+    // For now, we'll use /tmp and convert to base64 to store in database
+    const uploadDir = tempDir;
 
     const [fields, files] = await form.parse(req);
 
@@ -49,6 +56,45 @@ async function uploadProfilePhoto(req: AuthRequest, res: NextApiResponse) {
     // FIX: Generate unique filename with proper extension
     const fileExt = path.extname(file.originalFilename || '') || '.jpg';
     const uniqueFilename = `profile-${req.user!.userId}-${Date.now()}${fileExt}`;
+    
+    // FIX: For serverless environments, convert to base64 and store in database
+    // For non-serverless, save to public/uploads
+    if (isServerless) {
+      // Read file and convert to base64
+      const fileBuffer = fs.readFileSync(file.filepath);
+      const base64Image = fileBuffer.toString('base64');
+      const mimeType = file.mimetype || 'image/jpeg';
+      const dataUrl = `data:${mimeType};base64,${base64Image}`;
+      
+      // Update user profile photo in database with data URL
+      const db = await getDb();
+      const users = db.collection('users');
+      await users.updateOne(
+        { _id: new ObjectId(req.user!.userId) },
+        {
+          $set: {
+            profilePhoto: dataUrl,
+            updatedAt: new Date(),
+          },
+        }
+      );
+
+      // Clean up temp file
+      try {
+        fs.unlinkSync(file.filepath);
+      } catch (unlinkErr) {
+        console.warn('Could not remove temp file:', unlinkErr);
+      }
+
+      return res.status(200).json({
+        success: true,
+        imageUrl: dataUrl,
+        url: dataUrl,
+        message: 'Profile photo uploaded successfully',
+      });
+    }
+
+    // Non-serverless: Save to public/uploads
     const newPath = path.join(uploadDir, uniqueFilename);
 
     // FIX: Handle file operations for serverless environments
@@ -73,7 +119,7 @@ async function uploadProfilePhoto(req: AuthRequest, res: NextApiResponse) {
       return res.status(200).json({
         success: true,
         imageUrl,
-        url: imageUrl, // Also return as 'url' for compatibility
+        url: imageUrl,
         message: 'Profile photo uploaded successfully',
       });
     }
@@ -117,7 +163,7 @@ async function uploadProfilePhoto(req: AuthRequest, res: NextApiResponse) {
       res.status(200).json({
         success: true,
         imageUrl,
-        url: imageUrl, // Also return as 'url' for compatibility
+        url: imageUrl,
         message: 'Profile photo uploaded successfully',
       });
     } catch (copyError: any) {
