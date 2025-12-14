@@ -13,6 +13,7 @@ interface Message {
   senderName: string;
   text: string;
   createdAt: Date | string;
+  lessonId?: string;
 }
 
 interface ChatProps {
