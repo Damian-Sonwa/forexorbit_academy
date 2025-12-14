@@ -99,6 +99,17 @@ export default function InstructorDashboard() {
     link: '',
   });
   const [submittingNews, setSubmittingNews] = useState(false);
+  // FIX: State for upcoming classes
+  const [upcomingClasses, setUpcomingClasses] = useState<any[]>([]);
+  const [classForm, setClassForm] = useState({
+    title: '',
+    description: '',
+    date: '',
+    time: '',
+    meetingLink: '',
+  });
+  const [submittingClass, setSubmittingClass] = useState(false);
+  const [showClassForm, setShowClassForm] = useState(false);
 
   // Group courses by difficulty level - Show ALL courses for instructors
   const coursesByLevel = {
@@ -128,6 +139,7 @@ export default function InstructorDashboard() {
       loadAllCourses();
       loadAnalytics();
       loadNews();
+      loadUpcomingClasses();
     }
   }, [user, courses]);
 
@@ -168,6 +180,34 @@ export default function InstructorDashboard() {
       setNewsItems(data as any[]);
     } catch (error) {
       console.error('Failed to load news:', error);
+    }
+  };
+
+  // FIX: Load upcoming classes for instructor
+  const loadUpcomingClasses = async () => {
+    try {
+      const data = await apiClient.get<any[]>('/classes');
+      setUpcomingClasses(data || []);
+    } catch (error) {
+      console.error('Failed to load upcoming classes:', error);
+      setUpcomingClasses([]);
+    }
+  };
+
+  // FIX: Handle creating a new class
+  const handleCreateClass = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmittingClass(true);
+    try {
+      await apiClient.post('/classes', classForm);
+      setClassForm({ title: '', description: '', date: '', time: '', meetingLink: '' });
+      setShowClassForm(false);
+      await loadUpcomingClasses();
+      alert('Class created successfully!');
+    } catch (error: any) {
+      alert(error.response?.data?.error || error.message || 'Failed to create class');
+    } finally {
+      setSubmittingClass(false);
     }
   };
 
@@ -571,6 +611,156 @@ export default function InstructorDashboard() {
             <span>Post News</span>
           </button>
         </div>
+
+        {/* FIX: Upcoming Classes Section - Allow instructors to post upcoming classes */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4 mb-3 sm:mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 flex-shrink-0">
+          <div className="flex items-center space-x-3">
+            <svg className="w-6 h-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            <div>
+              <h3 className="text-sm font-bold text-gray-900 dark:text-white">Upcoming Classes & Events</h3>
+              <p className="text-xs text-gray-600 dark:text-gray-400">Schedule classes that students can see on their dashboard</p>
+            </div>
+          </div>
+          <button
+            onClick={() => setShowClassForm(!showClassForm)}
+            className="w-full sm:w-auto px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold text-sm transition-colors flex items-center justify-center space-x-2"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            <span>{showClassForm ? 'Cancel' : 'Post Class'}</span>
+          </button>
+        </div>
+
+        {/* FIX: Class Creation Form */}
+        {showClassForm && (
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6 mb-3 sm:mb-4">
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Create New Class/Event</h3>
+            <form onSubmit={handleCreateClass} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                    Title <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={classForm.title}
+                    onChange={(e) => setClassForm({ ...classForm, title: e.target.value })}
+                    placeholder="e.g., Advanced Trading Strategies Workshop"
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                    Date <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={classForm.date}
+                    onChange={(e) => setClassForm({ ...classForm, date: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    required
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                  Description <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  value={classForm.description}
+                  onChange={(e) => setClassForm({ ...classForm, description: e.target.value })}
+                  placeholder="Describe the class or event..."
+                  rows={3}
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                    Time <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="time"
+                    value={classForm.time}
+                    onChange={(e) => setClassForm({ ...classForm, time: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                    Meeting Link (Optional)
+                  </label>
+                  <input
+                    type="url"
+                    value={classForm.meetingLink}
+                    onChange={(e) => setClassForm({ ...classForm, meetingLink: e.target.value })}
+                    placeholder="https://meet.google.com/..."
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+              <button
+                type="submit"
+                disabled={submittingClass}
+                className="w-full md:w-auto px-6 py-3 bg-primary-600 hover:bg-primary-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-xl font-semibold transition-colors"
+              >
+                {submittingClass ? 'Creating...' : 'Create Class'}
+              </button>
+            </form>
+          </div>
+        )}
+
+        {/* FIX: List of Upcoming Classes */}
+        {upcomingClasses.length > 0 && (
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6 mb-3 sm:mb-4">
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Your Scheduled Classes</h3>
+            <div className="space-y-3">
+              {upcomingClasses.map((cls) => (
+                <div
+                  key={cls._id}
+                  className="p-4 bg-gray-50 dark:bg-gray-700 rounded-xl border border-gray-200 dark:border-gray-600"
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div className="flex-1">
+                      <h4 className="font-bold text-gray-900 dark:text-white mb-1">{cls.title}</h4>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">{cls.description}</p>
+                      <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
+                        <span className="flex items-center">
+                          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          {cls.date}
+                        </span>
+                        <span className="flex items-center">
+                          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          {cls.time}
+                        </span>
+                      </div>
+                    </div>
+                    {cls.meetingLink && (
+                      <a
+                        href={cls.meetingLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold text-sm transition-colors whitespace-nowrap"
+                      >
+                        Join Class
+                      </a>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Statistics Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 mb-3 sm:mb-4 flex-shrink-0">

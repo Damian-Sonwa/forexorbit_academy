@@ -52,16 +52,42 @@ async function uploadInstructorImage(req: AuthRequest, res: NextApiResponse) {
     const filepath = path.join(uploadDir, filename);
     const publicUrl = `/uploads/instructors/${filename}`;
 
-    // Rename/move the file to the final location
-    try {
-      fs.renameSync(file.filepath, filepath);
+    // FIX: Handle file operations for serverless environments
+    // Check if the file is already in the target directory (common in serverless setups)
+    if (file.filepath === filepath) {
+      // File is already in the correct location
       res.status(200).json({
         url: publicUrl,
         filename: filename,
       });
-    } catch (renameError: any) {
-      console.error('Rename error:', renameError);
-      res.status(500).json({ error: 'Failed to save file' });
+      return;
+    }
+
+    // Copy file instead of rename to handle cross-device issues
+    try {
+      // Ensure the directory exists
+      if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
+      }
+      
+      // Use copyFileSync instead of renameSync for better cross-platform compatibility
+      fs.copyFileSync(file.filepath, filepath);
+      
+      // Remove temporary file (ignore errors if it fails)
+      try {
+        fs.unlinkSync(file.filepath);
+      } catch (unlinkErr) {
+        // Ignore unlink errors - file might already be removed or in use
+        console.warn('Could not remove temp file:', unlinkErr);
+      }
+      
+      res.status(200).json({
+        url: publicUrl,
+        filename: filename,
+      });
+    } catch (copyError: any) {
+      console.error('Copy error:', copyError);
+      res.status(500).json({ error: copyError.message || 'Failed to save file' });
     }
   } catch (error: any) {
     console.error('Upload error:', error);

@@ -96,17 +96,18 @@ export default function AdminPanel() {
   });
   const [submittingNews, setSubmittingNews] = useState(false);
   // Initialize activeTab from URL query or default to 'courses'
-  const getInitialTab = (): 'courses' | 'users' | 'instructors' | 'analytics' | 'approvals' | 'certificates' => {
+  // FIX: Added 'classes' tab for upcoming classes/events
+  const getInitialTab = (): 'courses' | 'users' | 'instructors' | 'analytics' | 'approvals' | 'certificates' | 'classes' => {
     if (router.query.tab && typeof router.query.tab === 'string') {
-      const validTabs = ['courses', 'users', 'instructors', 'analytics', 'approvals', 'certificates'];
+      const validTabs = ['courses', 'users', 'instructors', 'analytics', 'approvals', 'certificates', 'classes'];
       if (validTabs.includes(router.query.tab)) {
-        return router.query.tab as 'courses' | 'users' | 'instructors' | 'analytics' | 'approvals' | 'certificates';
+        return router.query.tab as 'courses' | 'users' | 'instructors' | 'analytics' | 'approvals' | 'certificates' | 'classes';
       }
     }
     return 'courses';
   };
   
-  const [activeTab, setActiveTab] = useState<'courses' | 'users' | 'instructors' | 'analytics' | 'approvals' | 'certificates'>(getInitialTab());
+  const [activeTab, setActiveTab] = useState<'courses' | 'users' | 'instructors' | 'analytics' | 'approvals' | 'certificates' | 'classes'>(getInitialTab());
   const [certificateForm, setCertificateForm] = useState({
     studentIdentifier: '',
     courseId: '',
@@ -132,6 +133,16 @@ export default function AdminPanel() {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>('');
+  // FIX: State for upcoming classes
+  const [upcomingClasses, setUpcomingClasses] = useState<any[]>([]);
+  const [classForm, setClassForm] = useState({
+    title: '',
+    description: '',
+    date: '',
+    time: '',
+    meetingLink: '',
+  });
+  const [submittingClass, setSubmittingClass] = useState(false);
 
   useEffect(() => {
     // Allow access for both admin and superadmin
@@ -143,7 +154,7 @@ export default function AdminPanel() {
   // Sync activeTab with URL query params
   useEffect(() => {
     if (router.query.tab && typeof router.query.tab === 'string') {
-      const validTabs = ['courses', 'users', 'instructors', 'analytics', 'approvals', 'certificates'];
+      const validTabs = ['courses', 'users', 'instructors', 'analytics', 'approvals', 'certificates', 'classes'];
       if (validTabs.includes(router.query.tab)) {
         setActiveTab(router.query.tab as any);
       }
@@ -156,6 +167,7 @@ export default function AdminPanel() {
       loadUsers();
       loadInstructors();
       loadNews();
+      loadUpcomingClasses();
       // Load pending approvals for all admins (Super Admin can approve, regular admins can see notifications)
       loadPendingUsers();
     }
@@ -281,6 +293,33 @@ export default function AdminPanel() {
       setInstructors(data);
     } catch (error) {
       console.error('Failed to load instructors:', error);
+    }
+  };
+
+  // FIX: Load upcoming classes
+  const loadUpcomingClasses = async () => {
+    try {
+      const data = await apiClient.get<any[]>('/classes');
+      setUpcomingClasses(data || []);
+    } catch (error) {
+      console.error('Failed to load upcoming classes:', error);
+      setUpcomingClasses([]);
+    }
+  };
+
+  // FIX: Handle creating a new class
+  const handleCreateClass = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmittingClass(true);
+    try {
+      await apiClient.post('/classes', classForm);
+      setClassForm({ title: '', description: '', date: '', time: '', meetingLink: '' });
+      await loadUpcomingClasses();
+      alert('Class created successfully!');
+    } catch (error: any) {
+      alert(error.response?.data?.error || error.message || 'Failed to create class');
+    } finally {
+      setSubmittingClass(false);
     }
   };
 
@@ -677,6 +716,21 @@ export default function AdminPanel() {
                 {pendingUsers.length}
               </span>
             )}
+          </button>
+          {/* FIX: Added Upcoming Classes tab */}
+          <button
+            onClick={() => {
+              setActiveTab('classes');
+              router.push('/admin?tab=classes', undefined, { shallow: true });
+              loadUpcomingClasses();
+            }}
+            className={`flex-1 px-6 py-3 rounded-lg font-semibold transition-all ${
+              activeTab === 'classes'
+                ? 'bg-white dark:bg-gray-700 text-primary-600 dark:text-primary-400 shadow-sm'
+                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+            }`}
+          >
+            Upcoming Classes
           </button>
         </div>
 
@@ -1422,6 +1476,154 @@ export default function AdminPanel() {
                   </ul>
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* FIX: Upcoming Classes Tab - Allow admins to post upcoming classes/events */}
+        {activeTab === 'classes' && (
+          <div className="space-y-6">
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Upcoming Classes & Events</h2>
+              <p className="text-gray-600 dark:text-gray-400 text-sm">
+                Create and manage upcoming classes or events that will be visible to students on their dashboard
+              </p>
+            </div>
+
+            {/* Create Class Form */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Create New Class/Event</h3>
+              <form onSubmit={handleCreateClass} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                      Title <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={classForm.title}
+                      onChange={(e) => setClassForm({ ...classForm, title: e.target.value })}
+                      placeholder="e.g., Advanced Trading Strategies Workshop"
+                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                      Date <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="date"
+                      value={classForm.date}
+                      onChange={(e) => setClassForm({ ...classForm, date: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      required
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                    Description <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    value={classForm.description}
+                    onChange={(e) => setClassForm({ ...classForm, description: e.target.value })}
+                    placeholder="Describe the class or event..."
+                    rows={3}
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    required
+                  />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                      Time <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="time"
+                      value={classForm.time}
+                      onChange={(e) => setClassForm({ ...classForm, time: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                      Meeting Link (Optional)
+                    </label>
+                    <input
+                      type="url"
+                      value={classForm.meetingLink}
+                      onChange={(e) => setClassForm({ ...classForm, meetingLink: e.target.value })}
+                      placeholder="https://meet.google.com/..."
+                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+                <button
+                  type="submit"
+                  disabled={submittingClass}
+                  className="w-full md:w-auto px-6 py-3 bg-primary-600 hover:bg-primary-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-xl font-semibold transition-colors"
+                >
+                  {submittingClass ? 'Creating...' : 'Create Class'}
+                </button>
+              </form>
+            </div>
+
+            {/* List of Upcoming Classes */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Scheduled Classes</h3>
+              {upcomingClasses.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-500 dark:text-gray-400">No upcoming classes scheduled yet.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {upcomingClasses.map((cls) => (
+                    <div
+                      key={cls._id}
+                      className="p-4 bg-gray-50 dark:bg-gray-700 rounded-xl border border-gray-200 dark:border-gray-600"
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div className="flex-1">
+                          <h4 className="font-bold text-gray-900 dark:text-white mb-1">{cls.title}</h4>
+                          <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">{cls.description}</p>
+                          <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
+                            <span className="flex items-center">
+                              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                              </svg>
+                              {cls.date}
+                            </span>
+                            <span className="flex items-center">
+                              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              {cls.time}
+                            </span>
+                            <span className="flex items-center">
+                              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                              </svg>
+                              {cls.instructorName}
+                            </span>
+                          </div>
+                        </div>
+                        {cls.meetingLink && (
+                          <a
+                            href={cls.meetingLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold text-sm transition-colors whitespace-nowrap"
+                          >
+                            Join Class
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}

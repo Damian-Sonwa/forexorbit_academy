@@ -77,9 +77,10 @@ export default function Chat({ lessonId }: ChatProps) {
   }
 
   return (
-    <div className="flex flex-col h-96 bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+    <div className="flex flex-col h-[400px] sm:h-96 bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50">
+      {/* FIX: Mobile responsive - adjusted height and padding for mobile devices */}
+      <div className="flex-1 overflow-y-auto p-3 sm:p-6 space-y-4 bg-gray-50">
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center">
             <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mb-4">
@@ -114,22 +115,23 @@ export default function Chat({ lessonId }: ChatProps) {
       </div>
 
       {/* Input */}
-      <form onSubmit={handleSend} className="border-t border-gray-200 p-4 bg-white">
-        <div className="flex space-x-3">
+      {/* FIX: Mobile responsive - ensure input and button are always visible and not cut off */}
+      <form onSubmit={handleSend} className="border-t border-gray-200 p-2 sm:p-3 md:p-4 bg-white flex-shrink-0">
+        <div className="flex gap-2 sm:gap-3">
           <input
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder={connected ? "Type a message..." : "Connecting..."}
             disabled={!connected}
-            className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+            className="flex-1 min-w-0 px-3 py-2 sm:px-4 sm:py-2 md:px-4 md:py-3 text-sm sm:text-base border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
           />
           <button
             type="submit"
             disabled={!connected || !input.trim()}
-            className="px-6 py-3 bg-primary-600 hover:bg-primary-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-xl font-semibold transition-colors shadow-sm"
+            className="min-w-[44px] px-3 py-2 sm:px-4 sm:py-2 md:px-6 md:py-3 bg-primary-600 hover:bg-primary-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-xl font-semibold transition-colors shadow-sm flex-shrink-0 flex items-center justify-center"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
             </svg>
           </button>

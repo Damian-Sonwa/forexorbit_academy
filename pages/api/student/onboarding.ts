@@ -28,13 +28,15 @@ async function saveOnboarding(req: AuthRequest, res: NextApiResponse) {
       notificationPreferences,
     } = req.body;
 
-    // Validate required fields
-    if (!fullName || !dateOfBirth || !contactNumber || !educationLevel || !tradingLevel || !yearsOfExperience) {
-      return res.status(400).json({ error: 'Missing required fields' });
+    // FIX: Make validation less strict - allow partial updates for profile editing
+    // Only require fullName for profile updates (other fields can be optional)
+    if (!fullName) {
+      return res.status(400).json({ error: 'Full name is required' });
     }
 
-    if (!preferredTopics || !Array.isArray(preferredTopics) || preferredTopics.length === 0) {
-      return res.status(400).json({ error: 'Please select at least one preferred learning topic' });
+    // Preferred topics can be empty for profile updates
+    if (preferredTopics && !Array.isArray(preferredTopics)) {
+      return res.status(400).json({ error: 'Preferred topics must be an array' });
     }
 
     const db = await getDb();

@@ -191,14 +191,21 @@ export default function Consultations() {
                       onChange={(e) => setRequestForm({ ...requestForm, expertId: e.target.value })}
                       className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                       required
+                      disabled={experts.length === 0}
                     >
-                      <option value="">Choose an expert...</option>
+                      <option value="">{experts.length === 0 ? 'No experts available. Please contact support.' : 'Choose an expert...'}</option>
                       {experts.map((expert) => (
                         <option key={expert._id} value={expert._id}>
                           {expert.name} ({expert.role === 'instructor' ? 'Instructor' : 'Admin'})
                         </option>
                       ))}
                     </select>
+                    {/* FIX: Show message if no experts available */}
+                    {experts.length === 0 && (
+                      <p className="mt-2 text-sm text-yellow-600 dark:text-yellow-400">
+                        No experts are currently available. Please check back later or contact support.
+                      </p>
+                    )}
                   </div>
 
                   <div>
