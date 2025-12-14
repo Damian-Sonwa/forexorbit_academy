@@ -49,11 +49,16 @@ export default function Chat({ lessonId }: ChatProps) {
 
     // Listen for new messages
     const cleanup = onChatMessage((message: any) => {
-      const chatMessage: Message = {
-        ...message,
-        lessonId: message.lessonId,
-      };
-      if (chatMessage.lessonId === lessonId) {
+      // Ensure lessonId is included from the socket message
+      const incomingLessonId = message.lessonId;
+      if (incomingLessonId === lessonId) {
+        const chatMessage: Message = {
+          id: message.id || message._id?.toString() || '',
+          senderName: message.senderName || 'Unknown',
+          text: message.text || '',
+          createdAt: message.createdAt || new Date(),
+          lessonId: incomingLessonId,
+        };
         setMessages((prev) => [...prev, chatMessage]);
       }
     });
