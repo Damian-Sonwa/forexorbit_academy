@@ -20,6 +20,7 @@ export default function Header() {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [selectedLanguage, setSelectedLanguage] = useState('en');
+  const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
   const notificationsRef = useRef<HTMLDivElement>(null);
   const languageRef = useRef<HTMLDivElement>(null);
 
