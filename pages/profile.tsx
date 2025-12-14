@@ -72,6 +72,8 @@ export default function Profile() {
     try {
       const data = await apiClient.get('/auth/me') as any;
       if (data.studentDetails || data.profilePhoto) {
+        // FIX: Ensure profilePhoto is properly loaded and displayed
+        const profilePhotoUrl = data.profilePhoto || '';
         setFormData({
           fullName: data.studentDetails?.fullName || data.name || '',
           dateOfBirth: data.studentDetails?.dateOfBirth || '',
@@ -87,10 +89,11 @@ export default function Profile() {
             sms: false,
             push: true,
           },
-          profilePhoto: data.profilePhoto || '',
+          profilePhoto: profilePhotoUrl,
         });
-        if (data.profilePhoto) {
-          setPhotoPreview(data.profilePhoto);
+        // FIX: Set photo preview if profile photo exists
+        if (profilePhotoUrl) {
+          setPhotoPreview(profilePhotoUrl);
         }
       } else {
         // If no student details, use basic user info
@@ -147,23 +150,39 @@ export default function Profile() {
 
     setUploadingPhoto(true);
     setError('');
+    setSuccess('');
 
     try {
       const uploadFormData = new FormData();
       uploadFormData.append('profilePhoto', selectedPhoto);
 
-      const response = await apiClient.post('/upload/profile', uploadFormData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      // FIX: Don't set Content-Type header - let browser set it with boundary
+      const response = await apiClient.post('/upload/profile', uploadFormData);
 
-      setFormData((prev) => ({ ...prev, profilePhoto: (response as any).imageUrl }));
+      // FIX: Handle both imageUrl and url response formats
+      const imageUrl = (response as any).imageUrl || (response as any).url;
+      
+      if (!imageUrl) {
+        throw new Error('No image URL returned from server');
+      }
+
+      // FIX: Update form data and preview with the returned image URL
+      setFormData((prev) => ({ ...prev, profilePhoto: imageUrl }));
+      setPhotoPreview(imageUrl);
       setSelectedPhoto(null);
       setSuccess('Profile photo uploaded successfully!');
       setTimeout(() => setSuccess(''), 3000);
+      
+      // FIX: Refresh user data to ensure image persists
+      const userData = await apiClient.get('/auth/me') as any;
+      if (userData.profilePhoto) {
+        setPhotoPreview(userData.profilePhoto);
+        setFormData((prev) => ({ ...prev, profilePhoto: userData.profilePhoto }));
+      }
     } catch (error: any) {
-      setError(error.response?.data?.error || error.message || 'Failed to upload photo');
+      const errorMessage = error.response?.data?.error || error.message || 'Failed to upload photo';
+      setError(errorMessage);
+      console.error('Photo upload error:', error);
     } finally {
       setUploadingPhoto(false);
     }
@@ -251,11 +270,24 @@ export default function Profile() {
               <div className="flex flex-col items-center">
                 <div className="relative mb-4">
                   <div className="w-32 h-32 rounded-full overflow-hidden bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center">
-                    {photoPreview ? (
+                    {/* FIX: Display profile photo with fallback to avatar initial */}
+                    {photoPreview || formData.profilePhoto ? (
                       <img
-                        src={photoPreview}
+                        src={photoPreview || formData.profilePhoto}
                         alt="Profile"
                         className="w-full h-full object-cover"
+                        onError={(e) => {
+                          // FIX: Fallback to avatar if image fails to load
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                          const parent = target.parentElement;
+                          if (parent) {
+                            const fallback = document.createElement('span');
+                            fallback.className = 'text-white text-4xl font-bold';
+                            fallback.textContent = formData.fullName?.charAt(0)?.toUpperCase() || user?.name?.charAt(0)?.toUpperCase() || 'U';
+                            parent.appendChild(fallback);
+                          }
+                        }}
                       />
                     ) : (
                       <span className="text-white text-4xl font-bold">

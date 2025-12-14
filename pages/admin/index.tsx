@@ -464,24 +464,21 @@ export default function AdminPanel() {
       const formData = new FormData();
       formData.append('image', selectedImage);
 
-      const token = localStorage.getItem('token');
-      const response = await fetch('/api/upload/instructor', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: formData,
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to upload image');
+      // FIX: Use apiClient instead of fetch for consistent auth handling
+      const response = await apiClient.post('/upload/instructor', formData);
+      
+      // FIX: Handle both 'url' and 'imageUrl' response formats
+      const imageUrl = (response as any).url || (response as any).imageUrl;
+      
+      if (!imageUrl) {
+        throw new Error('No image URL returned from server');
       }
 
-      const data = await response.json();
-      return data.url;
+      return imageUrl;
     } catch (error: any) {
       console.error('Upload error:', error);
-      throw new Error(error.message || 'Failed to upload image');
+      const errorMessage = error.response?.data?.error || error.message || 'Failed to upload image';
+      throw new Error(errorMessage);
     } finally {
       setUploadingImage(false);
     }

@@ -43,45 +43,100 @@ async function uploadProfilePhoto(req: AuthRequest, res: NextApiResponse) {
     const file = Array.isArray(files.profilePhoto) ? files.profilePhoto[0] : files.profilePhoto;
 
     if (!file) {
-      return res.status(400).json({ error: 'No file uploaded' });
+      return res.status(400).json({ error: 'No file uploaded. Please select an image file.' });
     }
 
-    // Generate unique filename
-    const fileExt = path.extname(file.originalFilename || '');
-    const uniqueFilename = `${req.user!.userId}-${Date.now()}${fileExt}`;
+    // FIX: Generate unique filename with proper extension
+    const fileExt = path.extname(file.originalFilename || '') || '.jpg';
+    const uniqueFilename = `profile-${req.user!.userId}-${Date.now()}${fileExt}`;
     const newPath = path.join(uploadDir, uniqueFilename);
 
-    // Move file to final location
-    fs.renameSync(file.filepath, newPath);
+    // FIX: Handle file operations for serverless environments
+    // Check if the file is already in the target directory (common in serverless setups)
+    if (file.filepath === newPath) {
+      // File is already in the correct location
+      const imageUrl = `/uploads/profiles/${uniqueFilename}`;
+      
+      // Update user profile photo in database
+      const db = await getDb();
+      const users = db.collection('users');
+      await users.updateOne(
+        { _id: new ObjectId(req.user!.userId) },
+        {
+          $set: {
+            profilePhoto: imageUrl,
+            updatedAt: new Date(),
+          },
+        }
+      );
 
-    // Generate URL
-    const imageUrl = `/uploads/profiles/${uniqueFilename}`;
+      return res.status(200).json({
+        success: true,
+        imageUrl,
+        url: imageUrl, // Also return as 'url' for compatibility
+        message: 'Profile photo uploaded successfully',
+      });
+    }
 
-    // Update user profile photo in database
-    const db = await getDb();
-    const users = db.collection('users');
-
-    await users.updateOne(
-      { _id: new ObjectId(req.user!.userId) },
-      {
-        $set: {
-          profilePhoto: imageUrl,
-          updatedAt: new Date(),
-        },
+    // FIX: Use copyFileSync instead of renameSync for better cross-platform compatibility
+    try {
+      // Ensure the directory exists
+      if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
       }
-    );
+      
+      // Copy file instead of rename to handle cross-device issues
+      fs.copyFileSync(file.filepath, newPath);
+      
+      // Remove temporary file (ignore errors if it fails)
+      try {
+        fs.unlinkSync(file.filepath);
+      } catch (unlinkErr) {
+        // Ignore unlink errors - file might already be removed or in use
+        console.warn('Could not remove temp file:', unlinkErr);
+      }
+      
+      // Generate URL - ensure it starts with / for proper serving
+      const imageUrl = `/uploads/profiles/${uniqueFilename}`;
 
-    res.json({
-      success: true,
-      imageUrl,
-      message: 'Profile photo uploaded successfully',
-    });
+      // FIX: Update user profile photo in database
+      const db = await getDb();
+      const users = db.collection('users');
+
+      await users.updateOne(
+        { _id: new ObjectId(req.user!.userId) },
+        {
+          $set: {
+            profilePhoto: imageUrl,
+            updatedAt: new Date(),
+          },
+        }
+      );
+
+      // FIX: Return both imageUrl and url for compatibility
+      res.status(200).json({
+        success: true,
+        imageUrl,
+        url: imageUrl, // Also return as 'url' for compatibility
+        message: 'Profile photo uploaded successfully',
+      });
+    } catch (copyError: any) {
+      console.error('Copy error:', copyError);
+      res.status(500).json({ 
+        error: copyError.message || 'Failed to save file. Please try again.' 
+      });
+    }
   } catch (error: any) {
     console.error('Profile photo upload error:', error);
     if (error.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json({ error: 'File size exceeds 5MB limit' });
+      return res.status(400).json({ error: 'File size exceeds 5MB limit. Please choose a smaller image.' });
     }
-    res.status(500).json({ error: error.message || 'Failed to upload profile photo' });
+    if (error.code === 'ENOENT') {
+      return res.status(500).json({ error: 'Upload directory not found. Please contact support.' });
+    }
+    res.status(500).json({ 
+      error: error.message || 'Failed to upload profile photo. Please try again.' 
+    });
   }
 }
 

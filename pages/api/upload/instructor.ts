@@ -56,9 +56,12 @@ async function uploadInstructorImage(req: AuthRequest, res: NextApiResponse) {
     // Check if the file is already in the target directory (common in serverless setups)
     if (file.filepath === filepath) {
       // File is already in the correct location
+      // FIX: Return both 'url' and 'imageUrl' for compatibility
       res.status(200).json({
         url: publicUrl,
+        imageUrl: publicUrl, // Also return as imageUrl for compatibility
         filename: filename,
+        success: true,
       });
       return;
     }
@@ -81,13 +84,18 @@ async function uploadInstructorImage(req: AuthRequest, res: NextApiResponse) {
         console.warn('Could not remove temp file:', unlinkErr);
       }
       
+      // FIX: Return both 'url' and 'imageUrl' for compatibility
       res.status(200).json({
         url: publicUrl,
+        imageUrl: publicUrl, // Also return as imageUrl for compatibility
         filename: filename,
+        success: true,
       });
     } catch (copyError: any) {
       console.error('Copy error:', copyError);
-      res.status(500).json({ error: copyError.message || 'Failed to save file' });
+      res.status(500).json({ 
+        error: copyError.message || 'Failed to save file. Please try again.' 
+      });
     }
   } catch (error: any) {
     console.error('Upload error:', error);
