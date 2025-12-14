@@ -67,7 +67,7 @@ export default function Chat({ lessonId }: ChatProps) {
       leaveLesson(lessonId);
       cleanup?.();
     };
-  }, [lessonId, connected]);
+  }, [lessonId, connected, joinLesson, leaveLesson, onChatMessage]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
