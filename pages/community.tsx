@@ -1250,7 +1250,8 @@ export default function Community() {
       <Header />
 
       {/* 3-Column Layout: Left (Rooms), Center (Chat), Right (Updates) */}
-      <div className="flex flex-1 overflow-hidden pt-20 lg:pt-0">
+      {/* FIX: Ensure proper height constraints for mobile - use full viewport height minus header */}
+      <div className="flex flex-1 overflow-hidden pt-20 lg:pt-0 h-[calc(100vh-5rem)] lg:h-auto">
         {/* LEFT COLUMN: Rooms Sidebar + User Profile */}
         <div className="w-80 lg:w-96 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col hidden md:flex">
           {/* Header */}
@@ -1381,11 +1382,13 @@ export default function Community() {
         </div>
 
         {/* CENTER COLUMN: Chat Area */}
+        {/* FIX: Add min-h-0 to allow flex shrinking and prevent overflow on mobile */}
         {selectedRoom ? (
-          <div className="flex-1 flex flex-col bg-gray-100 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700">
+          <div className="flex-1 flex flex-col bg-gray-100 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 min-h-0 overflow-hidden">
             {/* Chat Header - WhatsApp Style */}
-            <div className="bg-[#f0f2f5] dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex items-center justify-between sticky top-0 z-10 shadow-sm">
-              <div className="flex items-center space-x-3 flex-1">
+            {/* FIX: Make header responsive - stack elements on mobile if needed */}
+            <div className="bg-[#f0f2f5] dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-2 sm:px-4 py-2 sm:py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 sticky top-0 z-10 shadow-sm flex-shrink-0">
+              <div className="flex items-center space-x-2 sm:space-x-3 flex-1 min-w-0 w-full sm:w-auto">
                 <button
                   onClick={() => setShowRoomSelection(true)}
                   className="lg:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors mr-2"
@@ -1419,7 +1422,8 @@ export default function Community() {
                   </p>
                 </div>
               </div>
-              <div className="flex items-center space-x-2">
+              {/* FIX: Make header actions responsive - stack on mobile, flex on larger screens */}
+              <div className="flex items-center space-x-1 sm:space-x-2 w-full sm:w-auto flex-shrink-0">
                 {/* View Updates / Add Update Button - Role-based */}
                 {(user?.role === 'instructor' || user?.role === 'admin' || user?.role === 'superadmin') ? (
                   <button
@@ -1436,14 +1440,14 @@ export default function Community() {
                       setNewsEditForm({ title: '', description: '', category: 'market', content: '', link: '' });
                       console.log('State updated, modal should open (chat header)');
                     }}
-                    className="px-3 py-1 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-md font-semibold text-xs transition-colors flex items-center space-x-1.5 shadow-md cursor-pointer z-10 relative"
+                    className="px-2 sm:px-3 py-1 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-md font-semibold text-xs transition-colors flex items-center space-x-1 sm:space-x-1.5 shadow-md cursor-pointer z-10 relative flex-shrink-0"
                     style={{ pointerEvents: 'auto' }}
                     title="Add Update"
                   >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                     </svg>
-                    <span>Add Update</span>
+                    <span className="hidden sm:inline">Add Update</span>
                   </button>
                 ) : (
                   <button
@@ -1454,13 +1458,13 @@ export default function Community() {
                       await markAllNewsAsRead();
                       setShowNewsModal(true);
                     }}
-                    className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-semibold text-xs transition-colors flex items-center space-x-1.5 shadow-md"
+                    className="px-2 sm:px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-semibold text-xs transition-colors flex items-center space-x-1 sm:space-x-1.5 shadow-md flex-shrink-0"
                     title="View Updates from Admin or Instructors"
                   >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
                     </svg>
-                    <span>View Updates</span>
+                    <span className="hidden sm:inline">View Updates</span>
                     {unreadNewsCount > 0 && (
                       <span className="bg-white text-blue-600 rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-bold">
                         {unreadNewsCount > 9 ? '9+' : unreadNewsCount}
@@ -1468,26 +1472,26 @@ export default function Community() {
                     )}
                   </button>
                 )}
-                {/* Search Messages */}
-                <div className="relative">
+                {/* FIX: Search Messages - responsive width, prevents overflow on mobile */}
+                <div className="relative flex-1 sm:flex-none min-w-0">
                   <input
                     type="text"
                     value={messageSearchQuery}
                     onChange={(e) => setMessageSearchQuery(e.target.value)}
                     placeholder="Search messages..."
-                    className="w-40 px-3 py-1.5 pl-8 text-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    className="w-full sm:w-32 md:w-40 px-2 sm:px-3 py-1.5 pl-6 sm:pl-8 text-xs sm:text-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   />
-                  <svg className="w-4 h-4 absolute left-2 top-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-3 h-3 sm:w-4 sm:h-4 absolute left-1.5 sm:left-2 top-1.5 sm:top-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                   </svg>
                 </div>
               </div>
             </div>
 
-            {/* Messages - WhatsApp Style Background */}
+            {/* FIX: Messages container - add min-h-0 for proper flex shrinking, responsive padding */}
             <div 
               ref={messagesContainerRef}
-              className="flex-1 overflow-y-auto p-4 space-y-2 bg-[#ece5dd] dark:bg-gray-900"
+              className="flex-1 overflow-y-auto p-2 sm:p-4 space-y-2 bg-[#ece5dd] dark:bg-gray-900 min-h-0"
               style={{
                 backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'100\' height=\'100\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cdefs%3E%3Cpattern id=\'grid\' width=\'100\' height=\'100\' patternUnits=\'userSpaceOnUse\'%3E%3Cpath d=\'M 100 0 L 0 0 0 100\' fill=\'none\' stroke=\'%23e0e0e0\' stroke-width=\'0.5\' opacity=\'0.3\'/%3E%3C/pattern%3E%3C/defs%3E%3Crect width=\'100\' height=\'100\' fill=\'url(%23grid)\'/%3E%3C/svg%3E")',
                 backgroundSize: '100px 100px',
@@ -1534,8 +1538,8 @@ export default function Community() {
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Input Area - WhatsApp Style */}
-            <div className="bg-[#f0f2f5] dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-3">
+            {/* FIX: Input Area - sticky at bottom, responsive padding, prevents cutoff on mobile */}
+            <div className="bg-[#f0f2f5] dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-2 sm:p-3 sticky bottom-0 z-10 flex-shrink-0">
               {selectedFile && (
                 <div className="mb-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg flex items-center justify-between">
                   <div className="flex items-center space-x-3">
@@ -1571,16 +1575,17 @@ export default function Community() {
                 </div>
               )}
 
-              <form onSubmit={handleSendMessage} className="flex items-center space-x-2 relative">
-                {/* Emoji Picker Button */}
+              {/* FIX: Form layout - responsive spacing, prevent overflow on mobile */}
+              <form onSubmit={handleSendMessage} className="flex items-center gap-1 sm:gap-2 relative min-w-0">
+                {/* FIX: Emoji Picker Button - responsive sizing */}
                 <div className="relative" ref={emojiPickerRef}>
                   <button
                     type="button"
                     onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                    className="p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+                    className="p-1.5 sm:p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors flex-shrink-0"
                     title="Add emoji"
                   >
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                   </button>
@@ -1620,13 +1625,14 @@ export default function Community() {
                   )}
                 </div>
 
+                {/* FIX: File attach button - responsive sizing */}
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+                  className="p-1.5 sm:p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors flex-shrink-0"
                   title="Attach file"
                 >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
                   </svg>
                 </button>
@@ -1638,51 +1644,53 @@ export default function Community() {
                   accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx"
                 />
 
-                {/* Video Recording Button */}
+                {/* FIX: Video Recording Button - responsive text */}
                 {recordingVideo ? (
                   <button
                     type="button"
                     onClick={stopVideoRecording}
-                    className="flex-1 px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-full font-semibold transition-colors flex items-center justify-center space-x-2"
+                    className="flex-1 px-2 sm:px-4 py-2 sm:py-3 bg-red-600 hover:bg-red-700 text-white rounded-full font-semibold text-xs sm:text-sm transition-colors flex items-center justify-center space-x-1 sm:space-x-2 min-w-0"
                   >
-                    <span className="w-3 h-3 bg-white rounded-full animate-pulse"></span>
-                    <span>Recording Video... Tap to stop</span>
+                    <span className="w-2 h-2 sm:w-3 sm:h-3 bg-white rounded-full animate-pulse flex-shrink-0"></span>
+                    <span className="truncate">Recording Video... Tap to stop</span>
                   </button>
                 ) : (
                   <button
                     type="button"
                     onClick={startVideoRecording}
-                    className="p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+                    className="p-1.5 sm:p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors flex-shrink-0"
                     title="Record video"
                   >
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
                     </svg>
                   </button>
                 )}
 
+                {/* FIX: Audio Recording Button - responsive text */}
                 {recording ? (
                   <button
                     type="button"
                     onClick={stopRecording}
-                    className="flex-1 px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-full font-semibold transition-colors flex items-center justify-center space-x-2"
+                    className="flex-1 px-2 sm:px-4 py-2 sm:py-3 bg-red-600 hover:bg-red-700 text-white rounded-full font-semibold text-xs sm:text-sm transition-colors flex items-center justify-center space-x-1 sm:space-x-2 min-w-0"
                   >
-                    <span className="w-3 h-3 bg-white rounded-full animate-pulse"></span>
-                    <span>Recording... Tap to stop</span>
+                    <span className="w-2 h-2 sm:w-3 sm:h-3 bg-white rounded-full animate-pulse flex-shrink-0"></span>
+                    <span className="truncate">Recording... Tap to stop</span>
                   </button>
                 ) : (
                   <>
                     <button
                       type="button"
                       onClick={startRecording}
-                      className="p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+                      className="p-1.5 sm:p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors flex-shrink-0"
                       title="Record audio"
                     >
-                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
                       </svg>
                     </button>
 
+                    {/* FIX: Textarea - responsive padding, ensure it doesn't push send button off screen */}
                     <textarea
                       ref={inputRef}
                       value={input}
@@ -1696,14 +1704,15 @@ export default function Community() {
                       onFocus={() => setShowEmojiPicker(false)}
                       placeholder="Type a message..."
                       rows={1}
-                      className="flex-1 px-4 py-2.5 border-0 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-3xl focus:ring-2 focus:ring-primary-500 focus:outline-none text-sm resize-none overflow-hidden max-h-32 shadow-sm"
-                      style={{ minHeight: '40px' }}
+                      className="flex-1 min-w-0 px-2 sm:px-4 py-2 sm:py-2.5 border-0 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-3xl focus:ring-2 focus:ring-primary-500 focus:outline-none text-xs sm:text-sm resize-none overflow-hidden max-h-32 shadow-sm"
+                      style={{ minHeight: '36px' }}
                     />
 
+                    {/* FIX: Send button - ensure it's always visible, responsive sizing */}
                     <button
                       type="submit"
                       disabled={!input.trim()}
-                      className="p-2.5 bg-[#25d366] hover:bg-[#20ba5a] text-white rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-md ml-2"
+                      className="p-2 sm:p-2.5 bg-[#25d366] hover:bg-[#20ba5a] text-white rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-md flex-shrink-0"
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
