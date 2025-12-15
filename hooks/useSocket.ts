@@ -52,8 +52,9 @@ export function useSocket() {
       });
 
       newSocket.on('connect_error', (error) => {
-        console.error('Socket connection error:', error.message);
+        console.warn('Socket connection error (messages will still work via HTTP):', error.message);
         setConnected(false);
+        // Don't prevent app from working - messages can be sent via HTTP POST
       });
 
       newSocket.on('reconnect', (attemptNumber) => {

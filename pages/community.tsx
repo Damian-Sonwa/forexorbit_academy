@@ -521,12 +521,10 @@ export default function Community() {
       return;
     }
     
+    // Note: Messages can be sent via HTTP POST even if WebSocket is not connected
+    // WebSocket is only needed for real-time updates, not for sending messages
     if (!connected) {
-      console.error('Socket not connected');
-      setToastMessage('Connection lost. Please refresh the page.');
-      setShowToast(true);
-      setTimeout(() => setShowToast(false), 3000);
-      return;
+      console.warn('WebSocket not connected - message will be sent via HTTP but real-time updates may be delayed');
     }
 
     // Check if room is locked
@@ -1741,10 +1739,12 @@ export default function Community() {
                     />
 
                     {/* FIX: Send button - ensure it's always visible, responsive sizing */}
+                    {/* Note: Button works even without WebSocket - messages sent via HTTP POST */}
                     <button
                       type="submit"
-                      disabled={!input.trim() || !connected}
+                      disabled={!input.trim()}
                       className="p-2 sm:p-2.5 bg-[#25d366] hover:bg-[#20ba5a] text-white rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-md flex-shrink-0"
+                      title={!connected ? 'WebSocket disconnected - message will still be sent' : 'Send message'}
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
