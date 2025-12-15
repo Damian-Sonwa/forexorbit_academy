@@ -26,7 +26,7 @@ export default function LessonPage() {
   const { id: courseId, lessonId } = router.query;
   const { lesson, loading: lessonLoading } = useLesson(lessonId);
   const { lessons } = useLessons(courseId);
-  const { course } = useCourse(courseId); // Get course to check enrollment
+  const { course, loading: courseLoading } = useCourse(courseId); // Get course to check enrollment
   const { isAuthenticated } = useAuth();
   const { updateProgress, joinLesson, leaveLesson, socket, connected } = useSocket();
   const { user } = useAuth();
@@ -74,7 +74,7 @@ export default function LessonPage() {
     }
   };
 
-  if (lessonLoading) {
+  if (lessonLoading || courseLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <p>Loading lesson...</p>
@@ -90,6 +90,11 @@ export default function LessonPage() {
       </div>
     );
   }
+
+  // Determine if lesson is locked for demo unlock system
+  // Lesson is locked if: user is student AND not enrolled in course
+  const isLessonLocked = user?.role === 'student' && course && !course.enrolled;
+  const isLessonAccessible = !course || course.enrolled || user?.role !== 'student';
 
   // Find current lesson index
   const currentIndex = lessons.findIndex((l) => (l._id || l.id) === (displayLesson._id || displayLesson.id));
@@ -130,8 +135,8 @@ export default function LessonPage() {
           <LessonAccessGuard
             lessonId={lessonId as string}
             lessonTitle={displayLesson.title}
-            isLocked={!course?.enrolled && user?.role === 'student'}
-            isAccessible={course?.enrolled || user?.role !== 'student'}
+            isLocked={isLessonLocked}
+            isAccessible={isLessonAccessible}
           >
             {/* Video Player - Display YouTube videos and other video URLs */}
             {displayLesson.videoUrl && (

@@ -44,26 +44,47 @@ export default function LessonAccessGuard({
       return;
     }
 
-    // If lesson is not locked, allow access
+    // If lesson is explicitly not locked and accessible, allow access
     if (!isLocked && isAccessible) {
       setHasAccess(true);
       return;
     }
 
-    // Check if user is premium
-    if (isPremiumUser(user)) {
-      setHasAccess(true);
+    // If lesson is explicitly locked, check access methods
+    if (isLocked) {
+      // Check if user is premium (premium users bypass lock)
+      if (isPremiumUser(user)) {
+        setHasAccess(true);
+        return;
+      }
+
+      // Check if user has demo access
+      if (hasDemoAccess(lessonId)) {
+        setHasAccess(true);
+        return;
+      }
+
+      // Lesson is locked and no access - show locked message
+      setHasAccess(false);
       return;
     }
 
-    // Check if user has demo access
-    if (hasDemoAccess(lessonId)) {
-      setHasAccess(true);
-      return;
-    }
+    // Default: allow access if not explicitly locked
+    setHasAccess(true);
+  }, [lessonId, isLocked, isAccessible, user]);
 
-    // Lesson is locked and no access
-    setHasAccess(false);
+  // Debug logging (remove in production if needed)
+  useEffect(() => {
+    if (DEMO_UNLOCK_ENABLED && isLocked) {
+      console.log('[Demo Unlock] Lesson locked:', {
+        lessonId,
+        isLocked,
+        isAccessible,
+        userRole: user?.role,
+        hasDemoAccess: hasDemoAccess(lessonId),
+        isPremium: isPremiumUser(user),
+      });
+    }
   }, [lessonId, isLocked, isAccessible, user]);
 
   const handleUnlock = () => {
