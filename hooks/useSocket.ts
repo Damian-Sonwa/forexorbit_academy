@@ -63,6 +63,7 @@ export function useSocket() {
       newSocket.on('reconnect', (attemptNumber) => {
         console.log('Socket reconnected after', attemptNumber, 'attempts');
         setConnected(true);
+        setSocketReady(true); // Socket is ready after reconnect
       });
 
       newSocket.on('reconnect_attempt', (attemptNumber) => {
