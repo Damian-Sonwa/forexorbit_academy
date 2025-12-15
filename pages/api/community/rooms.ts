@@ -47,33 +47,48 @@ async function getRooms(req: AuthRequest, res: NextApiResponse) {
       'Advanced': 'For experienced traders discussing deep technical analysis, macro news, and advanced strategies.',
     };
 
-    // Ensure all three rooms exist - create if missing
+    // Ensure all three rooms exist - create if missing (use upsert for safety)
     const userRooms: any[] = [];
     for (const roomName of roomNames) {
-      let room = await rooms.findOne({ name: roomName, type: 'global' });
-      if (!room) {
-        // Create the room if it doesn't exist
-        const result = await rooms.insertOne({
-          name: roomName,
-          description: descriptions[roomName as keyof typeof descriptions],
-          type: 'global',
-          participants: [],
-          avatar: null,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        });
-        room = {
-          _id: result.insertedId,
-          name: roomName,
-          description: descriptions[roomName as keyof typeof descriptions],
-          type: 'global',
-          participants: [],
-          avatar: null,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        };
+      try {
+        // Try to find existing room
+        let room = await rooms.findOne({ name: roomName, type: 'global' });
+        
+        if (!room) {
+          // Room doesn't exist - create it
+          console.log(`Creating missing room: ${roomName}`);
+          const roomData = {
+            name: roomName,
+            description: descriptions[roomName as keyof typeof descriptions],
+            type: 'global',
+            participants: [],
+            avatar: null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          };
+          
+          const result = await rooms.insertOne(roomData);
+          room = {
+            _id: result.insertedId,
+            ...roomData,
+          };
+          console.log(`Successfully created room: ${roomName} with ID: ${result.insertedId}`);
+        } else {
+          console.log(`Room found: ${roomName} with ID: ${room._id}`);
+        }
+        
+        userRooms.push(room);
+      } catch (roomError: any) {
+        console.error(`Error ensuring room ${roomName} exists:`, roomError);
+        // Try to find room again in case it was created by another request
+        const existingRoom = await rooms.findOne({ name: roomName, type: 'global' });
+        if (existingRoom) {
+          userRooms.push(existingRoom);
+        } else {
+          // Last resort: log error but continue (will use placeholder)
+          console.error(`Failed to create or find room ${roomName}, will use placeholder`);
+        }
       }
-      userRooms.push(room);
     }
 
     // Get last message and unread count for each room
