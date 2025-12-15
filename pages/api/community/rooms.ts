@@ -174,18 +174,45 @@ async function getRooms(req: AuthRequest, res: NextApiResponse) {
     );
 
     // Ensure we always return exactly 3 rooms
+    // If rooms are missing, try to create them one more time before using placeholders
     if (roomsWithLastMessage.length < 3) {
-      console.warn(`Only ${roomsWithLastMessage.length} rooms returned, expected 3`);
-      // Add missing rooms as placeholders
-      const roomNames = ['Beginner', 'Intermediate', 'Advanced'];
-      const descriptions = {
-        'Beginner': 'Perfect for newcomers learning basic concepts, market introductions, and simple analysis.',
-        'Intermediate': 'For mid-level traders sharing strategies, chart analysis, and trading setups.',
-        'Advanced': 'For experienced traders discussing deep technical analysis, macro news, and advanced strategies.',
-      };
+      console.warn(`Only ${roomsWithLastMessage.length} rooms returned, expected 3. Attempting to create missing rooms...`);
       
-      for (const roomName of roomNames) {
-        if (!roomsWithLastMessage.find((r) => r.name === roomName)) {
+      const missingRoomNames = roomNames.filter(
+        (name) => !roomsWithLastMessage.find((r) => r.name === name)
+      );
+      
+      // Try to create missing rooms one more time
+      for (const roomName of missingRoomNames) {
+        try {
+          const roomData = {
+            name: roomName,
+            description: descriptions[roomName as keyof typeof descriptions],
+            type: 'global',
+            participants: [],
+            avatar: null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          };
+          
+          const result = await rooms.insertOne(roomData);
+          console.log(`Successfully created missing room: ${roomName} with ID: ${result.insertedId}`);
+          
+          // Add the newly created room
+          roomsWithLastMessage.push({
+            _id: result.insertedId.toString(),
+            name: roomName,
+            description: descriptions[roomName as keyof typeof descriptions],
+            type: 'global',
+            participants: [],
+            avatar: null,
+            lastMessage: null,
+            unreadCount: 0,
+            isLocked: user?.role === 'student' ? !canAccessRoom(userLevel, roomName) : false,
+          });
+        } catch (createError: any) {
+          console.error(`Failed to create room ${roomName} on retry:`, createError);
+          // Only use placeholder if creation truly fails
           roomsWithLastMessage.push({
             _id: `placeholder-${roomName}`,
             name: roomName,
@@ -199,6 +226,7 @@ async function getRooms(req: AuthRequest, res: NextApiResponse) {
           });
         }
       }
+      
       // Sort to ensure consistent order
       roomsWithLastMessage.sort((a, b) => {
         const order = ['Beginner', 'Intermediate', 'Advanced'];
