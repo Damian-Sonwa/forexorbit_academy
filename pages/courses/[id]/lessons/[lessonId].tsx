@@ -13,11 +13,12 @@ import VideoPlayer from '@/components/VideoPlayer';
 import MarketSignal from '@/components/MarketSignal';
 import Quiz from '@/components/Quiz';
 import { useLesson, useLessons } from '@/hooks/useLesson';
-// import { useCourse } from '@/hooks/useCourses'; // Reserved for future use
+import { useCourse } from '@/hooks/useCourses'; // Used for enrollment check in demo unlock system
 import { useSocket } from '@/hooks/useSocket';
 import { useAuth } from '@/hooks/useAuth';
 import LessonSummaryView from '@/components/LessonSummaryView';
 import LessonSummaryEditor from '@/components/LessonSummaryEditor';
+import LessonAccessGuard from '@/components/LessonAccessGuard'; // Demo unlock guard component
 import { useState, useEffect } from 'react';
 
 export default function LessonPage() {
@@ -25,7 +26,7 @@ export default function LessonPage() {
   const { id: courseId, lessonId } = router.query;
   const { lesson, loading: lessonLoading } = useLesson(lessonId);
   const { lessons } = useLessons(courseId);
-  // const { course } = useCourse(courseId); // Reserved for future use
+  const { course } = useCourse(courseId); // Get course to check enrollment
   const { isAuthenticated } = useAuth();
   const { updateProgress, joinLesson, leaveLesson, socket, connected } = useSocket();
   const { user } = useAuth();
@@ -119,12 +120,25 @@ export default function LessonPage() {
             <h1 className="text-2xl sm:text-3xl md:text-4xl font-display font-bold text-gray-900 mb-3 break-words">{displayLesson.title}</h1>
           </div>
 
-          {/* Video Player - Display YouTube videos and other video URLs */}
-          {displayLesson.videoUrl && (
-            <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg border border-gray-100 p-2 mb-4 sm:mb-6 md:mb-8 overflow-hidden">
-              <VideoPlayer url={displayLesson.videoUrl} onEnded={handleVideoEnd} />
-            </div>
-          )}
+          {/* 
+            DEMO UNLOCK SYSTEM - Non-intrusive integration
+            Wraps lesson content to check access (enrollment, premium, or demo)
+            If lesson is locked and user is not enrolled/premium, shows demo unlock option
+            Demo access is stored in localStorage and expires after 24 hours
+            Feature can be disabled via DEMO_UNLOCK_ENABLED flag in lib/demo-unlock-config.ts
+          */}
+          <LessonAccessGuard
+            lessonId={lessonId as string}
+            lessonTitle={displayLesson.title}
+            isLocked={!course?.enrolled && user?.role === 'student'}
+            isAccessible={course?.enrolled || user?.role !== 'student'}
+          >
+            {/* Video Player - Display YouTube videos and other video URLs */}
+            {displayLesson.videoUrl && (
+              <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg border border-gray-100 p-2 mb-4 sm:mb-6 md:mb-8 overflow-hidden">
+                <VideoPlayer url={displayLesson.videoUrl} onEnded={handleVideoEnd} />
+              </div>
+            )}
 
           {/* Lesson Description */}
           {displayLesson.content && (
@@ -298,6 +312,7 @@ export default function LessonPage() {
               <div />
             )}
           </div>
+          </LessonAccessGuard>
         </main>
       </div>
 
