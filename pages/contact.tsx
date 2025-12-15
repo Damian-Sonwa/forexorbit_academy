@@ -3,6 +3,7 @@
  * Displays contact information with click-to-call and click-to-email functionality
  */
 
+import Link from 'next/link';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 
@@ -122,12 +123,12 @@ export default function ContactUs() {
               <p className="text-gray-600 dark:text-gray-400 mb-4">
                 Browse our comprehensive help articles and guides to find answers to common questions.
               </p>
-              <a
-                href="/help"
+              <Link
+                href="/support/help-center"
                 className="text-primary-600 dark:text-primary-400 hover:underline font-semibold"
               >
                 Visit Help Center →
-              </a>
+              </Link>
             </div>
 
             <div>
@@ -135,12 +136,12 @@ export default function ContactUs() {
               <p className="text-gray-600 dark:text-gray-400 mb-4">
                 Check out our FAQ section for quick answers to the most common questions.
               </p>
-              <a
-                href="/faq"
+              <Link
+                href="/support/faq"
                 className="text-primary-600 dark:text-primary-400 hover:underline font-semibold"
               >
                 View FAQ →
-              </a>
+              </Link>
             </div>
           </div>
         </div>

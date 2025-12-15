@@ -4,6 +4,7 @@
  */
 
 import { useState } from 'react';
+import Link from 'next/link';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 
@@ -196,18 +197,18 @@ export default function FAQ() {
             Can't find what you're looking for? Our support team is ready to help.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <a
-              href="/contact"
+            <Link
+              href="/support/contact"
               className="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold transition-colors"
             >
               Contact Support
-            </a>
-            <a
-              href="/help"
+            </Link>
+            <Link
+              href="/support/help-center"
               className="px-6 py-3 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg font-semibold transition-colors"
             >
               Visit Help Center
-            </a>
+            </Link>
           </div>
         </div>
       </main>
