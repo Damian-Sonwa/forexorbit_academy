@@ -93,10 +93,13 @@ export default function LessonPage() {
 
   // Determine if lesson is locked for demo unlock system
   // Lesson is locked if: user is student AND course exists AND not enrolled in course
+  // Only set locked state when course data is loaded
   const isLessonLocked: boolean | undefined = 
     course && user?.role === 'student' 
       ? !course.enrolled 
-      : undefined;
+      : course && user?.role !== 'student'
+      ? false // Not a student, so not locked
+      : undefined; // Course still loading or user not loaded
   const isLessonAccessible: boolean | undefined = 
     course 
       ? (course.enrolled || user?.role !== 'student') 

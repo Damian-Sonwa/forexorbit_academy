@@ -5,7 +5,7 @@
  */
 
 import { ReactNode, useState, useEffect } from 'react';
-import { DEMO_UNLOCK_ENABLED, isPremiumUser } from '@/lib/demo-unlock-config';
+import { DEMO_UNLOCK_ENABLED, DEMO_UNLOCK_TEST_MODE, isPremiumUser } from '@/lib/demo-unlock-config';
 import { hasDemoAccess, grantDemoAccess, cleanupExpiredAccess } from '@/lib/demo-access-helper';
 import DemoModal from './DemoModal';
 import { useAuth } from '@/hooks/useAuth';
@@ -44,14 +44,31 @@ export default function LessonAccessGuard({
       return;
     }
 
-    // If lesson is explicitly not locked and accessible, allow access
-    if (!isLocked && isAccessible) {
+    // TEST MODE: Force locked state for testing
+    if (DEMO_UNLOCK_TEST_MODE && user?.role === 'student') {
+      // Check if user has demo access even in test mode
+      if (hasDemoAccess(lessonId)) {
+        setHasAccess(true);
+        return;
+      }
+      setHasAccess(false);
+      return;
+    }
+
+    // If isLocked is undefined (still loading), wait - don't show locked state yet
+    if (isLocked === undefined) {
+      // Keep current state while loading
+      return;
+    }
+
+    // If lesson is explicitly not locked (false), allow access
+    if (isLocked === false) {
       setHasAccess(true);
       return;
     }
 
-    // If lesson is explicitly locked, check access methods
-    if (isLocked) {
+    // If lesson is explicitly locked (true), check access methods
+    if (isLocked === true) {
       // Check if user is premium (premium users bypass lock)
       if (isPremiumUser(user)) {
         setHasAccess(true);
@@ -69,23 +86,25 @@ export default function LessonAccessGuard({
       return;
     }
 
-    // Default: allow access if not explicitly locked
+    // Default: allow access (fallback)
     setHasAccess(true);
   }, [lessonId, isLocked, isAccessible, user]);
 
   // Debug logging (remove in production if needed)
   useEffect(() => {
-    if (DEMO_UNLOCK_ENABLED && isLocked) {
-      console.log('[Demo Unlock] Lesson locked:', {
+    if (DEMO_UNLOCK_ENABLED) {
+      console.log('[Demo Unlock] Access check:', {
         lessonId,
         isLocked,
         isAccessible,
+        hasAccess,
         userRole: user?.role,
         hasDemoAccess: hasDemoAccess(lessonId),
         isPremium: isPremiumUser(user),
+        testMode: DEMO_UNLOCK_TEST_MODE,
       });
     }
-  }, [lessonId, isLocked, isAccessible, user]);
+  }, [lessonId, isLocked, isAccessible, user, hasAccess]);
 
   const handleUnlock = () => {
     try {
@@ -118,7 +137,10 @@ export default function LessonAccessGuard({
         </p>
         {DEMO_UNLOCK_ENABLED && (
           <button
-            onClick={() => setShowDemoModal(true)}
+            onClick={() => {
+              console.log('[Demo Unlock] Button clicked, opening modal');
+              setShowDemoModal(true);
+            }}
             className="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-semibold transition-colors shadow-md hover:shadow-lg"
           >
             Unlock with Demo
