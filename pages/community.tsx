@@ -139,7 +139,17 @@ export default function Community() {
   }, [user, connected, socket, user?.learningLevel, user?.role]);
 
   useEffect(() => {
-    if (selectedRoom) {
+      if (selectedRoom) {
+      // Check if room is a placeholder (not a valid room)
+      if (selectedRoom._id.startsWith('placeholder-')) {
+        setToastMessage('This room is not available yet. Please refresh the page.');
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 3000);
+        setSelectedRoom(null);
+        setShowRoomSelection(true);
+        return;
+      }
+      
       // Check if room is locked - prevent access to locked rooms
       if (selectedRoom.isLocked) {
         setToastMessage('This group unlocks when you complete the previous level.');
@@ -375,6 +385,14 @@ export default function Community() {
   };
 
   const loadMessages = async (roomId: string, pageNum: number = 1, append: boolean = false) => {
+    // Skip loading messages for placeholder rooms (not valid ObjectIds)
+    if (roomId.startsWith('placeholder-')) {
+      console.warn('Cannot load messages for placeholder room:', roomId);
+      setLoadingMessages(false);
+      setMessages([]);
+      return;
+    }
+    
     try {
       setLoadingMessages(true);
       // Load messages for this specific room (level-specific)
@@ -511,6 +529,15 @@ export default function Community() {
     if (!selectedRoom) {
       console.error('No room selected');
       setToastMessage('Please select a room to send messages.');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+      return;
+    }
+    
+    // Check if room is a placeholder (not a valid room)
+    if (selectedRoom._id.startsWith('placeholder-')) {
+      console.warn('Cannot send message to placeholder room:', selectedRoom._id);
+      setToastMessage('Please wait for the room to be created, or refresh the page.');
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
       return;

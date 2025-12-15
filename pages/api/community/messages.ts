@@ -18,13 +18,20 @@ async function getMessages(req: AuthRequest, res: NextApiResponse) {
       return res.status(400).json({ error: 'Room ID is required' });
     }
 
+    // Check if roomId is a valid ObjectId (not a placeholder)
+    if (!ObjectId.isValid(roomId)) {
+      console.warn('Invalid roomId format:', roomId);
+      return res.status(400).json({ error: 'Invalid room ID format' });
+    }
+
     const db = await getDb();
     const messages = db.collection('communityMessages');
     const users = db.collection('users');
     const rooms = db.collection('communityRooms');
 
     // Get room info to check access
-    const room = await rooms.findOne({ _id: new ObjectId(roomId) });
+    const roomIdObj = new ObjectId(roomId);
+    const room = await rooms.findOne({ _id: roomIdObj });
     if (!room) {
       return res.status(404).json({ error: 'Room not found' });
     }
@@ -62,14 +69,12 @@ async function getMessages(req: AuthRequest, res: NextApiResponse) {
     const skip = (pageNum - 1) * limitNum;
 
     // Get messages for the room with pagination
-    // roomId can be either string or ObjectId, handle both
     // Messages are level-specific - only return messages for this specific room
-    const roomIdFilter = ObjectId.isValid(roomId) ? new ObjectId(roomId) : roomId;
     const messageDocs = await messages
       .find({ 
         $or: [
-          { roomId: roomIdFilter },
-          { roomId: roomId } // Also check string version
+          { roomId: roomIdObj.toString() }, // String format
+          { roomId: roomIdObj } // ObjectId format
         ]
       })
       .sort({ createdAt: -1 }) // Sort descending to get newest first
@@ -120,13 +125,19 @@ async function sendMessage(req: AuthRequest, res: NextApiResponse) {
       return res.status(400).json({ error: 'Room ID, type, and content are required' });
     }
 
+    // Check if roomId is a valid ObjectId (not a placeholder)
+    if (!ObjectId.isValid(roomId)) {
+      console.warn('Invalid roomId format:', roomId);
+      return res.status(400).json({ error: 'Invalid room ID format. Please select a valid room.' });
+    }
+
     const db = await getDb();
     const messages = db.collection('communityMessages');
     const rooms = db.collection('communityRooms');
     const users = db.collection('users');
 
     // Verify room exists and user has access
-    const roomIdObj = ObjectId.isValid(roomId) ? new ObjectId(roomId) : roomId;
+    const roomIdObj = new ObjectId(roomId);
     const room = await rooms.findOne({ _id: roomIdObj });
     if (!room) {
       return res.status(404).json({ error: 'Room not found' });
