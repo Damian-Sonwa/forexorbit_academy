@@ -42,9 +42,10 @@ export default function Chat({ lessonId }: ChatProps) {
 
     loadMessages();
 
-    // Join lesson room
+    // Join lesson room when connected
     if (connected) {
       joinLesson(lessonId);
+      console.log('Joined lesson room:', lessonId);
     }
 
     // Listen for new messages
@@ -58,7 +59,7 @@ export default function Chat({ lessonId }: ChatProps) {
       leaveLesson(lessonId);
       cleanup?.();
     };
-  }, [lessonId, connected]);
+  }, [lessonId, connected, joinLesson]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -66,10 +67,24 @@ export default function Chat({ lessonId }: ChatProps) {
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || !connected) return;
+    if (!input.trim()) {
+      console.warn('Cannot send empty message');
+      return;
+    }
+    
+    if (!connected) {
+      console.error('Cannot send message: socket not connected');
+      alert('Connection lost. Please refresh the page.');
+      return;
+    }
 
-    sendChatMessage(lessonId, input.trim());
-    setInput('');
+    try {
+      sendChatMessage(lessonId, input.trim());
+      setInput('');
+    } catch (error) {
+      console.error('Error sending message:', error);
+      alert('Failed to send message. Please try again.');
+    }
   };
 
   if (loading) {

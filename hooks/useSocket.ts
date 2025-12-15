@@ -125,8 +125,10 @@ export function useSocket() {
   };
 
   const sendChatMessage = (lessonId: string, text: string) => {
-    if (socket) {
+    if (socket && connected) {
       socket.emit('chatMessage', { lessonId, text });
+    } else {
+      console.error('Cannot send message: socket not connected', { socket: !!socket, connected });
     }
   };
 
