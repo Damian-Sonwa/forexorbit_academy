@@ -92,9 +92,15 @@ export default function LessonPage() {
   }
 
   // Determine if lesson is locked for demo unlock system
-  // Lesson is locked if: user is student AND not enrolled in course
-  const isLessonLocked = user?.role === 'student' && course && !course.enrolled;
-  const isLessonAccessible = !course || course.enrolled || user?.role !== 'student';
+  // Lesson is locked if: user is student AND course exists AND not enrolled in course
+  const isLessonLocked: boolean | undefined = 
+    course && user?.role === 'student' 
+      ? !course.enrolled 
+      : undefined;
+  const isLessonAccessible: boolean | undefined = 
+    course 
+      ? (course.enrolled || user?.role !== 'student') 
+      : undefined;
 
   // Find current lesson index
   const currentIndex = lessons.findIndex((l) => (l._id || l.id) === (displayLesson._id || displayLesson.id));
