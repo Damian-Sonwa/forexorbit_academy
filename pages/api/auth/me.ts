@@ -27,8 +27,9 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
     const role = isSuperAdmin ? 'superadmin' : user.role;
 
     // Determine learning level (default to beginner for students)
-    let learningLevel = user.learningLevel || 'beginner';
-    if (role === 'student' && !user.learningLevel) {
+    // Check top-level learningLevel first, then fallback to studentDetails.tradingLevel (for backward compatibility)
+    let learningLevel = user.learningLevel || (user.studentDetails?.tradingLevel as 'beginner' | 'intermediate' | 'advanced' | undefined) || 'beginner';
+    if (role === 'student' && !learningLevel) {
       learningLevel = 'beginner';
     } else if (role !== 'student') {
       // Instructors, admins, and super admins have access to all levels
@@ -47,8 +48,9 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
       profilePhoto: user.profilePhoto || null, // Include profile photo
       learningLevel, // Include learning level for access control
     });
-  } catch (error: any) {
-    console.error('Get user error:', error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
+    console.error('Get user error:', errorMessage);
     res.status(500).json({ error: 'Internal server error' });
   }
 }

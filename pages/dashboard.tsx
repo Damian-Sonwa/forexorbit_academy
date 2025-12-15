@@ -10,6 +10,7 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import Sidebar from '@/components/Sidebar';
 import CourseCard from '@/components/CourseCard';
+import WhatYouWillGain from '@/components/WhatYouWillGain';
 import { useAuth } from '@/hooks/useAuth';
 import { useProgress } from '@/hooks/useProgress';
 import { useCourses } from '@/hooks/useCourses';
@@ -217,47 +218,8 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Course Benefits Card */}
-          <div className="mb-4 sm:mb-6 bg-white rounded-xl shadow-lg border-l-4 border-blue-700 p-4 sm:p-6 hover:shadow-xl transition-shadow">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <h2 className="text-xl sm:text-2xl md:text-3xl font-bold mb-3 sm:mb-4 flex items-center text-gray-900">
-                  <span className="mr-2 sm:mr-3 text-2xl sm:text-3xl md:text-4xl">📈</span>
-                  <span className="break-words">Forex Training – What You Will Gain</span>
-                </h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mt-4 sm:mt-6">
-                  <div className="flex items-start space-x-3">
-                    <span className="text-2xl">💹</span>
-                    <div>
-                      <h3 className="font-semibold mb-1 text-gray-900">Understanding Forex Markets</h3>
-                      <p className="text-gray-700 text-sm">Master the fundamentals of currency trading and market dynamics</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start space-x-3">
-                    <span className="text-2xl">⚡</span>
-                    <div>
-                      <h3 className="font-semibold mb-1 text-gray-900">Executing Trades</h3>
-                      <p className="text-gray-700 text-sm">Learn to place and manage trades with confidence</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start space-x-3">
-                    <span className="text-2xl">🛡️</span>
-                    <div>
-                      <h3 className="font-semibold mb-1 text-gray-900">Risk Management</h3>
-                      <p className="text-gray-700 text-sm">Protect your capital with proven risk management strategies</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start space-x-3">
-                    <span className="text-2xl">📊</span>
-                    <div>
-                      <h3 className="font-semibold mb-1 text-gray-900">Chart Analysis</h3>
-                      <p className="text-gray-700 text-sm">Analyze price charts and identify profitable trading opportunities</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+          {/* What You Will Gain - Dynamic based on learning level */}
+          <WhatYouWillGain />
 
           {/* Overview Section */}
           <div className="mb-4 sm:mb-6">

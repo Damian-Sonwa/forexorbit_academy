@@ -70,6 +70,8 @@ async function saveOnboarding(req: AuthRequest, res: NextApiResponse) {
         },
         completedAt: new Date(),
       },
+      // Store learning level at top level for easy access (synced with tradingLevel from onboarding)
+      learningLevel: tradingLevel || 'beginner',
       updatedAt: new Date(),
     };
 
@@ -96,9 +98,10 @@ async function saveOnboarding(req: AuthRequest, res: NextApiResponse) {
       success: true,
       message: 'Onboarding data saved successfully',
     });
-  } catch (error: any) {
-    console.error('Save onboarding error:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
+    console.error('Save onboarding error:', errorMessage);
+    res.status(500).json({ error: errorMessage });
   }
 }
 
