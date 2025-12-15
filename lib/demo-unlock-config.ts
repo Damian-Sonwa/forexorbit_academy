@@ -4,7 +4,7 @@
  * Set to false to instantly disable the feature
  */
 
-export const DEMO_UNLOCK_ENABLED = true; // Feature flag - set to false to disable
+export const DEMO_UNLOCK_ENABLED = false; // Feature flag - set to false to disable
 
 // TEST MODE: Force show demo button for testing (set to true to always show locked state)
 export const DEMO_UNLOCK_TEST_MODE = false; // Set to true to test demo button visibility
