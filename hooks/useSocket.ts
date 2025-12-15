@@ -11,6 +11,7 @@ const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3000'
 export function useSocket() {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [connected, setConnected] = useState(false);
+  const [socketReady, setSocketReady] = useState(false); // Track when socket is ready for operations
   const [marketSignal, setMarketSignal] = useState<any>(null);
   const socketRef = useRef<Socket | null>(null);
 
@@ -44,11 +45,13 @@ export function useSocket() {
       newSocket.on('connect', () => {
         console.log('Socket connected');
         setConnected(true);
+        setSocketReady(true); // Socket is ready for operations
       });
 
       newSocket.on('disconnect', (reason) => {
         console.log('Socket disconnected:', reason);
         setConnected(false);
+        setSocketReady(false); // Socket is not ready
       });
 
       newSocket.on('connect_error', (error) => {
@@ -187,6 +190,7 @@ export function useSocket() {
   return {
     socket,
     connected,
+    socketReady, // Expose socketReady state
     marketSignal,
     joinLesson,
     leaveLesson,

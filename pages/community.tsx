@@ -58,7 +58,7 @@ interface NewsItem {
 export default function Community() {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const router = useRouter();
-  const { socket, connected } = useSocket();
+  const { socket, connected, socketReady } = useSocket();
   const [rooms, setRooms] = useState<Room[]>([]);
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [showRoomSelection, setShowRoomSelection] = useState(true);
@@ -142,14 +142,12 @@ export default function Community() {
     if (selectedRoom) {
       const roomIdStr = selectedRoom._id?.toString() || selectedRoom._id;
       
-      // Check if room is a placeholder (not a valid room)
+      // Check if room is a placeholder (log warning only, don't block UI)
       if (typeof roomIdStr === 'string' && roomIdStr.startsWith('placeholder-')) {
-        console.warn('Cannot open placeholder room:', roomIdStr);
-        setToastMessage('This room is not available yet. Please refresh the page.');
-        setShowToast(true);
-        setTimeout(() => setShowToast(false), 3000);
-        setSelectedRoom(null);
-        setShowRoomSelection(true);
+        console.warn('Placeholder room selected:', roomIdStr, '- UI will render empty state');
+        // Don't block - allow UI to render empty state
+        setShowRoomSelection(false);
+        setMessages([]);
         return;
       }
       
@@ -170,8 +168,8 @@ export default function Community() {
       setMessages([]);
       // Load all messages for this room level
       loadMessages(roomIdStr, 1, false);
-      // Join the room to receive real-time updates for this level
-      joinRoom(roomIdStr);
+      // Join the room safely (will retry if socket not ready)
+      joinRoomSafely(roomIdStr);
     }
     return () => {
       if (selectedRoom && !selectedRoom.isLocked) {
@@ -505,23 +503,63 @@ export default function Community() {
   // Calculate unread news count
   const unreadNewsCount = newsItems.filter((item) => !item.isRead).length;
 
-  const joinRoom = (roomId: string) => {
-    if (socket && connected) {
-      // Check if room is locked before joining
-      const room = rooms.find((r) => r._id?.toString() === roomId.toString() || r._id === roomId);
-      if (room?.isLocked) {
-        setToastMessage('This group unlocks when you complete the previous level.');
-        setShowToast(true);
-        setTimeout(() => setShowToast(false), 3000);
-        return;
-      }
-      socket.emit('joinRoom', { roomId: roomId.toString() });
+  // Track pending room joins for retry after connection
+  const pendingRoomJoinsRef = useRef<Set<string>>(new Set());
+
+  // Safe room join - only joins when socket is ready
+  const joinRoomSafely = (roomId: string) => {
+    // Skip placeholder rooms (log warning only, don't block)
+    const roomIdStr = roomId?.toString() || roomId;
+    if (typeof roomIdStr === 'string' && roomIdStr.startsWith('placeholder-')) {
+      console.warn('Skipping join for placeholder room:', roomIdStr);
+      return;
     }
+
+    if (!socket || !socketReady) {
+      // Store for retry after connection
+      pendingRoomJoinsRef.current.add(roomIdStr);
+      console.log('Socket not ready, queuing room join for:', roomIdStr);
+      return;
+    }
+
+    // Check if room is locked before joining
+    const room = rooms.find((r) => {
+      const rId = r._id?.toString() || r._id;
+      return rId === roomIdStr || rId === roomId;
+    });
+    if (room?.isLocked) {
+      console.warn('Cannot join locked room:', roomIdStr);
+      return;
+    }
+
+    socket.emit('joinRoom', { roomId: roomIdStr });
+    pendingRoomJoinsRef.current.delete(roomIdStr);
+  };
+
+  // Retry pending room joins when socket connects
+  useEffect(() => {
+    if (socket && socketReady && pendingRoomJoinsRef.current.size > 0) {
+      const pendingRooms = Array.from(pendingRoomJoinsRef.current);
+      console.log('Retrying pending room joins:', pendingRooms);
+      pendingRooms.forEach((roomId) => {
+        joinRoomSafely(roomId);
+      });
+    }
+  }, [socket, socketReady, rooms]);
+
+  const joinRoom = (roomId: string) => {
+    joinRoomSafely(roomId);
   };
 
   const leaveRoom = (roomId: string) => {
-    if (socket && connected) {
-      socket.emit('leaveRoom', { roomId: roomId.toString() });
+    if (socket && socketReady) {
+      const roomIdStr = roomId?.toString() || roomId;
+      // Skip placeholder rooms (log warning only)
+      if (typeof roomIdStr === 'string' && roomIdStr.startsWith('placeholder-')) {
+        console.warn('Skipping leave for placeholder room:', roomIdStr);
+        return;
+      }
+      socket.emit('leaveRoom', { roomId: roomIdStr });
     }
   };
 
