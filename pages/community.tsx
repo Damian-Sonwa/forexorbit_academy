@@ -139,9 +139,12 @@ export default function Community() {
   }, [user, connected, socket, user?.learningLevel, user?.role]);
 
   useEffect(() => {
-      if (selectedRoom) {
+    if (selectedRoom) {
+      const roomIdStr = selectedRoom._id?.toString() || selectedRoom._id;
+      
       // Check if room is a placeholder (not a valid room)
-      if (selectedRoom._id.startsWith('placeholder-')) {
+      if (typeof roomIdStr === 'string' && roomIdStr.startsWith('placeholder-')) {
+        console.warn('Cannot open placeholder room:', roomIdStr);
         setToastMessage('This room is not available yet. Please refresh the page.');
         setShowToast(true);
         setTimeout(() => setShowToast(false), 3000);
@@ -166,9 +169,9 @@ export default function Community() {
       // Clear previous messages and load messages for this specific room (level-specific)
       setMessages([]);
       // Load all messages for this room level
-      loadMessages(selectedRoom._id.toString(), 1, false);
+      loadMessages(roomIdStr, 1, false);
       // Join the room to receive real-time updates for this level
-      joinRoom(selectedRoom._id.toString());
+      joinRoom(roomIdStr);
     }
     return () => {
       if (selectedRoom && !selectedRoom.isLocked) {
@@ -535,8 +538,9 @@ export default function Community() {
     }
     
     // Check if room is a placeholder (not a valid room)
-    if (selectedRoom._id.startsWith('placeholder-')) {
-      console.warn('Cannot send message to placeholder room:', selectedRoom._id);
+    const roomIdStr = selectedRoom._id?.toString() || selectedRoom._id;
+    if (typeof roomIdStr === 'string' && roomIdStr.startsWith('placeholder-')) {
+      console.warn('Cannot send message to placeholder room:', roomIdStr);
       setToastMessage('Please wait for the room to be created, or refresh the page.');
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
