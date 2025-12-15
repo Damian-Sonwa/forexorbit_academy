@@ -235,8 +235,8 @@ export default function Onboarding() {
       const updatedUser = { ...user, ...userData };
       localStorage.setItem('user', JSON.stringify(updatedUser));
       
-      // Navigate to dashboard - students stay on /dashboard, other roles get redirected by dashboard page
-      // Using window.location to ensure fresh auth context is loaded
+      // Force navigation to dashboard - use window.location for reliable navigation
+      // This ensures a full page reload with fresh auth context
       window.location.href = '/dashboard';
     } catch (error: any) {
       setError(error.response?.data?.error || error.message || 'Failed to save onboarding data');
