@@ -194,11 +194,17 @@ export default function Profile() {
     setSuccess('');
 
     try {
-      // FIX: Include profilePhoto in the save request to preserve it
-      await apiClient.post('/student/onboarding', {
-        ...formData,
-        profilePhoto: formData.profilePhoto || photoPreview, // Include current profile photo
-      });
+      // FIX: Exclude profilePhoto if it's a base64 data URL (too large, causes 413 error)
+      // Profile photo should already be saved via upload endpoint
+      const saveData: any = { ...formData };
+      
+      // Only include profilePhoto if it's a URL (not base64 data URL)
+      if (saveData.profilePhoto && saveData.profilePhoto.startsWith('data:')) {
+        // Exclude base64 data URL to prevent 413 error
+        delete saveData.profilePhoto;
+      }
+      
+      await apiClient.post('/student/onboarding', saveData);
       if (!(user as any)?.onboardingCompleted) {
         await apiClient.put('/student/onboarding/complete');
       }
@@ -214,9 +220,20 @@ export default function Profile() {
       
       setIsEditing(false);
       setSuccess('Profile updated successfully!');
-      setTimeout(() => setSuccess(''), 3000);
+      setTimeout(() => setSuccess(''), 5000);
     } catch (error: any) {
-      setError(error.response?.data?.error || error.message || 'Failed to save profile');
+      console.error('Profile save error:', error);
+      
+      // Handle 413 Payload Too Large error specifically
+      if (error.response?.status === 413) {
+        setError('Profile data is too large. Please remove large images or reduce data size and try again.');
+      } else if (error.response?.status === 400) {
+        setError(error.response?.data?.error || 'Invalid data. Please check your inputs and try again.');
+      } else if (error.response?.status === 500) {
+        setError('Server error. Please try again later.');
+      } else {
+        setError(error.response?.data?.error || error.message || 'Failed to save profile. Please try again.');
+      }
     } finally {
       setLoading(false);
     }

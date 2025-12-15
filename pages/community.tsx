@@ -506,7 +506,28 @@ export default function Community() {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedRoom || (!input.trim() && !selectedFile) || !connected) return;
+    
+    // Validate inputs
+    if (!selectedRoom) {
+      console.error('No room selected');
+      setToastMessage('Please select a room to send messages.');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+      return;
+    }
+    
+    if (!input.trim() && !selectedFile) {
+      console.warn('Cannot send empty message');
+      return;
+    }
+    
+    if (!connected) {
+      console.error('Socket not connected');
+      setToastMessage('Connection lost. Please refresh the page.');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+      return;
+    }
 
     // Check if room is locked
     if (selectedRoom.isLocked) {
@@ -530,12 +551,16 @@ export default function Community() {
     }
 
     try {
+      console.log('Sending message:', { roomId: selectedRoom._id.toString(), content: messageContent });
+      
       // Send message to API - it will broadcast to all room members via Socket.io
       const response = await apiClient.post<{ message: Message }>('/community/messages', {
         roomId: selectedRoom._id.toString(),
         type: 'text',
         content: messageContent,
       });
+      
+      console.log('Message sent successfully:', response);
       
       // Optimistically add message for sender immediately (before Socket.io event)
       if (response?.message) {
@@ -567,10 +592,17 @@ export default function Community() {
       // The Socket.io event will handle adding it for receivers and updating for sender
     } catch (error: any) {
       console.error('Failed to send message:', error);
-      const errorMessage = error.response?.data?.error || 'Failed to send message';
+      let errorMessage = 'Failed to send message';
+      
+      if (error.response) {
+        errorMessage = error.response?.data?.error || `Error ${error.response.status}: ${error.response.statusText}`;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       setToastMessage(errorMessage);
       setShowToast(true);
-      setTimeout(() => setShowToast(false), 3000);
+      setTimeout(() => setShowToast(false), 5000);
       // Restore input on error
       setInput(messageContent);
     }
@@ -1711,7 +1743,7 @@ export default function Community() {
                     {/* FIX: Send button - ensure it's always visible, responsive sizing */}
                     <button
                       type="submit"
-                      disabled={!input.trim()}
+                      disabled={!input.trim() || !connected}
                       className="p-2 sm:p-2.5 bg-[#25d366] hover:bg-[#20ba5a] text-white rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-md flex-shrink-0"
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
