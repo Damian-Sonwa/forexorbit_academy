@@ -8,7 +8,7 @@ import { useRouter } from 'next/router';
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
 import { useAuth } from '@/hooks/useAuth';
-// import { useSocket } from '@/hooks/useSocket'; // Reserved for future use
+import { useSocket } from '@/hooks/useSocket';
 import { apiClient } from '@/lib/api-client';
 import { formatDistanceToNow } from 'date-fns';
 
