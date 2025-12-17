@@ -74,6 +74,8 @@ app.prepare().then(() => {
         ...(process.env.VERCEL_URL ? [`https://${process.env.VERCEL_URL}`] : []),
       ];
   
+  // CRITICAL: Socket.IO configuration for Render WebSocket support
+  // MUST allow polling → websocket upgrade for Render compatibility
   const io = new Server(server, {
     path: '/api/socket',
     cors: {
@@ -97,11 +99,16 @@ app.prepare().then(() => {
       methods: ['GET', 'POST'],
       credentials: true,
     },
-    transports: ['websocket', 'polling'], // CRITICAL: Allow both transports for upgrade
+    // CRITICAL: MUST allow both transports and enable upgrade for Render
+    transports: ['polling', 'websocket'], // Order matters: polling first, then upgrade to websocket
+    allowUpgrades: true, // CRITICAL: Enable polling → websocket upgrade
     allowEIO3: true,
     pingTimeout: 60000,
     pingInterval: 25000,
     upgradeTimeout: 10000, // Allow time for upgrade from polling to websocket
+    // CRITICAL: Additional settings for Render compatibility
+    perMessageDeflate: false, // Disable compression for better compatibility
+    httpCompression: false, // Disable HTTP compression
   });
 
   // Export io instance for API routes

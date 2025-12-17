@@ -381,33 +381,10 @@ export default function Community() {
         room.type === 'global' && ['Beginner', 'Intermediate', 'Advanced'].includes(room.name)
       );
       
-      // If no rooms returned from API, ensure we have at least the Beginner room
-      // The API should create rooms, but if it doesn't, we'll show placeholders
-      const roomNames = ['Beginner', 'Intermediate', 'Advanced'];
-      const visibleRooms: Room[] = roomNames.map((name) => {
-        const existingRoom = mainRooms.find((r) => r.name === name);
-        if (existingRoom) {
-          return existingRoom;
-        }
-        // Create placeholder room if API didn't return it
-        // This ensures students always see at least the Beginner room
-        return {
-          _id: `placeholder-${name}`,
-          name,
-          type: 'global' as const,
-          description: name === 'Beginner' 
-            ? 'Perfect for newcomers learning basic concepts, market introductions, and simple analysis.'
-            : name === 'Intermediate'
-            ? 'For mid-level traders sharing strategies, chart analysis, and trading setups.'
-            : 'For experienced traders discussing deep technical analysis, macro news, and advanced strategies.',
-          isLocked: false, // Will be set correctly by API, but default to unlocked
-          participants: [],
-        };
-      });
-      
-      // For students, the API already marks rooms as locked based on their learning level
-      // We just need to show all rooms - locked ones will be disabled
-      setRooms(visibleRooms);
+      // CRITICAL FIX: Remove placeholder room creation
+      // Students use the same rooms as admin/instructor - no placeholders
+      // Only use rooms returned from API
+      setRooms(mainRooms);
     } catch (error: any) {
       console.error('Failed to load rooms:', error);
       // Set empty array on error to prevent blank page
