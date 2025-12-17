@@ -608,11 +608,10 @@ export default function Community() {
 
   const leaveRoom = (roomId: string) => {
     if (socket && socketReady) {
-      const roomIdStr = roomId?.toString() || roomId;
-      // Skip placeholder rooms (log warning only)
-      if (typeof roomIdStr === 'string' && roomIdStr.startsWith('placeholder-')) {
-        console.warn('Skipping leave for placeholder room:', roomIdStr);
-        return;
+      let roomIdStr = roomId?.toString() || roomId;
+      // CRITICAL FIX: For students, replace placeholder with "community_global"
+      if (user?.role === 'student' && typeof roomIdStr === 'string' && roomIdStr.startsWith('placeholder-')) {
+        roomIdStr = 'community_global';
       }
       socket.emit('leaveRoom', { roomId: roomIdStr });
     }
@@ -630,18 +629,23 @@ export default function Community() {
       return;
     }
     
-    // CRITICAL FIX: Remove blocking logic for placeholder rooms
-    // Messages are sent via HTTP POST, socket.io handles broadcasting
-    // Allow sending even if room appears to be placeholder - API will handle it
-    const roomIdStr = selectedRoom._id?.toString() || selectedRoom._id;
-    // Removed placeholder check - allow message sending
-    // if (typeof roomIdStr === 'string' && roomIdStr.startsWith('placeholder-')) {
-    //   console.warn('Cannot send message to placeholder room:', roomIdStr);
-    //   setToastMessage('This room is not available yet. Please refresh the page.');
-    //   setShowToast(true);
-    //   setTimeout(() => setShowToast(false), 3000);
-    //   return;
-    // }
+    // CRITICAL FIX: For students, use Beginner room ID for API calls
+    // Students send to Beginner room (access control) but join "community_global" socket room
+    let roomIdStr = selectedRoom._id?.toString() || selectedRoom._id;
+    if (user?.role === 'student' && typeof roomIdStr === 'string' && roomIdStr.startsWith('placeholder-')) {
+      // For students, use the Beginner room ID for API calls (which is the default accessible room)
+      const beginnerRoom = rooms.find(r => r.name === 'Beginner' && !r._id.toString().startsWith('placeholder-'));
+      if (beginnerRoom) {
+        roomIdStr = beginnerRoom._id.toString();
+        console.log('Student: Using Beginner room ID for message sending:', roomIdStr);
+      } else {
+        // If no Beginner room found, show error
+        setToastMessage('Please select a valid room to send messages.');
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 3000);
+        return;
+      }
+    }
     
     if (!input.trim() && !selectedFile) {
       console.warn('Cannot send empty message');
@@ -652,13 +656,14 @@ export default function Community() {
     // WebSocket is only needed for real-time updates, not for sending messages
     // Room is created automatically when first user joins, no need to wait
 
-    // Check if room is locked
-    if (selectedRoom.isLocked) {
-      setToastMessage('This group unlocks when you complete the previous level.');
-      setShowToast(true);
-      setTimeout(() => setShowToast(false), 3000);
-      return;
-    }
+    // CRITICAL FIX: Removed blocking logic for locked rooms
+    // Room access is controlled at API level, not UI level
+    // if (selectedRoom.isLocked) {
+    //   setToastMessage('This group unlocks when you complete the previous level.');
+    //   setShowToast(true);
+    //   setTimeout(() => setShowToast(false), 3000);
+    //   return;
+    // }
 
     // If there's a file selected, upload it instead of sending text
     if (selectedFile && fileType) {
