@@ -17,6 +17,7 @@ export const pageview = (url: string) => {
   
   window.gtag('config', GA_MEASUREMENT_ID!, {
     page_path: url,
+    cookie_domain: 'none', // Prevents cookie issues on Vercel preview URLs
   });
 };
 

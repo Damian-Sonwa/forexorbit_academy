@@ -53,6 +53,7 @@ export default function App({ Component, pageProps }: AppProps) {
                 gtag('js', new Date());
                 gtag('config', '${GA_MEASUREMENT_ID}', {
                   page_path: window.location.pathname,
+                  cookie_domain: 'none'
                 });
               `,
             }}
