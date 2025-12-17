@@ -220,12 +220,13 @@ async function sendMessage(req: AuthRequest, res: NextApiResponse) {
       if (roomId !== roomIdStr) {
         req.io.to(`room:${roomId}`).emit('message', messageToEmit);
       }
-      // CRITICAL: For students, also broadcast to "community_global" room
+      // CRITICAL: For students sending to Beginner room, also broadcast to "community_global" room
       // This ensures students receive messages even if they're using placeholder rooms
+      // Students join "community_global" socket room but send messages to Beginner room (API access control)
       if (user?.role === 'student' && room.name === 'Beginner') {
         req.io.to('room:community_global').emit('message', {
           ...messageToEmit,
-          roomId: 'community_global', // Override roomId for socket broadcast
+          roomId: 'community_global', // Override roomId for socket broadcast to match student's socket room
         });
       }
     }
