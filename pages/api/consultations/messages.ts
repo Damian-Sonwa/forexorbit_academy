@@ -128,7 +128,9 @@ async function sendMessage(req: AuthRequest, res: NextApiResponse) {
       } as any
     );
 
-    // Emit socket event to both users
+    // Emit socket event to consultation room - ensures both parties receive message
+    // CRITICAL: Broadcast to consultation room instead of individual users
+    // This ensures messages are visible to both student and instructor in real-time
     if (req.io) {
       const messageToEmit = {
         ...message,
@@ -137,7 +139,10 @@ async function sendMessage(req: AuthRequest, res: NextApiResponse) {
         senderPhoto: sender?.profilePhoto || null,
       };
 
-      // Emit to both student and expert
+      // Broadcast to consultation room - both student and instructor receive it
+      req.io.to(`consultation:${sessionId}`).emit('consultationMessage', messageToEmit);
+      
+      // Also emit to individual users as fallback (for users not yet in room)
       req.io.to(`user:${session.studentId}`).emit('consultationMessage', messageToEmit);
       req.io.to(`user:${session.expertId}`).emit('consultationMessage', messageToEmit);
     }

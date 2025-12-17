@@ -282,7 +282,7 @@ app.prepare().then(() => {
 
     // Consultation room handlers - Idempotent room joining
     // Rooms are created automatically by socket.io when first user joins
-    // Access validation happens but doesn't block room creation
+    // Single source of truth: consultation_<sessionId> room for all communication
     socket.on('joinConsultation', async (data) => {
       const { sessionId } = data;
       if (!sessionId) {
@@ -326,7 +326,7 @@ app.prepare().then(() => {
           return;
         }
 
-        // Notify other participant
+        // Notify other participant that user joined
         const otherUserId = user.role === 'student' ? session.expertId : session.studentId;
         io.to(`user:${otherUserId}`).emit('consultationUserJoined', {
           sessionId,
@@ -336,6 +336,23 @@ app.prepare().then(() => {
         console.error('Error validating consultation access:', error);
         // Don't emit error - room is already joined, just log error
       }
+    });
+
+    // Auto-join consultation room when request is accepted
+    // This ensures both parties are immediately connected for communication
+    socket.on('join_consultation_room', (data) => {
+      const { sessionId } = data;
+      if (!sessionId) {
+        console.warn('join_consultation_room called without sessionId');
+        return;
+      }
+
+      // Join consultation room immediately - room is created automatically
+      socket.join(`consultation:${sessionId}`);
+      console.log(`User ${user.email} auto-joined consultation room: ${sessionId}`);
+      
+      // Emit confirmation
+      socket.emit('consultation_room_joined', { sessionId });
     });
 
     socket.on('leaveConsultation', (data) => {
@@ -401,9 +418,8 @@ app.prepare().then(() => {
 
         if (!hasAccess) return;
 
-        // Notify other participant
-        const otherUserId = user.role === 'student' ? session.expertId : session.studentId;
-        io.to(`user:${otherUserId}`).emit('consultationCallAnswer', {
+        // Broadcast call answer to consultation room
+        io.to(`consultation:${sessionId}`).emit('consultationCallAnswer', {
           sessionId,
           accepted,
         });

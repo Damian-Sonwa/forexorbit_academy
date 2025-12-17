@@ -73,12 +73,43 @@ async function updateRequest(req: AuthRequest, res: NextApiResponse) {
 
       const sessionResult = await sessions.insertOne(session);
 
-      // Emit socket event to notify student
+      // Emit socket events to notify both student and instructor
+      // CRITICAL: Status update must be broadcast to both parties immediately
       if (req.io) {
+        const sessionId = sessionResult.insertedId.toString();
+        
+        // Emit status update to student - triggers UI update without page refresh
+        req.io.to(`user:${request.studentId}`).emit('consultation_status_updated', {
+          requestId: id,
+          sessionId: sessionId,
+          status: 'accepted',
+          expertId: request.expertId,
+        });
+        
+        // Also emit legacy event for backward compatibility
         req.io.to(`user:${request.studentId}`).emit('consultationAccepted', {
           requestId: id,
-          sessionId: sessionResult.insertedId.toString(),
+          sessionId: sessionId,
           expertId: request.expertId,
+        });
+        
+        // Notify instructor that request was accepted
+        req.io.to(`user:${request.expertId}`).emit('consultation_status_updated', {
+          requestId: id,
+          sessionId: sessionId,
+          status: 'accepted',
+          studentId: request.studentId,
+        });
+        
+        // Auto-join both parties to consultation room for immediate communication
+        // Room is created automatically by socket.io when first user joins
+        req.io.to(`user:${request.studentId}`).emit('join_consultation_room', {
+          sessionId: sessionId,
+          requestId: id,
+        });
+        req.io.to(`user:${request.expertId}`).emit('join_consultation_room', {
+          sessionId: sessionId,
+          requestId: id,
         });
       }
 
