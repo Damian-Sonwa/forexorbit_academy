@@ -2268,6 +2268,8 @@ export default function InstructorDashboard() {
           </div>
         </div>
       )}
+        </main>
+      </div>
     </div>
   );
 }
