@@ -22,10 +22,16 @@ async function getSessions(req: AuthRequest, res: NextApiResponse) {
         .find({ studentId: req.user!.userId })
         .sort({ createdAt: -1 })
         .toArray();
-    } else if (req.user!.role === 'instructor' || req.user!.role === 'admin' || req.user!.role === 'superadmin') {
-      // Experts see their sessions
+    } else if (req.user!.role === 'instructor') {
+      // Instructors see their assigned sessions
       userSessions = await sessions
         .find({ expertId: req.user!.userId })
+        .sort({ createdAt: -1 })
+        .toArray();
+    } else if (req.user!.role === 'admin' || req.user!.role === 'superadmin') {
+      // Admins and Super Admins see ALL sessions for monitoring
+      userSessions = await sessions
+        .find({})
         .sort({ createdAt: -1 })
         .toArray();
     } else {

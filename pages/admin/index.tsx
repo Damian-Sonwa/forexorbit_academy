@@ -164,6 +164,7 @@ export default function AdminPanel() {
 
   // Consultation requests state for admin
   const [consultationRequests, setConsultationRequests] = useState<any[]>([]);
+  const [consultationSessions, setConsultationSessions] = useState<any[]>([]);
   const [loadingConsultations, setLoadingConsultations] = useState(false);
 
   useEffect(() => {
@@ -176,6 +177,7 @@ export default function AdminPanel() {
       // Load pending approvals for all admins (Super Admin can approve, regular admins can see notifications)
       loadPendingUsers();
       loadConsultationRequests();
+      loadConsultationSessions();
     }
   }, [user]);
 
@@ -190,6 +192,18 @@ export default function AdminPanel() {
       setConsultationRequests([]);
     } finally {
       setLoadingConsultations(false);
+    }
+  };
+
+  // Load all active consultation sessions for admin monitoring
+  const loadConsultationSessions = async () => {
+    try {
+      // Get all sessions by fetching from API (admin can see all)
+      const data = await apiClient.get<any[]>('/consultations/sessions');
+      setConsultationSessions(data || []);
+    } catch (error) {
+      console.error('Failed to load consultation sessions:', error);
+      setConsultationSessions([]);
     }
   };
 

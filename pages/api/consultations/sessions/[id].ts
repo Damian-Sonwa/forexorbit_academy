@@ -29,12 +29,12 @@ async function getSession(req: AuthRequest, res: NextApiResponse) {
     }
 
     // Verify user has access to this session
-    if (req.user!.role === 'student' && session.studentId !== req.user!.userId) {
+    // Admins and Super Admins have access to all sessions
+    if (req.user!.role === 'admin' || req.user!.role === 'superadmin') {
+      // Admins can access any session
+    } else if (req.user!.role === 'student' && session.studentId !== req.user!.userId) {
       return res.status(403).json({ error: 'Access denied' });
-    }
-
-    if ((req.user!.role === 'instructor' || req.user!.role === 'admin' || req.user!.role === 'superadmin') 
-        && session.expertId !== req.user!.userId) {
+    } else if (req.user!.role === 'instructor' && session.expertId !== req.user!.userId) {
       return res.status(403).json({ error: 'Access denied' });
     }
 

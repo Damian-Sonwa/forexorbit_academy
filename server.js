@@ -340,6 +340,181 @@ app.prepare().then(() => {
       });
     });
 
+    // Consultation room handlers - Real-time communication for consultations
+    socket.on('joinConsultation', async (data) => {
+      const { sessionId } = data;
+      if (!sessionId) return;
+
+      try {
+        const { getDb } = require('./lib/mongodb');
+        const { ObjectId } = require('mongodb');
+        const db = await getDb();
+        const sessions = db.collection('consultationSessions');
+
+        // Verify session exists and user has access
+        const session = await sessions.findOne({ _id: new ObjectId(sessionId) });
+        if (!session) {
+          socket.emit('error', { message: 'Consultation session not found' });
+          return;
+        }
+
+        // Check access: student can only join their sessions, instructor/admin can join their assigned sessions
+        const hasAccess = 
+          (user.role === 'student' && session.studentId === user.userId) ||
+          ((user.role === 'instructor' || user.role === 'admin' || user.role === 'superadmin') && 
+           (session.expertId === user.userId || user.role === 'admin' || user.role === 'superadmin'));
+
+        if (!hasAccess) {
+          socket.emit('error', { message: 'Access denied to this consultation' });
+          return;
+        }
+
+        // Join consultation room
+        socket.join(`consultation:${sessionId}`);
+        console.log(`User ${user.email} joined consultation ${sessionId}`);
+
+        // Notify other participant
+        const otherUserId = user.role === 'student' ? session.expertId : session.studentId;
+        io.to(`user:${otherUserId}`).emit('consultationUserJoined', {
+          sessionId,
+          userId: user.userId,
+        });
+      } catch (error) {
+        console.error('Join consultation error:', error);
+        socket.emit('error', { message: 'Failed to join consultation' });
+      }
+    });
+
+    socket.on('leaveConsultation', (data) => {
+      const { sessionId } = data;
+      if (sessionId) {
+        socket.leave(`consultation:${sessionId}`);
+        console.log(`User ${user.email} left consultation ${sessionId}`);
+      }
+    });
+
+    // WebRTC signaling for voice/video calls
+    socket.on('consultationCallOffer', async (data) => {
+      const { sessionId, type } = data;
+      if (!sessionId) return;
+
+      try {
+        const { getDb } = require('./lib/mongodb');
+        const { ObjectId } = require('mongodb');
+        const db = await getDb();
+        const sessions = db.collection('consultationSessions');
+
+        const session = await sessions.findOne({ _id: new ObjectId(sessionId) });
+        if (!session) return;
+
+        // Verify access
+        const hasAccess = 
+          (user.role === 'student' && session.studentId === user.userId) ||
+          ((user.role === 'instructor' || user.role === 'admin' || user.role === 'superadmin') && 
+           (session.expertId === user.userId || user.role === 'admin' || user.role === 'superadmin'));
+
+        if (!hasAccess) return;
+
+        // Notify other participant
+        const otherUserId = user.role === 'student' ? session.expertId : session.studentId;
+        io.to(`user:${otherUserId}`).emit('consultationCallOffer', {
+          sessionId,
+          type,
+          from: user.userId,
+        });
+      } catch (error) {
+        console.error('Call offer error:', error);
+      }
+    });
+
+    socket.on('consultationCallAnswer', async (data) => {
+      const { sessionId, accepted } = data;
+      if (!sessionId) return;
+
+      try {
+        const { getDb } = require('./lib/mongodb');
+        const { ObjectId } = require('mongodb');
+        const db = await getDb();
+        const sessions = db.collection('consultationSessions');
+
+        const session = await sessions.findOne({ _id: new ObjectId(sessionId) });
+        if (!session) return;
+
+        // Verify access
+        const hasAccess = 
+          (user.role === 'student' && session.studentId === user.userId) ||
+          ((user.role === 'instructor' || user.role === 'admin' || user.role === 'superadmin') && 
+           (session.expertId === user.userId || user.role === 'admin' || user.role === 'superadmin'));
+
+        if (!hasAccess) return;
+
+        // Notify other participant
+        const otherUserId = user.role === 'student' ? session.expertId : session.studentId;
+        io.to(`user:${otherUserId}`).emit('consultationCallAnswer', {
+          sessionId,
+          accepted,
+        });
+      } catch (error) {
+        console.error('Call answer error:', error);
+      }
+    });
+
+    socket.on('consultationCallEnd', async (data) => {
+      const { sessionId } = data;
+      if (!sessionId) return;
+
+      try {
+        const { getDb } = require('./lib/mongodb');
+        const { ObjectId } = require('mongodb');
+        const db = await getDb();
+        const sessions = db.collection('consultationSessions');
+
+        const session = await sessions.findOne({ _id: new ObjectId(sessionId) });
+        if (!session) return;
+
+        // Notify both participants
+        io.to(`user:${session.studentId}`).emit('consultationCallEnd', { sessionId });
+        io.to(`user:${session.expertId}`).emit('consultationCallEnd', { sessionId });
+      } catch (error) {
+        console.error('Call end error:', error);
+      }
+    });
+
+    // WebRTC ICE candidate exchange
+    socket.on('consultationIceCandidate', (data) => {
+      const { sessionId, candidate } = data;
+      if (!sessionId || !candidate) return;
+
+      // Forward ICE candidate to other participant in consultation room
+      socket.to(`consultation:${sessionId}`).emit('consultationIceCandidate', {
+        sessionId,
+        candidate,
+      });
+    });
+
+    // WebRTC offer/answer exchange
+    socket.on('consultationOffer', (data) => {
+      const { sessionId, offer } = data;
+      if (!sessionId || !offer) return;
+
+      // Forward offer to other participant
+      socket.to(`consultation:${sessionId}`).emit('consultationOffer', {
+        sessionId,
+        offer,
+      });
+    });
+
+    socket.on('consultationAnswer', (data) => {
+      const { sessionId, answer } = data;
+      if (!sessionId || !answer) return;
+
+      // Forward answer to other participant
+      socket.to(`consultation:${sessionId}`).emit('consultationAnswer', {
+        sessionId,
+        answer,
+      });
+    });
+
     // Typing indicators
     socket.on('typing', (data) => {
       const { roomId } = data;

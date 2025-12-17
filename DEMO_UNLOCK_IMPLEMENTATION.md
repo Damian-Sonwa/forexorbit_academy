@@ -103,3 +103,5 @@ The app will behave exactly as before - all demo logic is bypassed.
 - Expired access is cleaned up on component mount
 - No API calls required for demo unlock (client-side only)
 
+
+
