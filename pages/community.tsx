@@ -384,7 +384,12 @@ export default function Community() {
       // CRITICAL FIX: Remove placeholder room creation
       // Students use the same rooms as admin/instructor - no placeholders
       // Only use rooms returned from API
-      setRooms(mainRooms);
+      if (mainRooms.length > 0) {
+        setRooms(mainRooms);
+      } else {
+        // If API returns no rooms, set empty array (no placeholders)
+        setRooms([]);
+      }
     } catch (error: any) {
       console.error('Failed to load rooms:', error);
       // Set empty array on error to prevent blank page
@@ -397,13 +402,8 @@ export default function Community() {
   };
 
   const loadMessages = async (roomId: string, pageNum: number = 1, append: boolean = false) => {
-    // Skip loading messages for placeholder rooms (not valid ObjectIds)
-    if (roomId.startsWith('placeholder-')) {
-      console.warn('Cannot load messages for placeholder room:', roomId);
-      setLoadingMessages(false);
-      setMessages([]);
-      return;
-    }
+    // CRITICAL FIX: Removed placeholder room check
+    // All rooms are valid - no placeholder logic
     
     try {
       setLoadingMessages(true);
