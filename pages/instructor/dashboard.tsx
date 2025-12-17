@@ -696,6 +696,94 @@ export default function InstructorDashboard() {
           </button>
         </div>
 
+        {/* Consultation Requests Section - Instructors can view and manage requests */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4 mb-3 sm:mb-4 flex-shrink-0">
+          <div className="flex items-center space-x-3 mb-4">
+            <svg className="w-6 h-6 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            </svg>
+            <div>
+              <h3 className="text-sm font-bold text-gray-900 dark:text-white">Consultation Requests</h3>
+              <p className="text-xs text-gray-600 dark:text-gray-400">View and manage consultation requests from students</p>
+            </div>
+          </div>
+          
+          {loadingConsultations ? (
+            <div className="text-center py-4">
+              <p className="text-gray-600 dark:text-gray-400">Loading requests...</p>
+            </div>
+          ) : consultationRequests.length === 0 ? (
+            <div className="text-center py-4">
+              <p className="text-gray-600 dark:text-gray-400">No consultation requests at the moment</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {consultationRequests.map((request) => (
+                <div
+                  key={request._id}
+                  className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 sm:p-4 bg-gray-50 dark:bg-gray-900"
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                          request.status === 'pending' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
+                          request.status === 'accepted' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+                          request.status === 'rejected' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' :
+                          'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
+                        }`}>
+                          {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+                        </span>
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                          {formatDistanceToNow(new Date(request.createdAt), { addSuffix: true })}
+                        </span>
+                      </div>
+                      {request.student && (
+                        <div className="flex items-center gap-2 mb-2">
+                          {request.student.profilePhoto && (
+                            <img
+                              src={request.student.profilePhoto}
+                              alt={request.student.name}
+                              className="w-8 h-8 rounded-full"
+                            />
+                          )}
+                          <div>
+                            <p className="text-sm font-semibold text-gray-900 dark:text-white">{request.student.name}</p>
+                            <p className="text-xs text-gray-600 dark:text-gray-400">{request.student.email}</p>
+                          </div>
+                        </div>
+                      )}
+                      <p className="text-sm font-semibold text-gray-900 dark:text-white mb-1">{request.topic}</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">{request.description}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        Type: <span className="capitalize">{request.consultationType.replace('-', ' ')}</span>
+                      </p>
+                    </div>
+                    {request.status === 'pending' && (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleConsultationAction(request._id, 'accept')}
+                          disabled={loadingConsultations}
+                          className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Accept
+                        </button>
+                        <button
+                          onClick={() => handleConsultationAction(request._id, 'reject')}
+                          disabled={loadingConsultations}
+                          className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* FIX: Upcoming Classes Section - Allow instructors to post upcoming classes */}
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4 mb-3 sm:mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 flex-shrink-0">
           <div className="flex items-center space-x-3">
