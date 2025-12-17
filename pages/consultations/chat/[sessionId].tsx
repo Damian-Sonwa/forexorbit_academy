@@ -132,8 +132,8 @@ export default function ConsultationChat() {
     socket.on('consultation_room_joined', handleRoomJoined);
     socket.on('consultationMessage', handleMessage);
 
-    // Listen for call events
-    socket.on('consultationCallOffer', (data: { sessionId: string; type: 'voice' | 'video'; from: string }) => {
+    // Listen for call events - CRITICAL: Handle WebRTC offer/answer exchange
+    socket.on('consultationCallOffer', async (data: { sessionId: string; type: 'voice' | 'video'; from: string; offer?: RTCSessionDescriptionInit }) => {
       if (data.sessionId === sessionId) {
         setCallStatus('calling');
         if (data.type === 'video') {
@@ -141,12 +141,19 @@ export default function ConsultationChat() {
         } else {
           setShowVoiceCall(true);
         }
+        
+        // If offer is included, handle it immediately (incoming call)
+        if (data.offer) {
+          await handleIncomingCall(data.type, data.offer);
+        }
       }
     });
 
-    socket.on('consultationCallAnswer', (data: { sessionId: string; accepted: boolean }) => {
+    socket.on('consultationCallAnswer', async (data: { sessionId: string; accepted: boolean; answer?: RTCSessionDescriptionInit }) => {
       if (data.sessionId === sessionId) {
-        if (data.accepted) {
+        if (data.accepted && data.answer) {
+          // Handle answer for outgoing call
+          await handleCallAnswer(data.answer);
           setCallStatus('ongoing');
         } else {
           setCallStatus('idle');
@@ -158,9 +165,28 @@ export default function ConsultationChat() {
 
     socket.on('consultationCallEnd', (data: { sessionId: string }) => {
       if (data.sessionId === sessionId) {
-        setCallStatus('idle');
-        setShowVideoCall(false);
-        setShowVoiceCall(false);
+        handleEndCall();
+      }
+    });
+    
+    // Listen for WebRTC signaling events
+    socket.on('consultationOffer', async (data: { sessionId: string; offer: RTCSessionDescriptionInit }) => {
+      if (data.sessionId === sessionId) {
+        // Determine call type from current state
+        const callType = showVideoCall ? 'video' : 'voice';
+        await handleIncomingCall(callType, data.offer);
+      }
+    });
+
+    socket.on('consultationAnswer', async (data: { sessionId: string; answer: RTCSessionDescriptionInit }) => {
+      if (data.sessionId === sessionId) {
+        await handleCallAnswer(data.answer);
+      }
+    });
+
+    socket.on('consultationIceCandidate', async (data: { sessionId: string; candidate: RTCIceCandidateInit }) => {
+      if (data.sessionId === sessionId) {
+        await handleIceCandidate(data.candidate);
       }
     });
 
@@ -170,6 +196,9 @@ export default function ConsultationChat() {
       socket.off('consultationCallOffer');
       socket.off('consultationCallAnswer');
       socket.off('consultationCallEnd');
+      socket.off('consultationOffer');
+      socket.off('consultationAnswer');
+      socket.off('consultationIceCandidate');
       socket.emit('leaveConsultation', { sessionId });
     };
   }, [socket, sessionId]);
@@ -213,42 +242,280 @@ export default function ConsultationChat() {
     }
   };
 
-  // Start voice call
-  const handleStartVoiceCall = () => {
+  // Start voice call - CRITICAL: Initialize WebRTC immediately
+  const handleStartVoiceCall = async () => {
     if (!socket || !sessionId || typeof sessionId !== 'string') return;
-    setCallStatus('calling');
-    setShowVoiceCall(true);
-    socket.emit('consultationCallOffer', { sessionId, type: 'voice' });
+    
+    try {
+      setCallStatus('calling');
+      setShowVoiceCall(true);
+      
+      // Request microphone access immediately
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      
+      // Create peer connection
+      const pc = new RTCPeerConnection({
+        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+      });
+      
+      // Add local stream tracks
+      stream.getTracks().forEach((track) => {
+        pc.addTrack(track, stream);
+      });
+      
+      // Create and send offer immediately
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      
+      // Store peer connection for later use
+      (window as any).__voicePeerConnection = pc;
+      (window as any).__voiceLocalStream = stream;
+      
+      // Emit call offer with WebRTC offer
+      socket.emit('consultationCallOffer', { 
+        sessionId, 
+        type: 'voice',
+        offer: offer,
+      });
+      
+      // Also emit the offer via WebRTC signaling
+      socket.emit('consultationOffer', {
+        sessionId,
+        offer: offer,
+      });
+      
+      // Handle ICE candidates
+      pc.onicecandidate = (event) => {
+        if (event.candidate && socket) {
+          socket.emit('consultationIceCandidate', {
+            sessionId,
+            candidate: event.candidate,
+          });
+        }
+      };
+      
+      // Handle remote stream
+      pc.ontrack = (event) => {
+        const remoteStream = event.streams[0];
+        (window as any).__voiceRemoteStream = remoteStream;
+        // Update UI when remote stream is received
+        setCallStatus('ongoing');
+      };
+      
+    } catch (error) {
+      console.error('Error starting voice call:', error);
+      alert('Failed to start voice call. Please check your microphone permissions.');
+      setCallStatus('idle');
+      setShowVoiceCall(false);
+    }
   };
 
-  // Start video call
-  const handleStartVideoCall = () => {
+  // Start video call - CRITICAL: Initialize WebRTC immediately
+  const handleStartVideoCall = async () => {
     if (!socket || !sessionId || typeof sessionId !== 'string') return;
-    setCallStatus('calling');
-    setShowVideoCall(true);
-    socket.emit('consultationCallOffer', { sessionId, type: 'video' });
+    
+    try {
+      setCallStatus('calling');
+      setShowVideoCall(true);
+      
+      // Request camera and microphone access immediately
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+      
+      // Create peer connection
+      const pc = new RTCPeerConnection({
+        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+      });
+      
+      // Add local stream tracks
+      stream.getTracks().forEach((track) => {
+        pc.addTrack(track, stream);
+      });
+      
+      // Create and send offer immediately
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      
+      // Store peer connection for later use
+      (window as any).__videoPeerConnection = pc;
+      (window as any).__videoLocalStream = stream;
+      
+      // Emit call offer with WebRTC offer
+      socket.emit('consultationCallOffer', { 
+        sessionId, 
+        type: 'video',
+        offer: offer,
+      });
+      
+      // Also emit the offer via WebRTC signaling
+      socket.emit('consultationOffer', {
+        sessionId,
+        offer: offer,
+      });
+      
+      // Handle ICE candidates
+      pc.onicecandidate = (event) => {
+        if (event.candidate && socket) {
+          socket.emit('consultationIceCandidate', {
+            sessionId,
+            candidate: event.candidate,
+          });
+        }
+      };
+      
+      // Handle remote stream
+      pc.ontrack = (event) => {
+        const remoteStream = event.streams[0];
+        (window as any).__videoRemoteStream = remoteStream;
+        // Update UI when remote stream is received
+        setCallStatus('ongoing');
+      };
+      
+    } catch (error) {
+      console.error('Error starting video call:', error);
+      alert('Failed to start video call. Please check your camera and microphone permissions.');
+      setCallStatus('idle');
+      setShowVideoCall(false);
+    }
   };
 
-  // End call
+  // End call - CRITICAL: Clean up WebRTC resources
   const handleEndCall = () => {
     if (!socket || !sessionId || typeof sessionId !== 'string') return;
+    
+    // Clean up voice call resources
+    if ((window as any).__voicePeerConnection) {
+      (window as any).__voicePeerConnection.close();
+      delete (window as any).__voicePeerConnection;
+    }
+    if ((window as any).__voiceLocalStream) {
+      (window as any).__voiceLocalStream.getTracks().forEach((track: MediaStreamTrack) => track.stop());
+      delete (window as any).__voiceLocalStream;
+    }
+    
+    // Clean up video call resources
+    if ((window as any).__videoPeerConnection) {
+      (window as any).__videoPeerConnection.close();
+      delete (window as any).__videoPeerConnection;
+    }
+    if ((window as any).__videoLocalStream) {
+      (window as any).__videoLocalStream.getTracks().forEach((track: MediaStreamTrack) => track.stop());
+      delete (window as any).__videoLocalStream;
+    }
+    
     socket.emit('consultationCallEnd', { sessionId });
     setCallStatus('idle');
     setShowVideoCall(false);
     setShowVoiceCall(false);
   };
 
-  // Answer call
-  const handleAnswerCall = (accepted: boolean) => {
-    if (!socket || !sessionId || typeof sessionId !== 'string') return;
-    socket.emit('consultationCallAnswer', { sessionId, accepted });
-    if (!accepted) {
+  // Handle incoming call offer - CRITICAL: Initialize WebRTC for receiver
+  const handleIncomingCall = async (callType: 'voice' | 'video', offer: RTCSessionDescriptionInit) => {
+    try {
+      // Request media access based on call type
+      const stream = await navigator.mediaDevices.getUserMedia(
+        callType === 'video' ? { audio: true, video: true } : { audio: true }
+      );
+      
+      // Create peer connection
+      const pc = new RTCPeerConnection({
+        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+      });
+      
+      // Add local stream tracks
+      stream.getTracks().forEach((track) => {
+        pc.addTrack(track, stream);
+      });
+      
+      // Set remote description (the offer)
+      await pc.setRemoteDescription(new RTCSessionDescription(offer));
+      
+      // Create and send answer
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      
+      // Store peer connection
+      if (callType === 'video') {
+        (window as any).__videoPeerConnection = pc;
+        (window as any).__videoLocalStream = stream;
+      } else {
+        (window as any).__voicePeerConnection = pc;
+        (window as any).__voiceLocalStream = stream;
+      }
+      
+      // Send answer via socket
+      if (socket) {
+        socket.emit('consultationAnswer', {
+          sessionId,
+          answer: answer,
+        });
+        socket.emit('consultationCallAnswer', {
+          sessionId,
+          accepted: true,
+          answer: answer,
+        });
+      }
+      
+      // Handle ICE candidates
+      pc.onicecandidate = (event) => {
+        if (event.candidate && socket) {
+          socket.emit('consultationIceCandidate', {
+            sessionId,
+            candidate: event.candidate,
+          });
+        }
+      };
+      
+      // Handle remote stream
+      pc.ontrack = (event) => {
+        const remoteStream = event.streams[0];
+        if (callType === 'video') {
+          (window as any).__videoRemoteStream = remoteStream;
+        } else {
+          (window as any).__voiceRemoteStream = remoteStream;
+        }
+        setCallStatus('ongoing');
+      };
+      
+    } catch (error) {
+      console.error('Error handling incoming call:', error);
+      alert(`Failed to answer ${callType} call. Please check your ${callType === 'video' ? 'camera and microphone' : 'microphone'} permissions.`);
       setCallStatus('idle');
       setShowVideoCall(false);
       setShowVoiceCall(false);
-    } else {
-      setCallStatus('ongoing');
     }
+  };
+
+  // Handle call answer for outgoing call
+  const handleCallAnswer = async (answer: RTCSessionDescriptionInit) => {
+    const pc = (window as any).__voicePeerConnection || (window as any).__videoPeerConnection;
+    if (pc) {
+      await pc.setRemoteDescription(new RTCSessionDescription(answer));
+    }
+  };
+
+  // Handle ICE candidate
+  const handleIceCandidate = async (candidate: RTCIceCandidateInit) => {
+    const pc = (window as any).__voicePeerConnection || (window as any).__videoPeerConnection;
+    if (pc && candidate) {
+      await pc.addIceCandidate(new RTCIceCandidate(candidate));
+    }
+  };
+
+  // Answer call
+  const handleAnswerCall = async (accepted: boolean) => {
+    if (!socket || !sessionId || typeof sessionId !== 'string') return;
+    
+    if (!accepted) {
+      socket.emit('consultationCallAnswer', { sessionId, accepted: false });
+      setCallStatus('idle');
+      setShowVideoCall(false);
+      setShowVoiceCall(false);
+      return;
+    }
+    
+    // If accepted, the WebRTC setup is handled by handleIncomingCall
+    // Just emit the answer event
+    socket.emit('consultationCallAnswer', { sessionId, accepted: true });
   };
 
   if (authLoading || loading) {
@@ -296,10 +563,12 @@ export default function ConsultationChat() {
               </div>
               <div className="flex items-center gap-2">
                 {/* Communication Controls */}
+                {/* CRITICAL FIX: Enable buttons when consultation is active and socket exists */}
                 <button
                   onClick={handleStartVoiceCall}
-                  disabled={callStatus === 'calling' || callStatus === 'ongoing' || !connected}
+                  disabled={callStatus === 'calling' || callStatus === 'ongoing' || !socket || session.status !== 'active'}
                   className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  title={!socket ? 'Connecting...' : session.status !== 'active' ? 'Consultation must be active' : 'Start voice call'}
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
@@ -308,8 +577,9 @@ export default function ConsultationChat() {
                 </button>
                 <button
                   onClick={handleStartVideoCall}
-                  disabled={callStatus === 'calling' || callStatus === 'ongoing' || !connected}
+                  disabled={callStatus === 'calling' || callStatus === 'ongoing' || !socket || session.status !== 'active'}
                   className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  title={!socket ? 'Connecting...' : session.status !== 'active' ? 'Consultation must be active' : 'Start video call'}
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
@@ -451,91 +721,28 @@ function VoiceCallModal({
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
 
+  // CRITICAL FIX: Use stored peer connection and streams from window
   useEffect(() => {
     if (callStatus === 'ongoing') {
-      initializeVoiceCall();
+      // Get stored local and remote streams
+      const localStream = (window as any).__voiceLocalStream;
+      const remoteStream = (window as any).__voiceRemoteStream;
+      
+      if (localStream && localAudioRef.current) {
+        localAudioRef.current.srcObject = localStream;
+        setLocalStream(localStream);
+      }
+      
+      if (remoteStream && remoteAudioRef.current) {
+        remoteAudioRef.current.srcObject = remoteStream;
+        setRemoteStream(remoteStream);
+      }
     }
+    
     return () => {
-      cleanupCall();
+      // Don't cleanup here - cleanup happens in handleEndCall
     };
   }, [callStatus]);
-
-  const initializeVoiceCall = async () => {
-    try {
-      // Get user media (audio only)
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      setLocalStream(stream);
-      if (localAudioRef.current) {
-        localAudioRef.current.srcObject = stream;
-      }
-
-      // Create peer connection
-      const pc = new RTCPeerConnection({
-        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
-      });
-
-      // Add local stream tracks
-      stream.getTracks().forEach((track) => {
-        pc.addTrack(track, stream);
-      });
-
-      // Handle remote stream
-      pc.ontrack = (event) => {
-        setRemoteStream(event.streams[0]);
-        if (remoteAudioRef.current) {
-          remoteAudioRef.current.srcObject = event.streams[0];
-        }
-      };
-
-      // Handle ICE candidates
-      pc.onicecandidate = (event) => {
-        if (event.candidate && socket) {
-          socket.emit('consultationIceCandidate', {
-            sessionId,
-            candidate: event.candidate,
-          });
-        }
-      };
-
-      peerConnectionRef.current = pc;
-
-      // Socket signaling
-      if (socket) {
-        socket.on('consultationOffer', async (data: { sessionId: string; offer: RTCSessionDescriptionInit }) => {
-          if (data.sessionId === sessionId && pc) {
-            await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
-            const answer = await pc.createAnswer();
-            await pc.setLocalDescription(answer);
-            socket.emit('consultationAnswer', { sessionId, answer });
-          }
-        });
-
-        socket.on('consultationAnswer', async (data: { sessionId: string; answer: RTCSessionDescriptionInit }) => {
-          if (data.sessionId === sessionId && pc) {
-            await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
-          }
-        });
-
-        socket.on('consultationIceCandidate', async (data: { sessionId: string; candidate: RTCIceCandidateInit }) => {
-          if (data.sessionId === sessionId && pc && data.candidate) {
-            await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
-          }
-        });
-      }
-    } catch (error) {
-      console.error('Error initializing voice call:', error);
-      alert('Failed to start voice call. Please check your microphone permissions.');
-    }
-  };
-
-  const cleanupCall = () => {
-    if (localStream) {
-      localStream.getTracks().forEach((track) => track.stop());
-    }
-    if (peerConnectionRef.current) {
-      peerConnectionRef.current.close();
-    }
-  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4">
@@ -633,91 +840,28 @@ function VideoCallModal({
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
 
+  // CRITICAL FIX: Use stored peer connection and streams from window
   useEffect(() => {
     if (callStatus === 'ongoing') {
-      initializeVideoCall();
+      // Get stored local and remote streams
+      const localStream = (window as any).__videoLocalStream;
+      const remoteStream = (window as any).__videoRemoteStream;
+      
+      if (localStream && localVideoRef.current) {
+        localVideoRef.current.srcObject = localStream;
+        setLocalStream(localStream);
+      }
+      
+      if (remoteStream && remoteVideoRef.current) {
+        remoteVideoRef.current.srcObject = remoteStream;
+        setRemoteStream(remoteStream);
+      }
     }
+    
     return () => {
-      cleanupCall();
+      // Don't cleanup here - cleanup happens in handleEndCall
     };
   }, [callStatus]);
-
-  const initializeVideoCall = async () => {
-    try {
-      // Get user media (audio + video)
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
-      setLocalStream(stream);
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = stream;
-      }
-
-      // Create peer connection
-      const pc = new RTCPeerConnection({
-        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
-      });
-
-      // Add local stream tracks
-      stream.getTracks().forEach((track) => {
-        pc.addTrack(track, stream);
-      });
-
-      // Handle remote stream
-      pc.ontrack = (event) => {
-        setRemoteStream(event.streams[0]);
-        if (remoteVideoRef.current) {
-          remoteVideoRef.current.srcObject = event.streams[0];
-        }
-      };
-
-      // Handle ICE candidates
-      pc.onicecandidate = (event) => {
-        if (event.candidate && socket) {
-          socket.emit('consultationIceCandidate', {
-            sessionId,
-            candidate: event.candidate,
-          });
-        }
-      };
-
-      peerConnectionRef.current = pc;
-
-      // Socket signaling (same as voice call)
-      if (socket) {
-        socket.on('consultationOffer', async (data: { sessionId: string; offer: RTCSessionDescriptionInit }) => {
-          if (data.sessionId === sessionId && pc) {
-            await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
-            const answer = await pc.createAnswer();
-            await pc.setLocalDescription(answer);
-            socket.emit('consultationAnswer', { sessionId, answer });
-          }
-        });
-
-        socket.on('consultationAnswer', async (data: { sessionId: string; answer: RTCSessionDescriptionInit }) => {
-          if (data.sessionId === sessionId && pc) {
-            await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
-          }
-        });
-
-        socket.on('consultationIceCandidate', async (data: { sessionId: string; candidate: RTCIceCandidateInit }) => {
-          if (data.sessionId === sessionId && pc && data.candidate) {
-            await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
-          }
-        });
-      }
-    } catch (error) {
-      console.error('Error initializing video call:', error);
-      alert('Failed to start video call. Please check your camera and microphone permissions.');
-    }
-  };
-
-  const cleanupCall = () => {
-    if (localStream) {
-      localStream.getTracks().forEach((track) => track.stop());
-    }
-    if (peerConnectionRef.current) {
-      peerConnectionRef.current.close();
-    }
-  };
 
   const toggleVideo = () => {
     if (localStream) {
