@@ -441,9 +441,8 @@ app.prepare().then(() => {
         const session = await sessions.findOne({ _id: new ObjectId(sessionId) });
         if (!session) return;
 
-        // Notify both participants
-        io.to(`user:${session.studentId}`).emit('consultationCallEnd', { sessionId });
-        io.to(`user:${session.expertId}`).emit('consultationCallEnd', { sessionId });
+        // Broadcast call end to consultation room - ensures both parties receive it
+        io.to(`consultation:${sessionId}`).emit('consultationCallEnd', { sessionId });
       } catch (error) {
         console.error('Call end error:', error);
       }
