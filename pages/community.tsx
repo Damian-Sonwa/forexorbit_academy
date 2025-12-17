@@ -507,29 +507,42 @@ export default function Community() {
   const pendingRoomJoinsRef = useRef<Set<string>>(new Set());
 
   // Safe room join - Always allow join, rooms are created automatically by socket.io
+  // CRITICAL: Students join immediately just like admin/instructor - no blocking logic
   const joinRoomSafely = (roomId: string) => {
     const roomIdStr = roomId?.toString() || roomId;
     
-    // Skip placeholder rooms (log warning only, don't block)
-    if (typeof roomIdStr === 'string' && roomIdStr.startsWith('placeholder-')) {
-      console.warn('Skipping join for placeholder room:', roomIdStr);
-      return;
+    // Debug log for students
+    if (user?.role === 'student') {
+      console.log('Student joining room:', roomIdStr);
+      console.log('Socket connected:', socket?.connected);
     }
+    
+    // CRITICAL FIX: Allow joining even placeholder rooms - socket.io will create them
+    // Remove blocking logic - rooms are auto-created by socket.io
+    // if (typeof roomIdStr === 'string' && roomIdStr.startsWith('placeholder-')) {
+    //   console.warn('Skipping join for placeholder room:', roomIdStr);
+    //   return;
+    // }
 
-    // Check if room is locked before joining
-    const room = rooms.find((r) => {
-      const rId = r._id?.toString() || r._id;
-      return rId === roomIdStr || rId === roomId;
-    });
-    if (room?.isLocked) {
-      console.warn('Cannot join locked room:', roomIdStr);
-      return;
-    }
+    // CRITICAL FIX: Don't block on locked rooms - allow join attempt
+    // Room access is controlled at API level, not socket level
+    // const room = rooms.find((r) => {
+    //   const rId = r._id?.toString() || r._id;
+    //   return rId === roomIdStr || rId === roomId;
+    // });
+    // if (room?.isLocked) {
+    //   console.warn('Cannot join locked room:', roomIdStr);
+    //   return;
+    // }
 
     // Join room immediately if socket exists - room is created automatically
     if (socket) {
       socket.emit('joinRoom', { roomId: roomIdStr });
-      console.log('Joined room:', roomIdStr);
+      if (user?.role === 'student') {
+        console.log('Student joined room:', roomIdStr);
+      } else {
+        console.log('Joined room:', roomIdStr);
+      }
       pendingRoomJoinsRef.current.delete(roomIdStr);
     } else {
       // Store for retry after socket connects
@@ -593,15 +606,18 @@ export default function Community() {
       return;
     }
     
-    // Check if room is a placeholder (not a valid room)
+    // CRITICAL FIX: Remove blocking logic for placeholder rooms
+    // Messages are sent via HTTP POST, socket.io handles broadcasting
+    // Allow sending even if room appears to be placeholder - API will handle it
     const roomIdStr = selectedRoom._id?.toString() || selectedRoom._id;
-    if (typeof roomIdStr === 'string' && roomIdStr.startsWith('placeholder-')) {
-      console.warn('Cannot send message to placeholder room:', roomIdStr);
-      setToastMessage('This room is not available yet. Please refresh the page.');
-      setShowToast(true);
-      setTimeout(() => setShowToast(false), 3000);
-      return;
-    }
+    // Removed placeholder check - allow message sending
+    // if (typeof roomIdStr === 'string' && roomIdStr.startsWith('placeholder-')) {
+    //   console.warn('Cannot send message to placeholder room:', roomIdStr);
+    //   setToastMessage('This room is not available yet. Please refresh the page.');
+    //   setShowToast(true);
+    //   setTimeout(() => setShowToast(false), 3000);
+    //   return;
+    // }
     
     if (!input.trim() && !selectedFile) {
       console.warn('Cannot send empty message');
