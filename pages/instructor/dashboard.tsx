@@ -862,6 +862,83 @@ export default function InstructorDashboard() {
           )}
         </div>
 
+        {/* Active Consultation Sessions - Show sessions with communication buttons */}
+        {consultationSessions.filter((s: any) => s.status === 'active').length > 0 && (
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4 mb-3 sm:mb-4 flex-shrink-0">
+            <div className="flex items-center space-x-3 mb-4">
+              <svg className="w-6 h-6 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
+              <div>
+                <h3 className="text-sm font-bold text-gray-900 dark:text-white">Active Consultation Sessions</h3>
+                <p className="text-xs text-gray-600 dark:text-gray-400">Communicate with students in real-time</p>
+              </div>
+            </div>
+            
+            <div className="space-y-3">
+              {consultationSessions.filter((s: any) => s.status === 'active').map((session: any) => (
+                <div
+                  key={session._id}
+                  className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 bg-gray-50 dark:bg-gray-900"
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                    <div className="flex-1">
+                      {session.student && (
+                        <div className="flex items-center gap-2 mb-2">
+                          {session.student.profilePhoto && (
+                            <img
+                              src={session.student.profilePhoto}
+                              alt={session.student.name}
+                              className="w-8 h-8 rounded-full"
+                            />
+                          )}
+                          <div>
+                            <p className="text-sm font-semibold text-gray-900 dark:text-white">{session.student.name}</p>
+                            <p className="text-xs text-gray-600 dark:text-gray-400">{session.student.email}</p>
+                          </div>
+                        </div>
+                      )}
+                      <p className="text-sm font-semibold text-gray-900 dark:text-white mb-1">{session.topic}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        Started {formatDistanceToNow(new Date(session.startedAt), { addSuffix: true })} • {session.messageCount || 0} messages
+                      </p>
+                    </div>
+                    <div className="flex gap-2 flex-wrap">
+                      <button
+                        onClick={() => router.push(`/consultations/chat/${session._id}`)}
+                        className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold text-sm transition-colors flex items-center gap-2"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                        </svg>
+                        Live Chat
+                      </button>
+                      <button
+                        onClick={() => router.push(`/consultations/chat/${session._id}?call=voice`)}
+                        className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold text-sm transition-colors flex items-center gap-2"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                        </svg>
+                        Voice Call
+                      </button>
+                      <button
+                        onClick={() => router.push(`/consultations/chat/${session._id}?call=video`)}
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-sm transition-colors flex items-center gap-2"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        Video Call
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* FIX: Upcoming Classes Section - Allow instructors to post upcoming classes */}
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4 mb-3 sm:mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 flex-shrink-0">
           <div className="flex items-center space-x-3">
