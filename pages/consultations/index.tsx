@@ -51,7 +51,7 @@ interface ConsultationSession {
 export default function Consultations() {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const router = useRouter();
-  const { socket, connected, socketReady } = useSocket();
+  const { socket, socketReady } = useSocket();
   const [view, setView] = useState<'request' | 'history' | 'chat'>('request');
   const [experts, setExperts] = useState<Expert[]>([]);
   const [requests, setRequests] = useState<ConsultationRequest[]>([]);
@@ -412,15 +412,17 @@ export default function Consultations() {
                     <div className="space-y-3">
                       {requests.filter(r => r.status === 'accepted').map((request) => {
                         // Find corresponding session for this request
-                        const session = sessions.find(s => s.requestId === request._id && s.status === 'active');
+                        const session = sessions.find((s: ConsultationSession) => s.requestId === request._id && s.status === 'active');
                         return (
                           <div key={request._id} className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
                             <div className="flex items-center justify-between mb-3">
                               <div className="flex items-center gap-3">
                                 {request.expert?.profilePhoto && (
-                                  <img
+                                  <Image
                                     src={request.expert.profilePhoto}
-                                    alt={request.expert.name}
+                                    alt={request.expert.name || 'Expert'}
+                                    width={40}
+                                    height={40}
                                     className="w-10 h-10 rounded-full"
                                   />
                                 )}
@@ -486,11 +488,11 @@ export default function Consultations() {
                 {/* Active Sessions - Legacy display (for sessions without requestId) */}
                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
                   <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Active Sessions</h3>
-                  {sessions.filter(s => s.status === 'active' && !requests.some(r => r.status === 'accepted' && s.requestId === r._id)).length === 0 ? (
+                  {sessions.filter((s: ConsultationSession) => s.status === 'active' && !requests.some((r: ConsultationRequest) => r.status === 'accepted' && s.requestId === r._id)).length === 0 ? (
                     <p className="text-gray-500 dark:text-gray-400">No active sessions</p>
                   ) : (
                     <div className="space-y-3">
-                      {sessions.filter(s => s.status === 'active' && !requests.some(r => r.status === 'accepted' && s.requestId === r._id)).map((session) => (
+                      {sessions.filter((s: ConsultationSession) => s.status === 'active' && !requests.some((r: ConsultationRequest) => r.status === 'accepted' && s.requestId === r._id)).map((session: ConsultationSession) => (
                         <div key={session._id} className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
                           <div className="flex items-center justify-between">
                             <div>
@@ -543,11 +545,11 @@ export default function Consultations() {
                 {/* Completed Sessions */}
                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
                   <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Completed</h3>
-                  {sessions.filter(s => s.status === 'completed').length === 0 ? (
+                  {sessions.filter((s: ConsultationSession) => s.status === 'completed').length === 0 ? (
                     <p className="text-gray-500 dark:text-gray-400">No completed consultations</p>
                   ) : (
                     <div className="space-y-3">
-                      {sessions.filter(s => s.status === 'completed').map((session) => (
+                      {sessions.filter((s: ConsultationSession) => s.status === 'completed').map((session: ConsultationSession) => (
                         <div key={session._id} className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
                           <div className="flex items-center justify-between">
                             <div>

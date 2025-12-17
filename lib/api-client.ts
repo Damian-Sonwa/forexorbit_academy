@@ -57,7 +57,7 @@ class ApiClient {
     return response.data;
   }
 
-  async post<T>(url: string, data?: any, config?: AxiosRequestConfig) {
+  async post<T>(url: string, data?: unknown, config?: AxiosRequestConfig) {
     // FIX: Don't set Content-Type for FormData - let browser set it with boundary
     const isFormData = data instanceof FormData;
     const requestConfig = isFormData
