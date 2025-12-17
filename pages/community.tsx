@@ -156,13 +156,13 @@ export default function Community() {
     if (selectedRoom) {
       const roomIdStr = selectedRoom._id?.toString() || selectedRoom._id;
       
-      // CRITICAL FIX: For students, use "community_global" instead of placeholder rooms
-      // Students must join the same room as admin/instructor
+      // CRITICAL FIX: For students, ALWAYS use "community_global" for socket room
+      // Students must join the same socket room as admin/instructor
       let actualRoomId = roomIdStr;
-      if (user?.role === 'student' && typeof roomIdStr === 'string' && roomIdStr.startsWith('placeholder-')) {
-        // Replace placeholder with community_global for students
+      if (user?.role === 'student') {
+        // Students ALWAYS join community_global socket room, regardless of selected room
         actualRoomId = 'community_global';
-        console.log('Student: Replacing placeholder room with community_global');
+        console.log('Student: Using community_global socket room');
       }
 
       setShowRoomSelection(false);
@@ -170,21 +170,17 @@ export default function Community() {
       setHasMoreMessages(true);
       // Clear previous messages and load messages for this specific room
       setMessages([]);
-      // Load all messages for this room
-      // For students using community_global, we need to handle this differently
-      if (user?.role === 'student' && actualRoomId === 'community_global') {
-        // For students, load messages from the Beginner room (which is the default accessible room)
-        // But join the community_global socket room
-        const beginnerRoom = rooms.find(r => r.name === 'Beginner' && !r._id.toString().startsWith('placeholder-'));
+      // Load messages from the selected room (for display)
+      // But join community_global socket room for students
+      if (user?.role === 'student') {
+        // For students, load messages from Beginner room (default accessible)
+        // But join community_global socket room for real-time updates
+        const beginnerRoom = rooms.find(r => r.name === 'Beginner');
         if (beginnerRoom) {
           loadMessages(beginnerRoom._id.toString(), 1, false);
-        } else {
-          // If no Beginner room found, just join the socket room
-          // Messages will come via socket
-          setMessages([]);
         }
       } else {
-        loadMessages(actualRoomId, 1, false);
+        loadMessages(roomIdStr, 1, false);
       }
       // Join the room safely (will retry if socket not ready)
       joinRoomSafely(actualRoomId);
@@ -194,7 +190,7 @@ export default function Community() {
         // Leave room when switching away - same for all roles
         const roomIdStr = selectedRoom._id?.toString() || selectedRoom._id;
         let actualRoomId = roomIdStr;
-        if (user?.role === 'student' && typeof roomIdStr === 'string' && roomIdStr.startsWith('placeholder-')) {
+        if (user?.role === 'student') {
           actualRoomId = 'community_global';
         }
         leaveRoom(actualRoomId);
@@ -518,15 +514,15 @@ export default function Community() {
   const pendingRoomJoinsRef = useRef<Set<string>>(new Set());
 
   // Safe room join - Always allow join, rooms are created automatically by socket.io
-  // CRITICAL: Students must join "community_global" - same room as admin/instructor
+  // CRITICAL: Students ALWAYS join "community_global" - same room as admin/instructor
   const joinRoomSafely = (roomId: string) => {
     let roomIdStr = roomId?.toString() || roomId;
     
-    // CRITICAL FIX: For students, replace placeholder rooms with "community_global"
-    // Students must join the same room as admin/instructor
-    if (user?.role === 'student' && typeof roomIdStr === 'string' && roomIdStr.startsWith('placeholder-')) {
+    // CRITICAL FIX: For students, ALWAYS use "community_global" regardless of input
+    // Students must join the same socket room as admin/instructor
+    if (user?.role === 'student') {
       roomIdStr = 'community_global';
-      console.log('Student: Replacing placeholder room with community_global');
+      console.log('Student: Forcing community_global socket room');
     }
     
     // Debug log for students
@@ -609,9 +605,9 @@ export default function Community() {
     // CRITICAL FIX: For students, use Beginner room ID for API calls
     // Students send to Beginner room (access control) but join "community_global" socket room
     let roomIdStr = selectedRoom._id?.toString() || selectedRoom._id;
-    if (user?.role === 'student' && typeof roomIdStr === 'string' && roomIdStr.startsWith('placeholder-')) {
-      // For students, use the Beginner room ID for API calls (which is the default accessible room)
-      const beginnerRoom = rooms.find(r => r.name === 'Beginner' && !r._id.toString().startsWith('placeholder-'));
+    if (user?.role === 'student') {
+      // For students, always use the Beginner room ID for API calls (which is the default accessible room)
+      const beginnerRoom = rooms.find(r => r.name === 'Beginner');
       if (beginnerRoom) {
         roomIdStr = beginnerRoom._id.toString();
         console.log('Student: Using Beginner room ID for message sending:', roomIdStr);
