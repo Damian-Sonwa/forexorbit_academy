@@ -506,19 +506,13 @@ export default function Community() {
   // Track pending room joins for retry after connection
   const pendingRoomJoinsRef = useRef<Set<string>>(new Set());
 
-  // Safe room join - only joins when socket is ready
+  // Safe room join - Always allow join, rooms are created automatically by socket.io
   const joinRoomSafely = (roomId: string) => {
-    // Skip placeholder rooms (log warning only, don't block)
     const roomIdStr = roomId?.toString() || roomId;
+    
+    // Skip placeholder rooms (log warning only, don't block)
     if (typeof roomIdStr === 'string' && roomIdStr.startsWith('placeholder-')) {
       console.warn('Skipping join for placeholder room:', roomIdStr);
-      return;
-    }
-
-    if (!socket || !socketReady) {
-      // Store for retry after connection
-      pendingRoomJoinsRef.current.add(roomIdStr);
-      console.log('Socket not ready, queuing room join for:', roomIdStr);
       return;
     }
 
@@ -532,20 +526,44 @@ export default function Community() {
       return;
     }
 
-    socket.emit('joinRoom', { roomId: roomIdStr });
-    pendingRoomJoinsRef.current.delete(roomIdStr);
+    // Join room immediately if socket exists - room is created automatically
+    if (socket) {
+      socket.emit('joinRoom', { roomId: roomIdStr });
+      console.log('Joined room:', roomIdStr);
+      pendingRoomJoinsRef.current.delete(roomIdStr);
+    } else {
+      // Store for retry after socket connects
+      pendingRoomJoinsRef.current.add(roomIdStr);
+      console.log('Socket not available, queuing room join for:', roomIdStr);
+    }
   };
 
   // Retry pending room joins when socket connects
   useEffect(() => {
-    if (socket && socketReady && pendingRoomJoinsRef.current.size > 0) {
+    if (socket && pendingRoomJoinsRef.current.size > 0) {
       const pendingRooms = Array.from(pendingRoomJoinsRef.current);
       console.log('Retrying pending room joins:', pendingRooms);
       pendingRooms.forEach((roomId) => {
         joinRoomSafely(roomId);
       });
     }
-  }, [socket, socketReady, rooms]);
+  }, [socket, rooms]);
+
+  // Listen for room_joined confirmation
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleRoomJoined = (data: { roomId: string }) => {
+      console.log('Room joined confirmed:', data.roomId);
+      // Room is ready, can send messages
+    };
+
+    socket.on('room_joined', handleRoomJoined);
+
+    return () => {
+      socket.off('room_joined', handleRoomJoined);
+    };
+  }, [socket]);
 
   const joinRoom = (roomId: string) => {
     joinRoomSafely(roomId);
@@ -579,7 +597,7 @@ export default function Community() {
     const roomIdStr = selectedRoom._id?.toString() || selectedRoom._id;
     if (typeof roomIdStr === 'string' && roomIdStr.startsWith('placeholder-')) {
       console.warn('Cannot send message to placeholder room:', roomIdStr);
-      setToastMessage('Please wait for the room to be created, or refresh the page.');
+      setToastMessage('This room is not available yet. Please refresh the page.');
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
       return;
@@ -590,11 +608,9 @@ export default function Community() {
       return;
     }
     
-    // Note: Messages can be sent via HTTP POST even if WebSocket is not connected
+    // Messages can be sent via HTTP POST even if WebSocket is not connected
     // WebSocket is only needed for real-time updates, not for sending messages
-    if (!connected) {
-      console.warn('WebSocket not connected - message will be sent via HTTP but real-time updates may be delayed');
-    }
+    // Room is created automatically when first user joins, no need to wait
 
     // Check if room is locked
     if (selectedRoom.isLocked) {

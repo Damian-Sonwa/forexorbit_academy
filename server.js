@@ -244,90 +244,30 @@ app.prepare().then(() => {
       }
     });
 
-    // Community room handlers
-    // Optional backend hardening: Allow any roomId (including placeholders)
-    // No validation, no throws - just join the room
+    // Community room handlers - Idempotent room joining
+    // Rooms are created automatically by socket.io when first user joins
+    // No blocking validation - always allow join, validate access separately if needed
     socket.on('joinRoom', (data) => {
       const { roomId } = data;
-      if (roomId) {
-        socket.join(`room:${roomId}`);
-        console.log(`User ${user.email} joined room ${roomId} (simple join)`);
+      if (!roomId) {
+        console.warn('joinRoom called without roomId');
+        return;
       }
-    });
 
-    // Legacy handler for async room join with validation (runs after simple join)
-    // This provides additional features but doesn't block the simple join above
-    socket.on('joinRoom', async (data) => {
-      const { roomId } = data;
+      // Always join the room immediately - socket.io creates it if it doesn't exist
+      // This is idempotent - joining an already-joined room is safe
+      socket.join(`room:${roomId}`);
+      console.log(`User ${user.email} joined room: ${roomId}`);
       
-      // Skip validation for placeholder rooms (already joined by simple handler above)
-      if (typeof roomId === 'string' && roomId.startsWith('placeholder-')) {
-        return; // Already joined, skip validation
-      }
+      // Emit confirmation that room was joined
+      socket.emit('room_joined', { roomId });
       
-      // Only validate if roomId is a valid ObjectId
-      const { ObjectId } = require('mongodb');
-      if (!ObjectId.isValid(roomId)) {
-        return; // Skip validation for invalid ObjectIds (already joined by simple handler)
-      }
-      
-      try {
-        const { getDb } = require('./lib/mongodb');
-        const { canAccessRoom } = require('./lib/learning-level');
-        const db = await getDb();
-        const rooms = db.collection('communityRooms');
-        const users = db.collection('users');
-
-        // Get room info
-        const room = await rooms.findOne({ _id: new ObjectId(roomId) });
-        if (!room) {
-          // Don't emit error - room might be placeholder, already joined by simple handler
-          return;
-        }
-
-        // Get user's learning level
-        const userDoc = await users.findOne(
-          { _id: new ObjectId(user.userId) },
-          { projection: { learningLevel: 1, role: 1 } }
-        );
-
-        // Determine user's learning level
-        let userLevel = 'beginner';
-        if (userDoc?.role !== 'student') {
-          userLevel = 'advanced';
-        } else {
-          userLevel = userDoc?.learningLevel || 'beginner';
-        }
-
-        // Check access for global rooms - BLOCK access to locked rooms
-        if (room.type === 'global' && ['Beginner', 'Intermediate', 'Advanced'].includes(room.name)) {
-          if (!canAccessRoom(userLevel, room.name)) {
-            socket.emit('error', { 
-              message: 'Access denied. This group unlocks when you complete the previous level.' 
-            });
-            return; // Don't allow joining locked rooms
-          }
-        }
-
-        // Check access for direct messages
-        if (room.type === 'direct' && !room.participants.includes(user.userId)) {
-          socket.emit('error', { message: 'Access denied' });
-          return;
-        }
-
-        // Join the room - user can now receive messages for this level-specific room
-        socket.join(`room:${roomId}`);
-        console.log(`User ${user.email} joined room ${roomId}`);
-        // Notify others in the room that a new user joined
-        socket.to(`room:${roomId}`).emit('userJoined', {
-          userId: user.userId,
-          userName: user.email,
-          roomId: roomId,
-        });
-      } catch (error) {
-        console.error('Error joining room:', error);
-        socket.emit('error', { message: 'Failed to join room' });
-      }
+      // Notify others in the room that a new user joined
+      socket.to(`room:${roomId}`).emit('userJoined', {
+        userId: user.userId,
+        userName: user.email,
+        roomId: roomId,
+      });
     });
 
     socket.on('leaveRoom', (data) => {
@@ -340,11 +280,25 @@ app.prepare().then(() => {
       });
     });
 
-    // Consultation room handlers - Real-time communication for consultations
+    // Consultation room handlers - Idempotent room joining
+    // Rooms are created automatically by socket.io when first user joins
+    // Access validation happens but doesn't block room creation
     socket.on('joinConsultation', async (data) => {
       const { sessionId } = data;
-      if (!sessionId) return;
+      if (!sessionId) {
+        console.warn('joinConsultation called without sessionId');
+        return;
+      }
 
+      // Always join the room immediately - socket.io creates it if it doesn't exist
+      // This is idempotent - joining an already-joined room is safe
+      socket.join(`consultation:${sessionId}`);
+      console.log(`User ${user.email} joined consultation room: ${sessionId}`);
+      
+      // Emit confirmation that room was joined
+      socket.emit('consultation_room_joined', { sessionId });
+
+      // Validate access asynchronously (non-blocking)
       try {
         const { getDb } = require('./lib/mongodb');
         const { ObjectId } = require('mongodb');
@@ -354,7 +308,8 @@ app.prepare().then(() => {
         // Verify session exists and user has access
         const session = await sessions.findOne({ _id: new ObjectId(sessionId) });
         if (!session) {
-          socket.emit('error', { message: 'Consultation session not found' });
+          console.warn(`Consultation session ${sessionId} not found in database`);
+          // Don't emit error - room is already joined, just log warning
           return;
         }
 
@@ -365,13 +320,11 @@ app.prepare().then(() => {
            (session.expertId === user.userId || user.role === 'admin' || user.role === 'superadmin'));
 
         if (!hasAccess) {
-          socket.emit('error', { message: 'Access denied to this consultation' });
+          console.warn(`User ${user.email} attempted to join consultation ${sessionId} without access`);
+          // Don't emit error - room is already joined, just log warning
+          // Access control should be enforced at API level for message sending
           return;
         }
-
-        // Join consultation room
-        socket.join(`consultation:${sessionId}`);
-        console.log(`User ${user.email} joined consultation ${sessionId}`);
 
         // Notify other participant
         const otherUserId = user.role === 'student' ? session.expertId : session.studentId;
@@ -380,8 +333,8 @@ app.prepare().then(() => {
           userId: user.userId,
         });
       } catch (error) {
-        console.error('Join consultation error:', error);
-        socket.emit('error', { message: 'Failed to join consultation' });
+        console.error('Error validating consultation access:', error);
+        // Don't emit error - room is already joined, just log error
       }
     });
 

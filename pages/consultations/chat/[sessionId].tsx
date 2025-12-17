@@ -103,12 +103,20 @@ export default function ConsultationChat() {
     loadSession();
   }, [sessionId, router]);
 
-  // Join consultation room via socket
+  // Join consultation room via socket - Non-blocking, always allow typing
   useEffect(() => {
-    if (!socket || !socketReady || !sessionId || typeof sessionId !== 'string') return;
+    if (!socket || !sessionId || typeof sessionId !== 'string') return;
 
-    // Join consultation room
+    // Join consultation room immediately - room is created automatically by socket.io
     socket.emit('joinConsultation', { sessionId });
+    console.log('Joined consultation room:', sessionId);
+
+    // Listen for room joined confirmation
+    const handleRoomJoined = (data: { sessionId: string }) => {
+      if (data.sessionId === sessionId) {
+        console.log('Consultation room joined confirmed:', sessionId);
+      }
+    };
 
     // Listen for consultation messages
     const handleMessage = (message: ConsultationMessage) => {
@@ -121,6 +129,7 @@ export default function ConsultationChat() {
       }
     };
 
+    socket.on('consultation_room_joined', handleRoomJoined);
     socket.on('consultationMessage', handleMessage);
 
     // Listen for call events
@@ -156,29 +165,32 @@ export default function ConsultationChat() {
     });
 
     return () => {
+      socket.off('consultation_room_joined', handleRoomJoined);
       socket.off('consultationMessage', handleMessage);
       socket.off('consultationCallOffer');
       socket.off('consultationCallAnswer');
       socket.off('consultationCallEnd');
       socket.emit('leaveConsultation', { sessionId });
     };
-  }, [socket, socketReady, sessionId]);
+  }, [socket, sessionId]);
 
   // Scroll to bottom on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Send message
+  // Send message - Allow sending immediately, only check if socket exists (not connection status)
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || !sessionId || typeof sessionId !== 'string' || sending) return;
 
     const messageContent = input.trim();
-    setInput('');
+    setInput(''); // Clear input immediately for better UX
     setSending(true);
 
     try {
+      // Send message via HTTP POST - works even if WebSocket is not connected
+      // WebSocket is only needed for real-time updates, not for sending messages
       const response = await apiClient.post<{ message: ConsultationMessage }>('/consultations/messages', {
         sessionId,
         type: 'text',
@@ -366,12 +378,12 @@ export default function ConsultationChat() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Type a message..."
-                disabled={sending || !connected}
+                disabled={sending}
                 className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-50"
               />
               <button
                 type="submit"
-                disabled={sending || !input.trim() || !connected}
+                disabled={sending || !input.trim()}
                 className="px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Send
