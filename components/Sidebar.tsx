@@ -142,11 +142,10 @@ export default function Sidebar({ }: SidebarProps) {
   ];
 
   // Instructor navigation
+  // Lessons & Quizzes removed from sidebar - they remain in Dashboard only
   const instructorNavItems = [
     { href: '/instructor/dashboard', label: 'Dashboard', icon: DashboardIcon },
     { href: '/courses', label: 'Courses', icon: CoursesIcon },
-    { href: '/instructor/lessons', label: 'Lessons', icon: LessonsIcon },
-    { href: '/instructor/quizzes', label: 'Quizzes', icon: QuizzesIcon },
     { href: '/progress', label: 'Progress', icon: ProgressIcon },
     { href: '/certificates', label: 'Certificates', icon: CertificatesIcon },
     { href: '/community', label: 'Community', icon: CommunityIcon },
