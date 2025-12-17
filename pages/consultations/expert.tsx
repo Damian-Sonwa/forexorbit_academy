@@ -53,6 +53,10 @@ export default function ExpertConsultation() {
   const [view, setView] = useState<'requests' | 'sessions' | 'settings'>('requests');
   const [requests, setRequests] = useState<ConsultationRequest[]>([]);
   const [sessions, setSessions] = useState<ConsultationSession[]>([]);
+  // REUSED from dashboard - state for consultation management
+  const [consultationRequests, setConsultationRequests] = useState<ConsultationRequest[]>([]);
+  const [consultationSessions, setConsultationSessions] = useState<ConsultationSession[]>([]);
+  const [loadingConsultations, setLoadingConsultations] = useState(false);
   const [expertAvailable, setExpertAvailable] = useState(true);
   const [loading, setLoading] = useState(false);
 
