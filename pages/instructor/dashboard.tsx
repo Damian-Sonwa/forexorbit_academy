@@ -135,14 +135,52 @@ export default function InstructorDashboard() {
     }
   }, [isAuthenticated, authLoading, user, router]);
 
+  // Consultation requests state
+  const [consultationRequests, setConsultationRequests] = useState<any[]>([]);
+  const [loadingConsultations, setLoadingConsultations] = useState(false);
+
   useEffect(() => {
     if (user?.role === 'instructor') {
       loadAllCourses();
       loadAnalytics();
       loadNews();
       loadUpcomingClasses();
+      loadConsultationRequests();
     }
   }, [user, courses]);
+
+  // Load consultation requests for instructor
+  const loadConsultationRequests = async () => {
+    try {
+      setLoadingConsultations(true);
+      const data = await apiClient.get<any[]>('/consultations/requests');
+      setConsultationRequests(data || []);
+    } catch (error) {
+      console.error('Failed to load consultation requests:', error);
+      setConsultationRequests([]);
+    } finally {
+      setLoadingConsultations(false);
+    }
+  };
+
+  // Handle accept/reject consultation request
+  const handleConsultationAction = async (requestId: string, action: 'accept' | 'reject') => {
+    if (action === 'reject' && !confirm('Are you sure you want to reject this consultation request?')) {
+      return;
+    }
+
+    setLoadingConsultations(true);
+    try {
+      await apiClient.put(`/consultations/requests/${requestId}`, { action });
+      alert(action === 'accept' ? 'Request accepted! Consultation session created.' : 'Request rejected.');
+      await loadConsultationRequests();
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.error || error.message || `Failed to ${action} request`;
+      alert(errorMessage);
+    } finally {
+      setLoadingConsultations(false);
+    }
+  };
 
   // Real-time updates via Socket.io
   useEffect(() => {

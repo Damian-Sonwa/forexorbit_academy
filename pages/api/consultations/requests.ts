@@ -45,19 +45,18 @@ async function getRequests(req: AuthRequest, res: NextApiResponse) {
       );
 
       res.json(requestsWithExpert);
-    } else if (req.user!.role === 'instructor' || req.user!.role === 'admin' || req.user!.role === 'superadmin') {
-      // Experts see pending requests for them
-      const expertRequests = await requests
+    } else if (req.user!.role === 'instructor') {
+      // Instructors see requests directed to them (all statuses)
+      const instructorRequests = await requests
         .find({ 
-          expertId: req.user!.userId,
-          status: 'pending'
+          expertId: req.user!.userId
         })
         .sort({ createdAt: -1 })
         .toArray();
 
       // Populate student info
       const requestsWithStudent = await Promise.all(
-        expertRequests.map(async (request) => {
+        instructorRequests.map(async (request) => {
           const student = await users.findOne(
             { _id: new ObjectId(request.studentId) },
             { projection: { name: 1, email: 1, profilePhoto: 1 } }
@@ -76,6 +75,46 @@ async function getRequests(req: AuthRequest, res: NextApiResponse) {
       );
 
       res.json(requestsWithStudent);
+    } else if (req.user!.role === 'admin' || req.user!.role === 'superadmin') {
+      // Admins see ALL requests (all statuses, all instructors)
+      const allRequests = await requests
+        .find({})
+        .sort({ createdAt: -1 })
+        .toArray();
+
+      // Populate student and expert info
+      const requestsWithDetails = await Promise.all(
+        allRequests.map(async (request) => {
+          const [student, expert] = await Promise.all([
+            users.findOne(
+              { _id: new ObjectId(request.studentId) },
+              { projection: { name: 1, email: 1, profilePhoto: 1 } }
+            ),
+            users.findOne(
+              { _id: new ObjectId(request.expertId) },
+              { projection: { name: 1, email: 1, profilePhoto: 1 } }
+            ),
+          ]);
+          return {
+            ...request,
+            _id: request._id.toString(),
+            student: student ? {
+              _id: student._id.toString(),
+              name: student.name,
+              email: student.email,
+              profilePhoto: student.profilePhoto,
+            } : null,
+            expert: expert ? {
+              _id: expert._id.toString(),
+              name: expert.name,
+              email: expert.email,
+              profilePhoto: expert.profilePhoto,
+            } : null,
+          };
+        })
+      );
+
+      res.json(requestsWithDetails);
     } else {
       res.status(403).json({ error: 'Access denied' });
     }

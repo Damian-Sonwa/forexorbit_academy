@@ -96,18 +96,18 @@ export default function AdminPanel() {
   });
   const [submittingNews, setSubmittingNews] = useState(false);
   // Initialize activeTab from URL query or default to 'courses'
-  // FIX: Added 'classes' tab for upcoming classes/events
-  const getInitialTab = (): 'courses' | 'users' | 'instructors' | 'analytics' | 'approvals' | 'certificates' | 'classes' => {
+  // FIX: Added 'classes' tab for upcoming classes/events and 'consultations' for consultation requests
+  const getInitialTab = (): 'courses' | 'users' | 'instructors' | 'analytics' | 'approvals' | 'certificates' | 'classes' | 'consultations' => {
     if (router.query.tab && typeof router.query.tab === 'string') {
-      const validTabs = ['courses', 'users', 'instructors', 'analytics', 'approvals', 'certificates', 'classes'];
+      const validTabs = ['courses', 'users', 'instructors', 'analytics', 'approvals', 'certificates', 'classes', 'consultations'];
       if (validTabs.includes(router.query.tab)) {
-        return router.query.tab as 'courses' | 'users' | 'instructors' | 'analytics' | 'approvals' | 'certificates' | 'classes';
+        return router.query.tab as 'courses' | 'users' | 'instructors' | 'analytics' | 'approvals' | 'certificates' | 'classes' | 'consultations';
       }
     }
     return 'courses';
   };
   
-  const [activeTab, setActiveTab] = useState<'courses' | 'users' | 'instructors' | 'analytics' | 'approvals' | 'certificates' | 'classes'>(getInitialTab());
+  const [activeTab, setActiveTab] = useState<'courses' | 'users' | 'instructors' | 'analytics' | 'approvals' | 'certificates' | 'classes' | 'consultations'>(getInitialTab());
   const [certificateForm, setCertificateForm] = useState({
     studentIdentifier: '',
     courseId: '',
@@ -155,12 +155,16 @@ export default function AdminPanel() {
   // Sync activeTab with URL query params
   useEffect(() => {
     if (router.query.tab && typeof router.query.tab === 'string') {
-      const validTabs = ['courses', 'users', 'instructors', 'analytics', 'approvals', 'certificates', 'classes'];
+      const validTabs = ['courses', 'users', 'instructors', 'analytics', 'approvals', 'certificates', 'classes', 'consultations'];
       if (validTabs.includes(router.query.tab)) {
         setActiveTab(router.query.tab as any);
       }
     }
   }, [router.query.tab]);
+
+  // Consultation requests state for admin
+  const [consultationRequests, setConsultationRequests] = useState<any[]>([]);
+  const [loadingConsultations, setLoadingConsultations] = useState(false);
 
   useEffect(() => {
     if (user?.role === 'admin' || user?.role === 'superadmin') {
@@ -171,8 +175,42 @@ export default function AdminPanel() {
       loadUpcomingClasses();
       // Load pending approvals for all admins (Super Admin can approve, regular admins can see notifications)
       loadPendingUsers();
+      loadConsultationRequests();
     }
   }, [user]);
+
+  // Load all consultation requests for admin
+  const loadConsultationRequests = async () => {
+    try {
+      setLoadingConsultations(true);
+      const data = await apiClient.get<any[]>('/consultations/requests');
+      setConsultationRequests(data || []);
+    } catch (error) {
+      console.error('Failed to load consultation requests:', error);
+      setConsultationRequests([]);
+    } finally {
+      setLoadingConsultations(false);
+    }
+  };
+
+  // Handle accept/cancel consultation request (admin can manage any request)
+  const handleConsultationAction = async (requestId: string, action: 'accept' | 'cancel') => {
+    if (action === 'cancel' && !confirm('Are you sure you want to cancel this consultation request?')) {
+      return;
+    }
+
+    setLoadingConsultations(true);
+    try {
+      await apiClient.put(`/consultations/requests/${requestId}`, { action });
+      alert(action === 'accept' ? 'Request accepted! Consultation session created.' : 'Request cancelled.');
+      await loadConsultationRequests();
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.error || error.message || `Failed to ${action} request`;
+      alert(errorMessage);
+    } finally {
+      setLoadingConsultations(false);
+    }
+  };
 
   // Auto-refresh pending users every 30 seconds to show new requests
   useEffect(() => {
@@ -772,6 +810,21 @@ export default function AdminPanel() {
             }`}
           >
             Upcoming Classes
+          </button>
+          {/* Consultation Requests Management tab for admins */}
+          <button
+            onClick={() => {
+              setActiveTab('consultations');
+              router.push('/admin?tab=consultations', undefined, { shallow: true });
+              loadConsultationRequests();
+            }}
+            className={`flex-1 px-6 py-3 rounded-lg font-semibold transition-all ${
+              activeTab === 'consultations'
+                ? 'bg-white dark:bg-gray-700 text-primary-600 dark:text-primary-400 shadow-sm'
+                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+            }`}
+          >
+            Consultations
           </button>
         </div>
 
@@ -1689,6 +1742,158 @@ export default function AdminPanel() {
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {/* Consultation Requests Management Tab */}
+        {activeTab === 'consultations' && (
+          <div className="space-y-6">
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Consultation Requests Management</h2>
+              <p className="text-gray-600 dark:text-gray-400 text-sm">
+                View and manage all consultation requests. Admins can accept or cancel any request.
+              </p>
+            </div>
+
+            {loadingConsultations ? (
+              <div className="text-center py-12">
+                <p className="text-gray-600 dark:text-gray-400">Loading consultation requests...</p>
+              </div>
+            ) : consultationRequests.length === 0 ? (
+              <div className="text-center py-12">
+                <svg className="w-16 h-16 mx-auto mb-4 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+                <p className="text-gray-500 dark:text-gray-400">No consultation requests at the moment</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-4">
+                {consultationRequests.map((request) => (
+                  <div
+                    key={request._id}
+                    className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6"
+                  >
+                    <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-3">
+                          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                            request.status === 'pending' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
+                            request.status === 'accepted' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+                            request.status === 'rejected' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' :
+                            request.status === 'cancelled' ? 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200' :
+                            'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                          }`}>
+                            {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+                          </span>
+                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                            {formatDistanceToNow(new Date(request.createdAt), { addSuffix: true })}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                          {/* Student Info */}
+                          {request.student && (
+                            <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                              {request.student.profilePhoto && (
+                                <img
+                                  src={request.student.profilePhoto}
+                                  alt={request.student.name}
+                                  className="w-10 h-10 rounded-full"
+                                />
+                              )}
+                              <div>
+                                <p className="text-sm font-semibold text-gray-900 dark:text-white">Student</p>
+                                <p className="text-sm text-gray-600 dark:text-gray-400">{request.student.name}</p>
+                                <p className="text-xs text-gray-500 dark:text-gray-500">{request.student.email}</p>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Expert/Instructor Info */}
+                          {request.expert && (
+                            <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                              {request.expert.profilePhoto && (
+                                <img
+                                  src={request.expert.profilePhoto}
+                                  alt={request.expert.name}
+                                  className="w-10 h-10 rounded-full"
+                                />
+                              )}
+                              <div>
+                                <p className="text-sm font-semibold text-gray-900 dark:text-white">Instructor</p>
+                                <p className="text-sm text-gray-600 dark:text-gray-400">{request.expert.name}</p>
+                                <p className="text-xs text-gray-500 dark:text-gray-500">{request.expert.email}</p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="mb-3">
+                          <p className="text-sm font-semibold text-gray-900 dark:text-white mb-1">Topic</p>
+                          <p className="text-sm text-gray-700 dark:text-gray-300">{request.topic}</p>
+                        </div>
+
+                        <div className="mb-3">
+                          <p className="text-sm font-semibold text-gray-900 dark:text-white mb-1">Description</p>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">{request.description}</p>
+                        </div>
+
+                        <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
+                          <span>
+                            Type: <span className="capitalize font-semibold">{request.consultationType.replace('-', ' ')}</span>
+                          </span>
+                          {request.updatedAt && (
+                            <span>
+                              Updated: {formatDistanceToNow(new Date(request.updatedAt), { addSuffix: true })}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="flex flex-col gap-2 lg:min-w-[200px]">
+                        {request.status === 'pending' && (
+                          <>
+                            <button
+                              onClick={() => handleConsultationAction(request._id, 'accept')}
+                              disabled={loadingConsultations}
+                              className="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                              </svg>
+                              <span>Accept</span>
+                            </button>
+                            <button
+                              onClick={() => handleConsultationAction(request._id, 'cancel')}
+                              disabled={loadingConsultations}
+                              className="w-full px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                              <span>Cancel</span>
+                            </button>
+                          </>
+                        )}
+                        {(request.status === 'accepted' || request.status === 'rejected') && (
+                          <button
+                            onClick={() => handleConsultationAction(request._id, 'cancel')}
+                            disabled={loadingConsultations}
+                            className="w-full px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                            <span>Cancel</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
         </main>

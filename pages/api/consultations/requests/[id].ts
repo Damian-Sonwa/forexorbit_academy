@@ -22,8 +22,8 @@ async function updateRequest(req: AuthRequest, res: NextApiResponse) {
       return res.status(400).json({ error: 'Request ID is required' });
     }
 
-    if (!action || !['accept', 'reject'].includes(action)) {
-      return res.status(400).json({ error: 'Action must be "accept" or "reject"' });
+    if (!action || !['accept', 'reject', 'cancel'].includes(action)) {
+      return res.status(400).json({ error: 'Action must be "accept", "reject", or "cancel"' });
     }
 
     const db = await getDb();
@@ -37,12 +37,15 @@ async function updateRequest(req: AuthRequest, res: NextApiResponse) {
       return res.status(404).json({ error: 'Request not found' });
     }
 
-    // Verify the request is for this expert
-    if (request.expertId !== req.user!.userId) {
+    // Verify permissions:
+    // - Instructors can only accept/reject their own requests
+    // - Admins can accept/reject any request
+    if (req.user!.role === 'instructor' && request.expertId !== req.user!.userId) {
       return res.status(403).json({ error: 'You can only accept/reject requests assigned to you' });
     }
 
-    if (request.status !== 'pending') {
+    // Only allow accept/reject on pending requests (unless admin is canceling)
+    if (action !== 'cancel' && request.status !== 'pending') {
       return res.status(400).json({ error: 'Request is not pending' });
     }
 
@@ -84,7 +87,7 @@ async function updateRequest(req: AuthRequest, res: NextApiResponse) {
         message: 'Request accepted',
         sessionId: sessionResult.insertedId.toString(),
       });
-    } else {
+    } else if (action === 'reject') {
       // Reject request
       await requests.updateOne(
         { _id: new ObjectId(id) },
@@ -102,6 +105,29 @@ async function updateRequest(req: AuthRequest, res: NextApiResponse) {
       res.json({
         success: true,
         message: 'Request rejected',
+      });
+    } else if (action === 'cancel') {
+      // Cancel request (admin only, can cancel any status)
+      if (req.user!.role !== 'admin' && req.user!.role !== 'superadmin') {
+        return res.status(403).json({ error: 'Only admins can cancel requests' });
+      }
+
+      await requests.updateOne(
+        { _id: new ObjectId(id) },
+        { $set: { status: 'cancelled', updatedAt: new Date() } }
+      );
+
+      // Emit socket event to notify student
+      if (req.io) {
+        req.io.to(`user:${request.studentId}`).emit('consultationCancelled', {
+          requestId: id,
+          expertId: request.expertId,
+        });
+      }
+
+      res.json({
+        success: true,
+        message: 'Request cancelled',
       });
     }
   } catch (error: any) {
