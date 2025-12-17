@@ -154,7 +154,34 @@ export default function Community() {
 
   useEffect(() => {
     if (selectedRoom) {
-      const roomIdStr = selectedRoom._id?.toString() || selectedRoom._id;
+      // CRITICAL FIX: For students, ALWAYS use real Beginner room, never placeholder
+      // If selectedRoom has placeholder ID, replace it with real Beginner room
+      let roomToUse = selectedRoom;
+      if (user?.role === 'student') {
+        const roomIdStr = selectedRoom._id?.toString() || selectedRoom._id;
+        // Check if selectedRoom is a placeholder
+        if (typeof roomIdStr === 'string' && roomIdStr.startsWith('placeholder-')) {
+          // Find real Beginner room
+          const beginnerRoom = rooms.find(r => r.name === 'Beginner' && !r._id?.toString().startsWith('placeholder-'));
+          if (beginnerRoom) {
+            roomToUse = beginnerRoom;
+            setSelectedRoom(beginnerRoom); // Update selectedRoom to real room
+            console.log('Student: Replaced placeholder room with real Beginner room');
+          } else {
+            console.error('Student: No real Beginner room found');
+            return;
+          }
+        } else {
+          // Ensure we're using Beginner room for students
+          const beginnerRoom = rooms.find(r => r.name === 'Beginner' && !r._id?.toString().startsWith('placeholder-'));
+          if (beginnerRoom && roomIdStr !== beginnerRoom._id?.toString()) {
+            roomToUse = beginnerRoom;
+            setSelectedRoom(beginnerRoom);
+          }
+        }
+      }
+      
+      const roomIdStr = roomToUse._id?.toString() || roomToUse._id;
       
       // CRITICAL FIX: For students, ALWAYS use "community_global" for socket room
       // Students must join the same socket room as admin/instructor
@@ -175,10 +202,7 @@ export default function Community() {
       if (user?.role === 'student') {
         // For students, load messages from Beginner room (default accessible)
         // But join community_global socket room for real-time updates
-        const beginnerRoom = rooms.find(r => r.name === 'Beginner');
-        if (beginnerRoom) {
-          loadMessages(beginnerRoom._id.toString(), 1, false);
-        }
+        loadMessages(roomIdStr, 1, false);
       } else {
         loadMessages(roomIdStr, 1, false);
       }
@@ -188,8 +212,7 @@ export default function Community() {
     return () => {
       if (selectedRoom) {
         // Leave room when switching away - same for all roles
-        const roomIdStr = selectedRoom._id?.toString() || selectedRoom._id;
-        let actualRoomId = roomIdStr;
+        let actualRoomId = selectedRoom._id?.toString() || selectedRoom._id;
         if (user?.role === 'student') {
           actualRoomId = 'community_global';
         }
@@ -604,10 +627,22 @@ export default function Community() {
     
     // CRITICAL FIX: For students, use Beginner room ID for API calls
     // Students send to Beginner room (access control) but join "community_global" socket room
+    // NEVER use placeholder room IDs
     let roomIdStr = selectedRoom._id?.toString() || selectedRoom._id;
+    
+    // CRITICAL: Check if roomIdStr is a placeholder and reject it
+    if (typeof roomIdStr === 'string' && roomIdStr.startsWith('placeholder-')) {
+      console.error('Cannot send message to placeholder room:', roomIdStr);
+      setToastMessage('Please select a valid room to send messages.');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+      return;
+    }
+    
     if (user?.role === 'student') {
       // For students, always use the Beginner room ID for API calls (which is the default accessible room)
-      const beginnerRoom = rooms.find(r => r.name === 'Beginner');
+      // Ensure we're using the real room, not placeholder
+      const beginnerRoom = rooms.find(r => r.name === 'Beginner' && !r._id?.toString().startsWith('placeholder-'));
       if (beginnerRoom) {
         roomIdStr = beginnerRoom._id.toString();
         console.log('Student: Using Beginner room ID for message sending:', roomIdStr);
