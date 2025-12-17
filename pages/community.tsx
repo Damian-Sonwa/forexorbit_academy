@@ -1480,7 +1480,17 @@ export default function Community() {
                           setShowToast(true);
                           setTimeout(() => setShowToast(false), 3000);
                         } else {
-                          setSelectedRoom(room);
+                          // CRITICAL FIX: For students, always select Beginner room (never placeholder)
+                          if (user?.role === 'student') {
+                            const beginnerRoom = rooms.find(r => r.name === 'Beginner' && !r._id?.toString().startsWith('placeholder-'));
+                            if (beginnerRoom) {
+                              setSelectedRoom(beginnerRoom);
+                            } else {
+                              setSelectedRoom(room); // Fallback if no Beginner room found
+                            }
+                          } else {
+                            setSelectedRoom(room);
+                          }
                         }
                       }}
                       className={`p-3 mb-2 rounded-xl transition-colors ${
