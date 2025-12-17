@@ -5,6 +5,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
+import Image from 'next/image';
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
 import { useAuth } from '@/hooks/useAuth';
@@ -292,7 +293,7 @@ export default function Consultations() {
                           type="radio"
                           value="live-chat"
                           checked={requestForm.consultationType === 'live-chat'}
-                          onChange={(e) => setRequestForm({ ...requestForm, consultationType: e.target.value as any })}
+                          onChange={(e) => setRequestForm({ ...requestForm, consultationType: e.target.value as 'live-chat' | 'audio-call' | 'video-call' })}
                           className="sr-only"
                         />
                         <div className="text-center">
@@ -311,7 +312,7 @@ export default function Consultations() {
                           type="radio"
                           value="audio-call"
                           checked={requestForm.consultationType === 'audio-call'}
-                          onChange={(e) => setRequestForm({ ...requestForm, consultationType: e.target.value as any })}
+                          onChange={(e) => setRequestForm({ ...requestForm, consultationType: e.target.value as 'live-chat' | 'audio-call' | 'video-call' })}
                           className="sr-only"
                         />
                         <div className="text-center">
@@ -331,7 +332,7 @@ export default function Consultations() {
                           type="radio"
                           value="video-call"
                           checked={requestForm.consultationType === 'video-call'}
-                          onChange={(e) => setRequestForm({ ...requestForm, consultationType: e.target.value as any })}
+                          onChange={(e) => setRequestForm({ ...requestForm, consultationType: e.target.value as 'live-chat' | 'audio-call' | 'video-call' })}
                           className="sr-only"
                         />
                         <div className="text-center">
