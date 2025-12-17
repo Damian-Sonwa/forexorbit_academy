@@ -11,6 +11,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useSocket } from '@/hooks/useSocket';
 import { apiClient } from '@/lib/api-client';
 import { formatDistanceToNow } from 'date-fns';
+import AgoraCall from '@/components/AgoraCall';
 
 interface ConsultationMessage {
   _id: string;
@@ -59,24 +60,22 @@ export default function ConsultationChat() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [showVideoCall, setShowVideoCall] = useState(false);
-  const [showVoiceCall, setShowVoiceCall] = useState(false);
-  const [callStatus, setCallStatus] = useState<'idle' | 'calling' | 'ongoing' | 'ended'>('idle');
+  
+  // Agora call state - replaces broken WebRTC
+  const [agoraCallType, setAgoraCallType] = useState<'voice' | 'video' | null>(null);
+  const [agoraToken, setAgoraToken] = useState<string | null>(null);
+  const [agoraAppId, setAgoraAppId] = useState<string>('');
+  const [agoraChannel, setAgoraChannel] = useState<string>('');
+  const [loadingAgoraToken, setLoadingAgoraToken] = useState(false);
 
-  // Check URL query for auto-starting calls
+  // Check URL query for auto-starting Agora calls
   useEffect(() => {
-    if (router.query.call === 'voice' && sessionId && typeof sessionId === 'string') {
-      setShowVoiceCall(true);
-      setTimeout(() => {
-        handleStartVoiceCall();
-      }, 1000);
-    } else if (router.query.call === 'video' && sessionId && typeof sessionId === 'string') {
-      setShowVideoCall(true);
-      setTimeout(() => {
-        handleStartVideoCall();
-      }, 1000);
+    if (router.query.call === 'voice' && sessionId && typeof sessionId === 'string' && session?.status === 'active') {
+      handleStartAgoraCall('voice');
+    } else if (router.query.call === 'video' && sessionId && typeof sessionId === 'string' && session?.status === 'active') {
+      handleStartAgoraCall('video');
     }
-  }, [router.query, sessionId]);
+  }, [router.query, sessionId, session?.status]);
 
   // Load session and messages
   useEffect(() => {
@@ -132,73 +131,11 @@ export default function ConsultationChat() {
     socket.on('consultation_room_joined', handleRoomJoined);
     socket.on('consultationMessage', handleMessage);
 
-    // Listen for call events - CRITICAL: Handle WebRTC offer/answer exchange
-    socket.on('consultationCallOffer', async (data: { sessionId: string; type: 'voice' | 'video'; from: string; offer?: RTCSessionDescriptionInit }) => {
-      if (data.sessionId === sessionId) {
-        setCallStatus('calling');
-        if (data.type === 'video') {
-          setShowVideoCall(true);
-        } else {
-          setShowVoiceCall(true);
-        }
-        
-        // If offer is included, handle it immediately (incoming call)
-        if (data.offer) {
-          await handleIncomingCall(data.type, data.offer);
-        }
-      }
-    });
-
-    socket.on('consultationCallAnswer', async (data: { sessionId: string; accepted: boolean; answer?: RTCSessionDescriptionInit }) => {
-      if (data.sessionId === sessionId) {
-        if (data.accepted && data.answer) {
-          // Handle answer for outgoing call
-          await handleCallAnswer(data.answer);
-          setCallStatus('ongoing');
-        } else {
-          setCallStatus('idle');
-          setShowVideoCall(false);
-          setShowVoiceCall(false);
-        }
-      }
-    });
-
-    socket.on('consultationCallEnd', (data: { sessionId: string }) => {
-      if (data.sessionId === sessionId) {
-        handleEndCall();
-      }
-    });
-    
-    // Listen for WebRTC signaling events
-    socket.on('consultationOffer', async (data: { sessionId: string; offer: RTCSessionDescriptionInit }) => {
-      if (data.sessionId === sessionId) {
-        // Determine call type from current state
-        const callType = showVideoCall ? 'video' : 'voice';
-        await handleIncomingCall(callType, data.offer);
-      }
-    });
-
-    socket.on('consultationAnswer', async (data: { sessionId: string; answer: RTCSessionDescriptionInit }) => {
-      if (data.sessionId === sessionId) {
-        await handleCallAnswer(data.answer);
-      }
-    });
-
-    socket.on('consultationIceCandidate', async (data: { sessionId: string; candidate: RTCIceCandidateInit }) => {
-      if (data.sessionId === sessionId) {
-        await handleIceCandidate(data.candidate);
-      }
-    });
+    // Agora calls don't need WebRTC signaling - removed broken WebRTC event listeners
 
     return () => {
       socket.off('consultation_room_joined', handleRoomJoined);
       socket.off('consultationMessage', handleMessage);
-      socket.off('consultationCallOffer');
-      socket.off('consultationCallAnswer');
-      socket.off('consultationCallEnd');
-      socket.off('consultationOffer');
-      socket.off('consultationAnswer');
-      socket.off('consultationIceCandidate');
       socket.emit('leaveConsultation', { sessionId });
     };
   }, [socket, sessionId]);
@@ -242,280 +179,46 @@ export default function ConsultationChat() {
     }
   };
 
-  // Start voice call - CRITICAL: Initialize WebRTC immediately
-  const handleStartVoiceCall = async () => {
-    if (!socket || !sessionId || typeof sessionId !== 'string') return;
-    
-    try {
-      setCallStatus('calling');
-      setShowVoiceCall(true);
-      
-      // Request microphone access immediately
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      
-      // Create peer connection
-      const pc = new RTCPeerConnection({
-        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
-      });
-      
-      // Add local stream tracks
-      stream.getTracks().forEach((track) => {
-        pc.addTrack(track, stream);
-      });
-      
-      // Create and send offer immediately
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-      
-      // Store peer connection for later use
-      (window as any).__voicePeerConnection = pc;
-      (window as any).__voiceLocalStream = stream;
-      
-      // Emit call offer with WebRTC offer
-      socket.emit('consultationCallOffer', { 
-        sessionId, 
-        type: 'voice',
-        offer: offer,
-      });
-      
-      // Also emit the offer via WebRTC signaling
-      socket.emit('consultationOffer', {
-        sessionId,
-        offer: offer,
-      });
-      
-      // Handle ICE candidates
-      pc.onicecandidate = (event) => {
-        if (event.candidate && socket) {
-          socket.emit('consultationIceCandidate', {
-            sessionId,
-            candidate: event.candidate,
-          });
-        }
-      };
-      
-      // Handle remote stream
-      pc.ontrack = (event) => {
-        const remoteStream = event.streams[0];
-        (window as any).__voiceRemoteStream = remoteStream;
-        // Update UI when remote stream is received
-        setCallStatus('ongoing');
-      };
-      
-    } catch (error) {
-      console.error('Error starting voice call:', error);
-      alert('Failed to start voice call. Please check your microphone permissions.');
-      setCallStatus('idle');
-      setShowVoiceCall(false);
-    }
-  };
-
-  // Start video call - CRITICAL: Initialize WebRTC immediately
-  const handleStartVideoCall = async () => {
-    if (!socket || !sessionId || typeof sessionId !== 'string') return;
-    
-    try {
-      setCallStatus('calling');
-      setShowVideoCall(true);
-      
-      // Request camera and microphone access immediately
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
-      
-      // Create peer connection
-      const pc = new RTCPeerConnection({
-        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
-      });
-      
-      // Add local stream tracks
-      stream.getTracks().forEach((track) => {
-        pc.addTrack(track, stream);
-      });
-      
-      // Create and send offer immediately
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-      
-      // Store peer connection for later use
-      (window as any).__videoPeerConnection = pc;
-      (window as any).__videoLocalStream = stream;
-      
-      // Emit call offer with WebRTC offer
-      socket.emit('consultationCallOffer', { 
-        sessionId, 
-        type: 'video',
-        offer: offer,
-      });
-      
-      // Also emit the offer via WebRTC signaling
-      socket.emit('consultationOffer', {
-        sessionId,
-        offer: offer,
-      });
-      
-      // Handle ICE candidates
-      pc.onicecandidate = (event) => {
-        if (event.candidate && socket) {
-          socket.emit('consultationIceCandidate', {
-            sessionId,
-            candidate: event.candidate,
-          });
-        }
-      };
-      
-      // Handle remote stream
-      pc.ontrack = (event) => {
-        const remoteStream = event.streams[0];
-        (window as any).__videoRemoteStream = remoteStream;
-        // Update UI when remote stream is received
-        setCallStatus('ongoing');
-      };
-      
-    } catch (error) {
-      console.error('Error starting video call:', error);
-      alert('Failed to start video call. Please check your camera and microphone permissions.');
-      setCallStatus('idle');
-      setShowVideoCall(false);
-    }
-  };
-
-  // End call - CRITICAL: Clean up WebRTC resources
-  const handleEndCall = () => {
-    if (!socket || !sessionId || typeof sessionId !== 'string') return;
-    
-    // Clean up voice call resources
-    if ((window as any).__voicePeerConnection) {
-      (window as any).__voicePeerConnection.close();
-      delete (window as any).__voicePeerConnection;
-    }
-    if ((window as any).__voiceLocalStream) {
-      (window as any).__voiceLocalStream.getTracks().forEach((track: MediaStreamTrack) => track.stop());
-      delete (window as any).__voiceLocalStream;
-    }
-    
-    // Clean up video call resources
-    if ((window as any).__videoPeerConnection) {
-      (window as any).__videoPeerConnection.close();
-      delete (window as any).__videoPeerConnection;
-    }
-    if ((window as any).__videoLocalStream) {
-      (window as any).__videoLocalStream.getTracks().forEach((track: MediaStreamTrack) => track.stop());
-      delete (window as any).__videoLocalStream;
-    }
-    
-    socket.emit('consultationCallEnd', { sessionId });
-    setCallStatus('idle');
-    setShowVideoCall(false);
-    setShowVoiceCall(false);
-  };
-
-  // Handle incoming call offer - CRITICAL: Initialize WebRTC for receiver
-  const handleIncomingCall = async (callType: 'voice' | 'video', offer: RTCSessionDescriptionInit) => {
-    try {
-      // Request media access based on call type
-      const stream = await navigator.mediaDevices.getUserMedia(
-        callType === 'video' ? { audio: true, video: true } : { audio: true }
-      );
-      
-      // Create peer connection
-      const pc = new RTCPeerConnection({
-        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
-      });
-      
-      // Add local stream tracks
-      stream.getTracks().forEach((track) => {
-        pc.addTrack(track, stream);
-      });
-      
-      // Set remote description (the offer)
-      await pc.setRemoteDescription(new RTCSessionDescription(offer));
-      
-      // Create and send answer
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
-      
-      // Store peer connection
-      if (callType === 'video') {
-        (window as any).__videoPeerConnection = pc;
-        (window as any).__videoLocalStream = stream;
-      } else {
-        (window as any).__voicePeerConnection = pc;
-        (window as any).__voiceLocalStream = stream;
-      }
-      
-      // Send answer via socket
-      if (socket) {
-        socket.emit('consultationAnswer', {
-          sessionId,
-          answer: answer,
-        });
-        socket.emit('consultationCallAnswer', {
-          sessionId,
-          accepted: true,
-          answer: answer,
-        });
-      }
-      
-      // Handle ICE candidates
-      pc.onicecandidate = (event) => {
-        if (event.candidate && socket) {
-          socket.emit('consultationIceCandidate', {
-            sessionId,
-            candidate: event.candidate,
-          });
-        }
-      };
-      
-      // Handle remote stream
-      pc.ontrack = (event) => {
-        const remoteStream = event.streams[0];
-        if (callType === 'video') {
-          (window as any).__videoRemoteStream = remoteStream;
-        } else {
-          (window as any).__voiceRemoteStream = remoteStream;
-        }
-        setCallStatus('ongoing');
-      };
-      
-    } catch (error) {
-      console.error('Error handling incoming call:', error);
-      alert(`Failed to answer ${callType} call. Please check your ${callType === 'video' ? 'camera and microphone' : 'microphone'} permissions.`);
-      setCallStatus('idle');
-      setShowVideoCall(false);
-      setShowVoiceCall(false);
-    }
-  };
-
-  // Handle call answer for outgoing call
-  const handleCallAnswer = async (answer: RTCSessionDescriptionInit) => {
-    const pc = (window as any).__voicePeerConnection || (window as any).__videoPeerConnection;
-    if (pc) {
-      await pc.setRemoteDescription(new RTCSessionDescription(answer));
-    }
-  };
-
-  // Handle ICE candidate
-  const handleIceCandidate = async (candidate: RTCIceCandidateInit) => {
-    const pc = (window as any).__voicePeerConnection || (window as any).__videoPeerConnection;
-    if (pc && candidate) {
-      await pc.addIceCandidate(new RTCIceCandidate(candidate));
-    }
-  };
-
-  // Answer call
-  const handleAnswerCall = async (accepted: boolean) => {
-    if (!socket || !sessionId || typeof sessionId !== 'string') return;
-    
-    if (!accepted) {
-      socket.emit('consultationCallAnswer', { sessionId, accepted: false });
-      setCallStatus('idle');
-      setShowVideoCall(false);
-      setShowVoiceCall(false);
+  // Start Agora call - Replaces broken WebRTC
+  const handleStartAgoraCall = async (callType: 'voice' | 'video') => {
+    if (!sessionId || typeof sessionId !== 'string' || !user || session?.status !== 'active') {
+      alert('Consultation must be active to start a call');
       return;
     }
-    
-    // If accepted, the WebRTC setup is handled by handleIncomingCall
-    // Just emit the answer event
-    socket.emit('consultationCallAnswer', { sessionId, accepted: true });
+
+    try {
+      setLoadingAgoraToken(true);
+      setAgoraCallType(callType);
+
+      // Generate Agora token
+      const response = await apiClient.post<{
+        token: string;
+        appId: string;
+        channel: string;
+        uid: string | number;
+      }>('/consultations/agora-token', {
+        sessionId,
+        uid: user.id || user._id || Date.now(), // Use user ID or timestamp as UID
+      });
+
+      setAgoraToken(response.token);
+      setAgoraAppId(response.appId);
+      setAgoraChannel(response.channel);
+      setLoadingAgoraToken(false);
+    } catch (error: any) {
+      console.error('Error starting Agora call:', error);
+      alert(error.response?.data?.error || 'Failed to start call. Please try again.');
+      setAgoraCallType(null);
+      setLoadingAgoraToken(false);
+    }
+  };
+
+  // End Agora call
+  const handleEndAgoraCall = () => {
+    setAgoraCallType(null);
+    setAgoraToken(null);
+    setAgoraAppId('');
+    setAgoraChannel('');
   };
 
   if (authLoading || loading) {
@@ -562,44 +265,54 @@ export default function ConsultationChat() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                {/* Communication Controls */}
-                {/* CRITICAL FIX: Enable buttons when consultation is active and socket exists */}
-                <button
-                  onClick={handleStartVoiceCall}
-                  disabled={callStatus === 'calling' || callStatus === 'ongoing' || !socket || session.status !== 'active'}
-                  className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                  title={!socket ? 'Connecting...' : session.status !== 'active' ? 'Consultation must be active' : 'Start voice call'}
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                  </svg>
-                  Voice Call
-                </button>
-                <button
-                  onClick={handleStartVideoCall}
-                  disabled={callStatus === 'calling' || callStatus === 'ongoing' || !socket || session.status !== 'active'}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                  title={!socket ? 'Connecting...' : session.status !== 'active' ? 'Consultation must be active' : 'Start video call'}
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                  </svg>
-                  Video Call
-                </button>
-                {callStatus !== 'idle' && (
-                  <button
-                    onClick={handleEndCall}
-                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold text-sm transition-colors flex items-center gap-2"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                    End Call
-                  </button>
+                {/* Agora Call Controls - Replaces broken WebRTC buttons */}
+                {session.status === 'active' && (
+                  <>
+                    {!agoraCallType && (
+                      <>
+                        <button
+                          onClick={() => handleStartAgoraCall('voice')}
+                          disabled={loadingAgoraToken}
+                          className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                          title="Start voice call"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                          </svg>
+                          Voice Call
+                        </button>
+                        <button
+                          onClick={() => handleStartAgoraCall('video')}
+                          disabled={loadingAgoraToken}
+                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                          title="Start video call"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                          </svg>
+                          Video Call
+                        </button>
+                      </>
+                    )}
+                  </>
                 )}
               </div>
             </div>
           </div>
+
+          {/* Agora Call Component - Replaces broken WebRTC */}
+          {session.status === 'active' && agoraCallType && agoraToken && agoraAppId && agoraChannel && (
+            <div className="px-4 pt-4">
+              <AgoraCall
+                appId={agoraAppId}
+                channel={agoraChannel}
+                token={agoraToken}
+                uid={user?.id || user?._id || Date.now()}
+                callType={agoraCallType}
+                onCallEnd={handleEndAgoraCall}
+              />
+            </div>
+          )}
 
           {/* Messages */}
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -663,326 +376,6 @@ export default function ConsultationChat() {
         </main>
       </div>
 
-      {/* Voice Call Modal */}
-      {showVoiceCall && (
-        <VoiceCallModal
-          sessionId={sessionId as string}
-          otherUser={otherUser}
-          callStatus={callStatus}
-          onAnswer={handleAnswerCall}
-          onEnd={handleEndCall}
-          onClose={() => {
-            setShowVoiceCall(false);
-            setCallStatus('idle');
-          }}
-        />
-      )}
-
-      {/* Video Call Modal */}
-      {showVideoCall && (
-        <VideoCallModal
-          sessionId={sessionId as string}
-          otherUser={otherUser}
-          callStatus={callStatus}
-          onAnswer={handleAnswerCall}
-          onEnd={handleEndCall}
-          onClose={() => {
-            setShowVideoCall(false);
-            setCallStatus('idle');
-          }}
-        />
-      )}
-    </div>
-  );
-}
-
-// Voice Call Modal Component
-function VoiceCallModal({
-  sessionId,
-  otherUser,
-  callStatus,
-  onAnswer,
-  onEnd,
-  onClose,
-}: {
-  sessionId: string;
-  otherUser?: { name: string; profilePhoto?: string };
-  callStatus: 'idle' | 'calling' | 'ongoing' | 'ended';
-  onAnswer: (accepted: boolean) => void;
-  onEnd: () => void;
-  onClose: () => void;
-}) {
-  const { user } = useAuth();
-  const { socket } = useSocket();
-  const [muted, setMuted] = useState(false);
-  const localAudioRef = useRef<HTMLAudioElement>(null);
-  const remoteAudioRef = useRef<HTMLAudioElement>(null);
-  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
-  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
-  const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
-
-  // CRITICAL FIX: Use stored peer connection and streams from window
-  useEffect(() => {
-    if (callStatus === 'ongoing') {
-      // Get stored local and remote streams
-      const localStream = (window as any).__voiceLocalStream;
-      const remoteStream = (window as any).__voiceRemoteStream;
-      
-      if (localStream && localAudioRef.current) {
-        localAudioRef.current.srcObject = localStream;
-        setLocalStream(localStream);
-      }
-      
-      if (remoteStream && remoteAudioRef.current) {
-        remoteAudioRef.current.srcObject = remoteStream;
-        setRemoteStream(remoteStream);
-      }
-    }
-    
-    return () => {
-      // Don't cleanup here - cleanup happens in handleEndCall
-    };
-  }, [callStatus]);
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 max-w-md w-full">
-        <div className="text-center mb-6">
-          {otherUser?.profilePhoto && (
-            <img
-              src={otherUser.profilePhoto}
-              alt={otherUser.name}
-              className="w-24 h-24 rounded-full mx-auto mb-4"
-            />
-          )}
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-            {callStatus === 'calling' ? 'Calling...' : 'Voice Call'}
-          </h2>
-          <p className="text-gray-600 dark:text-gray-400">{otherUser?.name || 'Consultation'}</p>
-        </div>
-
-        {callStatus === 'calling' && (
-          <div className="flex justify-center gap-4 mb-6">
-            <button
-              onClick={() => onAnswer(true)}
-              className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-full font-semibold transition-colors"
-            >
-              Answer
-            </button>
-            <button
-              onClick={() => onAnswer(false)}
-              className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-full font-semibold transition-colors"
-            >
-              Decline
-            </button>
-          </div>
-        )}
-
-        {callStatus === 'ongoing' && (
-          <div className="flex justify-center gap-4 mb-6">
-            <button
-              onClick={() => setMuted(!muted)}
-              className={`px-6 py-3 rounded-full font-semibold transition-colors ${
-                muted ? 'bg-red-600 hover:bg-red-700' : 'bg-gray-600 hover:bg-gray-700'
-              } text-white`}
-            >
-              {muted ? 'Unmute' : 'Mute'}
-            </button>
-            <button
-              onClick={onEnd}
-              className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-full font-semibold transition-colors"
-            >
-              End Call
-            </button>
-          </div>
-        )}
-
-        <div className="flex justify-center">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-          >
-            Close
-          </button>
-        </div>
-
-        {/* Hidden audio elements */}
-        <audio ref={localAudioRef} autoPlay muted={muted} />
-        <audio ref={remoteAudioRef} autoPlay />
-      </div>
-    </div>
-  );
-}
-
-// Video Call Modal Component
-function VideoCallModal({
-  sessionId,
-  otherUser,
-  callStatus,
-  onAnswer,
-  onEnd,
-  onClose,
-}: {
-  sessionId: string;
-  otherUser?: { name: string; profilePhoto?: string };
-  callStatus: 'idle' | 'calling' | 'ongoing' | 'ended';
-  onAnswer: (accepted: boolean) => void;
-  onEnd: () => void;
-  onClose: () => void;
-}) {
-  const { user } = useAuth();
-  const { socket } = useSocket();
-  const [muted, setMuted] = useState(false);
-  const [videoOff, setVideoOff] = useState(false);
-  const localVideoRef = useRef<HTMLVideoElement>(null);
-  const remoteVideoRef = useRef<HTMLVideoElement>(null);
-  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
-  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
-  const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
-
-  // CRITICAL FIX: Use stored peer connection and streams from window
-  useEffect(() => {
-    if (callStatus === 'ongoing') {
-      // Get stored local and remote streams
-      const localStream = (window as any).__videoLocalStream;
-      const remoteStream = (window as any).__videoRemoteStream;
-      
-      if (localStream && localVideoRef.current) {
-        localVideoRef.current.srcObject = localStream;
-        setLocalStream(localStream);
-      }
-      
-      if (remoteStream && remoteVideoRef.current) {
-        remoteVideoRef.current.srcObject = remoteStream;
-        setRemoteStream(remoteStream);
-      }
-    }
-    
-    return () => {
-      // Don't cleanup here - cleanup happens in handleEndCall
-    };
-  }, [callStatus]);
-
-  const toggleVideo = () => {
-    if (localStream) {
-      localStream.getVideoTracks().forEach((track) => {
-        track.enabled = videoOff;
-      });
-      setVideoOff(!videoOff);
-    }
-  };
-
-  const toggleMute = () => {
-    if (localStream) {
-      localStream.getAudioTracks().forEach((track) => {
-        track.enabled = muted;
-      });
-      setMuted(!muted);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black z-50 flex items-center justify-center">
-      <div className="relative w-full h-full flex flex-col">
-        {/* Remote Video */}
-        <div className="flex-1 bg-gray-900 flex items-center justify-center">
-          {remoteStream ? (
-            <video
-              ref={remoteVideoRef}
-              autoPlay
-              playsInline
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div className="text-center text-white">
-              {otherUser?.profilePhoto && (
-                <img
-                  src={otherUser.profilePhoto}
-                  alt={otherUser.name}
-                  className="w-32 h-32 rounded-full mx-auto mb-4"
-                />
-              )}
-              <p className="text-xl">{otherUser?.name || 'Waiting for connection...'}</p>
-            </div>
-          )}
-        </div>
-
-        {/* Local Video (Picture-in-Picture) */}
-        {localStream && (
-          <div className="absolute bottom-20 right-4 w-48 h-36 bg-gray-800 rounded-lg overflow-hidden">
-            <video
-              ref={localVideoRef}
-              autoPlay
-              playsInline
-              muted
-              className="w-full h-full object-cover"
-            />
-          </div>
-        )}
-
-        {/* Controls */}
-        <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 p-4">
-          <div className="flex justify-center items-center gap-4">
-            {callStatus === 'calling' && (
-              <>
-                <button
-                  onClick={() => onAnswer(true)}
-                  className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-full font-semibold transition-colors"
-                >
-                  Answer
-                </button>
-                <button
-                  onClick={() => onAnswer(false)}
-                  className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-full font-semibold transition-colors"
-                >
-                  Decline
-                </button>
-              </>
-            )}
-
-            {callStatus === 'ongoing' && (
-              <>
-                <button
-                  onClick={toggleMute}
-                  className={`p-3 rounded-full font-semibold transition-colors ${
-                    muted ? 'bg-red-600 hover:bg-red-700' : 'bg-gray-600 hover:bg-gray-700'
-                  } text-white`}
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    {muted ? (
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
-                    ) : (
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                    )}
-                  </svg>
-                </button>
-                <button
-                  onClick={toggleVideo}
-                  className={`p-3 rounded-full font-semibold transition-colors ${
-                    videoOff ? 'bg-red-600 hover:bg-red-700' : 'bg-gray-600 hover:bg-gray-700'
-                  } text-white`}
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    {videoOff ? (
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-                    ) : (
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                    )}
-                  </svg>
-                </button>
-                <button
-                  onClick={onEnd}
-                  className="p-3 bg-red-600 hover:bg-red-700 text-white rounded-full font-semibold transition-colors"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
