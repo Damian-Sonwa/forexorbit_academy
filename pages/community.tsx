@@ -142,24 +142,27 @@ export default function Community() {
     if (selectedRoom) {
       const roomIdStr = selectedRoom._id?.toString() || selectedRoom._id;
       
-      // Check if room is a placeholder (log warning only, don't block UI)
-      if (typeof roomIdStr === 'string' && roomIdStr.startsWith('placeholder-')) {
-        console.warn('Placeholder room selected:', roomIdStr, '- UI will render empty state');
-        // Don't block - allow UI to render empty state
-        setShowRoomSelection(false);
-        setMessages([]);
-        return;
-      }
+      // CRITICAL FIX: Don't block on placeholder or locked rooms
+      // Allow room selection immediately - same behavior as admin/instructor
+      // Rooms are created automatically by socket.io when first user joins
+      // if (typeof roomIdStr === 'string' && roomIdStr.startsWith('placeholder-')) {
+      //   console.warn('Placeholder room selected:', roomIdStr, '- UI will render empty state');
+      //   // Don't block - allow UI to render empty state
+      //   setShowRoomSelection(false);
+      //   setMessages([]);
+      //   return;
+      // }
       
-      // Check if room is locked - prevent access to locked rooms
-      if (selectedRoom.isLocked) {
-        setToastMessage('This group unlocks when you complete the previous level.');
-        setShowToast(true);
-        setTimeout(() => setShowToast(false), 3000);
-        setSelectedRoom(null);
-        setShowRoomSelection(true);
-        return;
-      }
+      // CRITICAL FIX: Don't block on locked rooms - allow access like admin/instructor
+      // Room access is controlled at API level, not UI level
+      // if (selectedRoom.isLocked) {
+      //   setToastMessage('This group unlocks when you complete the previous level.');
+      //   setShowToast(true);
+      //   setTimeout(() => setShowToast(false), 3000);
+      //   setSelectedRoom(null);
+      //   setShowRoomSelection(true);
+      //   return;
+      // }
 
       setShowRoomSelection(false);
       setPage(1);
@@ -172,8 +175,8 @@ export default function Community() {
       joinRoomSafely(roomIdStr);
     }
     return () => {
-      if (selectedRoom && !selectedRoom.isLocked) {
-        // Leave room when switching away (only if not locked)
+      if (selectedRoom) {
+        // Leave room when switching away - same for all roles
         leaveRoom(selectedRoom._id.toString());
       }
     };
