@@ -787,7 +787,7 @@ export default function InstructorDashboard() {
                               router.push(`/consultations/chat/${session.sessionId}`);
                             } else {
                               // Load sessions to find the one for this request
-                              apiClient.get('/consultations/sessions').then((sessions: any[]) => {
+                              apiClient.get<any[]>('/consultations/sessions').then((sessions) => {
                                 const activeSession = sessions.find((s: any) => s.requestId === request._id && s.status === 'active');
                                 if (activeSession) {
                                   router.push(`/consultations/chat/${activeSession._id}`);
@@ -806,7 +806,7 @@ export default function InstructorDashboard() {
                         </button>
                         <button
                           onClick={() => {
-                            apiClient.get('/consultations/sessions').then((sessions: any[]) => {
+                            apiClient.get<any[]>('/consultations/sessions').then((sessions) => {
                               const activeSession = sessions.find((s: any) => s.requestId === request._id && s.status === 'active');
                               if (activeSession) {
                                 router.push(`/consultations/chat/${activeSession._id}?call=voice`);
@@ -824,7 +824,7 @@ export default function InstructorDashboard() {
                         </button>
                         <button
                           onClick={() => {
-                            apiClient.get('/consultations/sessions').then((sessions: any[]) => {
+                            apiClient.get<any[]>('/consultations/sessions').then((sessions) => {
                               const activeSession = sessions.find((s: any) => s.requestId === request._id && s.status === 'active');
                               if (activeSession) {
                                 router.push(`/consultations/chat/${activeSession._id}?call=video`);
