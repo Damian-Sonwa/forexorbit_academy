@@ -138,49 +138,69 @@ export default function Community() {
     };
   }, [user, connected, socket, user?.learningLevel, user?.role]);
 
+  // CRITICAL FIX: Students must join "community_global" immediately on mount
+  // Same room as admin/instructor - no placeholder rooms
+  useEffect(() => {
+    if (!socket || !user) return;
+
+    // For students, always join "community_global" room immediately
+    // This ensures students use the same room as admin/instructor
+    if (user.role === 'student') {
+      console.log('Student joining community_global room');
+      console.log('Socket connected:', socket.connected);
+      socket.emit('joinRoom', { roomId: 'community_global' });
+    }
+  }, [socket, user]);
+
   useEffect(() => {
     if (selectedRoom) {
       const roomIdStr = selectedRoom._id?.toString() || selectedRoom._id;
       
-      // CRITICAL FIX: Don't block on placeholder or locked rooms
-      // Allow room selection immediately - same behavior as admin/instructor
-      // Rooms are created automatically by socket.io when first user joins
-      // if (typeof roomIdStr === 'string' && roomIdStr.startsWith('placeholder-')) {
-      //   console.warn('Placeholder room selected:', roomIdStr, '- UI will render empty state');
-      //   // Don't block - allow UI to render empty state
-      //   setShowRoomSelection(false);
-      //   setMessages([]);
-      //   return;
-      // }
-      
-      // CRITICAL FIX: Don't block on locked rooms - allow access like admin/instructor
-      // Room access is controlled at API level, not UI level
-      // if (selectedRoom.isLocked) {
-      //   setToastMessage('This group unlocks when you complete the previous level.');
-      //   setShowToast(true);
-      //   setTimeout(() => setShowToast(false), 3000);
-      //   setSelectedRoom(null);
-      //   setShowRoomSelection(true);
-      //   return;
-      // }
+      // CRITICAL FIX: For students, use "community_global" instead of placeholder rooms
+      // Students must join the same room as admin/instructor
+      let actualRoomId = roomIdStr;
+      if (user?.role === 'student' && typeof roomIdStr === 'string' && roomIdStr.startsWith('placeholder-')) {
+        // Replace placeholder with community_global for students
+        actualRoomId = 'community_global';
+        console.log('Student: Replacing placeholder room with community_global');
+      }
 
       setShowRoomSelection(false);
       setPage(1);
       setHasMoreMessages(true);
-      // Clear previous messages and load messages for this specific room (level-specific)
+      // Clear previous messages and load messages for this specific room
       setMessages([]);
-      // Load all messages for this room level
-      loadMessages(roomIdStr, 1, false);
+      // Load all messages for this room
+      // For students using community_global, we need to handle this differently
+      if (user?.role === 'student' && actualRoomId === 'community_global') {
+        // For students, load messages from the Beginner room (which is the default accessible room)
+        // But join the community_global socket room
+        const beginnerRoom = rooms.find(r => r.name === 'Beginner' && !r._id.toString().startsWith('placeholder-'));
+        if (beginnerRoom) {
+          loadMessages(beginnerRoom._id.toString(), 1, false);
+        } else {
+          // If no Beginner room found, just join the socket room
+          // Messages will come via socket
+          setMessages([]);
+        }
+      } else {
+        loadMessages(actualRoomId, 1, false);
+      }
       // Join the room safely (will retry if socket not ready)
-      joinRoomSafely(roomIdStr);
+      joinRoomSafely(actualRoomId);
     }
     return () => {
       if (selectedRoom) {
         // Leave room when switching away - same for all roles
-        leaveRoom(selectedRoom._id.toString());
+        const roomIdStr = selectedRoom._id?.toString() || selectedRoom._id;
+        let actualRoomId = roomIdStr;
+        if (user?.role === 'student' && typeof roomIdStr === 'string' && roomIdStr.startsWith('placeholder-')) {
+          actualRoomId = 'community_global';
+        }
+        leaveRoom(actualRoomId);
       }
     };
-  }, [selectedRoom?._id]);
+  }, [selectedRoom?._id, user, rooms]);
 
   useEffect(() => {
     const container = messagesContainerRef.current;
@@ -207,7 +227,18 @@ export default function Community() {
     });
 
     socket.on('message', (message: Message) => {
-      if (selectedRoom && (message.roomId === selectedRoom._id || message.roomId.toString() === selectedRoom._id)) {
+      // CRITICAL FIX: For students, accept messages from "community_global" room
+      // Students use the same room as admin/instructor
+      const messageRoomId = message.roomId?.toString() || message.roomId;
+      const selectedRoomId = selectedRoom?._id?.toString() || selectedRoom?._id;
+      
+      // Check if message is for current room
+      const isForCurrentRoom = 
+        (selectedRoom && (messageRoomId === selectedRoomId || messageRoomId === selectedRoom._id)) ||
+        // For students, also accept messages from community_global when viewing any room
+        (user?.role === 'student' && messageRoomId === 'community_global' && selectedRoom);
+      
+      if (isForCurrentRoom) {
         // Add message to state, avoiding duplicates
         setMessages((prev) => {
           // Check if message already exists (to avoid duplicates from optimistic update)
@@ -510,35 +541,25 @@ export default function Community() {
   const pendingRoomJoinsRef = useRef<Set<string>>(new Set());
 
   // Safe room join - Always allow join, rooms are created automatically by socket.io
-  // CRITICAL: Students join immediately just like admin/instructor - no blocking logic
+  // CRITICAL: Students must join "community_global" - same room as admin/instructor
   const joinRoomSafely = (roomId: string) => {
-    const roomIdStr = roomId?.toString() || roomId;
+    let roomIdStr = roomId?.toString() || roomId;
+    
+    // CRITICAL FIX: For students, replace placeholder rooms with "community_global"
+    // Students must join the same room as admin/instructor
+    if (user?.role === 'student' && typeof roomIdStr === 'string' && roomIdStr.startsWith('placeholder-')) {
+      roomIdStr = 'community_global';
+      console.log('Student: Replacing placeholder room with community_global');
+    }
     
     // Debug log for students
     if (user?.role === 'student') {
       console.log('Student joining room:', roomIdStr);
       console.log('Socket connected:', socket?.connected);
     }
-    
-    // CRITICAL FIX: Allow joining even placeholder rooms - socket.io will create them
-    // Remove blocking logic - rooms are auto-created by socket.io
-    // if (typeof roomIdStr === 'string' && roomIdStr.startsWith('placeholder-')) {
-    //   console.warn('Skipping join for placeholder room:', roomIdStr);
-    //   return;
-    // }
-
-    // CRITICAL FIX: Don't block on locked rooms - allow join attempt
-    // Room access is controlled at API level, not socket level
-    // const room = rooms.find((r) => {
-    //   const rId = r._id?.toString() || r._id;
-    //   return rId === roomIdStr || rId === roomId;
-    // });
-    // if (room?.isLocked) {
-    //   console.warn('Cannot join locked room:', roomIdStr);
-    //   return;
-    // }
 
     // Join room immediately if socket exists - room is created automatically
+    // No blocking logic - rooms are auto-created by socket.io
     if (socket) {
       socket.emit('joinRoom', { roomId: roomIdStr });
       if (user?.role === 'student') {

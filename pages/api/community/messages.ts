@@ -201,7 +201,8 @@ async function sendMessage(req: AuthRequest, res: NextApiResponse) {
     );
 
     // Emit socket event to ALL users in the room (including sender) - like WhatsApp
-    // Messages are level-specific - only users in this room will receive them
+    // CRITICAL FIX: For students, also broadcast to "community_global" room
+    // Students use the same socket room as admin/instructor
     if (req.io) {
       const messageToEmit = {
         ...message,
@@ -218,6 +219,14 @@ async function sendMessage(req: AuthRequest, res: NextApiResponse) {
       // Also emit to the ObjectId format room if different
       if (roomId !== roomIdStr) {
         req.io.to(`room:${roomId}`).emit('message', messageToEmit);
+      }
+      // CRITICAL: For students, also broadcast to "community_global" room
+      // This ensures students receive messages even if they're using placeholder rooms
+      if (user?.role === 'student' && room.name === 'Beginner') {
+        req.io.to('room:community_global').emit('message', {
+          ...messageToEmit,
+          roomId: 'community_global', // Override roomId for socket broadcast
+        });
       }
     }
 

@@ -59,14 +59,19 @@ app.prepare().then(() => {
   });
 
   // Initialize Socket.io with CORS support for multiple origins
-  // Allow both Render URL and Vercel URL (or any URLs in ALLOWED_ORIGINS env var)
+  // CRITICAL: Allow both Render URL and Vercel URL (or any URLs in ALLOWED_ORIGINS env var)
+  // IMPORTANT: Do NOT restrict to websocket only - allow upgrade from polling → websocket
   const allowedOrigins = process.env.ALLOWED_ORIGINS 
     ? process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim())
     : [
         process.env.NEXT_PUBLIC_SOCKET_URL || 
         (dev ? 'http://localhost:3000' : process.env.RENDER_EXTERNAL_URL || 'http://localhost:3000'),
+        'https://forexorbit-academy11.vercel.app',
         'https://forexorbit-academy001.vercel.app',
-        'https://forexorbit-academy.onrender.com'
+        'https://forexorbit-academy.onrender.com',
+        'https://forexorbit-academy.vercel.app',
+        // Allow any Vercel preview URLs
+        ...(process.env.VERCEL_URL ? [`https://${process.env.VERCEL_URL}`] : []),
       ];
   
   const io = new Server(server, {
@@ -80,16 +85,23 @@ app.prepare().then(() => {
         if (allowedOrigins.includes(origin)) {
           callback(null, true);
         } else {
-          callback(new Error('Not allowed by CORS'));
+          // Log for debugging but allow in development
+          if (dev) {
+            console.warn('CORS warning - origin not in allowed list:', origin);
+            callback(null, true);
+          } else {
+            callback(new Error('Not allowed by CORS'));
+          }
         }
       },
       methods: ['GET', 'POST'],
       credentials: true,
     },
-    transports: ['websocket', 'polling'],
+    transports: ['websocket', 'polling'], // CRITICAL: Allow both transports for upgrade
     allowEIO3: true,
     pingTimeout: 60000,
     pingInterval: 25000,
+    upgradeTimeout: 10000, // Allow time for upgrade from polling to websocket
   });
 
   // Export io instance for API routes
