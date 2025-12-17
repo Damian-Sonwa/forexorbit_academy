@@ -14,6 +14,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 // import Link from 'next/link'; // Reserved for future use
 import Header from '@/components/Header';
+import Sidebar from '@/components/Sidebar';
 import { useAuth } from '@/hooks/useAuth';
 import { useSocket } from '@/hooks/useSocket';
 import { apiClient } from '@/lib/api-client';
@@ -679,8 +680,11 @@ export default function InstructorDashboard() {
   return (
     <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
       <Header />
-
-      <main className="flex-1 px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+      {/* Persistent Sidebar Layout - Sidebar remains visible across all instructor dashboard pages */}
+      {/* Sidebar is NOT controlled by chat state, modal state, or consultation selection */}
+      <div className="flex flex-1 overflow-hidden pt-20 lg:pt-0">
+        <Sidebar />
+        <main className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
         {/* Header Section */}
         <div className="mb-3 sm:mb-4 flex-shrink-0">
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-1">Instructor Dashboard</h1>
