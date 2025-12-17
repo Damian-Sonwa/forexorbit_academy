@@ -70,21 +70,32 @@ export default function ExpertConsultation() {
     }
   }, [isAuthenticated, user]);
 
+  // Load consultation requests - REUSED from dashboard
   const loadRequests = async () => {
     try {
+      setLoadingConsultations(true);
       const data = await apiClient.get<ConsultationRequest[]>('/consultations/requests');
-      setRequests(data);
+      setRequests(data || []);
+      setConsultationRequests(data || []);
     } catch (error) {
-      console.error('Failed to load requests:', error);
+      console.error('Failed to load consultation requests:', error);
+      setRequests([]);
+      setConsultationRequests([]);
+    } finally {
+      setLoadingConsultations(false);
     }
   };
 
+  // Load active consultation sessions - REUSED from dashboard
   const loadSessions = async () => {
     try {
       const data = await apiClient.get<ConsultationSession[]>('/consultations/sessions');
-      setSessions(data);
+      setSessions(data || []);
+      setConsultationSessions(data || []);
     } catch (error) {
-      console.error('Failed to load sessions:', error);
+      console.error('Failed to load consultation sessions:', error);
+      setSessions([]);
+      setConsultationSessions([]);
     }
   };
 
@@ -100,53 +111,31 @@ export default function ExpertConsultation() {
     }
   };
 
-  const handleAcceptRequest = async (requestId: string) => {
+  // Handle accept/reject consultation request - REUSED from dashboard
+  const handleConsultationAction = async (requestId: string, action: 'accept' | 'reject') => {
+    if (action === 'reject' && !confirm('Are you sure you want to reject this consultation request?')) {
+      return;
+    }
+
+    setLoadingConsultations(true);
     setLoading(true);
     try {
-      const response = await apiClient.put<{ sessionId?: string; [key: string]: unknown }>(`/consultations/requests/${requestId}`, { action: 'accept' });
-      alert('Request accepted! Consultation session created.');
+      await apiClient.put(`/consultations/requests/${requestId}`, { action });
+      alert(action === 'accept' ? 'Request accepted! Consultation session created.' : 'Request rejected.');
       await loadRequests();
       await loadSessions();
-      // Navigate to chat if session was created
-      if (response.sessionId) {
-        router.push(`/consultations/chat/${response.sessionId}`);
-      }
-    } catch (error: unknown) {
-      let errorMessage = 'Failed to accept request';
-      if (error && typeof error === 'object' && 'response' in error) {
-        const apiError = error as { response?: { data?: { error?: string } }; message?: string };
-        errorMessage = apiError.response?.data?.error || apiError.message || errorMessage;
-      } else if (error instanceof Error) {
-        errorMessage = error.message || errorMessage;
-      }
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.error || error.message || `Failed to ${action} request`;
       alert(errorMessage);
     } finally {
+      setLoadingConsultations(false);
       setLoading(false);
     }
   };
 
-  const handleRejectRequest = async (requestId: string) => {
-    if (!confirm('Are you sure you want to reject this consultation request?')) {
-      return;
-    }
-    setLoading(true);
-    try {
-      await apiClient.put(`/consultations/requests/${requestId}`, { action: 'reject' });
-      alert('Request rejected');
-      await loadRequests();
-    } catch (error: unknown) {
-      let errorMessage = 'Failed to reject request';
-      if (error && typeof error === 'object' && 'response' in error) {
-        const apiError = error as { response?: { data?: { error?: string } }; message?: string };
-        errorMessage = apiError.response?.data?.error || apiError.message || errorMessage;
-      } else if (error instanceof Error) {
-        errorMessage = error.message || errorMessage;
-      }
-      alert(errorMessage);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Alias functions for compatibility
+  const handleAcceptRequest = (requestId: string) => handleConsultationAction(requestId, 'accept');
+  const handleRejectRequest = (requestId: string) => handleConsultationAction(requestId, 'reject');
 
   const handleToggleAvailability = async () => {
     setLoading(true);
@@ -244,99 +233,207 @@ export default function ExpertConsultation() {
               </button>
             </div>
 
-            {/* Pending Requests */}
+            {/* Pending Requests - REUSED from dashboard UI */}
             {view === 'requests' && (
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Pending Consultation Requests</h2>
-                {requests.filter(r => r.status === 'pending').length === 0 ? (
-                  <div className="text-center py-12">
-                    <svg className="w-16 h-16 mx-auto mb-4 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    <p className="text-gray-500 dark:text-gray-400">No pending requests at the moment</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {requests.filter(r => r.status === 'pending').map((request) => (
-                      <div key={request._id} className="p-6 border border-gray-200 dark:border-gray-700 rounded-lg hover:shadow-md transition-shadow">
-                        <div className="flex items-start justify-between mb-4">
-                          <div className="flex items-center space-x-3">
-                            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-white font-bold">
-                              {request.student?.name?.charAt(0).toUpperCase() || 'S'}
-                            </div>
-                            <div>
-                              <p className="font-semibold text-gray-900 dark:text-white">{request.student?.name || 'Student'}</p>
-                              <p className="text-sm text-gray-600 dark:text-gray-400">{request.student?.email}</p>
-                            </div>
-                          </div>
-                          <span className="px-3 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 rounded-full text-sm font-semibold">
-                            Pending
-                          </span>
-                        </div>
-                        <div className="mb-4">
-                          <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Topic: {request.topic}</p>
-                          <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Type: {request.consultationType.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}</p>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">{request.description}</p>
-                          <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
-                            Requested {formatDistanceToNow(new Date(request.createdAt), { addSuffix: true })}
-                          </p>
-                        </div>
-                        <div className="flex space-x-3">
-                          <button
-                            onClick={() => handleAcceptRequest(request._id)}
-                            disabled={loading}
-                            className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition-colors disabled:opacity-50"
-                          >
-                            Accept Request
-                          </button>
-                          <button
-                            onClick={() => handleRejectRequest(request._id)}
-                            disabled={loading}
-                            className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold transition-colors disabled:opacity-50"
-                          >
-                            Reject
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Active Sessions */}
-            {view === 'sessions' && (
               <div className="space-y-4">
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
-                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Active Consultation Sessions</h2>
-                  {sessions.filter(s => s.status === 'active').length === 0 ? (
-                    <div className="text-center py-12">
-                      <svg className="w-16 h-16 mx-auto mb-4 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                      </svg>
-                      <p className="text-gray-500 dark:text-gray-400">No active sessions</p>
+                {/* Consultation Requests Section - REUSED from dashboard */}
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
+                  <div className="flex items-center space-x-3 mb-4">
+                    <svg className="w-6 h-6 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                    </svg>
+                    <div>
+                      <h3 className="text-sm font-bold text-gray-900 dark:text-white">Consultation Requests</h3>
+                      <p className="text-xs text-gray-600 dark:text-gray-400">View and manage consultation requests from students</p>
+                    </div>
+                  </div>
+                  
+                  {loadingConsultations ? (
+                    <div className="text-center py-4">
+                      <p className="text-gray-600 dark:text-gray-400">Loading requests...</p>
+                    </div>
+                  ) : consultationRequests.length === 0 ? (
+                    <div className="text-center py-4">
+                      <p className="text-gray-600 dark:text-gray-400">No consultation requests at the moment</p>
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      {sessions.filter(s => s.status === 'active').map((session) => (
-                        <div key={session._id} className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-3">
-                              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-white font-bold">
-                                {session.student?.name?.charAt(0).toUpperCase() || 'S'}
+                      {consultationRequests.map((request) => (
+                        <div
+                          key={request._id}
+                          className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 sm:p-4 bg-gray-50 dark:bg-gray-900"
+                        >
+                          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                                  request.status === 'pending' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
+                                  request.status === 'accepted' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+                                  request.status === 'rejected' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' :
+                                  'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
+                                }`}>
+                                  {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+                                </span>
+                                <span className="text-xs text-gray-500 dark:text-gray-400">
+                                  {formatDistanceToNow(new Date(request.createdAt), { addSuffix: true })}
+                                </span>
                               </div>
-                              <div>
-                                <p className="font-semibold text-gray-900 dark:text-white">{session.student?.name || 'Student'}</p>
-                                <p className="text-sm text-gray-600 dark:text-gray-400">{session.topic}</p>
-                                <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                                  Started {formatDistanceToNow(new Date(session.startedAt), { addSuffix: true })} • {session.messageCount} messages
-                                </p>
+                              {request.student && (
+                                <div className="flex items-center gap-2 mb-2">
+                                  {request.student.profilePhoto && (
+                                    <img
+                                      src={request.student.profilePhoto}
+                                      alt={request.student.name}
+                                      className="w-8 h-8 rounded-full"
+                                    />
+                                  )}
+                                  <div>
+                                    <p className="text-sm font-semibold text-gray-900 dark:text-white">{request.student.name}</p>
+                                    <p className="text-xs text-gray-600 dark:text-gray-400">{request.student.email}</p>
+                                  </div>
+                                </div>
+                              )}
+                              <p className="text-sm font-semibold text-gray-900 dark:text-white mb-1">{request.topic}</p>
+                              <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">{request.description}</p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">
+                                Type: <span className="capitalize">{request.consultationType.replace('-', ' ')}</span>
+                              </p>
+                            </div>
+                            {request.status === 'pending' && (
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => handleConsultationAction(request._id, 'accept')}
+                                  disabled={loadingConsultations}
+                                  className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  Accept
+                                </button>
+                                <button
+                                  onClick={() => handleConsultationAction(request._id, 'reject')}
+                                  disabled={loadingConsultations}
+                                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  Reject
+                                </button>
                               </div>
+                            )}
+                            {request.status === 'accepted' && (
+                              <div className="flex gap-2 flex-wrap">
+                                <button
+                                  onClick={() => {
+                                    // Find session for this request
+                                    const session = consultationSessions.find((s: any) => s.requestId === request._id && s.status === 'active');
+                                    if (session) {
+                                      router.push(`/consultations/chat/${session._id}`);
+                                    } else {
+                                      // Load sessions to find the one for this request
+                                      apiClient.get<any[]>('/consultations/sessions').then((sessions) => {
+                                        const activeSession = sessions.find((s: any) => s.requestId === request._id && s.status === 'active');
+                                        if (activeSession) {
+                                          router.push(`/consultations/chat/${activeSession._id}`);
+                                        } else {
+                                          alert('Session not found. Please try again.');
+                                        }
+                                      });
+                                    }
+                                  }}
+                                  className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold text-sm transition-colors flex items-center gap-2"
+                                >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                                  </svg>
+                                  Live Chat
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    apiClient.get<any[]>('/consultations/sessions').then((sessions) => {
+                                      const activeSession = sessions.find((s: any) => s.requestId === request._id && s.status === 'active');
+                                      if (activeSession) {
+                                        router.push(`/consultations/chat/${activeSession._id}?call=voice`);
+                                      } else {
+                                        alert('Session not found. Please try again.');
+                                      }
+                                    });
+                                  }}
+                                  className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold text-sm transition-colors flex items-center gap-2"
+                                >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                                  </svg>
+                                  Voice Call
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    apiClient.get<any[]>('/consultations/sessions').then((sessions) => {
+                                      const activeSession = sessions.find((s: any) => s.requestId === request._id && s.status === 'active');
+                                      if (activeSession) {
+                                        router.push(`/consultations/chat/${activeSession._id}?call=video`);
+                                      } else {
+                                        alert('Session not found. Please try again.');
+                                      }
+                                    });
+                                  }}
+                                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-sm transition-colors flex items-center gap-2"
+                                >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                  </svg>
+                                  Video Call
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Active Consultation Sessions - REUSED from dashboard */}
+                {consultationSessions.filter((s: any) => s.status === 'active').length > 0 && (
+                  <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
+                    <div className="flex items-center space-x-3 mb-4">
+                      <svg className="w-6 h-6 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                      </svg>
+                      <div>
+                        <h3 className="text-sm font-bold text-gray-900 dark:text-white">Active Consultation Sessions</h3>
+                        <p className="text-xs text-gray-600 dark:text-gray-400">Communicate with students in real-time</p>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-3">
+                      {consultationSessions.filter((s: any) => s.status === 'active').map((session: any) => (
+                        <div
+                          key={session._id}
+                          className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 bg-gray-50 dark:bg-gray-900"
+                        >
+                          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                            <div className="flex-1">
+                              {session.student && (
+                                <div className="flex items-center gap-2 mb-2">
+                                  {session.student.profilePhoto && (
+                                    <img
+                                      src={session.student.profilePhoto}
+                                      alt={session.student.name}
+                                      className="w-8 h-8 rounded-full"
+                                    />
+                                  )}
+                                  <div>
+                                    <p className="text-sm font-semibold text-gray-900 dark:text-white">{session.student.name}</p>
+                                    <p className="text-xs text-gray-600 dark:text-gray-400">{session.student.email}</p>
+                                  </div>
+                                </div>
+                              )}
+                              <p className="text-sm font-semibold text-gray-900 dark:text-white mb-1">{session.topic}</p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">
+                                Started {formatDistanceToNow(new Date(session.startedAt), { addSuffix: true })} • {session.messageCount || 0} messages
+                              </p>
                             </div>
                             <div className="flex gap-2 flex-wrap">
                               <button
-                                onClick={() => handleJoinSession(session._id)}
-                                className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold transition-colors flex items-center gap-2"
+                                onClick={() => router.push(`/consultations/chat/${session._id}`)}
+                                className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold text-sm transition-colors flex items-center gap-2"
                               >
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
@@ -344,10 +441,8 @@ export default function ExpertConsultation() {
                                 Live Chat
                               </button>
                               <button
-                                onClick={() => {
-                                  router.push(`/consultations/chat/${session._id}?call=voice`);
-                                }}
-                                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition-colors flex items-center gap-2"
+                                onClick={() => router.push(`/consultations/chat/${session._id}?call=voice`)}
+                                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold text-sm transition-colors flex items-center gap-2"
                               >
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
@@ -355,10 +450,94 @@ export default function ExpertConsultation() {
                                 Voice Call
                               </button>
                               <button
-                                onClick={() => {
-                                  router.push(`/consultations/chat/${session._id}?call=video`);
-                                }}
-                                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors flex items-center gap-2"
+                                onClick={() => router.push(`/consultations/chat/${session._id}?call=video`)}
+                                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-sm transition-colors flex items-center gap-2"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                </svg>
+                                Video Call
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Active Sessions - REUSED from dashboard UI */}
+            {view === 'sessions' && (
+              <div className="space-y-4">
+                {/* Active Consultation Sessions - REUSED from dashboard */}
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
+                  <div className="flex items-center space-x-3 mb-4">
+                    <svg className="w-6 h-6 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                    </svg>
+                    <div>
+                      <h3 className="text-sm font-bold text-gray-900 dark:text-white">Active Consultation Sessions</h3>
+                      <p className="text-xs text-gray-600 dark:text-gray-400">Communicate with students in real-time</p>
+                    </div>
+                  </div>
+                  
+                  {consultationSessions.filter((s: any) => s.status === 'active').length === 0 ? (
+                    <div className="text-center py-4">
+                      <p className="text-gray-600 dark:text-gray-400">No active consultation sessions</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {consultationSessions.filter((s: any) => s.status === 'active').map((session: any) => (
+                        <div
+                          key={session._id}
+                          className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 bg-gray-50 dark:bg-gray-900"
+                        >
+                          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                            <div className="flex-1">
+                              {session.student && (
+                                <div className="flex items-center gap-2 mb-2">
+                                  {session.student.profilePhoto && (
+                                    <img
+                                      src={session.student.profilePhoto}
+                                      alt={session.student.name}
+                                      className="w-8 h-8 rounded-full"
+                                    />
+                                  )}
+                                  <div>
+                                    <p className="text-sm font-semibold text-gray-900 dark:text-white">{session.student.name}</p>
+                                    <p className="text-xs text-gray-600 dark:text-gray-400">{session.student.email}</p>
+                                  </div>
+                                </div>
+                              )}
+                              <p className="text-sm font-semibold text-gray-900 dark:text-white mb-1">{session.topic}</p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">
+                                Started {formatDistanceToNow(new Date(session.startedAt), { addSuffix: true })} • {session.messageCount || 0} messages
+                              </p>
+                            </div>
+                            <div className="flex gap-2 flex-wrap">
+                              <button
+                                onClick={() => router.push(`/consultations/chat/${session._id}`)}
+                                className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold text-sm transition-colors flex items-center gap-2"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                                </svg>
+                                Live Chat
+                              </button>
+                              <button
+                                onClick={() => router.push(`/consultations/chat/${session._id}?call=voice`)}
+                                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold text-sm transition-colors flex items-center gap-2"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                                </svg>
+                                Voice Call
+                              </button>
+                              <button
+                                onClick={() => router.push(`/consultations/chat/${session._id}?call=video`)}
+                                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-sm transition-colors flex items-center gap-2"
                               >
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
