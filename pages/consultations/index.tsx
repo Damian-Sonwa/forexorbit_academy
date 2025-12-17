@@ -75,6 +75,13 @@ export default function Consultations() {
       loadExperts();
       loadRequests();
       loadSessions();
+
+      // Track consultation viewed event in GA4
+      if (typeof window !== 'undefined' && window.gtag) {
+        window.gtag('event', 'consultation_viewed', {
+          event_category: 'consultations',
+        });
+      }
     }
   }, [isAuthenticated, user]);
 

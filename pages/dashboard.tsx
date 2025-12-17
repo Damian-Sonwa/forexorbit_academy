@@ -108,6 +108,15 @@ export default function Dashboard() {
       try {
         const classes = await apiClient.get<UpcomingClass[]>('/classes');
         setUpcomingClasses(classes || []);
+
+        // Track class event viewed in GA4 when classes are loaded
+        if (classes && classes.length > 0 && typeof window !== 'undefined' && window.gtag) {
+          window.gtag('event', 'class_event_viewed', {
+            event_category: 'classes',
+            event_label: 'dashboard',
+            value: classes.length,
+          });
+        }
       } catch (error) {
         console.error('Failed to fetch upcoming classes:', error);
         setUpcomingClasses([]);

@@ -628,6 +628,14 @@ export default function Community() {
       });
       
       console.log('Message sent successfully:', response);
+
+      // Track chat message sent event in GA4
+      if (typeof window !== 'undefined' && window.gtag) {
+        window.gtag('event', 'chat_message_sent', {
+          event_category: 'community',
+          room_id: selectedRoom._id.toString(),
+        });
+      }
       
       // Optimistically add message for sender immediately (before Socket.io event)
       if (response?.message) {
