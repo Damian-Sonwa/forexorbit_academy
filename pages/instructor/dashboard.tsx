@@ -137,6 +137,7 @@ export default function InstructorDashboard() {
 
   // Consultation requests state
   const [consultationRequests, setConsultationRequests] = useState<any[]>([]);
+  const [consultationSessions, setConsultationSessions] = useState<any[]>([]);
   const [loadingConsultations, setLoadingConsultations] = useState(false);
 
   useEffect(() => {
@@ -146,6 +147,7 @@ export default function InstructorDashboard() {
       loadNews();
       loadUpcomingClasses();
       loadConsultationRequests();
+      loadConsultationSessions();
     }
   }, [user, courses]);
 
@@ -160,6 +162,17 @@ export default function InstructorDashboard() {
       setConsultationRequests([]);
     } finally {
       setLoadingConsultations(false);
+    }
+  };
+
+  // Load active consultation sessions for instructor
+  const loadConsultationSessions = async () => {
+    try {
+      const data = await apiClient.get<any[]>('/consultations/sessions');
+      setConsultationSessions(data || []);
+    } catch (error) {
+      console.error('Failed to load consultation sessions:', error);
+      setConsultationSessions([]);
     }
   };
 
