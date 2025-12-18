@@ -14,8 +14,10 @@ import { formatDistanceToNow } from 'date-fns';
 import dynamic from 'next/dynamic';
 
 // Dynamically import AgoraCall to avoid SSR issues with Agora SDK
+// Use loading component to prevent any module evaluation during build
 const AgoraCall = dynamic(() => import('@/components/AgoraCall'), {
   ssr: false,
+  loading: () => <div className="p-4 text-center text-gray-600">Loading call...</div>,
 });
 
 interface ConsultationMessage {

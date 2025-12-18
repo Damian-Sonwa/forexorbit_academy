@@ -5,7 +5,14 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-import AgoraRTC, { ILocalAudioTrack, ILocalVideoTrack, IAgoraRTCClient, IRemoteAudioTrack, IRemoteVideoTrack } from 'agora-rtc-sdk-ng';
+
+// Import Agora types only (not the SDK itself) to avoid SSR issues
+// The SDK will be dynamically imported only on client side
+type IAgoraRTCClient = any;
+type ILocalAudioTrack = any;
+type ILocalVideoTrack = any;
+type IRemoteAudioTrack = any;
+type IRemoteVideoTrack = any;
 
 // Define remote user type based on Agora SDK structure
 // The user object from user-published event has uid, audioTrack, and videoTrack properties
@@ -31,6 +38,7 @@ export default function AgoraCall({ appId, channel, token, uid, callType, onCall
   const [isVideoOff, setIsVideoOff] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
   
   const clientRef = useRef<IAgoraRTCClient | null>(null);
   const localAudioTrackRef = useRef<ILocalAudioTrack | null>(null);
@@ -38,11 +46,21 @@ export default function AgoraCall({ appId, channel, token, uid, callType, onCall
   const localVideoContainerRef = useRef<HTMLDivElement>(null);
   const remoteVideoContainerRef = useRef<HTMLDivElement>(null);
 
+  // Ensure component only runs on client
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    // Don't initialize if not mounted (SSR guard)
+    if (!mounted || typeof window === 'undefined') return;
     const init = async () => {
       try {
         setLoading(true);
         setError(null);
+
+        // Dynamically import Agora SDK only on client side
+        const AgoraRTC = (await import('agora-rtc-sdk-ng')).default;
 
         // Create Agora client
         const client = AgoraRTC.createClient({ mode: 'rtc', codec: 'vp8' });
@@ -185,6 +203,19 @@ export default function AgoraCall({ appId, channel, token, uid, callType, onCall
       onCallEnd();
     }
   };
+
+  // Don't render anything during SSR - prevent Agora SDK from being evaluated
+  if (!mounted || typeof window === 'undefined') {
+    return (
+      <div className="bg-white dark:bg-gray-800 rounded-lg p-4 mb-4 border border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-center py-8">
+          <div className="text-center">
+            <p className="text-sm text-gray-600 dark:text-gray-400">Loading call...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
