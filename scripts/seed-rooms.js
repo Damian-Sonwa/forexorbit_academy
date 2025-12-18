@@ -6,11 +6,17 @@
 
 const { MongoClient } = require('mongodb');
 
-// Use environment variable or default
+// Use environment variable (required)
 const MONGO_URI = process.env.MONGO_URI;
 if (!MONGO_URI) {
-  console.error('❌ MONGO_URI not defined');
-  process.exit(1);
+  console.warn('⚠ MONGO_URI not defined - skipping room seeding');
+  // Return a no-op function instead of exiting
+  module.exports = { seedRooms: async () => { console.log('Skipping room seeding - MONGO_URI not set'); } };
+  // Exit early if running as script
+  if (require.main === module) {
+    process.exit(0);
+  }
+  return;
 }
 
 async function seedRooms() {

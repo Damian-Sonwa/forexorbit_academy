@@ -49,12 +49,17 @@ app.prepare().then(async () => {
   console.log('✓ Next.js app prepared');
   
   // Seed community rooms on server start (non-blocking)
-  try {
-    const { seedRooms } = require('./scripts/seed-rooms');
-    await seedRooms();
-    console.log('✓ Community rooms seeded');
-  } catch (error) {
-    console.warn('⚠ Failed to seed rooms (non-critical):', error.message);
+  // Only seed if MONGO_URI is available
+  if (process.env.MONGO_URI && (process.env.MONGO_URI.startsWith('mongodb://') || process.env.MONGO_URI.startsWith('mongodb+srv://'))) {
+    try {
+      const { seedRooms } = require('./scripts/seed-rooms');
+      await seedRooms();
+      console.log('✓ Community rooms seeded');
+    } catch (error) {
+      console.warn('⚠ Failed to seed rooms (non-critical):', error.message);
+    }
+  } else {
+    console.warn('⚠ Skipping room seeding - MONGO_URI not configured');
   }
   const server = createServer(async (req, res) => {
     try {

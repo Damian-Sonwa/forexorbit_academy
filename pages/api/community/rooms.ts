@@ -45,9 +45,12 @@ async function getRooms(req: AuthRequest, res: NextApiResponse) {
     } else {
       userLevel = (user?.learningLevel as 'beginner' | 'intermediate' | 'advanced') || 'beginner';
       // Check and update level if eligible (async, doesn't block) - wrap in try-catch to prevent errors
-      updateLearningLevelIfEligible(req.user!.userId).catch((err) => {
-        console.error('Error updating learning level (non-blocking):', err);
-      });
+      // Only call if function exists (defensive check)
+      if (typeof updateLearningLevelIfEligible === 'function') {
+        updateLearningLevelIfEligible(req.user!.userId).catch((err) => {
+          console.error('Error updating learning level (non-blocking):', err);
+        });
+      }
     }
 
     // Ensure three community rooms exist and get them
