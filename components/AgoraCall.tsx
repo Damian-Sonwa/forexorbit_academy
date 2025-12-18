@@ -106,8 +106,14 @@ export default function AgoraCall({ appId, channel, token, uid, callType, onCall
           setRemoteUsers((prev) => prev.filter((u) => u.uid !== user.uid));
         });
 
-        // Join channel
-        await client.join(appId, channel, token || null, uid);
+        // CRITICAL: Validate token before joining
+        if (!token) {
+          throw new Error('Agora token is required');
+        }
+
+        // Join channel with token
+        await client.join(appId, channel, token, uid);
+        console.log('Agora client joined channel:', channel);
 
         // Create local tracks based on call type
         if (callType === 'video') {

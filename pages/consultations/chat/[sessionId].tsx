@@ -201,8 +201,20 @@ export default function ConsultationChat() {
 
   // Start Agora call - Replaces broken WebRTC
   const handleStartAgoraCall = async (callType: 'voice' | 'video') => {
+    // CRITICAL: Only allow calls when socket is connected and session is active
+    if (!socket || !socket.connected) {
+      alert('Please wait for connection to be established before starting a call.');
+      return;
+    }
+
     if (!sessionId || typeof sessionId !== 'string' || !user || session?.status !== 'active') {
       alert('Consultation must be active to start a call');
+      return;
+    }
+
+    // Check if Agora is configured
+    if (!process.env.NEXT_PUBLIC_AGORA_APP_ID) {
+      alert('Agora is not configured. Please contact support.');
       return;
     }
 
@@ -210,24 +222,27 @@ export default function ConsultationChat() {
       setLoadingAgoraToken(true);
       setAgoraCallType(callType);
 
-      // Generate Agora token
-      const response = await apiClient.post<{
+      // Generate Agora token using GET request (as per requirements)
+      const response = await apiClient.get<{
         token: string;
         appId: string;
         channel: string;
         uid: string | number;
-      }>('/consultations/agora-token', {
-        sessionId,
-        uid: user.id || Date.now(), // Use user ID or timestamp as UID
-      });
+      }>(`/consultations/agora-token?channel=${sessionId}`);
+
+      if (!response.token || !response.appId || !response.channel) {
+        throw new Error('Invalid token response from server');
+      }
 
       setAgoraToken(response.token);
       setAgoraAppId(response.appId);
       setAgoraChannel(response.channel);
       setLoadingAgoraToken(false);
+      console.log('Agora call initialized:', { appId: response.appId, channel: response.channel });
     } catch (error: any) {
       console.error('Error starting Agora call:', error);
-      alert(error.response?.data?.error || 'Failed to start call. Please try again.');
+      const errorMessage = error.response?.data?.error || error.message || 'Failed to start call. Please try again.';
+      alert(errorMessage);
       setAgoraCallType(null);
       setLoadingAgoraToken(false);
     }
@@ -286,7 +301,8 @@ export default function ConsultationChat() {
               </div>
               <div className="flex items-center gap-2">
                 {/* Agora Call Controls - Replaces broken WebRTC buttons */}
-                {session.status === 'active' && (
+                {/* CRITICAL: Only show buttons when socket is connected and Agora is configured */}
+                {session.status === 'active' && socket && socket.connected && process.env.NEXT_PUBLIC_AGORA_APP_ID && (
                   <>
                     {!agoraCallType && (
                       <>
@@ -294,7 +310,7 @@ export default function ConsultationChat() {
                           onClick={() => handleStartAgoraCall('voice')}
                           disabled={loadingAgoraToken}
                           className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                          title="Start voice call"
+                          title={loadingAgoraToken ? 'Initializing call...' : 'Start voice call'}
                         >
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
@@ -305,7 +321,7 @@ export default function ConsultationChat() {
                           onClick={() => handleStartAgoraCall('video')}
                           disabled={loadingAgoraToken}
                           className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                          title="Start video call"
+                          title={loadingAgoraToken ? 'Initializing call...' : 'Start video call'}
                         >
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
@@ -315,6 +331,12 @@ export default function ConsultationChat() {
                       </>
                     )}
                   </>
+                )}
+                {/* Show message if Agora is not configured */}
+                {session.status === 'active' && !process.env.NEXT_PUBLIC_AGORA_APP_ID && (
+                  <p className="text-sm text-gray-500 dark:text-gray-400 italic">
+                    Agora not configured
+                  </p>
                 )}
               </div>
             </div>
