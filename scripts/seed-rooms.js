@@ -6,20 +6,14 @@
 
 const { MongoClient } = require('mongodb');
 
-// Use environment variable (required)
-const MONGO_URI = process.env.MONGO_URI;
-if (!MONGO_URI) {
-  console.warn('⚠ MONGO_URI not defined - skipping room seeding');
-  // Return a no-op function instead of exiting
-  module.exports = { seedRooms: async () => { console.log('Skipping room seeding - MONGO_URI not set'); } };
-  // Exit early if running as script
-  if (require.main === module) {
-    process.exit(0);
-  }
-  return;
-}
-
 async function seedRooms() {
+  // Validate MONGO_URI before attempting connection
+  const MONGO_URI = process.env.MONGO_URI;
+  if (!MONGO_URI || (!MONGO_URI.startsWith('mongodb://') && !MONGO_URI.startsWith('mongodb+srv://'))) {
+    console.warn('⚠ Invalid or missing MONGO_URI - skipping room seeding');
+    return;
+  }
+  
   const client = new MongoClient(MONGO_URI);
   
   try {
