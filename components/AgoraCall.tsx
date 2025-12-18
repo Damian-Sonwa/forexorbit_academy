@@ -177,53 +177,86 @@ export default function AgoraCall({ appId, channel, token, uid, callType, onCall
 
         setJoined(true);
         setLoading(false);
-        console.log('AgoraCall: Initialization complete');
+        console.log('AgoraCall: Initialization complete - call is active');
       } catch (err: any) {
         console.error('AgoraCall: Initialization error:', err);
         console.error('AgoraCall: Error details:', {
           name: err.name,
           message: err.message,
           code: err.code,
-          stack: err.stack,
+          stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
         });
-        setError(err.message || 'Failed to initialize call. Please check your microphone/camera permissions.');
+        
+        // Provide user-friendly error messages
+        let errorMessage = 'Failed to initialize call. ';
+        if (err.name === 'NotAllowedError' || err.message?.includes('permission')) {
+          errorMessage += 'Please allow microphone/camera access and try again.';
+        } else if (err.message?.includes('token') || err.code === 'DYNAMIC_KEY_TIMEOUT') {
+          errorMessage += 'Token expired or invalid. Please try starting the call again.';
+        } else if (err.message?.includes('network') || err.code === 'NETWORK_ERROR') {
+          errorMessage += 'Network error. Please check your connection and try again.';
+        } else {
+          errorMessage += err.message || 'Please try again.';
+        }
+        
+        setError(errorMessage);
         setLoading(false);
+        
+        // Clean up on error
+        try {
+          if (clientRef.current) {
+            await clientRef.current.leave();
+            clientRef.current = null;
+          }
+        } catch (cleanupErr) {
+          console.error('AgoraCall: Cleanup error:', cleanupErr);
+        }
       }
     };
 
     init();
-
-    // Cleanup
+    
+    // Cleanup function - only runs when component unmounts or props change
     return () => {
       const cleanup = async () => {
         try {
+          console.log('AgoraCall: Cleaning up...');
+          
           // Stop and close local tracks
           if (localAudioTrackRef.current) {
             localAudioTrackRef.current.stop();
             localAudioTrackRef.current.close();
+            localAudioTrackRef.current = null;
           }
           if (localVideoTrackRef.current) {
             localVideoTrackRef.current.stop();
             localVideoTrackRef.current.close();
+            localVideoTrackRef.current = null;
           }
 
           // Leave channel
           if (clientRef.current) {
             await clientRef.current.leave();
+            clientRef.current = null;
           }
 
           // Clear remote video containers
           if (remoteVideoContainerRef.current) {
             remoteVideoContainerRef.current.innerHTML = '';
           }
+          
+          // Reset state
+          setJoined(false);
+          setRemoteUsers([]);
+          console.log('AgoraCall: Cleanup complete');
         } catch (err) {
-          console.error('Cleanup error:', err);
+          console.error('AgoraCall: Cleanup error:', err);
         }
       };
 
       cleanup();
     };
-  }, [appId, channel, token, uid, callType]);
+  }, [mounted, appId, channel, token, uid, callType]); // Only re-initialize if these change
 
   const toggleMute = async () => {
     if (localAudioTrackRef.current) {
