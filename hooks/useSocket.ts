@@ -6,7 +6,31 @@
 import { useEffect, useRef, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 
-const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3000';
+// Get socket URL - use production URL by default, fallback to localhost only in development
+const getSocketUrl = (): string => {
+  // If explicitly set via environment variable, use it
+  if (process.env.NEXT_PUBLIC_SOCKET_URL) {
+    return process.env.NEXT_PUBLIC_SOCKET_URL;
+  }
+  
+  // Client-side: detect current origin
+  if (typeof window !== 'undefined') {
+    const origin = window.location.origin;
+    // If we're on the production domain, use it
+    if (origin.includes('forexorbit-academy.onrender.com') || origin.includes('vercel.app')) {
+      return origin;
+    }
+    // If we're on localhost, use localhost
+    if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
+      return 'http://localhost:3000';
+    }
+    // Default to production URL for any other case
+    return 'https://forexorbit-academy.onrender.com';
+  }
+  
+  // Server-side: default to production URL (never use localhost on server)
+  return 'https://forexorbit-academy.onrender.com';
+};
 
 export function useSocket() {
   const [socket, setSocket] = useState<Socket | null>(null);
@@ -30,9 +54,13 @@ export function useSocket() {
 
     // Wait for page to be fully loaded before connecting (helps with Firefox)
     const connectSocket = () => {
+      // Get the correct socket URL (may change based on current origin)
+      const socketUrl = getSocketUrl();
+      console.log('Connecting to socket server:', socketUrl);
+      
       // Initialize socket connection with production-ready configuration
       // Force websocket + polling fallback for Render/Vercel compatibility
-      newSocket = io(SOCKET_URL, {
+      newSocket = io(socketUrl, {
         path: '/api/socket',
         auth: { token },
         transports: ['websocket', 'polling'], // Allow upgrade from polling → websocket
