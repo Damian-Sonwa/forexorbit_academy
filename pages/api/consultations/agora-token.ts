@@ -36,11 +36,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     if (!AGORA_APP_CERTIFICATE) {
-      console.error('Agora App Certificate not configured. Set AGORA_APP_CERTIFICATE environment variable.');
+      console.error('Agora App Certificate not configured on server. Set AGORA_APP_CERTIFICATE environment variable on Render.');
       return res.status(500).json({ 
-        error: 'Agora App Certificate not configured. Please set AGORA_APP_CERTIFICATE environment variable in Vercel.',
-        missing: 'AGORA_APP_CERTIFICATE',
-        help: 'Get your App Certificate from Agora Console: https://console.agora.io/'
+        error: 'Agora token service unavailable. Please contact support.',
       });
     }
 
