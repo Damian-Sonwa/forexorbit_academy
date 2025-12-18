@@ -26,13 +26,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ error: 'Channel is required' });
     }
 
-    if (!AGORA_APP_ID || !AGORA_APP_CERTIFICATE) {
-      console.error('Agora credentials not configured:', {
-        hasAppId: !!AGORA_APP_ID,
-        hasCertificate: !!AGORA_APP_CERTIFICATE,
-      });
+    // Validate Agora credentials
+    if (!AGORA_APP_ID) {
+      console.error('Agora App ID not configured. Set NEXT_PUBLIC_AGORA_APP_ID environment variable.');
       return res.status(500).json({ 
-        error: 'Agora service not configured. Please set NEXT_PUBLIC_AGORA_APP_ID and AGORA_APP_CERTIFICATE environment variables.' 
+        error: 'Agora App ID not configured. Please set NEXT_PUBLIC_AGORA_APP_ID environment variable in Vercel.',
+        missing: 'NEXT_PUBLIC_AGORA_APP_ID'
+      });
+    }
+
+    if (!AGORA_APP_CERTIFICATE) {
+      console.error('Agora App Certificate not configured. Set AGORA_APP_CERTIFICATE environment variable.');
+      return res.status(500).json({ 
+        error: 'Agora App Certificate not configured. Please set AGORA_APP_CERTIFICATE environment variable in Vercel.',
+        missing: 'AGORA_APP_CERTIFICATE',
+        help: 'Get your App Certificate from Agora Console: https://console.agora.io/'
       });
     }
 
