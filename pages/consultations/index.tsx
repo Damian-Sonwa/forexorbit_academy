@@ -51,7 +51,7 @@ interface ConsultationSession {
 export default function Consultations() {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const router = useRouter();
-  const { socket, socketReady } = useSocket();
+  const { socket, connected } = useSocket();
   const [view, setView] = useState<'request' | 'history' | 'chat'>('request');
   const [experts, setExperts] = useState<Expert[]>([]);
   const [requests, setRequests] = useState<ConsultationRequest[]>([]);
@@ -78,8 +78,8 @@ export default function Consultations() {
       loadSessions();
 
       // Track consultation viewed event in GA4
-      if (typeof window !== 'undefined' && window.gtag) {
-        window.gtag('event', 'consultation_viewed', {
+      if (typeof window !== 'undefined' && (window as any).gtag) {
+        (window as any).gtag('event', 'consultation_viewed', {
           event_category: 'consultations',
         });
       }
@@ -88,7 +88,7 @@ export default function Consultations() {
 
   // Listen for real-time status updates - CRITICAL for instant UI updates
   useEffect(() => {
-    if (!socket || !socketReady) return;
+    if (!socket || !connected) return;
 
     // Listen for consultation status updates (when instructor approves/rejects)
     const handleStatusUpdate = (data: { requestId: string; sessionId: string; status: string }) => {
@@ -126,7 +126,7 @@ export default function Consultations() {
       socket.off('join_consultation_room', handleJoinRoom);
       socket.off('consultationAccepted', handleStatusUpdate);
     };
-  }, [socket, socketReady]);
+  }, [socket, connected]);
 
   const loadExperts = async () => {
     try {
@@ -450,28 +450,7 @@ export default function Consultations() {
                                     </svg>
                                     Live Chat
                                   </button>
-                                  <button
-                                    onClick={() => {
-                                      router.push(`/consultations/chat/${session._id}?call=voice`);
-                                    }}
-                                    className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition-colors flex items-center gap-2"
-                                  >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                                    </svg>
-                                    Voice Call
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      router.push(`/consultations/chat/${session._id}?call=video`);
-                                    }}
-                                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors flex items-center gap-2"
-                                  >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                                    </svg>
-                                    Video Call
-                                  </button>
+                                  {/* Voice/Video Call buttons removed - Agora SDK handles calls in chat page */}
                                 </div>
                               </div>
                             )}
@@ -512,28 +491,7 @@ export default function Consultations() {
                                 </svg>
                                 Live Chat
                               </button>
-                              <button
-                                onClick={() => {
-                                  router.push(`/consultations/chat/${session._id}?call=voice`);
-                                }}
-                                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition-colors flex items-center gap-2"
-                              >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                                </svg>
-                                Voice Call
-                              </button>
-                              <button
-                                onClick={() => {
-                                  router.push(`/consultations/chat/${session._id}?call=video`);
-                                }}
-                                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors flex items-center gap-2"
-                              >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                                </svg>
-                                Video Call
-                              </button>
+                              {/* Voice/Video Call buttons removed - Agora SDK handles calls in chat page */}
                             </div>
                           </div>
                         </div>

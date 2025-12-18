@@ -4,7 +4,8 @@
  * This is a non-intrusive system that doesn't modify the database
  */
 
-import { DEMO_ACCESS_DURATION } from './demo-unlock-config';
+// demo-unlock-config.ts was removed - using default duration
+const DEMO_ACCESS_DURATION = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
 
 export interface DemoAccess {
   lessonId: string;

@@ -27,11 +27,12 @@ export function useSocket() {
 
     // Wait for page to be fully loaded before connecting (helps with Firefox)
     const connectSocket = () => {
-      // Initialize socket connection with improved configuration
+      // Initialize socket connection with production-ready configuration
+      // Force websocket + polling fallback for Render/Vercel compatibility
       newSocket = io(SOCKET_URL, {
         path: '/api/socket',
         auth: { token },
-        transports: ['websocket', 'polling'],
+        transports: ['websocket', 'polling'], // Allow upgrade from polling → websocket
         reconnection: true,
         reconnectionDelay: 1000,
         reconnectionDelayMax: 5000,
@@ -39,6 +40,7 @@ export function useSocket() {
         timeout: 20000,
         forceNew: false,
         upgrade: true,
+        withCredentials: true, // Required for CORS with credentials
       });
 
       newSocket.on('connect', () => {

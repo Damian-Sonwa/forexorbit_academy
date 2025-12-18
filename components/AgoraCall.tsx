@@ -5,7 +5,15 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-import AgoraRTC, { ILocalAudioTrack, ILocalVideoTrack, IAgoraRTCUser, IAgoraRTCClient } from 'agora-rtc-sdk-ng';
+import AgoraRTC, { ILocalAudioTrack, ILocalVideoTrack, IAgoraRTCClient, IRemoteAudioTrack, IRemoteVideoTrack } from 'agora-rtc-sdk-ng';
+
+// Define remote user type based on Agora SDK structure
+// The user object from user-published event has uid, audioTrack, and videoTrack properties
+type RemoteUser = {
+  uid: string | number;
+  audioTrack?: IRemoteAudioTrack;
+  videoTrack?: IRemoteVideoTrack;
+};
 
 interface AgoraCallProps {
   appId: string;
@@ -18,7 +26,7 @@ interface AgoraCallProps {
 
 export default function AgoraCall({ appId, channel, token, uid, callType, onCallEnd }: AgoraCallProps) {
   const [joined, setJoined] = useState(false);
-  const [remoteUsers, setRemoteUsers] = useState<IAgoraRTCUser[]>([]);
+  const [remoteUsers, setRemoteUsers] = useState<RemoteUser[]>([]);
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -65,7 +73,7 @@ export default function AgoraCall({ appId, channel, token, uid, callType, onCall
           
           setRemoteUsers((prev) => {
             if (prev.find((u) => u.uid === user.uid)) return prev;
-            return [...prev, user];
+            return [...prev, { uid: user.uid, audioTrack: user.audioTrack, videoTrack: user.videoTrack }];
           });
         });
 

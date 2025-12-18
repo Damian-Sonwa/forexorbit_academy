@@ -58,7 +58,7 @@ interface NewsItem {
 export default function Community() {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const router = useRouter();
-  const { socket, connected, socketReady } = useSocket();
+  const { socket, connected } = useSocket();
   const [rooms, setRooms] = useState<Room[]>([]);
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [showRoomSelection, setShowRoomSelection] = useState(true);
@@ -142,6 +142,12 @@ export default function Community() {
   // Same room as admin/instructor - no placeholder rooms
   useEffect(() => {
     if (!socket || !user) return;
+    
+    // CRITICAL: Wait for socket connection before joining room
+    if (!socket.connected) {
+      console.log('Socket not connected, waiting...');
+      return;
+    }
 
     // For students, always join "community_global" room immediately
     // This ensures students use the same room as admin/instructor
@@ -150,7 +156,7 @@ export default function Community() {
       console.log('Socket connected:', socket.connected);
       socket.emit('joinRoom', { roomId: 'community_global' });
     }
-  }, [socket, user]);
+  }, [socket, user, connected]);
 
   useEffect(() => {
     if (selectedRoom) {
@@ -169,7 +175,7 @@ export default function Community() {
             console.log('Student: Replaced placeholder room with real Beginner room');
           } else {
             console.error('Student: No real Beginner room found');
-            return;
+        return;
           }
         } else {
           // Ensure we're using Beginner room for students
@@ -588,7 +594,20 @@ export default function Community() {
 
     const handleRoomJoined = (data: { roomId: string }) => {
       console.log('Room joined confirmed:', data.roomId);
-      // Room is ready, can send messages
+      
+      // CRITICAL: Remove placeholder room logic after successful join
+      // For students, if selectedRoom is a placeholder, replace it with real room
+      if (user?.role === 'student' && selectedRoom) {
+        const roomIdStr = selectedRoom._id?.toString() || selectedRoom._id;
+        if (typeof roomIdStr === 'string' && roomIdStr.startsWith('placeholder-')) {
+          // Find real Beginner room
+          const beginnerRoom = rooms.find(r => r.name === 'Beginner' && !r._id?.toString().startsWith('placeholder-'));
+          if (beginnerRoom) {
+            setSelectedRoom(beginnerRoom);
+            console.log('Student: Replaced placeholder room with real Beginner room after join confirmation');
+          }
+        }
+      }
     };
 
     socket.on('room_joined', handleRoomJoined);
@@ -596,14 +615,14 @@ export default function Community() {
     return () => {
       socket.off('room_joined', handleRoomJoined);
     };
-  }, [socket]);
+  }, [socket, user, selectedRoom, rooms]);
 
   const joinRoom = (roomId: string) => {
     joinRoomSafely(roomId);
   };
 
   const leaveRoom = (roomId: string) => {
-    if (socket && socketReady) {
+    if (socket && connected) {
       let roomIdStr = roomId?.toString() || roomId;
       // CRITICAL FIX: For students, replace placeholder with "community_global"
       if (user?.role === 'student' && typeof roomIdStr === 'string' && roomIdStr.startsWith('placeholder-')) {
@@ -660,9 +679,24 @@ export default function Community() {
       return;
     }
     
-    // Messages can be sent via HTTP POST even if WebSocket is not connected
-    // WebSocket is only needed for real-time updates, not for sending messages
-    // Room is created automatically when first user joins, no need to wait
+    // CRITICAL: For students, wait for socket connection before allowing messages
+    if (user?.role === 'student' && (!socket || !connected)) {
+      setToastMessage('Connecting to chat... Please wait.');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+      return;
+    }
+    
+    // CRITICAL: Ensure roomId is confirmed from server (not placeholder)
+    if (user?.role === 'student') {
+      const roomIdStr = selectedRoom._id?.toString() || selectedRoom._id;
+      if (typeof roomIdStr === 'string' && roomIdStr.startsWith('placeholder-')) {
+        setToastMessage('Please wait for room to be ready.');
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 3000);
+        return;
+      }
+    }
 
     // CRITICAL FIX: Removed blocking logic for locked rooms
     // Room access is controlled at API level, not UI level
@@ -700,12 +734,13 @@ export default function Community() {
       console.log('Message sent successfully:', response);
 
       // Track chat message sent event in GA4
-      if (typeof window !== 'undefined' && window.gtag) {
-        window.gtag('event', 'chat_message_sent', {
-          event_category: 'community',
-          room_id: selectedRoom._id.toString(),
-        });
-      }
+      // Google Analytics tracking removed (gtag.ts deleted)
+      // if (typeof window !== 'undefined' && window.gtag) {
+      //   window.gtag('event', 'chat_message_sent', {
+      //     event_category: 'community',
+      //     room_id: selectedRoom._id.toString(),
+      //   });
+      // }
       
       // Optimistically add message for sender immediately (before Socket.io event)
       if (response?.message) {
@@ -1488,8 +1523,8 @@ export default function Community() {
                             } else {
                               setSelectedRoom(room); // Fallback if no Beginner room found
                             }
-                          } else {
-                            setSelectedRoom(room);
+                        } else {
+                          setSelectedRoom(room);
                           }
                         }
                       }}

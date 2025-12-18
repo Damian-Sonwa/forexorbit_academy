@@ -53,7 +53,7 @@ export default function ConsultationChat() {
   const router = useRouter();
   const { sessionId } = router.query;
   const { user, isAuthenticated, loading: authLoading } = useAuth();
-  const { socket, connected, socketReady } = useSocket();
+  const { socket, connected } = useSocket();
   const [session, setSession] = useState<ConsultationSession | null>(null);
   const [messages, setMessages] = useState<ConsultationMessage[]>([]);
   const [input, setInput] = useState('');
@@ -198,7 +198,7 @@ export default function ConsultationChat() {
         uid: string | number;
       }>('/consultations/agora-token', {
         sessionId,
-        uid: user.id || user._id || Date.now(), // Use user ID or timestamp as UID
+        uid: user.id || Date.now(), // Use user ID or timestamp as UID
       });
 
       setAgoraToken(response.token);
@@ -307,7 +307,7 @@ export default function ConsultationChat() {
                 appId={agoraAppId}
                 channel={agoraChannel}
                 token={agoraToken}
-                uid={user?.id || user?._id || Date.now()}
+                uid={user?.id || Date.now()}
                 callType={agoraCallType}
                 onCallEnd={handleEndAgoraCall}
               />
