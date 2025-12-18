@@ -159,61 +159,24 @@ async function getRooms(req: AuthRequest, res: NextApiResponse) {
     );
 
     // Ensure we always return exactly 3 rooms
+    // If rooms are missing, log error but don't create placeholders
+    // Rooms should be seeded via seed script
     if (roomsWithLastMessage.length < 3) {
-      console.warn(`Only ${roomsWithLastMessage.length} rooms returned, expected 3`);
-      // Add missing rooms as placeholders
-      const roomNames = ['Beginner', 'Intermediate', 'Advanced'];
-      const descriptions = {
-        'Beginner': 'Perfect for newcomers learning basic concepts, market introductions, and simple analysis.',
-        'Intermediate': 'For mid-level traders sharing strategies, chart analysis, and trading setups.',
-        'Advanced': 'For experienced traders discussing deep technical analysis, macro news, and advanced strategies.',
-      };
-      
-      for (const roomName of roomNames) {
-        if (!roomsWithLastMessage.find((r) => r.name === roomName)) {
-          roomsWithLastMessage.push({
-            _id: `placeholder-${roomName}`,
-            name: roomName,
-            description: descriptions[roomName as keyof typeof descriptions],
-            type: 'global',
-            participants: [],
-            avatar: null,
-            lastMessage: null,
-            unreadCount: 0,
-            isLocked: false,
-          });
-        }
-      }
-      // Sort to ensure consistent order
-      roomsWithLastMessage.sort((a, b) => {
-        const order = ['Beginner', 'Intermediate', 'Advanced'];
-        return order.indexOf(a.name) - order.indexOf(b.name);
-      });
+      console.error(`Only ${roomsWithLastMessage.length} rooms returned, expected 3. Please run seed script to create rooms.`);
+      // Don't create placeholders - return what we have
+      // This will force the frontend to show an error or retry
     }
 
     res.json(roomsWithLastMessage);
   } catch (error: any) {
     console.error('Get rooms error:', error);
     console.error('Error stack:', error.stack);
-    // Return placeholder rooms instead of empty array to prevent blank page
-    const roomNames = ['Beginner', 'Intermediate', 'Advanced'];
-    const descriptions = {
-      'Beginner': 'Perfect for newcomers learning basic concepts, market introductions, and simple analysis.',
-      'Intermediate': 'For mid-level traders sharing strategies, chart analysis, and trading setups.',
-      'Advanced': 'For experienced traders discussing deep technical analysis, macro news, and advanced strategies.',
-    };
-    const placeholderRooms = roomNames.map((name) => ({
-      _id: `placeholder-${name}`,
-      name,
-      description: descriptions[name as keyof typeof descriptions],
-      type: 'global' as const,
-      participants: [],
-      avatar: null,
-      lastMessage: null,
-      unreadCount: 0,
-      isLocked: false,
-    }));
-    res.status(200).json(placeholderRooms);
+    // Don't return placeholder rooms - return error instead
+    // This forces proper error handling on frontend
+    res.status(500).json({ 
+      error: 'Failed to load rooms. Please ensure rooms are seeded in the database.',
+      details: error.message 
+    });
   }
 }
 

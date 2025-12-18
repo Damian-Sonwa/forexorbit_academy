@@ -85,6 +85,7 @@ export default function Community() {
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [showNewsModal, setShowNewsModal] = useState(false);
+  const [roomConfirmed, setRoomConfirmed] = useState(false); // Track if room join is confirmed
   const [editingNews, setEditingNews] = useState<any>(null);
   const [newsEditForm, setNewsEditForm] = useState({
     title: '',
@@ -201,6 +202,7 @@ export default function Community() {
       setShowRoomSelection(false);
       setPage(1);
       setHasMoreMessages(true);
+      setRoomConfirmed(false); // Reset confirmation when switching rooms
       // Clear previous messages and load messages for this specific room
       setMessages([]);
       // Load messages from the selected room (for display)
@@ -592,8 +594,17 @@ export default function Community() {
   useEffect(() => {
     if (!socket) return;
 
-    const handleRoomJoined = (data: { roomId: string }) => {
-      console.log('Room joined confirmed:', data.roomId);
+    const handleRoomJoined = (data: { roomId: string; roomName?: string }) => {
+      console.log('Room joined confirmed:', data.roomId, data.roomName);
+      
+      // Mark room as confirmed - allow sending messages now
+      if (selectedRoom) {
+        const selectedRoomId = selectedRoom._id?.toString() || selectedRoom._id;
+        if (data.roomId === selectedRoomId || data.roomId === selectedRoom._id?.toString()) {
+          setRoomConfirmed(true);
+          console.log('Room confirmed, messages can now be sent');
+        }
+      }
       
       // CRITICAL: Remove placeholder room logic after successful join
       // For students, if selectedRoom is a placeholder, replace it with real room
@@ -604,6 +615,7 @@ export default function Community() {
           const beginnerRoom = rooms.find(r => r.name === 'Beginner' && !r._id?.toString().startsWith('placeholder-'));
           if (beginnerRoom) {
             setSelectedRoom(beginnerRoom);
+            setRoomConfirmed(true); // Confirm the real room
             console.log('Student: Replaced placeholder room with real Beginner room after join confirmation');
           }
         }
@@ -634,6 +646,21 @@ export default function Community() {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // CRITICAL: Block sending if socket not connected or room not confirmed
+    if (!socket || !socket.connected) {
+      setToastMessage('Not connected to chat. Please wait or refresh.');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+      return;
+    }
+    
+    if (!roomConfirmed) {
+      setToastMessage('Room not confirmed. Please wait...');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+      return;
+    }
     
     // Validate inputs
     if (!selectedRoom) {

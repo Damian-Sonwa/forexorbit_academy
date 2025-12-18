@@ -263,30 +263,70 @@ app.prepare().then(() => {
       }
     });
 
-    // Community room handlers - Idempotent room joining
-    // Rooms are created automatically by socket.io when first user joins
-    // No blocking validation - always allow join, validate access separately if needed
-    socket.on('joinRoom', (data) => {
+    // Community room handlers - Validate room exists in database before joining
+    socket.on('joinRoom', async (data) => {
       const { roomId } = data;
       if (!roomId) {
         console.warn('joinRoom called without roomId');
+        socket.emit('error', { message: 'Room ID is required' });
         return;
       }
 
-      // Always join the room immediately - socket.io creates it if it doesn't exist
-      // This is idempotent - joining an already-joined room is safe
-      socket.join(`room:${roomId}`);
-      console.log(`User ${user.email} joined room: ${roomId}`);
-      
-      // Emit confirmation that room was joined
-      socket.emit('room_joined', { roomId });
-      
-      // Notify others in the room that a new user joined
-      socket.to(`room:${roomId}`).emit('userJoined', {
-        userId: user.userId,
-        userName: user.email,
-        roomId: roomId,
-      });
+      try {
+        // Check if room exists in database (skip check for community_global which is a socket room)
+        if (roomId !== 'community_global') {
+          const { getDb } = require('./lib/mongodb');
+          const { ObjectId } = require('mongodb');
+          const db = await getDb();
+          const rooms = db.collection('communityRooms');
+          
+          // Handle both ObjectId and string roomId
+          let room;
+          if (roomId.match(/^[0-9a-fA-F]{24}$/)) {
+            // Valid ObjectId format
+            room = await rooms.findOne({ _id: new ObjectId(roomId), type: 'global' });
+          } else {
+            // String format - try to find by name or _id as string
+            room = await rooms.findOne({ 
+              $or: [
+                { _id: roomId },
+                { name: roomId },
+                { slug: roomId }
+              ],
+              type: 'global'
+            });
+          }
+          
+          if (!room) {
+            console.warn(`Room not found in database: ${roomId}`);
+            socket.emit('error', { message: 'Room not found' });
+            return;
+          }
+          
+          // Use the actual room ID from database
+          const actualRoomId = room._id.toString();
+          socket.join(`room:${actualRoomId}`);
+          console.log(`User ${user.email} joined room: ${room.name} (${actualRoomId})`);
+          
+          // Emit confirmation with actual room ID
+          socket.emit('room_joined', { roomId: actualRoomId, roomName: room.name });
+          
+          // Notify others in the room
+          socket.to(`room:${actualRoomId}`).emit('userJoined', {
+            userId: user.userId,
+            userName: user.email,
+            roomId: actualRoomId,
+          });
+        } else {
+          // community_global is a special socket room (not in database)
+          socket.join('room:community_global');
+          console.log(`User ${user.email} joined community_global room`);
+          socket.emit('room_joined', { roomId: 'community_global' });
+        }
+      } catch (error) {
+        console.error('Error joining room:', error);
+        socket.emit('error', { message: 'Failed to join room' });
+      }
     });
 
     socket.on('leaveRoom', (data) => {
