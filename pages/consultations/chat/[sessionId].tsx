@@ -74,6 +74,22 @@ export default function ConsultationChat() {
   const [agoraAppId, setAgoraAppId] = useState<string>('');
   const [agoraChannel, setAgoraChannel] = useState<string>('');
   const [loadingAgoraToken, setLoadingAgoraToken] = useState(false);
+  
+  // Check if Agora is configured (client-side only)
+  const [agoraConfigured, setAgoraConfigured] = useState<boolean>(false);
+  
+  // Check Agora configuration on mount (client-side only)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const appId = process.env.NEXT_PUBLIC_AGORA_APP_ID;
+      setAgoraConfigured(!!appId);
+      if (!appId) {
+        console.warn('Agora not configured: NEXT_PUBLIC_AGORA_APP_ID is not set');
+      } else {
+        console.log('Agora configured with App ID:', appId.substring(0, 8) + '...');
+      }
+    }
+  }, []);
 
   // Check URL query for auto-starting Agora calls
   useEffect(() => {
@@ -213,7 +229,7 @@ export default function ConsultationChat() {
     }
 
     // Check if Agora is configured
-    if (!process.env.NEXT_PUBLIC_AGORA_APP_ID) {
+    if (!agoraConfigured) {
       alert('Agora is not configured. Please contact support.');
       return;
     }
@@ -302,7 +318,7 @@ export default function ConsultationChat() {
               <div className="flex items-center gap-2">
                 {/* Agora Call Controls - Replaces broken WebRTC buttons */}
                 {/* CRITICAL: Only show buttons when socket is connected and Agora is configured */}
-                {session.status === 'active' && socket && socket.connected && process.env.NEXT_PUBLIC_AGORA_APP_ID && (
+                {session.status === 'active' && socket && socket.connected && agoraConfigured && (
                   <>
                     {!agoraCallType && (
                       <>
@@ -333,7 +349,7 @@ export default function ConsultationChat() {
                   </>
                 )}
                 {/* Show message if Agora is not configured */}
-                {session.status === 'active' && !process.env.NEXT_PUBLIC_AGORA_APP_ID && (
+                {session.status === 'active' && !agoraConfigured && (
                   <p className="text-sm text-gray-500 dark:text-gray-400 italic">
                     Agora not configured
                   </p>
