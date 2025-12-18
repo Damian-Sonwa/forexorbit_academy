@@ -54,13 +54,24 @@ export default function AgoraCall({ appId, channel, token, uid, callType, onCall
   useEffect(() => {
     // Don't initialize if not mounted (SSR guard)
     if (!mounted || typeof window === 'undefined') return;
+    
+    // Don't initialize if required props are missing
+    if (!appId || !channel || !token) {
+      console.warn('AgoraCall: Missing required props', { appId: !!appId, channel: !!channel, token: !!token });
+      setError('Missing required Agora configuration');
+      setLoading(false);
+      return;
+    }
+    
     const init = async () => {
       try {
         setLoading(true);
         setError(null);
+        console.log('AgoraCall: Starting initialization...', { appId, channel, callType });
 
         // Dynamically import Agora SDK only on client side
         const AgoraRTC = (await import('agora-rtc-sdk-ng')).default;
+        console.log('AgoraCall: SDK loaded');
 
         // Create Agora client
         const client = AgoraRTC.createClient({ mode: 'rtc', codec: 'vp8' });
@@ -116,32 +127,53 @@ export default function AgoraCall({ appId, channel, token, uid, callType, onCall
         console.log('Agora client joined channel:', channel);
 
         // Create local tracks based on call type
-        if (callType === 'video') {
-          const [audioTrack, videoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks();
-          localAudioTrackRef.current = audioTrack;
-          localVideoTrackRef.current = videoTrack;
+        console.log('AgoraCall: Creating local tracks...', { callType });
+        try {
+          if (callType === 'video') {
+            const [audioTrack, videoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks();
+            console.log('AgoraCall: Video tracks created');
+            localAudioTrackRef.current = audioTrack;
+            localVideoTrackRef.current = videoTrack;
 
-          // Play local video
-          if (localVideoContainerRef.current) {
-            videoTrack.play(localVideoContainerRef.current);
+            // Play local video
+            if (localVideoContainerRef.current) {
+              videoTrack.play(localVideoContainerRef.current);
+            }
+
+            // Publish tracks
+            await client.publish([audioTrack, videoTrack]);
+            console.log('AgoraCall: Video tracks published');
+          } else {
+            // Voice only
+            const audioTrack = await AgoraRTC.createMicrophoneAudioTrack();
+            console.log('AgoraCall: Audio track created');
+            localAudioTrackRef.current = audioTrack;
+
+            // Publish track
+            await client.publish([audioTrack]);
+            console.log('AgoraCall: Audio track published');
           }
-
-          // Publish tracks
-          await client.publish([audioTrack, videoTrack]);
-        } else {
-          // Voice only
-          const audioTrack = await AgoraRTC.createMicrophoneAudioTrack();
-          localAudioTrackRef.current = audioTrack;
-
-          // Publish track
-          await client.publish([audioTrack]);
+        } catch (trackError: any) {
+          console.error('AgoraCall: Error creating/publishing tracks:', trackError);
+          // Check if it's a permission error
+          if (trackError.name === 'NotAllowedError' || trackError.message?.includes('permission')) {
+            throw new Error('Microphone/Camera permission denied. Please allow access and try again.');
+          }
+          throw trackError;
         }
 
         setJoined(true);
         setLoading(false);
+        console.log('AgoraCall: Initialization complete');
       } catch (err: any) {
-        console.error('Agora initialization error:', err);
-        setError(err.message || 'Failed to initialize call');
+        console.error('AgoraCall: Initialization error:', err);
+        console.error('AgoraCall: Error details:', {
+          name: err.name,
+          message: err.message,
+          code: err.code,
+          stack: err.stack,
+        });
+        setError(err.message || 'Failed to initialize call. Please check your microphone/camera permissions.');
         setLoading(false);
       }
     };
