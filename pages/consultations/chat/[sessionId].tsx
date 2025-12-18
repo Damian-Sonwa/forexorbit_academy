@@ -11,7 +11,12 @@ import { useAuth } from '@/hooks/useAuth';
 import { useSocket } from '@/hooks/useSocket';
 import { apiClient } from '@/lib/api-client';
 import { formatDistanceToNow } from 'date-fns';
-import AgoraCall from '@/components/AgoraCall';
+import dynamic from 'next/dynamic';
+
+// Dynamically import AgoraCall to avoid SSR issues with Agora SDK
+const AgoraCall = dynamic(() => import('@/components/AgoraCall'), {
+  ssr: false,
+});
 
 interface ConsultationMessage {
   _id: string;

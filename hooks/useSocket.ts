@@ -15,6 +15,9 @@ export function useSocket() {
   const socketRef = useRef<Socket | null>(null);
 
   useEffect(() => {
+    // Only run on client side
+    if (typeof window === 'undefined') return;
+    
     // Get token from localStorage
     const token = localStorage.getItem('token');
     if (!token) {
