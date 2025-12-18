@@ -1554,8 +1554,8 @@ export default function Community() {
                             } else {
                               setSelectedRoom(room); // Fallback if no Beginner room found
                             }
-                        } else {
-                          setSelectedRoom(room);
+                          } else {
+                            setSelectedRoom(room);
                           }
                         }
                       }}

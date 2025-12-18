@@ -45,8 +45,17 @@ const port = parseInt(process.env.PORT || '3000', 10);
 const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
 
-app.prepare().then(() => {
+app.prepare().then(async () => {
   console.log('✓ Next.js app prepared');
+  
+  // Seed community rooms on server start (non-blocking)
+  try {
+    const { seedRooms } = require('./scripts/seed-rooms');
+    await seedRooms();
+    console.log('✓ Community rooms seeded');
+  } catch (error) {
+    console.warn('⚠ Failed to seed rooms (non-critical):', error.message);
+  }
   const server = createServer(async (req, res) => {
     try {
       const parsedUrl = parse(req.url, true);
