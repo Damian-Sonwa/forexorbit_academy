@@ -10,7 +10,6 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import Sidebar from '@/components/Sidebar';
 import CourseCard from '@/components/CourseCard';
-import WhatYouWillGain from '@/components/WhatYouWillGain';
 import { useAuth } from '@/hooks/useAuth';
 import { useProgress } from '@/hooks/useProgress';
 import { useCourses } from '@/hooks/useCourses';
@@ -34,17 +33,6 @@ interface UpcomingLesson {
   date?: string;
 }
 
-interface UpcomingClass {
-  _id: string;
-  title: string;
-  description: string;
-  date: string;
-  time: string;
-  meetingLink?: string;
-  instructorName: string;
-  createdAt: string;
-}
-
 export default function Dashboard() {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const { progress, loading: progressLoading } = useProgress();
@@ -53,7 +41,6 @@ export default function Dashboard() {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [userPoints, setUserPoints] = useState(0);
   const [upcomingLessons, setUpcomingLessons] = useState<UpcomingLesson[]>([]);
-  const [upcomingClasses, setUpcomingClasses] = useState<UpcomingClass[]>([]);
   const [loadingData, setLoadingData] = useState(true);
 
   const fetchDashboardData = async () => {
@@ -102,24 +89,6 @@ export default function Dashboard() {
       } catch (error) {
         console.error('Failed to fetch upcoming lessons:', error);
         setUpcomingLessons([]);
-      }
-      
-      // FIX: Fetch upcoming classes/events posted by instructors/admins
-      try {
-        const classes = await apiClient.get<UpcomingClass[]>('/classes');
-        setUpcomingClasses(classes || []);
-
-        // Track class event viewed in GA4 when classes are loaded
-        if (classes && classes.length > 0 && typeof window !== 'undefined' && window.gtag) {
-          window.gtag('event', 'class_event_viewed', {
-            event_category: 'classes',
-            event_label: 'dashboard',
-            value: classes.length,
-          });
-        }
-      } catch (error) {
-        console.error('Failed to fetch upcoming classes:', error);
-        setUpcomingClasses([]);
       }
     } finally {
       setLoadingData(false);
@@ -227,8 +196,47 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* What You Will Gain - Dynamic based on learning level */}
-          <WhatYouWillGain />
+          {/* Course Benefits Card */}
+          <div className="mb-4 sm:mb-6 bg-white rounded-xl shadow-lg border-l-4 border-blue-700 p-4 sm:p-6 hover:shadow-xl transition-shadow">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <h2 className="text-xl sm:text-2xl md:text-3xl font-bold mb-3 sm:mb-4 flex items-center text-gray-900">
+                  <span className="mr-2 sm:mr-3 text-2xl sm:text-3xl md:text-4xl">📈</span>
+                  <span className="break-words">Forex Training – What You Will Gain</span>
+                </h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mt-4 sm:mt-6">
+                  <div className="flex items-start space-x-3">
+                    <span className="text-2xl">💹</span>
+                    <div>
+                      <h3 className="font-semibold mb-1 text-gray-900">Understanding Forex Markets</h3>
+                      <p className="text-gray-700 text-sm">Master the fundamentals of currency trading and market dynamics</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start space-x-3">
+                    <span className="text-2xl">⚡</span>
+                    <div>
+                      <h3 className="font-semibold mb-1 text-gray-900">Executing Trades</h3>
+                      <p className="text-gray-700 text-sm">Learn to place and manage trades with confidence</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start space-x-3">
+                    <span className="text-2xl">🛡️</span>
+                    <div>
+                      <h3 className="font-semibold mb-1 text-gray-900">Risk Management</h3>
+                      <p className="text-gray-700 text-sm">Protect your capital with proven risk management strategies</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start space-x-3">
+                    <span className="text-2xl">📊</span>
+                    <div>
+                      <h3 className="font-semibold mb-1 text-gray-900">Chart Analysis</h3>
+                      <p className="text-gray-700 text-sm">Analyze price charts and identify profitable trading opportunities</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
 
           {/* Overview Section */}
           <div className="mb-4 sm:mb-6">
@@ -293,56 +301,11 @@ export default function Dashboard() {
             )}
           </div>
 
-          {/* Upcoming Classes/Events - FIX: Display classes posted by instructors/admins */}
+          {/* Upcoming Classes */}
           <div className="mb-4 sm:mb-6 bg-white rounded-xl shadow-md border border-gray-100 p-4 sm:p-6">
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">Upcoming Classes & Events</h2>
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">Upcoming Classes</h2>
             <div className="space-y-4">
-              {upcomingClasses.length > 0 ? (
-                upcomingClasses.map((cls) => (
-                  <div
-                    key={cls._id}
-                    className="block p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl hover:shadow-md transition-all border border-blue-200"
-                  >
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                      <div className="flex-1">
-                        <h3 className="font-bold text-gray-900 mb-1 text-lg">{cls.title}</h3>
-                        <p className="text-sm text-gray-700 mb-2">{cls.description}</p>
-                        <div className="flex flex-wrap items-center gap-3 text-xs text-gray-600">
-                          <span className="flex items-center">
-                            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                            </svg>
-                            {cls.date}
-                          </span>
-                          <span className="flex items-center">
-                            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            {cls.time}
-                          </span>
-                          <span className="flex items-center">
-                            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                            </svg>
-                            {cls.instructorName}
-                          </span>
-                        </div>
-                      </div>
-                      {cls.meetingLink && (
-                        <a
-                          href={cls.meetingLink}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold text-sm transition-colors whitespace-nowrap"
-                        >
-                          Join Class
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                ))
-              ) : upcomingLessons.length > 0 ? (
-                // Fallback to lessons if no classes posted
+              {upcomingLessons.length > 0 ? (
                 upcomingLessons.map((lesson, index) => (
                   <Link
                     key={`${lesson.courseId}-${lesson.lessonId}`}
@@ -371,7 +334,7 @@ export default function Dashboard() {
                 ))
               ) : (
                 <div className="text-center py-8">
-                  <p className="text-gray-500">No upcoming classes or events scheduled. Check back later!</p>
+                  <p className="text-gray-500">No upcoming lessons. Enroll in a course to get started!</p>
                 </div>
               )}
             </div>

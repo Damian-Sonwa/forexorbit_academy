@@ -47,48 +47,33 @@ async function getRooms(req: AuthRequest, res: NextApiResponse) {
       'Advanced': 'For experienced traders discussing deep technical analysis, macro news, and advanced strategies.',
     };
 
-    // Ensure all three rooms exist - create if missing (use upsert for safety)
+    // Ensure all three rooms exist - create if missing
     const userRooms: any[] = [];
     for (const roomName of roomNames) {
-      try {
-        // Try to find existing room
-        let room = await rooms.findOne({ name: roomName, type: 'global' });
-        
-        if (!room) {
-          // Room doesn't exist - create it
-          console.log(`Creating missing room: ${roomName}`);
-          const roomData = {
-            name: roomName,
-            description: descriptions[roomName as keyof typeof descriptions],
-            type: 'global',
-            participants: [],
-            avatar: null,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          };
-          
-          const result = await rooms.insertOne(roomData);
-          room = {
-            _id: result.insertedId,
-            ...roomData,
-          };
-          console.log(`Successfully created room: ${roomName} with ID: ${result.insertedId}`);
-        } else {
-          console.log(`Room found: ${roomName} with ID: ${room._id}`);
-        }
-        
-        userRooms.push(room);
-      } catch (roomError: any) {
-        console.error(`Error ensuring room ${roomName} exists:`, roomError);
-        // Try to find room again in case it was created by another request
-        const existingRoom = await rooms.findOne({ name: roomName, type: 'global' });
-        if (existingRoom) {
-          userRooms.push(existingRoom);
-        } else {
-          // Last resort: log error but continue (will use placeholder)
-          console.error(`Failed to create or find room ${roomName}, will use placeholder`);
-        }
+      let room = await rooms.findOne({ name: roomName, type: 'global' });
+      if (!room) {
+        // Create the room if it doesn't exist
+        const result = await rooms.insertOne({
+          name: roomName,
+          description: descriptions[roomName as keyof typeof descriptions],
+          type: 'global',
+          participants: [],
+          avatar: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+        room = {
+          _id: result.insertedId,
+          name: roomName,
+          description: descriptions[roomName as keyof typeof descriptions],
+          type: 'global',
+          participants: [],
+          avatar: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
       }
+      userRooms.push(room);
     }
 
     // Get last message and unread count for each room
@@ -174,45 +159,18 @@ async function getRooms(req: AuthRequest, res: NextApiResponse) {
     );
 
     // Ensure we always return exactly 3 rooms
-    // If rooms are missing, try to create them one more time before using placeholders
     if (roomsWithLastMessage.length < 3) {
-      console.warn(`Only ${roomsWithLastMessage.length} rooms returned, expected 3. Attempting to create missing rooms...`);
+      console.warn(`Only ${roomsWithLastMessage.length} rooms returned, expected 3`);
+      // Add missing rooms as placeholders
+      const roomNames = ['Beginner', 'Intermediate', 'Advanced'];
+      const descriptions = {
+        'Beginner': 'Perfect for newcomers learning basic concepts, market introductions, and simple analysis.',
+        'Intermediate': 'For mid-level traders sharing strategies, chart analysis, and trading setups.',
+        'Advanced': 'For experienced traders discussing deep technical analysis, macro news, and advanced strategies.',
+      };
       
-      const missingRoomNames = roomNames.filter(
-        (name) => !roomsWithLastMessage.find((r) => r.name === name)
-      );
-      
-      // Try to create missing rooms one more time
-      for (const roomName of missingRoomNames) {
-        try {
-          const roomData = {
-            name: roomName,
-            description: descriptions[roomName as keyof typeof descriptions],
-            type: 'global',
-            participants: [],
-            avatar: null,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          };
-          
-          const result = await rooms.insertOne(roomData);
-          console.log(`Successfully created missing room: ${roomName} with ID: ${result.insertedId}`);
-          
-          // Add the newly created room
-          roomsWithLastMessage.push({
-            _id: result.insertedId.toString(),
-            name: roomName,
-            description: descriptions[roomName as keyof typeof descriptions],
-            type: 'global',
-            participants: [],
-            avatar: null,
-            lastMessage: null,
-            unreadCount: 0,
-            isLocked: user?.role === 'student' ? !canAccessRoom(userLevel, roomName) : false,
-          });
-        } catch (createError: any) {
-          console.error(`Failed to create room ${roomName} on retry:`, createError);
-          // Only use placeholder if creation truly fails
+      for (const roomName of roomNames) {
+        if (!roomsWithLastMessage.find((r) => r.name === roomName)) {
           roomsWithLastMessage.push({
             _id: `placeholder-${roomName}`,
             name: roomName,
@@ -226,7 +184,6 @@ async function getRooms(req: AuthRequest, res: NextApiResponse) {
           });
         }
       }
-      
       // Sort to ensure consistent order
       roomsWithLastMessage.sort((a, b) => {
         const order = ['Beginner', 'Intermediate', 'Advanced'];

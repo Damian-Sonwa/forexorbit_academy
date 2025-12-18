@@ -8,7 +8,7 @@ import { useRouter } from 'next/router';
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
 import { useState, useEffect, useRef } from 'react';
-import { apiClient } from '@/lib/api-client';
+// import { apiClient } from '@/lib/api-client'; // Reserved for future use
 
 export default function Header() {
   const { user, logout, isAuthenticated } = useAuth();
@@ -20,7 +20,6 @@ export default function Header() {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [selectedLanguage, setSelectedLanguage] = useState('en');
-  const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
   const notificationsRef = useRef<HTMLDivElement>(null);
   const languageRef = useRef<HTMLDivElement>(null);
 
@@ -29,43 +28,6 @@ export default function Header() {
     setMenuOpen(false);
     // Redirect to login page after logout
     router.push('/login');
-  };
-
-  // FIX: Load profile photo for header avatar
-  useEffect(() => {
-    if (isAuthenticated && user) {
-      loadProfilePhoto();
-    }
-  }, [isAuthenticated, user]);
-
-  // FIX: Refresh profile photo periodically to update live
-  useEffect(() => {
-    if (isAuthenticated && user) {
-      const interval = setInterval(() => {
-        loadProfilePhoto();
-      }, 5000);
-      
-      const handleFocus = () => {
-        loadProfilePhoto();
-      };
-      window.addEventListener('focus', handleFocus);
-      
-      return () => {
-        clearInterval(interval);
-        window.removeEventListener('focus', handleFocus);
-      };
-    }
-  }, [isAuthenticated, user]);
-
-  const loadProfilePhoto = async () => {
-    try {
-      const data = await apiClient.get<any>('/auth/me');
-      if (data.profilePhoto) {
-        setProfilePhoto(data.profilePhoto);
-      }
-    } catch (error) {
-      // Ignore errors - profile photo is optional
-    }
   };
 
   // Fetch notifications
@@ -122,8 +84,7 @@ export default function Header() {
   };
 
   return (
-    // FIX: Replace dark navy header with modern gradient - indigo to purple to blue
-    <header className="bg-gradient-to-r from-slate-900 via-indigo-900 to-purple-900 text-gray-300 shadow-md dark:shadow-gray-900/50 sticky top-0 z-50 border-b border-indigo-800/50">
+    <header className="bg-gradient-to-br from-gray-900 to-gray-800 text-gray-300 shadow-md dark:shadow-gray-900/50 sticky top-0 z-50 border-b border-gray-700">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-14 py-2">
           {/* Logo */}
@@ -183,7 +144,7 @@ export default function Header() {
               <div className="relative" ref={notificationsRef}>
                 <button
                   onClick={() => setNotificationsOpen(!notificationsOpen)}
-                  className="relative p-1.5 rounded-lg transition-colors hover:bg-indigo-800/50 text-gray-300"
+                  className="relative p-1.5 rounded-lg transition-colors hover:bg-gray-800/50 text-gray-300"
                   aria-label="Notifications"
                 >
                   <svg className="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -233,7 +194,7 @@ export default function Header() {
               <div className="relative" ref={languageRef}>
                 <button
                   onClick={() => setLanguageOpen(!languageOpen)}
-                  className="flex items-center space-x-1.5 px-2 py-1 rounded-lg transition-colors hover:bg-indigo-800/50 text-gray-300"
+                  className="flex items-center space-x-1.5 px-2 py-1 rounded-lg transition-colors hover:bg-gray-800/50 text-gray-300"
                   aria-label="Language"
                 >
                   <span className="text-lg">
@@ -271,7 +232,7 @@ export default function Header() {
             {/* Dark Mode Toggle */}
             <button
               onClick={toggleTheme}
-                  className="p-1.5 rounded-lg transition-colors hover:bg-indigo-800/50 text-gray-300"
+              className="p-1.5 rounded-lg transition-colors hover:bg-gray-800/50 text-gray-300"
               aria-label="Toggle dark mode"
             >
               {isDark ? (
@@ -289,31 +250,10 @@ export default function Header() {
               <div className="relative">
                 <button
                   onClick={() => setMenuOpen(!menuOpen)}
-                  className="flex items-center space-x-2 px-2 py-1 rounded-lg transition-colors hover:bg-indigo-800/50"
+                  className="flex items-center space-x-2 px-2 py-1 rounded-lg transition-colors hover:bg-gray-800/50"
                 >
-                  {/* FIX: Use profile photo in header if available, with fallback to avatar initial */}
-                  <div className="w-8 h-8 sm:w-9 sm:h-9 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-full overflow-hidden flex items-center justify-center text-white font-bold text-xs sm:text-sm shadow-md">
-                    {profilePhoto ? (
-                      <img
-                        src={profilePhoto}
-                        alt={user?.name || 'User'}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          // Fallback to avatar initial if image fails
-                          const target = e.target as HTMLImageElement;
-                          target.style.display = 'none';
-                          const parent = target.parentElement;
-                          if (parent) {
-                            const fallback = document.createElement('span');
-                            fallback.className = 'text-white font-bold text-xs sm:text-sm';
-                            fallback.textContent = user?.name?.charAt(0).toUpperCase() || 'U';
-                            parent.appendChild(fallback);
-                          }
-                        }}
-                      />
-                    ) : (
-                      <span>{user?.name?.charAt(0).toUpperCase()}</span>
-                    )}
+                  <div className="w-8 h-8 sm:w-9 sm:h-9 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-full flex items-center justify-center text-white font-bold text-xs sm:text-sm shadow-md">
+                    {user?.name?.charAt(0).toUpperCase()}
                   </div>
                   <span className="hidden lg:block text-gray-300 text-sm">{user?.name}</span>
                   <svg className="w-4 h-4 text-gray-400 hidden sm:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">

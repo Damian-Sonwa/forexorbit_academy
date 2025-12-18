@@ -16,15 +16,20 @@ A comprehensive e-learning platform for Forex trading with real-time features, i
 - **Chat**: Lesson-specific chat rooms with real-time messaging
 - **Progress Updates**: Real-time progress tracking and updates
 - **Market Signals**: Live Forex market signals with mini charts
+- **Expert Consultation**: Live chat with instructors, including voice and video calls via Agora SDK
 
 ## Tech Stack
 
 - **Frontend**: Next.js 14, React 18, TypeScript, TailwindCSS
 - **Backend**: Next.js API Routes, MongoDB
 - **Real-Time**: Socket.io
-- **Authentication**: JWT
-- **Video**: react-player
+- **Voice/Video Calls**: Agora RTC SDK (agora-rtc-sdk-ng)
+- **Authentication**: JWT (jsonwebtoken, bcryptjs)
+- **Video Player**: react-player
 - **Charts**: recharts
+- **HTTP Client**: axios
+- **Date Utilities**: date-fns
+- **File Upload**: formidable
 
 ## Setup Instructions
 
@@ -40,7 +45,15 @@ A comprehensive e-learning platform for Forex trading with real-time features, i
    MONGO_URI=mongodb+srv://Damian25:sopuluchukwu@cluster0.tcjhicx.mongodb.net/Forex_elearning?appName=Cluster0
    JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
    NEXT_PUBLIC_SOCKET_URL=http://localhost:3000
+   AGORA_APP_ID=your-agora-app-id
+   AGORA_APP_CERTIFICATE=your-agora-app-certificate
    ```
+   
+   **Note**: To get Agora credentials:
+   1. Sign up at [Agora Console](https://console.agora.io/)
+   2. Create a new project
+   3. Copy your App ID and App Certificate
+   4. Add them to your `.env.local` file
 
 3. **Run Development Server**
    ```bash
@@ -63,7 +76,8 @@ A comprehensive e-learning platform for Forex trading with real-time features, i
 │   ├── VideoPlayer.tsx
 │   ├── Chat.tsx
 │   ├── Quiz.tsx
-│   └── MarketSignal.tsx
+│   ├── MarketSignal.tsx
+│   └── AgoraCall.tsx
 ├── hooks/              # Custom React hooks
 │   ├── useAuth.ts
 │   ├── useCourses.ts
@@ -84,6 +98,7 @@ A comprehensive e-learning platform for Forex trading with real-time features, i
 │   │   ├── quizzes/
 │   │   ├── progress/
 │   │   ├── messages/
+│   │   ├── consultations/
 │   │   └── admin/
 │   ├── index.tsx       # Home page
 │   ├── login.tsx
@@ -133,6 +148,13 @@ A comprehensive e-learning platform for Forex trading with real-time features, i
 - `GET /api/messages?lessonId=...` - Get messages
 - `POST /api/messages` - Send message
 
+### Consultations
+- `GET /api/consultations` - List consultations
+- `POST /api/consultations` - Create consultation request
+- `GET /api/consultations/[id]` - Get consultation details
+- `PUT /api/consultations/[id]` - Update consultation (approve/reject)
+- `POST /api/consultations/agora-token` - Generate Agora RTC token for voice/video calls
+
 ### Admin
 - `GET /api/admin/analytics` - Get analytics (admin only)
 
@@ -165,6 +187,8 @@ A comprehensive e-learning platform for Forex trading with real-time features, i
 - `MONGO_URI` - MongoDB connection string (required)
 - `JWT_SECRET` - Secret key for JWT tokens (required)
 - `NEXT_PUBLIC_SOCKET_URL` - Socket.io server URL (optional, defaults to localhost:3000)
+- `AGORA_APP_ID` - Agora App ID for voice/video calls (required for consultation calls)
+- `AGORA_APP_CERTIFICATE` - Agora App Certificate for token generation (required for consultation calls)
 
 ## Deployment
 
@@ -181,6 +205,8 @@ This app is configured for deployment on **Render** (recommended) and **Netlify*
    - `MONGO_URI` - Your MongoDB connection string
    - `JWT_SECRET` - Generate with: `node scripts/generate-jwt-secret.js`
    - `NEXT_PUBLIC_SOCKET_URL` - Your Render app URL (update after first deploy)
+   - `AGORA_APP_ID` - Your Agora App ID (get from [Agora Console](https://console.agora.io/))
+   - `AGORA_APP_CERTIFICATE` - Your Agora App Certificate
 7. Deploy!
 
 ### Generate JWT Secret
@@ -195,6 +221,30 @@ node scripts/generate-jwt-secret.js
 - **Render Recommended**: Render supports persistent Node.js servers with Socket.io. Netlify has limitations with Socket.io.
 - **Full Deployment Guide**: See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed instructions.
 
+## Key Features & Tools
+
+### Voice & Video Calls (Agora SDK)
+- **Expert Consultation Calls**: Students can request consultations with instructors
+- **Real-time Communication**: Voice and video calls powered by Agora RTC SDK
+- **Token-based Security**: Secure token generation for each call session
+- **Component**: `components/AgoraCall.tsx` handles all Agora SDK integration
+- **API Endpoint**: `/api/consultations/agora-token` generates secure tokens
+
+### Real-time Chat (Socket.io)
+- **Lesson Chat Rooms**: Real-time messaging during lessons
+- **Community Chat**: Global chat rooms for students and instructors
+- **WebSocket Support**: Full WebSocket (wss) support for production
+
+### Authentication & Security
+- **JWT Tokens**: Secure authentication with jsonwebtoken
+- **Password Hashing**: bcryptjs for secure password storage
+- **Role-based Access**: Admin, Instructor, and Student roles
+
+### Data Management
+- **MongoDB**: Primary database for all application data
+- **File Uploads**: Formidable for handling file uploads
+- **Date Handling**: date-fns for date formatting and manipulation
+
 ## Notes
 
 - The app validates environment variables on server startup
@@ -202,6 +252,7 @@ node scripts/generate-jwt-secret.js
 - Socket.io requires JWT authentication
 - All API routes are protected with authentication middleware
 - Role-based access control for admin/instructor features
+- Agora SDK requires valid App ID and Certificate for voice/video calls
 
 ## Development
 

@@ -53,10 +53,9 @@ export function withAuth(
         req.io = io;
       }
       return handler(req, res);
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Invalid token';
-      console.error('Auth middleware error:', errorMessage);
-      return res.status(401).json({ error: errorMessage });
+    } catch (error: any) {
+      console.error('Auth middleware error:', error.message);
+      return res.status(401).json({ error: error.message || 'Invalid token' });
     }
   };
 }

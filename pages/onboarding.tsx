@@ -234,22 +234,7 @@ export default function Onboarding() {
       // Update local storage
       const updatedUser = { ...user, ...userData };
       localStorage.setItem('user', JSON.stringify(updatedUser));
-      
-      // Navigate to dashboard - try router first, then fallback to window.location
-      // This ensures navigation happens even if router has issues
-      try {
-        await router.push('/dashboard');
-        // Fallback: if still on onboarding page after 1 second, force navigation
-        setTimeout(() => {
-          if (typeof window !== 'undefined' && window.location.pathname === '/onboarding') {
-            window.location.href = '/dashboard';
-          }
-        }, 1000);
-      } catch (routerError) {
-        // If router.push fails, use window.location as fallback
-        console.error('Router navigation failed, using window.location:', routerError);
-        window.location.href = '/dashboard';
-      }
+      router.push('/dashboard');
     } catch (error: any) {
       setError(error.response?.data?.error || error.message || 'Failed to save onboarding data');
       setLoading(false);

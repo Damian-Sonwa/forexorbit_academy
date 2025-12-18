@@ -11,7 +11,6 @@ const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3000'
 export function useSocket() {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [connected, setConnected] = useState(false);
-  const [socketReady, setSocketReady] = useState(false); // Track when socket is ready for operations
   const [marketSignal, setMarketSignal] = useState<any>(null);
   const socketRef = useRef<Socket | null>(null);
 
@@ -45,25 +44,21 @@ export function useSocket() {
       newSocket.on('connect', () => {
         console.log('Socket connected');
         setConnected(true);
-        setSocketReady(true); // Socket is ready for operations
       });
 
       newSocket.on('disconnect', (reason) => {
         console.log('Socket disconnected:', reason);
         setConnected(false);
-        setSocketReady(false); // Socket is not ready
       });
 
       newSocket.on('connect_error', (error) => {
-        console.warn('Socket connection error (messages will still work via HTTP):', error.message);
+        console.error('Socket connection error:', error.message);
         setConnected(false);
-        // Don't prevent app from working - messages can be sent via HTTP POST
       });
 
       newSocket.on('reconnect', (attemptNumber) => {
         console.log('Socket reconnected after', attemptNumber, 'attempts');
         setConnected(true);
-        setSocketReady(true); // Socket is ready after reconnect
       });
 
       newSocket.on('reconnect_attempt', (attemptNumber) => {
@@ -130,10 +125,8 @@ export function useSocket() {
   };
 
   const sendChatMessage = (lessonId: string, text: string) => {
-    if (socket && connected) {
+    if (socket) {
       socket.emit('chatMessage', { lessonId, text });
-    } else {
-      console.error('Cannot send message: socket not connected', { socket: !!socket, connected });
     }
   };
 
@@ -191,7 +184,6 @@ export function useSocket() {
   return {
     socket,
     connected,
-    socketReady, // Expose socketReady state
     marketSignal,
     joinLesson,
     leaveLesson,

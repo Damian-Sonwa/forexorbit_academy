@@ -14,47 +14,6 @@ async function getExperts(req: AuthRequest, res: NextApiResponse) {
     const db = await getDb();
     const users = db.collection('users');
 
-    // FIX: Auto-seed experts if none exist - ensure experts are available for consultation
-    const expertCount = await users.countDocuments({ isExpert: true });
-    if (expertCount === 0) {
-      // Mark instructors and admins as experts automatically
-      await users.updateMany(
-        { 
-          $or: [
-            { role: 'instructor' },
-            { role: 'admin' },
-            { email: 'madudamian25@gmail.com' } // Super admin
-          ],
-          isExpert: { $ne: true }
-        },
-        { 
-          $set: { 
-            isExpert: true,
-            expertAvailable: true,
-            consultationSuspended: false,
-          } 
-        }
-      );
-      
-      // Add expert fields to all users if missing
-      await users.updateMany(
-        { 
-          $or: [
-            { isExpert: { $exists: false } },
-            { expertAvailable: { $exists: false } },
-            { consultationSuspended: { $exists: false } }
-          ]
-        },
-        { 
-          $set: { 
-            isExpert: false,
-            expertAvailable: true,
-            consultationSuspended: false,
-          } 
-        }
-      );
-    }
-
     // Get all users marked as experts
     const experts = await users
       .find({ 

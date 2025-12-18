@@ -55,8 +55,7 @@ export default function Home() {
 
   // Animated counter effect
   useEffect(() => {
-    // FIX: Reduce user count to 500 as requested
-    const targets = { users: 500, courses: courses.length || 50, success: 95, time: 24 };
+    const targets = { users: 10000, courses: courses.length || 50, success: 95, time: 24 };
     const duration = 2000;
     const steps = 60;
     const increment = duration / steps;

@@ -76,13 +76,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const fullUser: User = { ...response.user, ...userData };
       localStorage.setItem('user', JSON.stringify(fullUser));
       setUser(fullUser);
-
-      // Track login event in GA4
-      if (typeof window !== 'undefined' && window.gtag) {
-        window.gtag('event', 'login', {
-          method: 'email',
-        });
-      }
     } catch (error: unknown) {
       // Extract error message from API response
       let errorMessage = 'Login failed. Please check your credentials.';
