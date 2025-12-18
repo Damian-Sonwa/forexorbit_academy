@@ -79,12 +79,24 @@ export default function ConsultationChat() {
   const [agoraConfigured, setAgoraConfigured] = useState<boolean>(false);
   
   // Check Agora configuration on mount (client-side only)
+  // This ensures it works on both mobile and desktop
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const appId = process.env.NEXT_PUBLIC_AGORA_APP_ID;
-      setAgoraConfigured(!!appId);
-      if (!appId) {
-        console.warn('Agora not configured: NEXT_PUBLIC_AGORA_APP_ID is not set');
+      // Check for NEXT_PUBLIC_AGORA_APP_ID in multiple ways for compatibility
+      const appId = 
+        process.env.NEXT_PUBLIC_AGORA_APP_ID || 
+        (window as any).__NEXT_DATA__?.env?.NEXT_PUBLIC_AGORA_APP_ID ||
+        '';
+      
+      const isConfigured = !!appId && appId.length > 0;
+      setAgoraConfigured(isConfigured);
+      
+      if (!isConfigured) {
+        console.warn('Agora not configured: NEXT_PUBLIC_AGORA_APP_ID is not set or empty');
+        console.warn('Available env vars:', {
+          hasNextPublic: !!process.env.NEXT_PUBLIC_AGORA_APP_ID,
+          hasWindowNextData: !!(window as any).__NEXT_DATA__?.env?.NEXT_PUBLIC_AGORA_APP_ID,
+        });
       } else {
         console.log('Agora configured with App ID:', appId.substring(0, 8) + '...');
       }
