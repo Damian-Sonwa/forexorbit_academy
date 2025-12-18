@@ -216,19 +216,14 @@ export default function ConsultationChat() {
   };
 
   // Start Agora call - Replaces broken WebRTC
+  // CRITICAL: Agora works independently of Socket.IO - only needs token
   const handleStartAgoraCall = async (callType: 'voice' | 'video') => {
-    // CRITICAL: Only allow calls when socket is connected and session is active
-    if (!socket || !socket.connected) {
-      alert('Please wait for connection to be established before starting a call.');
-      return;
-    }
-
     if (!sessionId || typeof sessionId !== 'string' || !user || session?.status !== 'active') {
       alert('Consultation must be active to start a call');
       return;
     }
 
-    // Check if Agora is configured
+    // Check if Agora is configured (client-side check)
     if (!agoraConfigured) {
       alert('Agora is not configured. Please contact support.');
       return;
@@ -317,8 +312,8 @@ export default function ConsultationChat() {
               </div>
               <div className="flex items-center gap-2">
                 {/* Agora Call Controls - Replaces broken WebRTC buttons */}
-                {/* CRITICAL: Only show buttons when socket is connected and Agora is configured */}
-                {session.status === 'active' && socket && socket.connected && agoraConfigured && (
+                {/* CRITICAL: Agora works independently of Socket.IO - only needs Agora config and active session */}
+                {session.status === 'active' && agoraConfigured && (
                   <>
                     {!agoraCallType && (
                       <>

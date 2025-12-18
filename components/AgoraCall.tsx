@@ -57,9 +57,22 @@ export default function AgoraCall({ appId, channel, token, uid, callType, onCall
     
     // Don't initialize if required props are missing
     if (!appId || !channel || !token) {
-      console.warn('AgoraCall: Missing required props', { appId: !!appId, channel: !!channel, token: !!token });
-      setError('Missing required Agora configuration');
+      console.warn('AgoraCall: Missing required props', { 
+        appId: !!appId, 
+        channel: !!channel, 
+        token: !!token,
+        appIdValue: appId ? appId.substring(0, 8) + '...' : 'missing',
+        channelValue: channel || 'missing',
+        tokenValue: token ? token.substring(0, 20) + '...' : 'missing',
+      });
+      setError('Missing required Agora configuration. Please try starting the call again.');
       setLoading(false);
+      return;
+    }
+    
+    // Prevent multiple initializations
+    if (clientRef.current) {
+      console.log('AgoraCall: Already initialized, skipping...');
       return;
     }
     
