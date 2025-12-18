@@ -62,7 +62,11 @@ async function seedRooms() {
     
   } catch (error) {
     console.error('❌ Error seeding rooms:', error);
-    process.exit(1);
+    // Don't exit process if called from server.js (non-critical)
+    if (require.main === module) {
+      process.exit(1);
+    }
+    throw error; // Re-throw if called from server.js
   } finally {
     await client.close();
     console.log('\n✓ Database connection closed');
@@ -80,4 +84,3 @@ if (require.main === module) {
 }
 
 module.exports = { seedRooms };
-
