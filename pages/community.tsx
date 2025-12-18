@@ -600,7 +600,11 @@ export default function Community() {
       // Mark room as confirmed - allow sending messages now
       if (selectedRoom) {
         const selectedRoomId = selectedRoom._id?.toString() || selectedRoom._id;
-        if (data.roomId === selectedRoomId || data.roomId === selectedRoom._id?.toString()) {
+        // For students, confirm if community_global room is joined (they always use this socket room)
+        if (user?.role === 'student' && data.roomId === 'community_global') {
+          setRoomConfirmed(true);
+          console.log('Student: Room confirmed (community_global), messages can now be sent');
+        } else if (data.roomId === selectedRoomId || data.roomId === selectedRoom._id?.toString()) {
           setRoomConfirmed(true);
           console.log('Room confirmed, messages can now be sent');
         }
@@ -1964,7 +1968,6 @@ export default function Community() {
                       disabled={!input.trim() || !connected || !roomConfirmed || !selectedRoom}
                       title={!connected ? 'Not connected to chat' : !roomConfirmed ? 'Room not confirmed yet' : !input.trim() ? 'Enter a message' : 'Send message'}
                       className="p-2 sm:p-2.5 bg-[#25d366] hover:bg-[#20ba5a] text-white rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-md flex-shrink-0"
-                      title={!connected ? 'WebSocket disconnected - message will still be sent' : 'Send message'}
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />

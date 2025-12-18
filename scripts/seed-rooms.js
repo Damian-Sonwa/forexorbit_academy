@@ -6,7 +6,12 @@
 
 const { MongoClient } = require('mongodb');
 
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/forex_elearning';
+// Use environment variable or default
+const MONGO_URI = process.env.MONGO_URI;
+if (!MONGO_URI) {
+  console.error('❌ MONGO_URI not defined');
+  process.exit(1);
+}
 
 async function seedRooms() {
   const client = new MongoClient(MONGO_URI);

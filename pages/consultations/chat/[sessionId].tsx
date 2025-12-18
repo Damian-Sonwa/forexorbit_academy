@@ -109,11 +109,17 @@ export default function ConsultationChat() {
     loadSession();
   }, [sessionId, router]);
 
-  // Join consultation room via socket - Non-blocking, always allow typing
+  // Join consultation room via socket - Wait for connection before joining
   useEffect(() => {
     if (!socket || !sessionId || typeof sessionId !== 'string') return;
 
-    // Join consultation room immediately - room is created automatically by socket.io
+    // CRITICAL: Wait for socket connection before joining room
+    if (!socket.connected) {
+      console.log('Socket not connected, waiting to join consultation room...');
+      return;
+    }
+
+    // Join consultation room only when socket is connected
     socket.emit('joinConsultation', { sessionId });
     console.log('Joined consultation room:', sessionId);
 
@@ -152,9 +158,16 @@ export default function ConsultationChat() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Send message - Allow sending immediately, only check if socket exists (not connection status)
+  // Send message - Block sending until socket is connected
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // CRITICAL: Block sending if socket not connected
+    if (!socket || !socket.connected) {
+      alert('Not connected to chat. Please wait for connection...');
+      return;
+    }
+    
     if (!input.trim() || !sessionId || typeof sessionId !== 'string' || sending) return;
 
     const messageContent = input.trim();
@@ -373,7 +386,8 @@ export default function ConsultationChat() {
               />
               <button
                 type="submit"
-                disabled={sending || !input.trim()}
+                disabled={sending || !input.trim() || !socket || !socket.connected}
+                title={!socket || !socket.connected ? 'Not connected to chat' : sending ? 'Sending...' : 'Send message'}
                 className="px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Send

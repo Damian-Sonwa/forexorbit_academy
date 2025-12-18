@@ -61,17 +61,18 @@ app.prepare().then(() => {
   // Initialize Socket.io with CORS support for multiple origins
   // CRITICAL: Allow both Render URL and Vercel URL (or any URLs in ALLOWED_ORIGINS env var)
   // IMPORTANT: Do NOT restrict to websocket only - allow upgrade from polling → websocket
+  // CRITICAL: CORS origins - must include all Vercel domains and Render domain
   const allowedOrigins = process.env.ALLOWED_ORIGINS 
     ? process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim())
     : [
-        process.env.NEXT_PUBLIC_SOCKET_URL || 
-        (dev ? 'http://localhost:3000' : process.env.RENDER_EXTERNAL_URL || 'http://localhost:3000'),
         'https://forexorbit-academy11.vercel.app',
         'https://forexorbit-academy001.vercel.app',
-        'https://forexorbit-academy.onrender.com',
         'https://forexorbit-academy.vercel.app',
+        'https://forexorbit-academy.onrender.com',
         // Allow any Vercel preview URLs
         ...(process.env.VERCEL_URL ? [`https://${process.env.VERCEL_URL}`] : []),
+        // Development
+        ...(dev ? ['http://localhost:3000', 'http://127.0.0.1:3000'] : []),
       ];
   
   // CRITICAL: Socket.IO configuration for Render WebSocket support
