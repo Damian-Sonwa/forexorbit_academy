@@ -97,12 +97,21 @@ app.prepare().then(async () => {
         if (allowedOrigins.includes(origin)) {
           callback(null, true);
         } else {
+          // Log for debugging
+          console.log('CORS check - origin:', origin, 'allowed:', allowedOrigins);
           // Log for debugging but allow in development
           if (dev) {
             console.warn('CORS warning - origin not in allowed list:', origin);
             callback(null, true);
           } else {
-            callback(new Error('Not allowed by CORS'));
+            // In production, be more permissive for WebSocket upgrades
+            // Some browsers send different origins for WebSocket vs HTTP
+            if (origin.includes('vercel.app') || origin.includes('onrender.com')) {
+              console.log('Allowing WebSocket origin (Vercel/Render):', origin);
+              callback(null, true);
+            } else {
+              callback(new Error('Not allowed by CORS'));
+            }
           }
         }
       },
@@ -549,8 +558,11 @@ app.prepare().then(async () => {
     console.log(`  ✓ Frontend: ${serverUrl}`);
     console.log(`  ✓ MongoDB: Connected to Atlas cluster`);
     console.log(`  ✓ Database: Forex_elearning`);
-    console.log(`  ✓ Socket.io: Running on /api/socket`);
+    console.log(`  ✓ Socket.io: Running on ${serverUrl}/api/socket`);
+    console.log(`  ✓ Port: ${port}`);
+    console.log(`  ✓ Hostname: ${hostname}`);
     console.log(`  ✓ Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`  ✓ Allowed CORS origins: ${allowedOrigins.join(', ')}`);
     console.log('═══════════════════════════════════════════════════');
     console.log('');
   });

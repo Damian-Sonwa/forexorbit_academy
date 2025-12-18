@@ -11,7 +11,18 @@ import { canAccessRoom, updateLearningLevelIfEligible } from '@/lib/learning-lev
 
 async function getRooms(req: AuthRequest, res: NextApiResponse) {
   try {
-    const db = await getDb();
+    // Add error handling for database connection
+    let db;
+    try {
+      db = await getDb();
+    } catch (dbError: any) {
+      console.error('Database connection error:', dbError);
+      return res.status(500).json({ 
+        error: 'Database connection failed',
+        details: process.env.NODE_ENV === 'development' ? dbError.message : 'Please check server logs'
+      });
+    }
+    
     const rooms = db.collection('communityRooms');
     const messages = db.collection('communityMessages');
     const users = db.collection('users');
