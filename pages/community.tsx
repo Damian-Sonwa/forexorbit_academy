@@ -1961,7 +1961,8 @@ export default function Community() {
                     {/* Note: Button works even without WebSocket - messages sent via HTTP POST */}
                     <button
                       type="submit"
-                      disabled={!input.trim()}
+                      disabled={!input.trim() || !connected || !roomConfirmed || !selectedRoom}
+                      title={!connected ? 'Not connected to chat' : !roomConfirmed ? 'Room not confirmed yet' : !input.trim() ? 'Enter a message' : 'Send message'}
                       className="p-2 sm:p-2.5 bg-[#25d366] hover:bg-[#20ba5a] text-white rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-md flex-shrink-0"
                       title={!connected ? 'WebSocket disconnected - message will still be sent' : 'Send message'}
                     >
