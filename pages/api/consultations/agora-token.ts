@@ -8,7 +8,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { RtcTokenBuilder, RtcRole } from 'agora-access-token';
 
 // Agora App ID from frontend env var (accessible in Next.js API routes)
-// App Certificate from server env var (should be set on Vercel/Render)
+// App Certificate from server env var (MUST be set on Render backend only - never in frontend)
 const AGORA_APP_ID = process.env.NEXT_PUBLIC_AGORA_APP_ID || '';
 const AGORA_APP_CERTIFICATE = process.env.AGORA_APP_CERTIFICATE || '';
 
@@ -30,8 +30,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!AGORA_APP_ID) {
       console.error('Agora App ID not configured. Set NEXT_PUBLIC_AGORA_APP_ID environment variable.');
       return res.status(500).json({ 
-        error: 'Agora App ID not configured. Please set NEXT_PUBLIC_AGORA_APP_ID environment variable in Vercel.',
-        missing: 'NEXT_PUBLIC_AGORA_APP_ID'
+        error: 'Agora token service unavailable. Please contact support.',
       });
     }
 
@@ -72,9 +71,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
   } catch (error: any) {
     console.error('Error generating Agora token:', error);
+    // Don't expose internal errors to frontend - show generic message
     return res.status(500).json({ 
-      error: error.message || 'Failed to generate token',
-      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      error: 'Agora token service unavailable. Please contact support.',
     });
   }
 }

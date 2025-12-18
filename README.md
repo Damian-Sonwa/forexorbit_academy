@@ -46,7 +46,7 @@ A comprehensive e-learning platform for Forex trading with real-time features, i
    JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
    NEXT_PUBLIC_SOCKET_URL=http://localhost:3000
    AGORA_APP_ID=your-agora-app-id
-   AGORA_APP_CERTIFICATE=your-agora-app-certificate
+   # AGORA_APP_CERTIFICATE should be set on Render backend only, not in Vercel
    ```
    
    **Note**: To get Agora credentials:
@@ -188,7 +188,7 @@ A comprehensive e-learning platform for Forex trading with real-time features, i
 - `JWT_SECRET` - Secret key for JWT tokens (required)
 - `NEXT_PUBLIC_SOCKET_URL` - Socket.io server URL (optional, defaults to localhost:3000)
 - `AGORA_APP_ID` - Agora App ID for voice/video calls (required for consultation calls)
-- `AGORA_APP_CERTIFICATE` - Agora App Certificate for token generation (required for consultation calls)
+- `AGORA_APP_CERTIFICATE` - Agora App Certificate for token generation (set on Render backend only, NOT in Vercel)
 
 ## Deployment
 
@@ -206,7 +206,7 @@ This app is configured for deployment on **Render** (recommended) and **Netlify*
    - `JWT_SECRET` - Generate with: `node scripts/generate-jwt-secret.js`
    - `NEXT_PUBLIC_SOCKET_URL` - Your Render app URL (update after first deploy)
    - `AGORA_APP_ID` - Your Agora App ID (get from [Agora Console](https://console.agora.io/))
-   - `AGORA_APP_CERTIFICATE` - Your Agora App Certificate
+   - `AGORA_APP_CERTIFICATE` - Your Agora App Certificate (set on Render backend only)
 7. Deploy!
 
 ### Generate JWT Secret

@@ -264,7 +264,16 @@ export default function ConsultationChat() {
       console.log('Agora call initialized:', { appId: response.appId, channel: response.channel });
     } catch (error: any) {
       console.error('Error starting Agora call:', error);
-      const errorMessage = error.response?.data?.error || error.message || 'Failed to start call. Please try again.';
+      // Show user-friendly error message - never mention certificate to frontend
+      let errorMessage = 'Failed to start call. Please try again.';
+      if (error.response?.status === 500) {
+        // Backend error - likely certificate or token service issue
+        errorMessage = error.response?.data?.error || 'Agora token service unavailable. Please contact support.';
+      } else if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
       alert(errorMessage);
       setAgoraCallType(null);
       setLoadingAgoraToken(false);
