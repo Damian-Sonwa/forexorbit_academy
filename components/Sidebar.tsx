@@ -136,6 +136,7 @@ export default function Sidebar({ }: SidebarProps) {
   const instructorNavItems = [
     { href: '/instructor/dashboard', label: 'Dashboard', icon: DashboardIcon },
     { href: '/courses', label: 'Courses', icon: CoursesIcon },
+    { href: '/instructor/demo-tasks', label: 'Demo Tasks', icon: CoursesIcon },
     { href: '/progress', label: 'Progress', icon: ProgressIcon },
     { href: '/certificates', label: 'Certificates', icon: CertificatesIcon },
     { href: '/community', label: 'Community', icon: CommunityIcon },
