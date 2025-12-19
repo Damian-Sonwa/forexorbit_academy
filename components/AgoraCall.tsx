@@ -106,7 +106,7 @@ export default function AgoraCall({ appId, channel, token, uid, callType, onCall
             const remoteVideoTrack = user.videoTrack;
             if (remoteVideoTrack) {
               // Wait for remote-video container to be available
-              const waitForRemoteContainer = (maxAttempts = 10) => {
+              const waitForRemoteContainer = (maxAttempts = 20) => {
                 return new Promise<HTMLElement>((resolve, reject) => {
                   let attempts = 0;
                   const checkContainer = () => {
@@ -114,6 +114,7 @@ export default function AgoraCall({ appId, channel, token, uid, callType, onCall
                     if (container) {
                       const rect = container.getBoundingClientRect();
                       if (rect.width > 0 && rect.height > 0) {
+                        console.log('AgoraCall: Remote video container found with dimensions:', rect.width, 'x', rect.height);
                         resolve(container);
                         return;
                       }
@@ -122,10 +123,11 @@ export default function AgoraCall({ appId, channel, token, uid, callType, onCall
                     if (attempts >= maxAttempts) {
                       // Fallback: use ref container if ID not found
                       if (remoteVideoContainerRef.current) {
+                        console.warn('AgoraCall: Using ref fallback for remote-video');
                         resolve(remoteVideoContainerRef.current);
                         return;
                       }
-                      reject(new Error('Remote video container not found'));
+                      reject(new Error('Remote video container not found or has zero dimensions'));
                       return;
                     }
                     setTimeout(checkContainer, 100);
@@ -136,6 +138,7 @@ export default function AgoraCall({ appId, channel, token, uid, callType, onCall
 
               try {
                 const remoteContainer = await waitForRemoteContainer();
+                // Agora SDK will handle playsinline for iOS Safari automatically
                 await remoteVideoTrack.play(remoteContainer);
                 console.log('AgoraCall: Remote video playing in container');
               } catch (err) {
@@ -449,22 +452,15 @@ export default function AgoraCall({ appId, channel, token, uid, callType, onCall
             style={{ minHeight: '300px', width: '100%' }}
           >
             {/* Explicit ID for remote video container - required for Agora playback */}
+            {/* Agora SDK will create video element inside this container */}
             <div 
               id="remote-video" 
               ref={remoteVideoContainerRef} 
               className="w-full h-full"
-              style={{ minHeight: '300px', width: '100%' }}
-            >
-              {/* iOS Safari: playsinline attribute for video elements */}
-              <video 
-                id="remote-video-element"
-                playsInline
-                autoPlay
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-              />
-            </div>
+              style={{ minHeight: '300px', width: '100%', position: 'relative' }}
+            />
             {remoteUsers.length === 0 && (
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
                 <p className="text-gray-400">Waiting for other participant...</p>
               </div>
             )}
@@ -476,23 +472,15 @@ export default function AgoraCall({ appId, channel, token, uid, callType, onCall
             style={{ minHeight: '300px', width: '100%' }}
           >
             {/* Explicit ID for local video container - required for Agora playback */}
+            {/* Agora SDK will create video element inside this container with playsinline for iOS */}
             <div 
               id="local-video" 
               ref={localVideoContainerRef} 
               className="w-full h-full"
-              style={{ minHeight: '300px', width: '100%' }}
-            >
-              {/* iOS Safari: playsinline attribute for video elements */}
-              <video 
-                id="local-video-element"
-                playsInline
-                autoPlay
-                muted
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-              />
-            </div>
+              style={{ minHeight: '300px', width: '100%', position: 'relative' }}
+            />
             {isVideoOff && (
-              <div className="absolute inset-0 flex items-center justify-center bg-gray-800 pointer-events-none">
+              <div className="absolute inset-0 flex items-center justify-center bg-gray-800 pointer-events-none z-10">
                 <p className="text-gray-400">Camera Off</p>
               </div>
             )}
