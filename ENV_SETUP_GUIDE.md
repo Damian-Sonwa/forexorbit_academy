@@ -183,22 +183,43 @@ OANDA_DEMO_URL=https://api-fxpractice.oanda.com
 1. Log in to your OANDA practice account
 2. Go to **Account** or **Settings**
 3. Find your **Account ID** (usually a number like `101-004-1234567-001`)
+   - May also be visible on the dashboard or in the trading platform
 4. Copy this value - this is your `OANDA_ACCOUNT_ID`
+5. **Alternative:** Use OANDA API to list accounts:
+   ```bash
+   curl -H "Authorization: Bearer YOUR_TOKEN" \
+        https://api-fxpractice.oanda.com/v3/accounts
+   ```
 
 ### Step 3: Generate API Token
 
-1. In your OANDA practice account, go to **Manage API Access** or **API Settings**
+1. In your OANDA practice account, go to **Manage API Access**
+   - Direct link: https://www.oanda.com/account/tpa/personal_access_tokens
 2. Click **"Generate API Token"** or **"Create Token"**
-3. Select **"Practice Account"** (not Live)
-4. Copy the generated token - this is your `OANDA_API_KEY`
-5. **Important:** Save this token immediately - you won't be able to see it again!
+3. **CRITICAL:** Select **"Practice Account"** (not Live)
+4. Give it a name (e.g., "ForexOrbit Academy Demo")
+5. Copy the generated token immediately - this is your `OANDA_API_KEY`
+6. **Important:** Save this token securely - you won't be able to see it again!
+7. Token should have permissions for: View account, Place orders, View positions, View pricing
 
 ### Step 4: Verify Practice API URL
 
-- **Practice/Demo URL:** `https://api-fxpractice.oanda.com`
-- **Live URL (DO NOT USE):** `https://api-fxtrade.oanda.com`
+- **Practice/Demo URL:** `https://api-fxpractice.oanda.com` ✅ USE THIS
+- **Live URL (DO NOT USE):** `https://api-fxtrade.oanda.com` ❌ NEVER USE
 
 Make sure you're using the **practice** URL only!
+
+### Quick Test
+
+Test your credentials work:
+
+```bash
+# Replace YOUR_TOKEN and YOUR_ACCOUNT_ID
+curl -H "Authorization: Bearer YOUR_TOKEN" \
+     https://api-fxpractice.oanda.com/v3/accounts/YOUR_ACCOUNT_ID
+```
+
+If successful, you'll see account information in JSON format.
 
 ## Security Best Practices
 
