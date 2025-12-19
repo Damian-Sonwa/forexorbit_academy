@@ -704,7 +704,7 @@ export default function DemoTrading() {
                       value={journalForm.pair}
                       onChange={(e) => setJournalForm({ ...journalForm, pair: e.target.value.toUpperCase() })}
                       placeholder="EUR/USD"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 bg-white"
                     />
                   </div>
 
@@ -714,7 +714,7 @@ export default function DemoTrading() {
                       required
                       value={journalForm.direction}
                       onChange={(e) => setJournalForm({ ...journalForm, direction: e.target.value as 'buy' | 'sell' })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 bg-white"
                     >
                       <option value="buy">Buy (Long)</option>
                       <option value="sell">Sell (Short)</option>
@@ -729,7 +729,7 @@ export default function DemoTrading() {
                       step="0.00001"
                       value={journalForm.entryPrice}
                       onChange={(e) => setJournalForm({ ...journalForm, entryPrice: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 bg-white"
                     />
                   </div>
 
@@ -741,7 +741,7 @@ export default function DemoTrading() {
                       step="0.00001"
                       value={journalForm.stopLoss}
                       onChange={(e) => setJournalForm({ ...journalForm, stopLoss: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 bg-white"
                     />
                   </div>
 
@@ -753,7 +753,7 @@ export default function DemoTrading() {
                       step="0.00001"
                       value={journalForm.takeProfit}
                       onChange={(e) => setJournalForm({ ...journalForm, takeProfit: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 bg-white"
                     />
                   </div>
 
@@ -765,7 +765,7 @@ export default function DemoTrading() {
                       step="0.01"
                       value={journalForm.lotSize}
                       onChange={(e) => setJournalForm({ ...journalForm, lotSize: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 bg-white"
                     />
                   </div>
 
@@ -775,7 +775,7 @@ export default function DemoTrading() {
                       required
                       value={journalForm.result}
                       onChange={(e) => setJournalForm({ ...journalForm, result: e.target.value as any })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 bg-white"
                     >
                       <option value="open">Open</option>
                       <option value="win">Win</option>
@@ -792,7 +792,7 @@ export default function DemoTrading() {
                         step="0.01"
                         value={journalForm.profitLoss}
                         onChange={(e) => setJournalForm({ ...journalForm, profitLoss: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 bg-white"
                       />
                     </div>
                   )}
@@ -803,7 +803,7 @@ export default function DemoTrading() {
                       <select
                         value={journalForm.taskId}
                         onChange={(e) => setJournalForm({ ...journalForm, taskId: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 bg-white"
                       >
                         <option value="">None</option>
                         {pendingTasks.map((task) => (

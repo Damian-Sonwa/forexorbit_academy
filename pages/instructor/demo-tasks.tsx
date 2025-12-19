@@ -332,7 +332,7 @@ export default function InstructorDemoTasks() {
                     value={taskForm.title}
                     onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })}
                     placeholder="e.g., Open a Buy trade on EUR/USD with 1% risk"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 bg-white"
                   />
                 </div>
 
@@ -344,7 +344,7 @@ export default function InstructorDemoTasks() {
                     onChange={(e) => setTaskForm({ ...taskForm, description: e.target.value })}
                     rows={3}
                     placeholder="Brief description of what students need to do"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 bg-white"
                   />
                 </div>
 
@@ -355,7 +355,7 @@ export default function InstructorDemoTasks() {
                     onChange={(e) => setTaskForm({ ...taskForm, instructions: e.target.value })}
                     rows={6}
                     placeholder="Step-by-step instructions for students to follow..."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 bg-white"
                   />
                   <p className="text-xs text-gray-500 mt-1">
                     Provide clear, actionable steps for students to complete this task.
@@ -367,7 +367,7 @@ export default function InstructorDemoTasks() {
                   <select
                     value={taskForm.assignedTo}
                     onChange={(e) => setTaskForm({ ...taskForm, assignedTo: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 bg-white"
                   >
                     <option value="">All Students</option>
                     {students.map((student) => (
@@ -387,7 +387,7 @@ export default function InstructorDemoTasks() {
                     type="date"
                     value={taskForm.dueDate}
                     onChange={(e) => setTaskForm({ ...taskForm, dueDate: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 bg-white"
                   />
                 </div>
 
