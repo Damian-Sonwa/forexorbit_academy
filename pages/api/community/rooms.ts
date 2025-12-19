@@ -27,15 +27,19 @@ async function getRooms(req: AuthRequest, res: NextApiResponse) {
     const messages = db.collection('communityMessages');
     const users = db.collection('users');
 
-    // Get user's learning level
+    // Get user's learning level and onboarding status
     const user = await users.findOne(
       { _id: new ObjectId(req.user!.userId) },
-      { projection: { learningLevel: 1, role: 1 } }
+      { projection: { learningLevel: 1, role: 1, studentDetails: 1 } }
     );
 
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
+
+    // Check if student has completed onboarding
+    const hasCompletedOnboarding = user.role !== 'student' || 
+      (user.studentDetails && user.studentDetails.completedAt);
 
     // Determine user's learning level
     let userLevel: 'beginner' | 'intermediate' | 'advanced' = 'beginner';
@@ -43,6 +47,11 @@ async function getRooms(req: AuthRequest, res: NextApiResponse) {
       // Instructors, admins, and super admins have access to all levels
       userLevel = 'advanced';
     } else {
+      // Students must complete onboarding before accessing any room
+      if (!hasCompletedOnboarding) {
+        // Return empty rooms array with a message
+        return res.json([]);
+      }
       userLevel = (user?.learningLevel as 'beginner' | 'intermediate' | 'advanced') || 'beginner';
       // Check and update level if eligible (async, doesn't block) - wrap in try-catch to prevent errors
       // Only call if function exists (defensive check)

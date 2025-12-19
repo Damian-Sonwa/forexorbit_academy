@@ -36,11 +36,22 @@ async function getMessages(req: AuthRequest, res: NextApiResponse) {
       return res.status(404).json({ error: 'Room not found' });
     }
 
-    // Get user's learning level
+    // Get user's learning level and onboarding status
     const user = await users.findOne(
       { _id: new ObjectId(req.user!.userId) },
-      { projection: { learningLevel: 1, role: 1 } }
+      { projection: { learningLevel: 1, role: 1, studentDetails: 1 } }
     );
+
+    // Check if student has completed onboarding
+    const hasCompletedOnboarding = !user || user.role !== 'student' || 
+      (user.studentDetails && user.studentDetails.completedAt);
+
+    // Students must complete onboarding before accessing rooms
+    if (user?.role === 'student' && !hasCompletedOnboarding) {
+      return res.status(403).json({ 
+        error: 'Access denied. Please complete the onboarding form to access community rooms.' 
+      });
+    }
 
     // Determine user's learning level
     let userLevel: 'beginner' | 'intermediate' | 'advanced' = 'beginner';
@@ -143,11 +154,22 @@ async function sendMessage(req: AuthRequest, res: NextApiResponse) {
       return res.status(404).json({ error: 'Room not found' });
     }
 
-    // Get user's learning level
+    // Get user's learning level and onboarding status
     const user = await users.findOne(
       { _id: new ObjectId(req.user!.userId) },
-      { projection: { learningLevel: 1, role: 1 } }
+      { projection: { learningLevel: 1, role: 1, studentDetails: 1 } }
     );
+
+    // Check if student has completed onboarding
+    const hasCompletedOnboarding = !user || user.role !== 'student' || 
+      (user.studentDetails && user.studentDetails.completedAt);
+
+    // Students must complete onboarding before accessing rooms
+    if (user?.role === 'student' && !hasCompletedOnboarding) {
+      return res.status(403).json({ 
+        error: 'Access denied. Please complete the onboarding form to access community rooms.' 
+      });
+    }
 
     // Determine user's learning level
     let userLevel: 'beginner' | 'intermediate' | 'advanced' = 'beginner';
@@ -200,9 +222,9 @@ async function sendMessage(req: AuthRequest, res: NextApiResponse) {
       { $set: { updatedAt: new Date() } }
     );
 
-    // Emit socket event to ALL users in the room (including sender) - like WhatsApp
-    // CRITICAL FIX: For students, also broadcast to "community_global" room
-    // Students use the same socket room as admin/instructor
+    // Emit socket event ONLY to users in the specific room (including sender) - full room isolation
+    // Each room uses its unique database ID: room:<roomId>
+    // Messages are scoped to the specific room only - no cross-room leaks
     if (req.io) {
       const messageToEmit = {
         ...message,
@@ -210,25 +232,16 @@ async function sendMessage(req: AuthRequest, res: NextApiResponse) {
         senderId: req.user!.userId,
         senderName: sender?.name || 'Unknown',
         senderPhoto: sender?.profilePhoto || null,
-        roomId: roomIdObj.toString(), // Ensure roomId is included for level-specific filtering
+        roomId: roomIdObj.toString(), // Room ID for filtering on frontend
       };
-      // Broadcast to ALL users in the room (including sender) - like WhatsApp
-      // Use both string and ObjectId formats to ensure all users receive it
+      // Broadcast ONLY to the specific room using its unique database ID
       const roomIdStr = roomIdObj.toString();
       req.io.to(`room:${roomIdStr}`).emit('message', messageToEmit);
-      // Also emit to the ObjectId format room if different
+      // Also emit to ObjectId format if different (for compatibility)
       if (roomId !== roomIdStr) {
         req.io.to(`room:${roomId}`).emit('message', messageToEmit);
       }
-      // CRITICAL: For students sending to Beginner room, also broadcast to "community_global" room
-      // This ensures students receive messages even if they're using placeholder rooms
-      // Students join "community_global" socket room but send messages to Beginner room (API access control)
-      if (user?.role === 'student' && room.name === 'Beginner') {
-        req.io.to('room:community_global').emit('message', {
-          ...messageToEmit,
-          roomId: 'community_global', // Override roomId for socket broadcast to match student's socket room
-        });
-      }
+      console.log(`Message broadcast to room:${roomIdStr} only (isolated)`);
     }
 
     res.json({

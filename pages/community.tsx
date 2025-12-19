@@ -139,25 +139,8 @@ export default function Community() {
     };
   }, [user, connected, socket, user?.learningLevel, user?.role]);
 
-  // CRITICAL FIX: Students must join "community_global" immediately on mount
-  // Same room as admin/instructor - no placeholder rooms
-  useEffect(() => {
-    if (!socket || !user) return;
-    
-    // CRITICAL: Wait for socket connection before joining room
-    if (!socket.connected) {
-      console.log('Socket not connected, waiting...');
-      return;
-    }
-
-    // For students, always join "community_global" room immediately
-    // This ensures students use the same room as admin/instructor
-    if (user.role === 'student') {
-      console.log('Student joining community_global room');
-      console.log('Socket connected:', socket.connected);
-      socket.emit('joinRoom', { roomId: 'community_global' });
-    }
-  }, [socket, user, connected]);
+  // Room joining is handled when a room is selected
+  // Each room uses its unique database ID for full isolation
 
   useEffect(() => {
     if (selectedRoom) {
@@ -190,41 +173,24 @@ export default function Community() {
       
       const roomIdStr = roomToUse._id?.toString() || roomToUse._id;
       
-      // CRITICAL FIX: For students, ALWAYS use "community_global" for socket room
-      // Students must join the same socket room as admin/instructor
-      let actualRoomId = roomIdStr;
-      if (user?.role === 'student') {
-        // Students ALWAYS join community_global socket room, regardless of selected room
-        actualRoomId = 'community_global';
-        console.log('Student: Using community_global socket room');
-      }
-
+      // Use the actual room ID from database - each room is fully isolated
+      // No special handling for students - all users use room-specific IDs
       setShowRoomSelection(false);
       setPage(1);
       setHasMoreMessages(true);
       setRoomConfirmed(false); // Reset confirmation when switching rooms
       // Clear previous messages and load messages for this specific room
       setMessages([]);
-      // Load messages from the selected room (for display)
-      // But join community_global socket room for students
-      if (user?.role === 'student') {
-        // For students, load messages from Beginner room (default accessible)
-        // But join community_global socket room for real-time updates
-        loadMessages(roomIdStr, 1, false);
-      } else {
-        loadMessages(roomIdStr, 1, false);
-      }
-      // Join the room safely (will retry if socket not ready)
-      joinRoomSafely(actualRoomId);
+      // Load messages from the selected room
+      loadMessages(roomIdStr, 1, false);
+      // Join the room safely using its unique database ID
+      joinRoomSafely(roomIdStr);
     }
     return () => {
       if (selectedRoom) {
-        // Leave room when switching away - same for all roles
-        let actualRoomId = selectedRoom._id?.toString() || selectedRoom._id;
-        if (user?.role === 'student') {
-          actualRoomId = 'community_global';
-        }
-        leaveRoom(actualRoomId);
+        // Leave room when switching away
+        const roomIdStr = selectedRoom._id?.toString() || selectedRoom._id;
+        leaveRoom(roomIdStr);
       }
     };
   }, [selectedRoom?._id, user, rooms]);
@@ -254,16 +220,13 @@ export default function Community() {
     });
 
     socket.on('message', (message: Message) => {
-      // CRITICAL FIX: For students, accept messages from "community_global" room
-      // Students use the same room as admin/instructor
+      // Messages are scoped to specific rooms - check if message is for current room
       const messageRoomId = message.roomId?.toString() || message.roomId;
       const selectedRoomId = selectedRoom?._id?.toString() || selectedRoom?._id;
       
-      // Check if message is for current room
-      const isForCurrentRoom = 
-        (selectedRoom && (messageRoomId === selectedRoomId || messageRoomId === selectedRoom._id)) ||
-        // For students, also accept messages from community_global when viewing any room
-        (user?.role === 'student' && messageRoomId === 'community_global' && selectedRoom);
+      // Only accept messages for the currently selected room (full isolation)
+      const isForCurrentRoom = selectedRoom && 
+        (messageRoomId === selectedRoomId || messageRoomId === selectedRoom._id?.toString());
       
       if (isForCurrentRoom) {
         // Add message to state, avoiding duplicates
@@ -544,33 +507,23 @@ export default function Community() {
   // Track pending room joins for retry after connection
   const pendingRoomJoinsRef = useRef<Set<string>>(new Set());
 
-  // Safe room join - Always allow join, rooms are created automatically by socket.io
-  // CRITICAL: Students ALWAYS join "community_global" - same room as admin/instructor
+  // Safe room join - Use unique room ID from database for full isolation
+  // Each room (Beginner, Intermediate, Advanced) has a unique database ID
+  // Socket rooms are namespaced by room ID: room:<roomId>
   const joinRoomSafely = (roomId: string) => {
-    let roomIdStr = roomId?.toString() || roomId;
+    const roomIdStr = roomId?.toString() || roomId;
     
-    // CRITICAL FIX: For students, ALWAYS use "community_global" regardless of input
-    // Students must join the same socket room as admin/instructor
-    if (user?.role === 'student') {
-      roomIdStr = 'community_global';
-      console.log('Student: Forcing community_global socket room');
-    }
-    
-    // Debug log for students
-    if (user?.role === 'student') {
-      console.log('Student joining room:', roomIdStr);
-      console.log('Socket connected:', socket?.connected);
+    // Validate roomId is not a placeholder
+    if (typeof roomIdStr === 'string' && roomIdStr.startsWith('placeholder-')) {
+      console.warn('Cannot join placeholder room:', roomIdStr);
+      return;
     }
 
     // Join room immediately if socket exists - room is created automatically
-    // No blocking logic - rooms are auto-created by socket.io
+    // Each room uses its unique database ID for complete isolation
     if (socket) {
       socket.emit('joinRoom', { roomId: roomIdStr });
-      if (user?.role === 'student') {
-        console.log('Student joined room:', roomIdStr);
-      } else {
-        console.log('Joined room:', roomIdStr);
-      }
+      console.log(`Joining room with unique ID: ${roomIdStr}`);
       pendingRoomJoinsRef.current.delete(roomIdStr);
     } else {
       // Store for retry after socket connects
@@ -598,30 +551,12 @@ export default function Community() {
       console.log('Room joined confirmed:', data.roomId, data.roomName);
       
       // Mark room as confirmed - allow sending messages now
+      // Room ID must match the selected room's database ID for isolation
       if (selectedRoom) {
         const selectedRoomId = selectedRoom._id?.toString() || selectedRoom._id;
-        // For students, confirm if community_global room is joined (they always use this socket room)
-        if (user?.role === 'student' && data.roomId === 'community_global') {
-          setRoomConfirmed(true);
-          console.log('Student: Room confirmed (community_global), messages can now be sent');
-        } else if (data.roomId === selectedRoomId || data.roomId === selectedRoom._id?.toString()) {
+        if (data.roomId === selectedRoomId || data.roomId === selectedRoom._id?.toString()) {
           setRoomConfirmed(true);
           console.log('Room confirmed, messages can now be sent');
-        }
-      }
-      
-      // CRITICAL: Remove placeholder room logic after successful join
-      // For students, if selectedRoom is a placeholder, replace it with real room
-      if (user?.role === 'student' && selectedRoom) {
-        const roomIdStr = selectedRoom._id?.toString() || selectedRoom._id;
-        if (typeof roomIdStr === 'string' && roomIdStr.startsWith('placeholder-')) {
-          // Find real Beginner room
-          const beginnerRoom = rooms.find(r => r.name === 'Beginner' && !r._id?.toString().startsWith('placeholder-'));
-          if (beginnerRoom) {
-            setSelectedRoom(beginnerRoom);
-            setRoomConfirmed(true); // Confirm the real room
-            console.log('Student: Replaced placeholder room with real Beginner room after join confirmation');
-          }
         }
       }
     };
@@ -639,12 +574,13 @@ export default function Community() {
 
   const leaveRoom = (roomId: string) => {
     if (socket && connected) {
-      let roomIdStr = roomId?.toString() || roomId;
-      // CRITICAL FIX: For students, replace placeholder with "community_global"
-      if (user?.role === 'student' && typeof roomIdStr === 'string' && roomIdStr.startsWith('placeholder-')) {
-        roomIdStr = 'community_global';
+      const roomIdStr = roomId?.toString() || roomId;
+      // Don't leave placeholder rooms
+      if (typeof roomIdStr === 'string' && roomIdStr.startsWith('placeholder-')) {
+        return;
       }
       socket.emit('leaveRoom', { roomId: roomIdStr });
+      console.log('Left room:', roomIdStr);
     }
   };
 
@@ -676,7 +612,7 @@ export default function Community() {
     }
     
     // CRITICAL FIX: For students, use Beginner room ID for API calls
-    // Students send to Beginner room (access control) but join "community_global" socket room
+    // Send message to the selected room using its unique database ID
     // NEVER use placeholder room IDs
     let roomIdStr = selectedRoom._id?.toString() || selectedRoom._id;
     
