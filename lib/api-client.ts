@@ -29,10 +29,23 @@ class ApiClient {
       return config;
     });
 
-    // Handle auth errors
+    // Handle auth errors and network errors
     this.client.interceptors.response.use(
       (response) => response,
       (error) => {
+        // Handle network errors (ERR_NETWORK)
+        if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
+          console.error('Network error:', {
+            url: error.config?.url,
+            baseURL: error.config?.baseURL,
+            message: error.message,
+          });
+          // Don't redirect on network errors - might be temporary
+          // Let the component handle the error gracefully
+          return Promise.reject(error);
+        }
+
+        // Handle 401 Unauthorized
         if (error.response?.status === 401) {
           if (typeof window !== 'undefined') {
             // Don't redirect if we're already on the login page (login failed)

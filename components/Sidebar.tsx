@@ -228,6 +228,9 @@ export default function Sidebar({ }: SidebarProps) {
       setProfileData(data);
     } catch (error) {
       console.error('Failed to load profile data:', error);
+      // Don't set profileData to null on error - keep existing data
+      // This prevents UI flickering on network errors
+      // Only log the error for debugging
     }
   };
 
