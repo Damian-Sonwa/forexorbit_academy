@@ -77,29 +77,47 @@ export default function ConsultationChat() {
   
   // Check if Agora is configured (client-side only)
   const [agoraConfigured, setAgoraConfigured] = useState<boolean>(false);
+  const [agoraConfigCheckComplete, setAgoraConfigCheckComplete] = useState<boolean>(false);
   
   // Check Agora configuration on mount (client-side only)
   // This ensures it works on both mobile and desktop
+  // CRITICAL: In Next.js, NEXT_PUBLIC_ vars are embedded at build time
+  // They should be available via process.env, but we check multiple sources for mobile compatibility
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      // Check for NEXT_PUBLIC_AGORA_APP_ID in multiple ways for compatibility
-      const appId = 
-        process.env.NEXT_PUBLIC_AGORA_APP_ID || 
-        (window as any).__NEXT_DATA__?.env?.NEXT_PUBLIC_AGORA_APP_ID ||
-        '';
-      
-      const isConfigured = !!appId && appId.length > 0;
-      setAgoraConfigured(isConfigured);
-      
-      if (!isConfigured) {
-        console.warn('Agora not configured: NEXT_PUBLIC_AGORA_APP_ID is not set or empty');
-        console.warn('Available env vars:', {
-          hasNextPublic: !!process.env.NEXT_PUBLIC_AGORA_APP_ID,
-          hasWindowNextData: !!(window as any).__NEXT_DATA__?.env?.NEXT_PUBLIC_AGORA_APP_ID,
-        });
-      } else {
-        console.log('Agora configured with App ID:', appId.substring(0, 8) + '...');
-      }
+    if (typeof window === 'undefined') return;
+    
+    // Try multiple ways to get the App ID (for mobile compatibility)
+    let appId = '';
+    
+    // Method 1: Direct process.env (should work in Next.js client bundle)
+    if (process.env.NEXT_PUBLIC_AGORA_APP_ID) {
+      appId = process.env.NEXT_PUBLIC_AGORA_APP_ID;
+    }
+    
+    // Method 2: Check window.__NEXT_DATA__ (Next.js runtime data)
+    if (!appId && (window as any).__NEXT_DATA__?.env?.NEXT_PUBLIC_AGORA_APP_ID) {
+      appId = (window as any).__NEXT_DATA__.env.NEXT_PUBLIC_AGORA_APP_ID;
+    }
+    
+    // Method 3: Check if it's in the global scope (fallback)
+    if (!appId && (window as any).NEXT_PUBLIC_AGORA_APP_ID) {
+      appId = (window as any).NEXT_PUBLIC_AGORA_APP_ID;
+    }
+    
+    const isConfigured = !!appId && appId.trim().length > 0;
+    setAgoraConfigured(isConfigured);
+    setAgoraConfigCheckComplete(true);
+    
+    if (!isConfigured) {
+      console.warn('Agora not configured: NEXT_PUBLIC_AGORA_APP_ID is not set or empty');
+      console.warn('Environment check:', {
+        processEnv: !!process.env.NEXT_PUBLIC_AGORA_APP_ID,
+        nextData: !!(window as any).__NEXT_DATA__?.env?.NEXT_PUBLIC_AGORA_APP_ID,
+        global: !!(window as any).NEXT_PUBLIC_AGORA_APP_ID,
+        userAgent: navigator.userAgent,
+      });
+    } else {
+      console.log('Agora configured with App ID:', appId.substring(0, 8) + '...');
     }
   }, []);
 
@@ -364,10 +382,16 @@ export default function ConsultationChat() {
                     )}
                   </>
                 )}
-                {/* Show message if Agora is not configured */}
-                {session.status === 'active' && !agoraConfigured && (
+                {/* Show message if Agora is not configured - only after check is complete */}
+                {session.status === 'active' && agoraConfigCheckComplete && !agoraConfigured && (
                   <p className="text-sm text-gray-500 dark:text-gray-400 italic">
                     Agora not configured
+                  </p>
+                )}
+                {/* Show loading state while checking configuration */}
+                {session.status === 'active' && !agoraConfigCheckComplete && (
+                  <p className="text-sm text-gray-500 dark:text-gray-400 italic">
+                    Checking configuration...
                   </p>
                 )}
               </div>

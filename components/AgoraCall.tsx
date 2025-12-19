@@ -45,6 +45,7 @@ export default function AgoraCall({ appId, channel, token, uid, callType, onCall
   const localVideoTrackRef = useRef<ILocalVideoTrack | null>(null);
   const localVideoContainerRef = useRef<HTMLDivElement>(null);
   const remoteVideoContainerRef = useRef<HTMLDivElement>(null);
+  const initTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Ensure component only runs on client
   useEffect(() => {
@@ -77,6 +78,12 @@ export default function AgoraCall({ appId, channel, token, uid, callType, onCall
     }
     
     const init = async () => {
+      // Add timeout to prevent infinite loading
+      initTimeoutRef.current = setTimeout(() => {
+        console.error('AgoraCall: Initialization timeout after 30 seconds');
+        setError('Call initialization timed out. Please try again.');
+        setLoading(false);
+      }, 30000); // 30 second timeout
       try {
         setLoading(true);
         setError(null);
@@ -177,8 +184,16 @@ export default function AgoraCall({ appId, channel, token, uid, callType, onCall
 
         setJoined(true);
         setLoading(false);
+        if (initTimeoutRef.current) {
+          clearTimeout(initTimeoutRef.current);
+          initTimeoutRef.current = null;
+        }
         console.log('AgoraCall: Initialization complete - call is active');
       } catch (err: any) {
+        if (initTimeoutRef.current) {
+          clearTimeout(initTimeoutRef.current);
+          initTimeoutRef.current = null;
+        }
         console.error('AgoraCall: Initialization error:', err);
         console.error('AgoraCall: Error details:', {
           name: err.name,
@@ -195,6 +210,8 @@ export default function AgoraCall({ appId, channel, token, uid, callType, onCall
           errorMessage += 'Token expired or invalid. Please try starting the call again.';
         } else if (err.message?.includes('network') || err.code === 'NETWORK_ERROR') {
           errorMessage += 'Network error. Please check your connection and try again.';
+        } else if (err.code === 'INVALID_APP_ID' || err.message?.includes('appId')) {
+          errorMessage += 'Invalid Agora configuration. Please contact support.';
         } else {
           errorMessage += err.message || 'Please try again.';
         }
@@ -218,6 +235,12 @@ export default function AgoraCall({ appId, channel, token, uid, callType, onCall
     
     // Cleanup function - only runs when component unmounts or props change
     return () => {
+      // Clear timeout if still running
+      if (initTimeoutRef.current) {
+        clearTimeout(initTimeoutRef.current);
+        initTimeoutRef.current = null;
+      }
+      
       const cleanup = async () => {
         try {
           console.log('AgoraCall: Cleaning up...');
