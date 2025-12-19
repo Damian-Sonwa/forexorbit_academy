@@ -32,8 +32,9 @@ export function validateEnv() {
 if (typeof window === 'undefined') {
   try {
     validateEnv();
-  } catch (error: any) {
-    console.error('Environment validation failed:', error.message);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Environment validation failed:', errorMessage);
     // Don't throw in development to allow graceful handling
     if (process.env.NODE_ENV === 'production') {
       throw error;

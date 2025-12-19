@@ -152,8 +152,11 @@ export default function TradingInterface() {
         takeProfit: '',
       });
       await loadData();
-    } catch (error: any) {
-      alert(error.response?.data?.error || 'Failed to place order');
+    } catch (error) {
+      const errorMessage = error && typeof error === 'object' && 'response' in error
+        ? (error as { response?: { data?: { error?: string } } }).response?.data?.error || 'Failed to place order'
+        : 'Failed to place order';
+      alert(errorMessage);
     } finally {
       setSubmitting(false);
     }
@@ -167,8 +170,11 @@ export default function TradingInterface() {
     try {
       await apiClient.post(`/demo-trading/positions/${positionId}/close`);
       await loadData();
-    } catch (error: any) {
-      alert(error.response?.data?.error || 'Failed to close position');
+    } catch (error) {
+      const errorMessage = error && typeof error === 'object' && 'response' in error
+        ? (error as { response?: { data?: { error?: string } } }).response?.data?.error || 'Failed to close position'
+        : 'Failed to close position';
+      alert(errorMessage);
     }
   };
 
@@ -387,7 +393,7 @@ export default function TradingInterface() {
                   <select
                     required
                     value={orderForm.orderType}
-                    onChange={(e) => setOrderForm({ ...orderForm, orderType: e.target.value as any })}
+                    onChange={(e) => setOrderForm({ ...orderForm, orderType: e.target.value as 'market' | 'limit' | 'stop' })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 bg-white"
                   >
                     <option value="market">Market</option>

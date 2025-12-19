@@ -20,13 +20,12 @@ export class PerformanceMetricsCalculator {
     }
 
     // Calculate P/L for each trade
-    const tradeResults = closedTrades.map((trade, index) => {
+    const tradeResults = closedTrades.map((trade) => {
       // For simplicity, we'll use a mock P/L calculation
       // In real implementation, you'd track actual entry/exit prices
       const entryPrice = trade.fillPrice || 0;
       const exitPrice = trade.fillPrice || 0; // This would come from closing trade
       const units = trade.units;
-      const pips = Math.abs(exitPrice - entryPrice) * 10000; // Simplified
       const profitLoss = trade.side === 'buy' 
         ? (exitPrice - entryPrice) * units * 10000
         : (entryPrice - exitPrice) * units * 10000;
