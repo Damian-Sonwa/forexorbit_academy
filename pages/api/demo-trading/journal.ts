@@ -126,10 +126,10 @@ async function createJournalEntry(req: AuthRequest, res: NextApiResponse) {
       updatedAt: new Date(),
     };
 
-    const result = await journal.insertOne(entry);
+    const insertResult = await journal.insertOne(entry);
 
     res.status(201).json({
-      _id: result.insertedId.toString(),
+      _id: insertResult.insertedId.toString(),
       ...entry,
     });
   } catch (error: any) {
