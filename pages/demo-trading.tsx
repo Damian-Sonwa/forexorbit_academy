@@ -12,6 +12,7 @@ import Footer from '@/components/Footer';
 import { useAuth } from '@/hooks/useAuth';
 import { apiClient } from '@/lib/api-client';
 import { format } from 'date-fns';
+import TradingInterface from '@/components/TradingInterface';
 
 interface DemoTask {
   _id: string;
