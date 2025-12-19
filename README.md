@@ -42,12 +42,15 @@ A comprehensive e-learning platform for Forex trading with real-time features, i
    
    Create a `.env.local` file in the root directory:
    ```env
-   MONGO_URI=mongodb+srv://Damian25:sopuluchukwu@cluster0.tcjhicx.mongodb.net/Forex_elearning?appName=Cluster0
+   MONGO_URI=mongodb+srv://username:password@cluster.mongodb.net/Forex_elearning?retryWrites=true&w=majority
    JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
    NEXT_PUBLIC_SOCKET_URL=http://localhost:3000
-   AGORA_APP_ID=your-agora-app-id
+   NEXT_PUBLIC_AGORA_APP_ID=your-agora-app-id
+   AGORA_APP_CERTIFICATE=your-agora-app-certificate
    # AGORA_APP_CERTIFICATE should be set on Render backend only, not in Vercel
    ```
+   
+   **⚠️ SECURITY WARNING:** Never commit `.env.local` to git. It's already in `.gitignore`.
    
    **Note**: To get Agora credentials:
    1. Sign up at [Agora Console](https://console.agora.io/)
