@@ -69,57 +69,13 @@ export default function ConsultationChat() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   // Agora call state - replaces broken WebRTC
+  // Frontend does NOT check Agora configuration - only checks if token API returns valid token
   const [agoraCallType, setAgoraCallType] = useState<'voice' | 'video' | null>(null);
   const [agoraToken, setAgoraToken] = useState<string | null>(null);
   const [agoraAppId, setAgoraAppId] = useState<string>('');
   const [agoraChannel, setAgoraChannel] = useState<string>('');
   const [loadingAgoraToken, setLoadingAgoraToken] = useState(false);
-  
-  // Check if Agora is configured (client-side only)
-  const [agoraConfigured, setAgoraConfigured] = useState<boolean>(false);
-  const [agoraConfigCheckComplete, setAgoraConfigCheckComplete] = useState<boolean>(false);
-  
-  // Check Agora configuration on mount (client-side only)
-  // This ensures it works on both mobile and desktop
-  // CRITICAL: In Next.js, NEXT_PUBLIC_ vars are embedded at build time
-  // They should be available via process.env, but we check multiple sources for mobile compatibility
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    
-    // Try multiple ways to get the App ID (for mobile compatibility)
-    let appId = '';
-    
-    // Method 1: Direct process.env (should work in Next.js client bundle)
-    if (process.env.NEXT_PUBLIC_AGORA_APP_ID) {
-      appId = process.env.NEXT_PUBLIC_AGORA_APP_ID;
-    }
-    
-    // Method 2: Check window.__NEXT_DATA__ (Next.js runtime data)
-    if (!appId && (window as any).__NEXT_DATA__?.env?.NEXT_PUBLIC_AGORA_APP_ID) {
-      appId = (window as any).__NEXT_DATA__.env.NEXT_PUBLIC_AGORA_APP_ID;
-    }
-    
-    // Method 3: Check if it's in the global scope (fallback)
-    if (!appId && (window as any).NEXT_PUBLIC_AGORA_APP_ID) {
-      appId = (window as any).NEXT_PUBLIC_AGORA_APP_ID;
-    }
-    
-    const isConfigured = !!appId && appId.trim().length > 0;
-    setAgoraConfigured(isConfigured);
-    setAgoraConfigCheckComplete(true);
-    
-    if (!isConfigured) {
-      console.warn('Agora not configured: NEXT_PUBLIC_AGORA_APP_ID is not set or empty');
-      console.warn('Environment check:', {
-        processEnv: !!process.env.NEXT_PUBLIC_AGORA_APP_ID,
-        nextData: !!(window as any).__NEXT_DATA__?.env?.NEXT_PUBLIC_AGORA_APP_ID,
-        global: !!(window as any).NEXT_PUBLIC_AGORA_APP_ID,
-        userAgent: navigator.userAgent,
-      });
-    } else {
-      console.log('Agora configured with App ID:', appId.substring(0, 8) + '...');
-    }
-  }, []);
+  const [agoraTokenError, setAgoraTokenError] = useState<string | null>(null);
 
   // Check URL query for auto-starting Agora calls
   useEffect(() => {
@@ -246,24 +202,22 @@ export default function ConsultationChat() {
   };
 
   // Start Agora call - Replaces broken WebRTC
-  // CRITICAL: Agora works independently of Socket.IO - only needs token
+  // CRITICAL: Frontend does NOT check Agora configuration
+  // Readiness is determined solely by whether token API returns a valid token
   const handleStartAgoraCall = async (callType: 'voice' | 'video') => {
     if (!sessionId || typeof sessionId !== 'string' || !user || session?.status !== 'active') {
       alert('Consultation must be active to start a call');
       return;
     }
 
-    // Check if Agora is configured (client-side check)
-    if (!agoraConfigured) {
-      alert('Agora is not configured. Please contact support.');
-      return;
-    }
+    // Clear any previous errors
+    setAgoraTokenError(null);
+    setLoadingAgoraToken(true);
+    setAgoraCallType(callType);
 
     try {
-      setLoadingAgoraToken(true);
-      setAgoraCallType(callType);
-
-      // Generate Agora token using GET request (as per requirements)
+      // Generate Agora token using GET request
+      // This is the ONLY check - if token API fails, show error
       const response = await apiClient.get<{
         token: string;
         appId: string;
@@ -271,28 +225,43 @@ export default function ConsultationChat() {
         uid: string | number;
       }>(`/consultations/agora-token?channel=${sessionId}`);
 
+      // Validate token response - this determines readiness
       if (!response.token || !response.appId || !response.channel) {
         throw new Error('Invalid token response from server');
       }
 
+      // Log token fetch success (but NOT the token value itself)
+      console.log('Agora token fetch: SUCCESS', {
+        hasToken: !!response.token,
+        tokenLength: response.token?.length,
+        appId: response.appId ? response.appId.substring(0, 8) + '...' : 'missing',
+        channel: response.channel,
+      });
+
+      // Set token and credentials - call will initialize
       setAgoraToken(response.token);
       setAgoraAppId(response.appId);
       setAgoraChannel(response.channel);
       setLoadingAgoraToken(false);
-      console.log('Agora call initialized:', { appId: response.appId, channel: response.channel });
     } catch (error: any) {
-      console.error('Error starting Agora call:', error);
-      // Show user-friendly error message - never mention certificate to frontend
+      // Log token fetch failure (but NOT the token value)
+      console.error('Agora token fetch: FAILED', {
+        status: error.response?.status,
+        error: error.response?.data?.error || error.message,
+      });
+
+      // Show error only when token request fails
       let errorMessage = 'Failed to start call. Please try again.';
       if (error.response?.status === 500) {
-        // Backend error - likely certificate or token service issue
+        // Backend error - token service unavailable
         errorMessage = error.response?.data?.error || 'Agora token service unavailable. Please contact support.';
       } else if (error.response?.data?.error) {
         errorMessage = error.response.data.error;
       } else if (error.message) {
         errorMessage = error.message;
       }
-      alert(errorMessage);
+      
+      setAgoraTokenError(errorMessage);
       setAgoraCallType(null);
       setLoadingAgoraToken(false);
     }
@@ -304,6 +273,12 @@ export default function ConsultationChat() {
     setAgoraToken(null);
     setAgoraAppId('');
     setAgoraChannel('');
+    setAgoraTokenError(null);
+  };
+
+  // Callback when Agora call successfully connects - clear any errors
+  const handleAgoraCallConnected = () => {
+    setAgoraTokenError(null);
   };
 
   if (authLoading || loading) {
@@ -350,9 +325,10 @@ export default function ConsultationChat() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                {/* Agora Call Controls - Replaces broken WebRTC buttons */}
-                {/* CRITICAL: Agora works independently of Socket.IO - only needs Agora config and active session */}
-                {session.status === 'active' && agoraConfigured && (
+                {/* Agora Call Controls - Always show if session is active */}
+                {/* Frontend does NOT check Agora configuration - buttons always visible */}
+                {/* Readiness is determined by token API response */}
+                {session.status === 'active' && (
                   <>
                     {!agoraCallType && (
                       <>
@@ -380,25 +356,20 @@ export default function ConsultationChat() {
                         </button>
                       </>
                     )}
+                    {/* Show error only if token fetch failed */}
+                    {agoraTokenError && (
+                      <p className="text-sm text-red-600 dark:text-red-400 italic">
+                        {agoraTokenError}
+                      </p>
+                    )}
                   </>
-                )}
-                {/* Show message if Agora is not configured - only after check is complete */}
-                {session.status === 'active' && agoraConfigCheckComplete && !agoraConfigured && (
-                  <p className="text-sm text-gray-500 dark:text-gray-400 italic">
-                    Agora not configured
-                  </p>
-                )}
-                {/* Show loading state while checking configuration */}
-                {session.status === 'active' && !agoraConfigCheckComplete && (
-                  <p className="text-sm text-gray-500 dark:text-gray-400 italic">
-                    Checking configuration...
-                  </p>
                 )}
               </div>
             </div>
           </div>
 
           {/* Agora Call Component - Replaces broken WebRTC */}
+          {/* Only render if we have a valid token (determined by token API response) */}
           {session.status === 'active' && agoraCallType && agoraToken && agoraAppId && agoraChannel && (
             <div className="px-4 pt-4">
               <AgoraCall
@@ -408,6 +379,7 @@ export default function ConsultationChat() {
                 uid={user?.id || Date.now()}
                 callType={agoraCallType}
                 onCallEnd={handleEndAgoraCall}
+                onCallConnected={handleAgoraCallConnected}
               />
             </div>
           )}

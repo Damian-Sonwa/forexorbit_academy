@@ -29,9 +29,10 @@ interface AgoraCallProps {
   uid: string | number;
   callType: 'voice' | 'video';
   onCallEnd?: () => void;
+  onCallConnected?: () => void; // Callback when call successfully connects
 }
 
-export default function AgoraCall({ appId, channel, token, uid, callType, onCallEnd }: AgoraCallProps) {
+export default function AgoraCall({ appId, channel, token, uid, callType, onCallEnd, onCallConnected }: AgoraCallProps) {
   const [joined, setJoined] = useState(false);
   const [remoteUsers, setRemoteUsers] = useState<RemoteUser[]>([]);
   const [isMuted, setIsMuted] = useState(false);
@@ -182,6 +183,8 @@ export default function AgoraCall({ appId, channel, token, uid, callType, onCall
           throw trackError;
         }
 
+        // CRITICAL: Clear error state once join() and publish() succeed
+        setError(null);
         setJoined(true);
         setLoading(false);
         if (initTimeoutRef.current) {
@@ -189,6 +192,11 @@ export default function AgoraCall({ appId, channel, token, uid, callType, onCall
           initTimeoutRef.current = null;
         }
         console.log('AgoraCall: Initialization complete - call is active');
+        
+        // Notify parent that call connected successfully
+        if (onCallConnected) {
+          onCallConnected();
+        }
       } catch (err: any) {
         if (initTimeoutRef.current) {
           clearTimeout(initTimeoutRef.current);
