@@ -105,12 +105,42 @@ export default function AgoraCall({ appId, channel, token, uid, callType, onCall
           if (mediaType === 'video') {
             const remoteVideoTrack = user.videoTrack;
             if (remoteVideoTrack) {
-              const remotePlayerContainer = document.createElement('div');
-              remotePlayerContainer.id = `remote-${user.uid}`;
-              remotePlayerContainer.style.width = '100%';
-              remotePlayerContainer.style.height = '100%';
-              remoteVideoContainerRef.current?.appendChild(remotePlayerContainer);
-              remoteVideoTrack.play(remotePlayerContainer);
+              // Wait for remote-video container to be available
+              const waitForRemoteContainer = (maxAttempts = 10) => {
+                return new Promise<HTMLElement>((resolve, reject) => {
+                  let attempts = 0;
+                  const checkContainer = () => {
+                    const container = document.getElementById('remote-video');
+                    if (container) {
+                      const rect = container.getBoundingClientRect();
+                      if (rect.width > 0 && rect.height > 0) {
+                        resolve(container);
+                        return;
+                      }
+                    }
+                    attempts++;
+                    if (attempts >= maxAttempts) {
+                      // Fallback: use ref container if ID not found
+                      if (remoteVideoContainerRef.current) {
+                        resolve(remoteVideoContainerRef.current);
+                        return;
+                      }
+                      reject(new Error('Remote video container not found'));
+                      return;
+                    }
+                    setTimeout(checkContainer, 100);
+                  };
+                  checkContainer();
+                });
+              };
+
+              try {
+                const remoteContainer = await waitForRemoteContainer();
+                await remoteVideoTrack.play(remoteContainer);
+                console.log('AgoraCall: Remote video playing in container');
+              } catch (err) {
+                console.error('AgoraCall: Error playing remote video:', err);
+              }
             }
           }
           
@@ -118,6 +148,7 @@ export default function AgoraCall({ appId, channel, token, uid, callType, onCall
             const remoteAudioTrack = user.audioTrack;
             if (remoteAudioTrack) {
               remoteAudioTrack.play();
+              console.log('AgoraCall: Remote audio playing');
             }
           }
           
@@ -151,19 +182,50 @@ export default function AgoraCall({ appId, channel, token, uid, callType, onCall
         console.log('AgoraCall: Creating local tracks...', { callType });
         try {
           if (callType === 'video') {
-            const [audioTrack, videoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks();
-            console.log('AgoraCall: Video tracks created');
+            // Create camera video track explicitly with facingMode: "user" (front-facing camera)
+            const videoTrack = await AgoraRTC.createCameraVideoTrack({ facingMode: 'user' });
+            console.log('AgoraCall: Camera video track created');
+            
+            // Create microphone audio track
+            const audioTrack = await AgoraRTC.createMicrophoneAudioTrack();
+            console.log('AgoraCall: Microphone audio track created');
+            
             localAudioTrackRef.current = audioTrack;
             localVideoTrackRef.current = videoTrack;
 
-            // Play local video
-            if (localVideoContainerRef.current) {
-              videoTrack.play(localVideoContainerRef.current);
-            }
+            // Wait for container to be available in DOM
+            // Ensure local-video container exists and has non-zero dimensions
+            const waitForContainer = (maxAttempts = 10) => {
+              return new Promise<HTMLElement>((resolve, reject) => {
+                let attempts = 0;
+                const checkContainer = () => {
+                  const container = document.getElementById('local-video');
+                  if (container) {
+                    const rect = container.getBoundingClientRect();
+                    if (rect.width > 0 && rect.height > 0) {
+                      resolve(container);
+                      return;
+                    }
+                  }
+                  attempts++;
+                  if (attempts >= maxAttempts) {
+                    reject(new Error('Local video container not found or has zero dimensions'));
+                    return;
+                  }
+                  setTimeout(checkContainer, 100);
+                };
+                checkContainer();
+              });
+            };
 
-            // Publish tracks
+            // Wait for container, then play local video
+            const localVideoContainer = await waitForContainer();
+            await videoTrack.play(localVideoContainer);
+            console.log('AgoraCall: Local video playing in container');
+
+            // Publish both audio and video tracks together
             await client.publish([audioTrack, videoTrack]);
-            console.log('AgoraCall: Video tracks published');
+            console.log('AgoraCall: Video and audio tracks published');
           } else {
             // Voice only
             const audioTrack = await AgoraRTC.createMicrophoneAudioTrack();
@@ -382,20 +444,55 @@ export default function AgoraCall({ appId, channel, token, uid, callType, onCall
       {callType === 'video' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           {/* Remote Video */}
-          <div className="relative bg-gray-900 rounded-lg overflow-hidden" style={{ minHeight: '300px' }}>
-            <div ref={remoteVideoContainerRef} className="w-full h-full"></div>
+          <div 
+            className="relative bg-gray-900 rounded-lg overflow-hidden" 
+            style={{ minHeight: '300px', width: '100%' }}
+          >
+            {/* Explicit ID for remote video container - required for Agora playback */}
+            <div 
+              id="remote-video" 
+              ref={remoteVideoContainerRef} 
+              className="w-full h-full"
+              style={{ minHeight: '300px', width: '100%' }}
+            >
+              {/* iOS Safari: playsinline attribute for video elements */}
+              <video 
+                id="remote-video-element"
+                playsInline
+                autoPlay
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              />
+            </div>
             {remoteUsers.length === 0 && (
-              <div className="absolute inset-0 flex items-center justify-center">
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <p className="text-gray-400">Waiting for other participant...</p>
               </div>
             )}
           </div>
 
           {/* Local Video */}
-          <div className="relative bg-gray-900 rounded-lg overflow-hidden" style={{ minHeight: '300px' }}>
-            <div ref={localVideoContainerRef} className="w-full h-full"></div>
+          <div 
+            className="relative bg-gray-900 rounded-lg overflow-hidden" 
+            style={{ minHeight: '300px', width: '100%' }}
+          >
+            {/* Explicit ID for local video container - required for Agora playback */}
+            <div 
+              id="local-video" 
+              ref={localVideoContainerRef} 
+              className="w-full h-full"
+              style={{ minHeight: '300px', width: '100%' }}
+            >
+              {/* iOS Safari: playsinline attribute for video elements */}
+              <video 
+                id="local-video-element"
+                playsInline
+                autoPlay
+                muted
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              />
+            </div>
             {isVideoOff && (
-              <div className="absolute inset-0 flex items-center justify-center bg-gray-800">
+              <div className="absolute inset-0 flex items-center justify-center bg-gray-800 pointer-events-none">
                 <p className="text-gray-400">Camera Off</p>
               </div>
             )}
