@@ -98,67 +98,70 @@ export default function AgoraCall({ appId, channel, token, uid, callType, onCall
         const client = AgoraRTC.createClient({ mode: 'rtc', codec: 'vp8' });
         clientRef.current = client;
 
+        // Helper function to wait for container with ID
+        const waitForContainer = (containerId: string, fallbackRef: React.RefObject<HTMLDivElement> | null, maxAttempts = 20) => {
+          return new Promise<HTMLElement>((resolve, reject) => {
+            let attempts = 0;
+            const checkContainer = () => {
+              const container = document.getElementById(containerId);
+              if (container) {
+                const rect = container.getBoundingClientRect();
+                // Check if container has non-zero dimensions
+                if (rect.width > 0 && rect.height > 0) {
+                  console.log(`AgoraCall: Container ${containerId} found with dimensions:`, rect.width, 'x', rect.height);
+                  resolve(container);
+                  return;
+                }
+              }
+              attempts++;
+              if (attempts >= maxAttempts) {
+                // Fallback: use ref container if ID not found
+                if (fallbackRef?.current) {
+                  console.warn(`AgoraCall: Using ref fallback for ${containerId}`);
+                  resolve(fallbackRef.current);
+                  return;
+                }
+                reject(new Error(`${containerId} container not found or has zero dimensions`));
+                return;
+              }
+              setTimeout(checkContainer, 100);
+            };
+            checkContainer();
+          });
+        };
+
         // Handle remote user events
         client.on('user-published', async (user, mediaType) => {
-          await client.subscribe(user, mediaType);
-          
-          if (mediaType === 'video') {
-            const remoteVideoTrack = user.videoTrack;
-            if (remoteVideoTrack) {
-              // Wait for remote-video container to be available
-              const waitForRemoteContainer = (maxAttempts = 20) => {
-                return new Promise<HTMLElement>((resolve, reject) => {
-                  let attempts = 0;
-                  const checkContainer = () => {
-                    const container = document.getElementById('remote-video');
-                    if (container) {
-                      const rect = container.getBoundingClientRect();
-                      if (rect.width > 0 && rect.height > 0) {
-                        console.log('AgoraCall: Remote video container found with dimensions:', rect.width, 'x', rect.height);
-                        resolve(container);
-                        return;
-                      }
-                    }
-                    attempts++;
-                    if (attempts >= maxAttempts) {
-                      // Fallback: use ref container if ID not found
-                      if (remoteVideoContainerRef.current) {
-                        console.warn('AgoraCall: Using ref fallback for remote-video');
-                        resolve(remoteVideoContainerRef.current);
-                        return;
-                      }
-                      reject(new Error('Remote video container not found or has zero dimensions'));
-                      return;
-                    }
-                    setTimeout(checkContainer, 100);
-                  };
-                  checkContainer();
-                });
-              };
-
-              try {
-                const remoteContainer = await waitForRemoteContainer();
+          try {
+            await client.subscribe(user, mediaType);
+            
+            if (mediaType === 'video') {
+              const remoteVideoTrack = user.videoTrack;
+              if (remoteVideoTrack) {
+                // Wait for remote-video container to be available
+                const remoteContainer = await waitForContainer('remote-video', remoteVideoContainerRef);
                 // Agora SDK will handle playsinline for iOS Safari automatically
                 await remoteVideoTrack.play(remoteContainer);
                 console.log('AgoraCall: Remote video playing in container');
-              } catch (err) {
-                console.error('AgoraCall: Error playing remote video:', err);
               }
             }
-          }
-          
-          if (mediaType === 'audio') {
-            const remoteAudioTrack = user.audioTrack;
-            if (remoteAudioTrack) {
-              remoteAudioTrack.play();
-              console.log('AgoraCall: Remote audio playing');
+            
+            if (mediaType === 'audio') {
+              const remoteAudioTrack = user.audioTrack;
+              if (remoteAudioTrack) {
+                remoteAudioTrack.play();
+                console.log('AgoraCall: Remote audio playing');
+              }
             }
+            
+            setRemoteUsers((prev) => {
+              if (prev.find((u) => u.uid === user.uid)) return prev;
+              return [...prev, { uid: user.uid, audioTrack: user.audioTrack, videoTrack: user.videoTrack }];
+            });
+          } catch (err) {
+            console.error('AgoraCall: Error handling user-published event:', err);
+            // Don't throw - allow other media types to continue
           }
-          
-          setRemoteUsers((prev) => {
-            if (prev.find((u) => u.uid === user.uid)) return prev;
-            return [...prev, { uid: user.uid, audioTrack: user.audioTrack, videoTrack: user.videoTrack }];
-          });
         });
 
         client.on('user-unpublished', (user, mediaType) => {
@@ -198,40 +201,10 @@ export default function AgoraCall({ appId, channel, token, uid, callType, onCall
 
             // Wait for container to be available in DOM
             // Ensure local-video container exists and has non-zero dimensions
-            const waitForContainer = (containerId: string, maxAttempts = 20) => {
-              return new Promise<HTMLElement>((resolve, reject) => {
-                let attempts = 0;
-                const checkContainer = () => {
-                  const container = document.getElementById(containerId);
-                  if (container) {
-                    const rect = container.getBoundingClientRect();
-                    // Check if container has non-zero dimensions
-                    if (rect.width > 0 && rect.height > 0) {
-                      console.log(`AgoraCall: Container ${containerId} found with dimensions:`, rect.width, 'x', rect.height);
-                      resolve(container);
-                      return;
-                    }
-                  }
-                  attempts++;
-                  if (attempts >= maxAttempts) {
-                    // Fallback: try using ref if ID not found
-                    if (containerId === 'local-video' && localVideoContainerRef.current) {
-                      console.warn(`AgoraCall: Using ref fallback for ${containerId}`);
-                      resolve(localVideoContainerRef.current);
-                      return;
-                    }
-                    reject(new Error(`${containerId} container not found or has zero dimensions`));
-                    return;
-                  }
-                  setTimeout(checkContainer, 100);
-                };
-                checkContainer();
-              });
-            };
-
-            // Wait for container, then play local video
-            // Agora SDK will handle playsinline for iOS Safari automatically
-            const localVideoContainer = await waitForContainer('local-video');
+            const localVideoContainer = await waitForContainer('local-video', localVideoContainerRef);
+            
+            // Play local video - Agora SDK will handle playsinline for iOS Safari automatically
+            // The SDK creates a video element inside the container with proper attributes
             await videoTrack.play(localVideoContainer);
             console.log('AgoraCall: Local video playing in container');
 
