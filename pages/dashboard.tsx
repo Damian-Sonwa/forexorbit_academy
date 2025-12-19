@@ -238,6 +238,38 @@ export default function Dashboard() {
             </div>
           </div>
 
+          {/* Demo Trading Section */}
+          <div className="mb-4 sm:mb-6 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl shadow-lg border border-gray-100 p-4 sm:p-6 text-white">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex-1">
+                <h2 className="text-xl sm:text-2xl font-bold mb-2 flex items-center">
+                  <span className="mr-2 text-2xl sm:text-3xl">📈</span>
+                  Practice Demo Trading
+                </h2>
+                <p className="text-blue-100 text-sm sm:text-base mb-3">
+                  Learn to trade with virtual money using MetaTrader demo accounts. No risk, real learning.
+                </p>
+                <ul className="text-sm text-blue-100 space-y-1 mb-4">
+                  <li>✓ Step-by-step MetaTrader setup guide</li>
+                  <li>✓ Practice tasks from instructors</li>
+                  <li>✓ Track your trades in a journal</li>
+                  <li>✓ Learn risk management safely</li>
+                </ul>
+              </div>
+              <Link
+                href="/demo-trading"
+                className="w-full sm:w-auto px-6 py-3 bg-white text-blue-600 hover:bg-blue-50 rounded-xl font-semibold transition-colors text-sm shadow-md hover:shadow-lg whitespace-nowrap flex-shrink-0 text-center"
+              >
+                Start Demo Trading →
+              </Link>
+            </div>
+            <div className="mt-4 pt-4 border-t border-blue-400 border-opacity-30">
+              <p className="text-xs text-blue-100">
+                ⚠️ <strong>Disclaimer:</strong> Demo trading is for educational purposes only. ForexOrbit Academy does not provide brokerage services or financial advice.
+              </p>
+            </div>
+          </div>
+
           {/* Overview Section */}
           <div className="mb-4 sm:mb-6">
             <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">Overview</h2>
