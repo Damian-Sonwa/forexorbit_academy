@@ -691,7 +691,7 @@ export default function Community() {
       console.log('Sending message:', { roomId: roomIdStr, content: messageContent });
       
       // Send message to API - it will broadcast to all room members via Socket.io
-      // For students, use the actual room ID (Beginner room) for API, but socket room is "community_global"
+      // Each room uses its unique database ID for full isolation
       const response = await apiClient.post<{ message: Message }>('/community/messages', {
         roomId: roomIdStr,
         type: 'text',
