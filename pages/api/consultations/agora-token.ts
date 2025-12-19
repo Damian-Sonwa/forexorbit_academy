@@ -7,12 +7,21 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { RtcTokenBuilder, RtcRole } from 'agora-access-token';
 
-// Agora App ID from frontend env var (accessible in Next.js API routes)
-// App Certificate from server env var (MUST be set on Render backend only - never in frontend)
-const AGORA_APP_ID = process.env.NEXT_PUBLIC_AGORA_APP_ID || '';
+// Agora App ID - check both NEXT_PUBLIC_AGORA_APP_ID (Vercel) and AGORA_APP_ID (Render)
+// App Certificate - MUST be set on Render backend only
+const AGORA_APP_ID = process.env.NEXT_PUBLIC_AGORA_APP_ID || process.env.AGORA_APP_ID || '';
 const AGORA_APP_CERTIFICATE = process.env.AGORA_APP_CERTIFICATE || '';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  // TEMPORARY: Add logging to debug environment variables
+  console.log('=== AGORA TOKEN API DEBUG ===');
+  console.log('AGORA_APP_ID:', !!AGORA_APP_ID, AGORA_APP_ID ? AGORA_APP_ID.substring(0, 8) + '...' : 'MISSING');
+  console.log('AGORA_APP_CERTIFICATE:', !!AGORA_APP_CERTIFICATE, AGORA_APP_CERTIFICATE ? 'SET (hidden)' : 'MISSING');
+  console.log('process.env.NEXT_PUBLIC_AGORA_APP_ID:', !!process.env.NEXT_PUBLIC_AGORA_APP_ID);
+  console.log('process.env.AGORA_APP_ID:', !!process.env.AGORA_APP_ID);
+  console.log('process.env.AGORA_APP_CERTIFICATE:', !!process.env.AGORA_APP_CERTIFICATE);
+  console.log('================================');
+
   // Support both GET and POST for compatibility
   if (req.method !== 'GET' && req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -28,7 +37,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // Validate Agora credentials
     if (!AGORA_APP_ID) {
-      console.error('Agora App ID not configured. Set NEXT_PUBLIC_AGORA_APP_ID environment variable.');
+      console.error('Agora App ID not configured. Set NEXT_PUBLIC_AGORA_APP_ID or AGORA_APP_ID environment variable.');
       return res.status(500).json({ 
         error: 'Agora token service unavailable. Please contact support.',
       });
@@ -45,24 +54,36 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // If channel doesn't start with 'consultation_', add it
     const channelName = channel.startsWith('consultation_') ? channel : `consultation_${channel}`;
     
-    // Use UID 0 to let Agora assign automatically (recommended)
-    const uid = 0;
+    // Get UID from query or default to 0 (let Agora assign automatically)
+    const uid = req.method === 'GET' && req.query.uid 
+      ? parseInt(req.query.uid as string, 10) 
+      : 0;
     
-    // Token expiration time (1 hour as per requirements)
-    const expirationTimeInSeconds = Math.floor(Date.now() / 1000) + 3600;
+    // Token expiration time (1 hour = 3600 seconds)
+    const expireTime = 3600;
+    const currentTime = Math.floor(Date.now() / 1000);
+    const privilegeExpireTime = currentTime + expireTime;
     
     // Build token with publisher role (can publish and subscribe)
+    // Using the correct format: privilegeExpireTime instead of expirationTimeInSeconds
     const token = RtcTokenBuilder.buildTokenWithUid(
       AGORA_APP_ID,
       AGORA_APP_CERTIFICATE,
       channelName,
       uid,
       RtcRole.PUBLISHER,
-      expirationTimeInSeconds
+      privilegeExpireTime
     );
 
-    console.log('Agora token generated for channel:', channelName);
+    console.log('Agora token generated successfully:', {
+      channel: channelName,
+      uid,
+      expireTime,
+      privilegeExpireTime,
+      tokenLength: token.length,
+    });
 
+    // Return token (and additional info for frontend compatibility)
     return res.status(200).json({
       token,
       appId: AGORA_APP_ID,
