@@ -198,21 +198,29 @@ export default function AgoraCall({ appId, channel, token, uid, callType, onCall
 
             // Wait for container to be available in DOM
             // Ensure local-video container exists and has non-zero dimensions
-            const waitForContainer = (maxAttempts = 10) => {
+            const waitForContainer = (containerId: string, maxAttempts = 20) => {
               return new Promise<HTMLElement>((resolve, reject) => {
                 let attempts = 0;
                 const checkContainer = () => {
-                  const container = document.getElementById('local-video');
+                  const container = document.getElementById(containerId);
                   if (container) {
                     const rect = container.getBoundingClientRect();
+                    // Check if container has non-zero dimensions
                     if (rect.width > 0 && rect.height > 0) {
+                      console.log(`AgoraCall: Container ${containerId} found with dimensions:`, rect.width, 'x', rect.height);
                       resolve(container);
                       return;
                     }
                   }
                   attempts++;
                   if (attempts >= maxAttempts) {
-                    reject(new Error('Local video container not found or has zero dimensions'));
+                    // Fallback: try using ref if ID not found
+                    if (containerId === 'local-video' && localVideoContainerRef.current) {
+                      console.warn(`AgoraCall: Using ref fallback for ${containerId}`);
+                      resolve(localVideoContainerRef.current);
+                      return;
+                    }
+                    reject(new Error(`${containerId} container not found or has zero dimensions`));
                     return;
                   }
                   setTimeout(checkContainer, 100);
@@ -222,7 +230,8 @@ export default function AgoraCall({ appId, channel, token, uid, callType, onCall
             };
 
             // Wait for container, then play local video
-            const localVideoContainer = await waitForContainer();
+            // Agora SDK will handle playsinline for iOS Safari automatically
+            const localVideoContainer = await waitForContainer('local-video');
             await videoTrack.play(localVideoContainer);
             console.log('AgoraCall: Local video playing in container');
 
