@@ -202,7 +202,7 @@ export default function TradingInterface() {
               </p>
             </div>
             <a
-              href="https://www.oanda.com/us-en/trading/forex-demo/"
+              href="https://hub.oanda.com/apply/demo/"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-block w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium text-center transition-colors"

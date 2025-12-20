@@ -7,7 +7,7 @@ This guide walks you through setting up the OANDA broker API integration for dem
 ## Step 1: Create OANDA Practice Account
 
 1. **Visit OANDA Demo Registration:**
-   - Go to: https://www.oanda.com/us-en/trading/forex-demo/
+   - Go to: https://hub.oanda.com/apply/demo/
    - Click **"Open Practice Account"** or **"Try Demo"**
 
 2. **Fill in Registration Form:**
@@ -30,7 +30,7 @@ This guide walks you through setting up the OANDA broker API integration for dem
 ## Step 2: Get Your Practice Account ID
 
 1. **Log in to OANDA Practice Account:**
-   - Visit: https://www.oanda.com/us-en/trading/forex-demo/
+   - Visit: https://hub.oanda.com/apply/demo/
    - Log in with your credentials
 
 2. **Find Your Account ID:**
@@ -263,7 +263,7 @@ Once setup is complete:
 ## Support Resources
 
 - **OANDA API Documentation:** https://developer.oanda.com/rest-live-v20/introduction/
-- **OANDA Practice Account:** https://www.oanda.com/us-en/trading/forex-demo/
+- **OANDA Practice Account:** https://hub.oanda.com/apply/demo/
 - **OANDA API Token Management:** https://www.oanda.com/account/tpa/personal_access_tokens
 
 ## Security Reminders

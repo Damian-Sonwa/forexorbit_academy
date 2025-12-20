@@ -170,7 +170,7 @@ OANDA_DEMO_URL=https://api-fxpractice.oanda.com
 
 ### Step 1: Create OANDA Practice Account
 
-1. Visit: https://www.oanda.com/us-en/trading/forex-demo/
+1. Visit: https://hub.oanda.com/apply/demo/
 2. Click **"Open Practice Account"** or **"Try Demo"**
 3. Fill in the registration form:
    - Email address
@@ -299,7 +299,7 @@ OANDA_DEMO_URL=https://api-fxpractice.oanda.com
 ```
 
 ### Where to Get OANDA Credentials:
-- **Practice Account:** https://www.oanda.com/us-en/trading/forex-demo/
+- **Practice Account:** https://hub.oanda.com/apply/demo/
 - **API Documentation:** https://developer.oanda.com/rest-live-v20/introduction/
 - **Practice API Base:** https://api-fxpractice.oanda.com
 

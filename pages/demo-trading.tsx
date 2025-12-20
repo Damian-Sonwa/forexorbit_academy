@@ -344,7 +344,7 @@ export default function DemoTrading() {
                         <h4 className="font-bold text-lg mb-4 text-gray-900">🚀 Quick Start - Create Account Now</h4>
                         <div className="grid md:grid-cols-2 gap-4">
                           <a
-                            href="https://www.oanda.com/us-en/trading/forex-demo/"
+                            href="https://hub.oanda.com/apply/demo/"
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex items-center justify-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-4 rounded-lg font-medium transition-colors shadow-md hover:shadow-lg"
@@ -373,7 +373,7 @@ export default function DemoTrading() {
                         <h4 className="font-semibold mb-2">Option A: OANDA Demo Account (Recommended for API Integration)</h4>
                         <ol className="list-decimal list-inside space-y-2 text-sm text-gray-700 mb-4">
                           <li>Click the "Create OANDA Demo Account" button above, or</li>
-                          <li>Visit <a href="https://www.oanda.com/us-en/trading/forex-demo/" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium">OANDA Demo Registration</a></li>
+                          <li>Visit <a href="https://hub.oanda.com/apply/demo/" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium">OANDA Demo Registration</a></li>
                           <li>Fill in the registration form with your email and details</li>
                           <li>Verify your email address</li>
                           <li>Log in to your OANDA practice account</li>
@@ -382,7 +382,7 @@ export default function DemoTrading() {
                         </ol>
                         <div className="mt-3">
                           <a
-                            href="https://www.oanda.com/us-en/trading/forex-demo/"
+                            href="https://hub.oanda.com/apply/demo/"
                             target="_blank"
                             rel="noopener noreferrer"
                             className="inline-flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"

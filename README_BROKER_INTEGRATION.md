@@ -57,7 +57,7 @@ OANDA_DEMO_URL=https://api-fxpractice.oanda.com
 
 ### Getting OANDA Credentials
 
-1. Sign up for OANDA practice account: https://www.oanda.com/us-en/trading/forex-demo/
+1. Sign up for OANDA practice account: https://hub.oanda.com/apply/demo/
 2. Create a practice account
 3. Generate API token from OANDA account settings
 4. Get your practice account ID
