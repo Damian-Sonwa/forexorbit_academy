@@ -42,7 +42,18 @@ async function uploadJournalScreenshot(req: AuthRequest, res: NextApiResponse) {
       },
     });
 
-    const [fields, files] = await form.parse(req);
+    let fields, files;
+    try {
+      [fields, files] = await form.parse(req);
+    } catch (parseError: any) {
+      console.error('Formidable parse error:', parseError);
+      console.error('Parse error details:', {
+        message: parseError.message,
+        code: parseError.code,
+        stack: parseError.stack
+      });
+      return res.status(400).json({ error: `Failed to parse upload: ${parseError.message || 'Unknown error'}` });
+    }
     const fileArray = Array.isArray(files.file) ? files.file : files.file ? [files.file] : [];
 
     if (fileArray.length === 0) {
@@ -81,48 +92,62 @@ async function uploadJournalScreenshot(req: AuthRequest, res: NextApiResponse) {
 
     // Move/rename file to final location
     try {
+      // Ensure target directory exists
+      const targetDir = path.dirname(newFilePath);
+      if (!fs.existsSync(targetDir)) {
+        fs.mkdirSync(targetDir, { recursive: true });
+      }
       fs.renameSync(file.filepath, newFilePath);
     } catch (renameError: any) {
       console.error('File rename error:', renameError);
+      console.error('Source path:', file.filepath);
+      console.error('Target path:', newFilePath);
       return res.status(500).json({ error: `Failed to save uploaded file: ${renameError.message}` });
     }
 
     // Verify file was saved
     if (!fs.existsSync(newFilePath)) {
+      console.error('File not found after rename:', newFilePath);
       return res.status(500).json({ error: 'File was not saved correctly' });
     }
 
     // Get file stats
-    const fileStats = fs.statSync(newFilePath);
-    const fileSize = fileStats.size;
+    let fileSize = 0;
+    try {
+      const fileStats = fs.statSync(newFilePath);
+      fileSize = fileStats.size;
+    } catch (statError: any) {
+      console.error('File stat error:', statError);
+      // Continue with 0 size if we can't get stats
+    }
 
     // Generate URL path
     const url = `/uploads/demo-trading/${newFileName}`;
 
     // Save screenshot metadata to database
-    const db = await getDb();
-    const screenshots = db.collection('Screenshots');
-
-    const screenshotDoc = {
-      studentId: req.user!.userId,
-      filename: newFileName,
-      originalFilename: file.originalFilename || 'screenshot',
-      url: url,
-      filePath: url, // Store URL for serving
-      fileSize: fileSize,
-      mimeType: file.mimetype || 'image/jpeg',
-      uploadedAt: new Date(),
-      createdAt: new Date(),
-    };
-
-    let insertResult;
+    let insertResult = null;
     try {
+      const db = await getDb();
+      const screenshots = db.collection('Screenshots');
+
+      const screenshotDoc = {
+        studentId: req.user!.userId,
+        filename: newFileName,
+        originalFilename: file.originalFilename || 'screenshot',
+        url: url,
+        filePath: url,
+        fileSize: fileSize,
+        mimeType: file.mimetype || 'image/jpeg',
+        uploadedAt: new Date(),
+        createdAt: new Date(),
+      };
+
       insertResult = await screenshots.insertOne(screenshotDoc);
     } catch (dbError: any) {
       console.error('Database insert error:', dbError);
-      // Even if DB insert fails, the file is uploaded, so we can still return success
-      // but log the error for debugging
+      // Continue even if DB insert fails - file is still uploaded
     }
+
 
     res.status(200).json({
       success: true,
@@ -133,18 +158,33 @@ async function uploadJournalScreenshot(req: AuthRequest, res: NextApiResponse) {
     });
   } catch (error: any) {
     console.error('Journal screenshot upload error:', error);
+    console.error('Error name:', error.name);
+    console.error('Error message:', error.message);
+    console.error('Error code:', error.code);
     console.error('Error stack:', error.stack);
     
+    // Handle specific error types
     if (error.code === 'LIMIT_FILE_SIZE') {
       return res.status(400).json({ error: 'File size exceeds 10MB limit' });
     }
     
-    // Return more detailed error in development
-    const errorMessage = process.env.NODE_ENV === 'development' 
-      ? error.message || 'Failed to upload screenshot'
-      : 'Failed to upload screenshot. Please try again.';
+    if (error.code === 'ENOENT') {
+      return res.status(500).json({ error: 'Upload directory not found. Please contact support.' });
+    }
     
-    res.status(500).json({ error: errorMessage });
+    if (error.code === 'EACCES' || error.code === 'EPERM') {
+      return res.status(500).json({ error: 'Permission denied. File upload not allowed in this environment.' });
+    }
+    
+    // Return detailed error for debugging
+    const errorMessage = process.env.NODE_ENV === 'development' 
+      ? `${error.message || 'Failed to upload screenshot'} (Code: ${error.code || 'unknown'})`
+      : 'Failed to upload screenshot. Please try again or contact support if the issue persists.';
+    
+    res.status(500).json({ 
+      error: errorMessage,
+      ...(process.env.NODE_ENV === 'development' && { details: error.stack })
+    });
   }
 }
 
