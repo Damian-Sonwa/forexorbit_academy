@@ -1,7 +1,7 @@
 /**
  * Demo Trading Page
  * Students can practice trading with MetaTrader demo accounts
- * Includes guide, WebTrader iframe, tasks, and trade journal
+ * Includes guide, live trading, tasks, and trade journal
  */
 
 import { useState, useEffect } from 'react';
@@ -466,7 +466,7 @@ export default function DemoTrading() {
                           and you can trade directly in your browser - no download required!
                         </p>
                         <p className="text-sm text-gray-600 italic">
-                          💡 Tip: Use the WebTrader tab above to access your broker's WebTrader if they provide an embeddable version.
+                          💡 Tip: Contact your instructor if you need help accessing your broker's WebTrader platform.
                         </p>
                       </div>
 
