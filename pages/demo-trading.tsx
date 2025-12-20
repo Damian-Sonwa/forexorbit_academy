@@ -47,7 +47,7 @@ interface TradeJournalEntry {
 export default function DemoTrading() {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'guide' | 'trader' | 'live' | 'tasks' | 'journal'>('guide');
+  const [activeTab, setActiveTab] = useState<'guide' | 'live' | 'tasks' | 'journal'>('guide');
   const [tasks, setTasks] = useState<DemoTask[]>([]);
   const [journalEntries, setJournalEntries] = useState<TradeJournalEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -204,7 +204,6 @@ export default function DemoTrading() {
             <nav className="-mb-px flex space-x-8">
               {[
                 { id: 'guide', label: '📖 Setup Guide', icon: '📖' },
-                { id: 'trader', label: '💻 WebTrader', icon: '💻' },
                 { id: 'live', label: '⚡ Live Trading', icon: '⚡' },
                 { id: 'tasks', label: '📋 Tasks', icon: '📋' },
                 { id: 'journal', label: '📊 Trade Journal', icon: '📊' },
