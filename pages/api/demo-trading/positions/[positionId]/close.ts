@@ -67,3 +67,4 @@ async function closePosition(req: AuthRequest, res: NextApiResponse) {
 
 export default withAuth(closePosition, ['student']);
 
+

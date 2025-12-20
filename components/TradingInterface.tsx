@@ -184,24 +184,87 @@ export default function TradingInterface() {
 
   if (!account) {
     return (
-      <div className="text-center py-12">
-        <p className="text-gray-600 mb-4">No demo account found.</p>
-        <button
-          onClick={async () => {
-            try {
-              await apiClient.post('/demo-trading/account', { initialBalance: 10000 });
-              await loadData();
-            } catch (error) {
-              const errorMessage = error && typeof error === 'object' && 'response' in error
-                ? (error as { response?: { data?: { error?: string } } }).response?.data?.error || 'Failed to create account'
-                : 'Failed to create account';
-              alert(errorMessage);
-            }
-          }}
-          className="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium"
-        >
-          Create Demo Account
-        </button>
+      <div className="text-center py-12 space-y-6">
+        <div>
+          <h3 className="text-xl font-bold text-gray-900 mb-2">Create Your Demo Trading Account</h3>
+          <p className="text-gray-600 mb-6">
+            Choose a broker to create your demo account. All accounts use virtual money for practice.
+          </p>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-4 max-w-2xl mx-auto">
+          {/* OANDA Option */}
+          <div className="border-2 border-blue-200 rounded-xl p-6 bg-blue-50 hover:bg-blue-100 transition-colors">
+            <div className="mb-4">
+              <h4 className="text-lg font-bold text-gray-900 mb-2">OANDA Demo Account</h4>
+              <p className="text-sm text-gray-600 mb-4">
+                Create a free practice account with OANDA. Perfect for API integration and real market data.
+              </p>
+            </div>
+            <a
+              href="https://www.oanda.com/us-en/trading/forex-demo/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium text-center transition-colors"
+            >
+              Create OANDA Demo Account →
+            </a>
+            <p className="text-xs text-gray-500 mt-2">
+              Opens in new tab
+            </p>
+          </div>
+
+          {/* MetaTrader Option */}
+          <div className="border-2 border-green-200 rounded-xl p-6 bg-green-50 hover:bg-green-100 transition-colors">
+            <div className="mb-4">
+              <h4 className="text-lg font-bold text-gray-900 mb-2">MetaTrader Demo Account</h4>
+              <p className="text-sm text-gray-600 mb-4">
+                Create a MetaTrader 4 or 5 demo account with any supported broker.
+              </p>
+            </div>
+            <a
+              href="https://www.metatrader4.com/en/download"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block w-full px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium text-center transition-colors mb-2"
+            >
+              Download MT4/MT5 →
+            </a>
+            <p className="text-xs text-gray-500">
+              Then create demo account in platform
+            </p>
+          </div>
+        </div>
+
+        {/* Alternative: API-based account (if configured) */}
+        {process.env.NEXT_PUBLIC_BROKER_API_ENABLED === 'true' && (
+          <div className="mt-6 pt-6 border-t border-gray-200">
+            <p className="text-sm text-gray-600 mb-3">Or create an account via our API:</p>
+            <button
+              onClick={async () => {
+                try {
+                  await apiClient.post('/demo-trading/account', { initialBalance: 10000 });
+                  await loadData();
+                } catch (error) {
+                  const errorMessage = error && typeof error === 'object' && 'response' in error
+                    ? (error as { response?: { data?: { error?: string } } }).response?.data?.error || 'Failed to create account'
+                    : 'Failed to create account';
+                  alert(errorMessage);
+                }
+              }}
+              className="px-6 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-medium"
+            >
+              Create Account via API
+            </button>
+          </div>
+        )}
+
+        <div className="mt-6 bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded">
+          <p className="text-sm text-yellow-800">
+            <strong>Note:</strong> After creating your demo account, you can use it to practice trading. 
+            If you've already created an account, make sure you're logged in to the broker's platform.
+          </p>
+        </div>
       </div>
     );
   }

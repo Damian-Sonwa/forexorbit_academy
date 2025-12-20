@@ -262,8 +262,87 @@ export default function DemoTrading() {
                   <section className="mb-8">
                     <h3 className="text-xl font-semibold mb-4 text-gray-900">Step 2: Create a Demo Account</h3>
                     <div className="space-y-4">
+                      {/* Quick Links Section */}
+                      <div className="bg-gradient-to-r from-blue-50 to-green-50 border-2 border-blue-200 rounded-xl p-6 mb-6">
+                        <h4 className="font-bold text-lg mb-4 text-gray-900">🚀 Quick Start - Create Account Now</h4>
+                        <div className="grid md:grid-cols-2 gap-4">
+                          <a
+                            href="https://www.oanda.com/us-en/trading/forex-demo/"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center justify-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-4 rounded-lg font-medium transition-colors shadow-md hover:shadow-lg"
+                          >
+                            <span>📊</span>
+                            <span>Create OANDA Demo Account</span>
+                            <span>→</span>
+                          </a>
+                          <a
+                            href="https://www.metatrader4.com/en/download"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center justify-center space-x-2 bg-green-600 hover:bg-green-700 text-white px-6 py-4 rounded-lg font-medium transition-colors shadow-md hover:shadow-lg"
+                          >
+                            <span>💻</span>
+                            <span>Download MetaTrader</span>
+                            <span>→</span>
+                          </a>
+                        </div>
+                        <p className="text-xs text-gray-600 mt-3 text-center">
+                          Both options open in a new tab. Choose OANDA for web-based trading or MetaTrader for desktop/mobile apps.
+                        </p>
+                      </div>
+
                       <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded">
-                        <h4 className="font-semibold mb-2">Option A: WebTrader (Recommended for Beginners)</h4>
+                        <h4 className="font-semibold mb-2">Option A: OANDA Demo Account (Recommended for API Integration)</h4>
+                        <ol className="list-decimal list-inside space-y-2 text-sm text-gray-700 mb-4">
+                          <li>Click the "Create OANDA Demo Account" button above, or</li>
+                          <li>Visit <a href="https://www.oanda.com/us-en/trading/forex-demo/" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium">OANDA Demo Registration</a></li>
+                          <li>Fill in the registration form with your email and details</li>
+                          <li>Verify your email address</li>
+                          <li>Log in to your OANDA practice account</li>
+                          <li>Get your Account ID from the dashboard</li>
+                          <li>Generate an API token from Account → Manage API Access</li>
+                        </ol>
+                        <div className="mt-3">
+                          <a
+                            href="https://www.oanda.com/us-en/trading/forex-demo/"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                          >
+                            <span>Open OANDA Demo Registration</span>
+                            <span>→</span>
+                          </a>
+                        </div>
+                      </div>
+
+                      <div className="bg-green-50 border-l-4 border-green-400 p-4 rounded">
+                        <h4 className="font-semibold mb-2">Option B: MetaTrader Demo Account (Recommended for Desktop Trading)</h4>
+                        <ol className="list-decimal list-inside space-y-2 text-sm text-gray-700 mb-4">
+                          <li>Click the "Download MetaTrader" button above, or</li>
+                          <li>Visit <a href="https://www.metatrader4.com/en/download" target="_blank" rel="noopener noreferrer" className="text-green-600 hover:underline font-medium">MetaTrader Download Page</a></li>
+                          <li>Download and install MT4 or MT5</li>
+                          <li>Open the platform and click "Open an Account"</li>
+                          <li>Select a broker (e.g., IC Markets, FXTM, XM)</li>
+                          <li>Choose "Demo Account" option</li>
+                          <li>Fill in the registration form</li>
+                          <li>You'll receive login credentials via email</li>
+                        </ol>
+                        <div className="mt-3">
+                          <a
+                            href="https://www.metatrader4.com/en/download"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center space-x-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                          >
+                            <span>Download MetaTrader</span>
+                            <span>→</span>
+                          </a>
+                        </div>
+                      </div>
+
+                      <div className="bg-gray-50 border-l-4 border-gray-400 p-4 rounded">
+                        <h4 className="font-semibold mb-2">Option C: WebTrader (Browser-Based)</h4>
                         <ol className="list-decimal list-inside space-y-2 text-sm text-gray-700">
                           <li>Visit a reputable broker's website (e.g., IC Markets, FXTM, XM)</li>
                           <li>Look for "Open Demo Account" or "Try Demo" button</li>

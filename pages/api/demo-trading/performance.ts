@@ -50,3 +50,4 @@ async function getPerformance(req: AuthRequest, res: NextApiResponse) {
 
 export default withAuth(getPerformance, ['student']);
 
+
