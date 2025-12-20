@@ -40,6 +40,7 @@ interface TradeJournalEntry {
   notes: string;
   taskId?: string;
   taskTitle?: string;
+  screenshot?: string; // URL to screenshot/image
   createdAt: string;
 }
 
@@ -229,6 +230,83 @@ export default function DemoTrading() {
             {activeTab === 'guide' && (
               <div className="space-y-6">
                 <h2 className="text-2xl font-bold text-gray-900">MetaTrader Demo Account Setup Guide</h2>
+                
+                {/* What is a Demo Account Section */}
+                <div className="bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-blue-200 rounded-xl p-6 mb-8">
+                  <h3 className="text-2xl font-bold text-gray-900 mb-4">📚 What is a Demo Trading Account?</h3>
+                  
+                  <div className="space-y-4 text-gray-700">
+                    <div>
+                      <h4 className="font-semibold text-lg mb-2 text-gray-900">Definition</h4>
+                      <p className="mb-3">
+                        A <strong>demo trading account</strong> (also called a practice account or paper trading account) is a 
+                        simulated trading environment that allows you to practice trading with virtual money. It provides access to 
+                        real-time market data and trading tools without risking any real capital.
+                      </p>
+                    </div>
+
+                    <div>
+                      <h4 className="font-semibold text-lg mb-2 text-gray-900">Key Features</h4>
+                      <ul className="list-disc list-inside space-y-2 ml-2">
+                        <li><strong>Virtual Money:</strong> Start with a virtual balance (typically $10,000 - $100,000)</li>
+                        <li><strong>Real Market Data:</strong> Access live prices and market conditions</li>
+                        <li><strong>Full Trading Tools:</strong> Use all features of the trading platform</li>
+                        <li><strong>No Financial Risk:</strong> You cannot lose or make real money</li>
+                        <li><strong>Learning Environment:</strong> Perfect for practicing strategies and techniques</li>
+                      </ul>
+                    </div>
+
+                    <div>
+                      <h4 className="font-semibold text-lg mb-2 text-gray-900">Why Do You Need a Demo Account?</h4>
+                      <div className="grid md:grid-cols-2 gap-4 mt-3">
+                        <div className="bg-white rounded-lg p-4 border border-blue-200">
+                          <h5 className="font-semibold mb-2 text-blue-900">🎓 For Learning</h5>
+                          <ul className="text-sm space-y-1 list-disc list-inside text-gray-700">
+                            <li>Practice trading strategies safely</li>
+                            <li>Learn platform features and tools</li>
+                            <li>Understand market movements</li>
+                            <li>Test different trading styles</li>
+                          </ul>
+                        </div>
+                        <div className="bg-white rounded-lg p-4 border border-green-200">
+                          <h5 className="font-semibold mb-2 text-green-900">✅ For Course Completion</h5>
+                          <ul className="text-sm space-y-1 list-disc list-inside text-gray-700">
+                            <li>Complete instructor-assigned tasks</li>
+                            <li>Log trades in your Trade Journal</li>
+                            <li>Track your learning progress</li>
+                            <li>Demonstrate your skills</li>
+                          </ul>
+                        </div>
+                        <div className="bg-white rounded-lg p-4 border border-purple-200">
+                          <h5 className="font-semibold mb-2 text-purple-900">📊 For Skill Development</h5>
+                          <ul className="text-sm space-y-1 list-disc list-inside text-gray-700">
+                            <li>Build confidence before real trading</li>
+                            <li>Develop risk management skills</li>
+                            <li>Learn from mistakes without cost</li>
+                            <li>Refine your trading psychology</li>
+                          </ul>
+                        </div>
+                        <div className="bg-white rounded-lg p-4 border border-orange-200">
+                          <h5 className="font-semibold mb-2 text-orange-900">🔧 For Platform Mastery</h5>
+                          <ul className="text-sm space-y-1 list-disc list-inside text-gray-700">
+                            <li>Familiarize with MetaTrader interface</li>
+                            <li>Learn order types and execution</li>
+                            <li>Practice chart analysis</li>
+                            <li>Test indicators and tools</li>
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded mt-4">
+                      <p className="text-sm text-yellow-800">
+                        <strong>💡 Important:</strong> Demo accounts are essential for your ForexOrbit Academy journey. 
+                        They allow you to complete practice tasks, log trades in your journal, and demonstrate your 
+                        understanding of trading concepts without any financial risk.
+                      </p>
+                    </div>
+                  </div>
+                </div>
                 
                 <div className="prose max-w-none">
                   <section className="mb-8">
