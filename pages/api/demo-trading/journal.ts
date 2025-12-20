@@ -74,6 +74,23 @@ async function createJournalEntry(req: AuthRequest, res: NextApiResponse) {
       screenshot,
     } = req.body;
 
+    // Prevent duplicate submissions by checking for identical entry within last 5 seconds
+    const db = await getDb();
+    const journal = db.collection('demoTradeJournal');
+    
+    const fiveSecondsAgo = new Date(Date.now() - 5000);
+    const duplicateCheck = await journal.findOne({
+      studentId: req.user!.userId,
+      pair: pair?.toUpperCase(),
+      entryPrice: parseFloat(entryPrice),
+      direction,
+      createdAt: { $gte: fiveSecondsAgo },
+    });
+
+    if (duplicateCheck) {
+      return res.status(409).json({ error: 'Duplicate entry detected. Please wait a moment before submitting again.' });
+    }
+
     // Validation
     if (!pair || !direction || !entryPrice || !stopLoss || !takeProfit || !lotSize || !result) {
       return res.status(400).json({ error: 'Missing required fields' });
@@ -91,9 +108,6 @@ async function createJournalEntry(req: AuthRequest, res: NextApiResponse) {
     if (result !== 'open' && profitLoss === undefined) {
       return res.status(400).json({ error: 'Profit/Loss is required for closed trades' });
     }
-
-    const db = await getDb();
-    const journal = db.collection('demoTradeJournal');
 
     // If taskId is provided, verify it exists and is assigned to the student
     if (taskId) {
@@ -123,17 +137,22 @@ async function createJournalEntry(req: AuthRequest, res: NextApiResponse) {
       profitLoss: profitLoss !== undefined ? parseFloat(profitLoss) : undefined,
       notes: notes || '',
       taskId: taskId || null,
-      screenshot: screenshot || null,
+      screenshot: screenshot || null, // Store screenshot URL
       createdAt: new Date(),
       updatedAt: new Date(),
     };
 
     const insertResult = await journal.insertOne(entry);
 
-    res.status(201).json({
+    // Return the created entry with proper formatting
+    const createdEntry = {
       _id: insertResult.insertedId.toString(),
       ...entry,
-    });
+      createdAt: entry.createdAt.toISOString(),
+      updatedAt: entry.updatedAt.toISOString(),
+    };
+
+    res.status(201).json(createdEntry);
   } catch (error: any) {
     console.error('Create journal entry error:', error);
     res.status(500).json({ error: error.message || 'Internal server error' });

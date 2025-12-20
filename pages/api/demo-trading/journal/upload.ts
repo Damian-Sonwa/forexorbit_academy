@@ -34,7 +34,9 @@ async function uploadJournalScreenshot(req: AuthRequest, res: NextApiResponse) {
       keepExtensions: true,
       maxFileSize: 10 * 1024 * 1024, // 10MB
       filter: (part) => {
-        return part.mimetype?.startsWith('image/') || false;
+        // Only allow specific image types: jpg, jpeg, png
+        const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+        return part.mimetype ? allowedTypes.includes(part.mimetype.toLowerCase()) : false;
       },
     });
 
@@ -50,23 +52,51 @@ async function uploadJournalScreenshot(req: AuthRequest, res: NextApiResponse) {
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
+    // Validate file type more strictly
+    const allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+    const allowedExtensions = ['.jpg', '.jpeg', '.png'];
+    const fileExt = path.extname(file.originalFilename || '').toLowerCase();
+    
+    if (!allowedExtensions.includes(fileExt)) {
+      return res.status(400).json({ error: 'Invalid file type. Only JPG, JPEG, and PNG images are allowed.' });
+    }
+
+    if (file.mimetype && !allowedMimeTypes.includes(file.mimetype.toLowerCase())) {
+      return res.status(400).json({ error: 'Invalid file type. Only JPG, JPEG, and PNG images are allowed.' });
+    }
+
     // Generate unique filename with user ID and timestamp
     const timestamp = Date.now();
-    const originalName = file.originalFilename || 'screenshot';
-    const ext = path.extname(originalName);
-    const baseName = path.basename(originalName, ext);
-    const newFileName = `journal_${req.user!.userId}_${timestamp}_${baseName}${ext}`;
+    const randomString = Math.random().toString(36).substring(2, 8);
+    const sanitizedExt = fileExt || '.jpg';
+    const newFileName = `journal_${req.user!.userId}_${timestamp}_${randomString}${sanitizedExt}`;
     const newFilePath = path.join(uploadDir, newFileName);
 
-    // Rename file
-    fs.renameSync(file.filepath, newFilePath);
+    // Ensure the file was actually uploaded
+    if (!fs.existsSync(file.filepath)) {
+      return res.status(400).json({ error: 'File upload failed. Please try again.' });
+    }
 
-    // Return the URL path
+    // Move/rename file to final location
+    try {
+      fs.renameSync(file.filepath, newFilePath);
+    } catch (renameError: any) {
+      console.error('File rename error:', renameError);
+      return res.status(500).json({ error: 'Failed to save uploaded file' });
+    }
+
+    // Verify file was saved
+    if (!fs.existsSync(newFilePath)) {
+      return res.status(500).json({ error: 'File was not saved correctly' });
+    }
+
+    // Return the URL path (absolute path for production compatibility)
     const url = `/uploads/demo-trading/${newFileName}`;
 
     res.status(200).json({
       success: true,
       url,
+      imageUrl: url, // Alias for compatibility
       filename: newFileName,
     });
   } catch (error: any) {

@@ -71,6 +71,8 @@ export default function DemoTrading() {
   });
   const [uploadingScreenshot, setUploadingScreenshot] = useState(false);
   const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -118,32 +120,44 @@ export default function DemoTrading() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      alert('Please upload an image file');
+    // Clear previous errors
+    setUploadError(null);
+
+    // Validate file type - only jpg, jpeg, png
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+    if (!allowedTypes.includes(file.type.toLowerCase())) {
+      setUploadError('Invalid file type. Only JPG, JPEG, and PNG images are allowed.');
+      e.target.value = ''; // Clear the input
       return;
     }
 
     // Validate file size (10MB)
     if (file.size > 10 * 1024 * 1024) {
-      alert('File size must be less than 10MB');
+      setUploadError('File size must be less than 10MB');
+      e.target.value = ''; // Clear the input
       return;
     }
 
     try {
       setUploadingScreenshot(true);
+      setUploadError(null);
+      
       const formData = new FormData();
       formData.append('file', file);
 
-      const data = await apiClient.post<{ success: boolean; url: string; filename: string }>(
+      const data = await apiClient.post<{ success: boolean; url: string; imageUrl?: string; filename: string }>(
         '/demo-trading/journal/upload',
         formData
       );
 
-      setJournalForm({ ...journalForm, screenshot: data.url });
-      setScreenshotPreview(data.url);
+      // Use imageUrl if available, otherwise use url
+      const imageUrl = data.imageUrl || data.url;
+      setJournalForm({ ...journalForm, screenshot: imageUrl });
+      setScreenshotPreview(imageUrl);
     } catch (error: any) {
-      alert(error.response?.data?.error || error.message || 'Failed to upload screenshot');
+      const errorMessage = error.response?.data?.error || error.message || 'Failed to upload screenshot';
+      setUploadError(errorMessage);
+      console.error('Screenshot upload error:', error);
     } finally {
       setUploadingScreenshot(false);
     }
@@ -151,7 +165,15 @@ export default function DemoTrading() {
 
   const handleSubmitJournal = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Prevent duplicate submissions
+    if (isSubmitting) {
+      return;
+    }
+
     try {
+      setIsSubmitting(true);
+      
       const entryData = {
         ...journalForm,
         entryPrice: parseFloat(journalForm.entryPrice),
@@ -164,6 +186,8 @@ export default function DemoTrading() {
       };
 
       await apiClient.post('/demo-trading/journal', entryData);
+      
+      // Reset form and close modal
       setShowJournalModal(false);
       setJournalForm({
         pair: '',
@@ -179,9 +203,16 @@ export default function DemoTrading() {
         screenshot: '',
       });
       setScreenshotPreview(null);
+      setUploadError(null);
+      
+      // Reload data to show the new entry
       await loadData();
     } catch (error: any) {
-      alert(error.response?.data?.error || 'Failed to save trade journal entry');
+      const errorMessage = error.response?.data?.error || 'Failed to save trade journal entry';
+      alert(errorMessage);
+      console.error('Journal submission error:', error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -820,6 +851,15 @@ export default function DemoTrading() {
                                           src={trade.screenshot}
                                           alt="Trade screenshot"
                                           className="max-w-full h-auto max-h-64 rounded-lg border border-gray-300 hover:shadow-lg transition-shadow cursor-pointer"
+                                          onError={(e) => {
+                                            console.error('Failed to load trade screenshot:', trade.screenshot);
+                                            const img = e.target as HTMLImageElement;
+                                            img.style.display = 'none';
+                                            const errorDiv = document.createElement('div');
+                                            errorDiv.className = 'text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-2';
+                                            errorDiv.textContent = 'Failed to load screenshot';
+                                            img.parentElement?.appendChild(errorDiv);
+                                          }}
                                         />
                                       </a>
                                     </div>
@@ -1018,33 +1058,48 @@ export default function DemoTrading() {
                     Screenshot (Optional)
                   </label>
                   <p className="text-xs text-gray-500 mb-2">
-                    Upload a screenshot of your demo trading activity to document this trade
+                    Upload a screenshot of your demo trading activity to document this trade (JPG, JPEG, or PNG only, max 10MB)
                   </p>
                   <div className="space-y-2">
                     <input
                       type="file"
-                      accept="image/*"
+                      accept="image/jpeg,image/jpg,image/png"
                       onChange={handleScreenshotUpload}
-                      disabled={uploadingScreenshot}
+                      disabled={uploadingScreenshot || isSubmitting}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 bg-white disabled:opacity-50 disabled:cursor-not-allowed"
                     />
                     {uploadingScreenshot && (
-                      <p className="text-sm text-blue-600">Uploading screenshot...</p>
+                      <p className="text-sm text-blue-600 flex items-center">
+                        <span className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></span>
+                        Uploading screenshot...
+                      </p>
                     )}
-                    {screenshotPreview && (
+                    {uploadError && (
+                      <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-2">
+                        {uploadError}
+                      </p>
+                    )}
+                    {screenshotPreview && !uploadError && (
                       <div className="mt-2">
                         <img
                           src={screenshotPreview}
                           alt="Screenshot preview"
                           className="max-w-full h-auto max-h-48 rounded-lg border border-gray-300"
+                          onError={(e) => {
+                            console.error('Image load error:', screenshotPreview);
+                            (e.target as HTMLImageElement).style.display = 'none';
+                            setUploadError('Failed to load image preview. Please try uploading again.');
+                          }}
                         />
                         <button
                           type="button"
                           onClick={() => {
                             setScreenshotPreview(null);
                             setJournalForm({ ...journalForm, screenshot: '' });
+                            setUploadError(null);
                           }}
-                          className="mt-2 text-sm text-red-600 hover:text-red-800"
+                          disabled={isSubmitting}
+                          className="mt-2 text-sm text-red-600 hover:text-red-800 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           Remove screenshot
                         </button>
@@ -1072,16 +1127,26 @@ export default function DemoTrading() {
                         screenshot: '',
                       });
                       setScreenshotPreview(null);
+                      setUploadError(null);
                     }}
-                    className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                    disabled={isSubmitting}
+                    className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium"
+                    disabled={isSubmitting}
+                    className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
                   >
-                    Save Trade
+                    {isSubmitting ? (
+                      <>
+                        <span className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></span>
+                        Saving...
+                      </>
+                    ) : (
+                      'Save Trade'
+                    )}
                   </button>
                 </div>
               </form>
