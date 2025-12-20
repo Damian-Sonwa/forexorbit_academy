@@ -67,7 +67,10 @@ export default function DemoTrading() {
     profitLoss: '',
     notes: '',
     taskId: '',
+    screenshot: '',
   });
+  const [uploadingScreenshot, setUploadingScreenshot] = useState(false);
+  const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -111,6 +114,41 @@ export default function DemoTrading() {
     }
   };
 
+  const handleScreenshotUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('Please upload an image file');
+      return;
+    }
+
+    // Validate file size (10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      alert('File size must be less than 10MB');
+      return;
+    }
+
+    try {
+      setUploadingScreenshot(true);
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const data = await apiClient.post<{ success: boolean; url: string; filename: string }>(
+        '/demo-trading/journal/upload',
+        formData
+      );
+
+      setJournalForm({ ...journalForm, screenshot: data.url });
+      setScreenshotPreview(data.url);
+    } catch (error: any) {
+      alert(error.response?.data?.error || error.message || 'Failed to upload screenshot');
+    } finally {
+      setUploadingScreenshot(false);
+    }
+  };
+
   const handleSubmitJournal = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -122,6 +160,7 @@ export default function DemoTrading() {
         lotSize: parseFloat(journalForm.lotSize),
         profitLoss: journalForm.profitLoss ? parseFloat(journalForm.profitLoss) : undefined,
         taskId: journalForm.taskId || undefined,
+        screenshot: journalForm.screenshot || undefined,
       };
 
       await apiClient.post('/demo-trading/journal', entryData);
@@ -137,7 +176,9 @@ export default function DemoTrading() {
         profitLoss: '',
         notes: '',
         taskId: '',
+        screenshot: '',
       });
+      setScreenshotPreview(null);
       await loadData();
     } catch (error: any) {
       alert(error.response?.data?.error || 'Failed to save trade journal entry');
@@ -688,7 +729,7 @@ export default function DemoTrading() {
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
                               {openTrades.map((trade) => (
-                                <tr key={trade._id}>
+                                <tr key={trade._id} className="hover:bg-gray-50">
                                   <td className="px-4 py-3 text-sm font-medium text-gray-900">{trade.pair}</td>
                                   <td className="px-4 py-3 text-sm">
                                     <span className={`px-2 py-1 rounded text-xs font-medium ${
@@ -714,50 +755,79 @@ export default function DemoTrading() {
                     {closedTrades.length > 0 && (
                       <div className={openTrades.length > 0 ? 'mt-6' : ''}>
                         <h3 className="text-lg font-semibold text-gray-900 mb-4">Closed Trades</h3>
-                        <div className="overflow-x-auto">
-                          <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50">
-                              <tr>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Pair</th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Direction</th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Entry</th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Result</th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">P/L</th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                              </tr>
-                            </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
-                              {closedTrades.map((trade) => (
-                                <tr key={trade._id}>
-                                  <td className="px-4 py-3 text-sm font-medium text-gray-900">{trade.pair}</td>
-                                  <td className="px-4 py-3 text-sm">
-                                    <span className={`px-2 py-1 rounded text-xs font-medium ${
-                                      trade.direction === 'buy' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                                    }`}>
-                                      {trade.direction.toUpperCase()}
-                                    </span>
-                                  </td>
-                                  <td className="px-4 py-3 text-sm text-gray-900">{trade.entryPrice}</td>
-                                  <td className="px-4 py-3 text-sm">
-                                    <span className={`px-2 py-1 rounded text-xs font-medium ${
-                                      trade.result === 'win' ? 'bg-green-100 text-green-800' :
-                                      trade.result === 'loss' ? 'bg-red-100 text-red-800' :
-                                      'bg-gray-100 text-gray-800'
-                                    }`}>
-                                      {trade.result.toUpperCase()}
-                                    </span>
-                                  </td>
-                                  <td className={`px-4 py-3 text-sm font-medium ${
+                        <div className="space-y-4">
+                          {closedTrades.map((trade) => (
+                            <div key={trade._id} className="border border-gray-200 rounded-lg p-4 bg-white hover:shadow-md transition-shadow">
+                              <div className="grid md:grid-cols-6 gap-4 items-center">
+                                <div>
+                                  <p className="text-xs text-gray-500 mb-1">Pair</p>
+                                  <p className="text-sm font-medium text-gray-900">{trade.pair}</p>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-gray-500 mb-1">Direction</p>
+                                  <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                    trade.direction === 'buy' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                  }`}>
+                                    {trade.direction.toUpperCase()}
+                                  </span>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-gray-500 mb-1">Entry</p>
+                                  <p className="text-sm text-gray-900">{trade.entryPrice}</p>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-gray-500 mb-1">Result</p>
+                                  <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                    trade.result === 'win' ? 'bg-green-100 text-green-800' :
+                                    trade.result === 'loss' ? 'bg-red-100 text-red-800' :
+                                    'bg-gray-100 text-gray-800'
+                                  }`}>
+                                    {trade.result.toUpperCase()}
+                                  </span>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-gray-500 mb-1">P/L</p>
+                                  <p className={`text-sm font-medium ${
                                     trade.profitLoss && trade.profitLoss > 0 ? 'text-green-600' :
                                     trade.profitLoss && trade.profitLoss < 0 ? 'text-red-600' : 'text-gray-900'
                                   }`}>
                                     {trade.profitLoss !== undefined ? `$${trade.profitLoss.toFixed(2)}` : '-'}
-                                  </td>
-                                  <td className="px-4 py-3 text-sm text-gray-500">{format(new Date(trade.createdAt), 'MMM dd, yyyy')}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-gray-500 mb-1">Date</p>
+                                  <p className="text-sm text-gray-500">{format(new Date(trade.createdAt), 'MMM dd, yyyy')}</p>
+                                </div>
+                              </div>
+                              {(trade.notes || trade.screenshot) && (
+                                <div className="mt-4 pt-4 border-t border-gray-200">
+                                  {trade.notes && (
+                                    <div className="mb-3">
+                                      <p className="text-xs text-gray-500 mb-1">Notes</p>
+                                      <p className="text-sm text-gray-700 whitespace-pre-wrap">{trade.notes}</p>
+                                    </div>
+                                  )}
+                                  {trade.screenshot && (
+                                    <div>
+                                      <p className="text-xs text-gray-500 mb-2">Screenshot</p>
+                                      <a
+                                        href={trade.screenshot}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-block"
+                                      >
+                                        <img
+                                          src={trade.screenshot}
+                                          alt="Trade screenshot"
+                                          className="max-w-full h-auto max-h-64 rounded-lg border border-gray-300 hover:shadow-lg transition-shadow cursor-pointer"
+                                        />
+                                      </a>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          ))}
                         </div>
                       </div>
                     )}
@@ -802,7 +872,9 @@ export default function DemoTrading() {
                       profitLoss: '',
                       notes: '',
                       taskId: '',
+                      screenshot: '',
                     });
+                    setScreenshotPreview(null);
                   }}
                   className="text-gray-400 hover:text-gray-600"
                 >
@@ -937,8 +1009,48 @@ export default function DemoTrading() {
                     onChange={(e) => setJournalForm({ ...journalForm, notes: e.target.value })}
                     rows={4}
                     placeholder="What did you learn from this trade? Any observations?"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 bg-white"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Screenshot (Optional)
+                  </label>
+                  <p className="text-xs text-gray-500 mb-2">
+                    Upload a screenshot of your demo trading activity to document this trade
+                  </p>
+                  <div className="space-y-2">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleScreenshotUpload}
+                      disabled={uploadingScreenshot}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 bg-white disabled:opacity-50 disabled:cursor-not-allowed"
+                    />
+                    {uploadingScreenshot && (
+                      <p className="text-sm text-blue-600">Uploading screenshot...</p>
+                    )}
+                    {screenshotPreview && (
+                      <div className="mt-2">
+                        <img
+                          src={screenshotPreview}
+                          alt="Screenshot preview"
+                          className="max-w-full h-auto max-h-48 rounded-lg border border-gray-300"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setScreenshotPreview(null);
+                            setJournalForm({ ...journalForm, screenshot: '' });
+                          }}
+                          className="mt-2 text-sm text-red-600 hover:text-red-800"
+                        >
+                          Remove screenshot
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex justify-end space-x-3 pt-4">
@@ -957,7 +1069,9 @@ export default function DemoTrading() {
                         profitLoss: '',
                         notes: '',
                         taskId: '',
+                        screenshot: '',
                       });
+                      setScreenshotPreview(null);
                     }}
                     className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
                   >

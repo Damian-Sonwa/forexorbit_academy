@@ -71,6 +71,7 @@ async function createJournalEntry(req: AuthRequest, res: NextApiResponse) {
       profitLoss,
       notes,
       taskId,
+      screenshot,
     } = req.body;
 
     // Validation
@@ -122,6 +123,7 @@ async function createJournalEntry(req: AuthRequest, res: NextApiResponse) {
       profitLoss: profitLoss !== undefined ? parseFloat(profitLoss) : undefined,
       notes: notes || '',
       taskId: taskId || null,
+      screenshot: screenshot || null,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
