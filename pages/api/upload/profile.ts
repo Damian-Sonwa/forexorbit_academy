@@ -9,7 +9,7 @@ import { getDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 import formidable from 'formidable';
 import fs from 'fs';
-import path from 'path';
+import { uploadImage, validateImageFile, deleteImage } from '@/lib/cloudinary';
 
 export const config = {
   api: {
@@ -19,10 +19,11 @@ export const config = {
 
 async function uploadProfilePhoto(req: AuthRequest, res: NextApiResponse) {
   try {
+    // Use /tmp for temporary file storage (works in both serverless and regular environments)
     const form = formidable({
-      uploadDir: path.join(process.cwd(), 'public', 'uploads', 'profiles'),
+      uploadDir: '/tmp',
       keepExtensions: true,
-      maxFileSize: 5 * 1024 * 1024, // 5MB
+      maxFileSize: 10 * 1024 * 1024, // 10MB
       filter: ({ name, originalFilename, mimetype }) => {
         // Only allow image files
         if (name === 'profilePhoto' && mimetype && mimetype.startsWith('image/')) {
@@ -32,12 +33,6 @@ async function uploadProfilePhoto(req: AuthRequest, res: NextApiResponse) {
       },
     });
 
-    // Ensure upload directory exists
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'profiles');
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-
     const [fields, files] = await form.parse(req);
 
     const file = Array.isArray(files.profilePhoto) ? files.profilePhoto[0] : files.profilePhoto;
@@ -46,40 +41,80 @@ async function uploadProfilePhoto(req: AuthRequest, res: NextApiResponse) {
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
-    // Generate unique filename
-    const fileExt = path.extname(file.originalFilename || '');
-    const uniqueFilename = `${req.user!.userId}-${Date.now()}${fileExt}`;
-    const newPath = path.join(uploadDir, uniqueFilename);
+    // Validate file using Cloudinary utility
+    const validation = validateImageFile({
+      mimetype: file.mimetype,
+      size: file.size,
+      originalFilename: file.originalFilename,
+    });
 
-    // Move file to final location
-    fs.renameSync(file.filepath, newPath);
+    if (!validation.valid) {
+      // Clean up temp file
+      if (fs.existsSync(file.filepath)) {
+        try {
+          fs.unlinkSync(file.filepath);
+        } catch (unlinkError) {
+          // Ignore cleanup errors
+        }
+      }
+      return res.status(400).json({ error: validation.error });
+    }
 
-    // Generate URL
-    const imageUrl = `/uploads/profiles/${uniqueFilename}`;
+    // Read file into buffer
+    const fileBuffer = fs.readFileSync(file.filepath);
 
-    // Update user profile photo in database
+    // Clean up temp file immediately after reading
+    if (fs.existsSync(file.filepath)) {
+      try {
+        fs.unlinkSync(file.filepath);
+      } catch (unlinkError) {
+        // Ignore cleanup errors
+      }
+    }
+
+    // Get old profile photo to delete it from Cloudinary if it exists
     const db = await getDb();
     const users = db.collection('users');
+    const user = await users.findOne({ _id: new ObjectId(req.user!.userId) });
+    const oldProfilePhotoPublicId = user?.profilePhotoPublicId;
 
+    // Upload to Cloudinary
+    const uploadResult = await uploadImage(fileBuffer, 'profiles', {
+      userId: req.user!.userId,
+    });
+
+    // Update user profile photo in database with Cloudinary URL
     await users.updateOne(
       { _id: new ObjectId(req.user!.userId) },
       {
         $set: {
-          profilePhoto: imageUrl,
+          profilePhoto: uploadResult.secureUrl,
+          profilePhotoPublicId: uploadResult.publicId, // Store public ID for future deletion
           updatedAt: new Date(),
         },
       }
     );
 
+    // Delete old profile photo from Cloudinary asynchronously (don't block response)
+    if (oldProfilePhotoPublicId) {
+      deleteImage(oldProfilePhotoPublicId).catch((error) => {
+        console.error('Failed to delete old profile photo from Cloudinary:', error);
+        // Don't fail the request if deletion fails
+      });
+    }
+
     res.json({
       success: true,
-      imageUrl,
+      imageUrl: uploadResult.secureUrl,
       message: 'Profile photo uploaded successfully',
     });
   } catch (error: any) {
     console.error('Profile photo upload error:', error);
     if (error.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json({ error: 'File size exceeds 5MB limit' });
+      return res.status(400).json({ error: 'File size exceeds 10MB limit' });
+    }
+    if (error.message?.includes('Cloudinary configuration is missing')) {
+      return res.status(500).json({ error: 'Image upload service is not configured. Please contact support.' });
     }
     res.status(500).json({ error: error.message || 'Failed to upload profile photo' });
   }

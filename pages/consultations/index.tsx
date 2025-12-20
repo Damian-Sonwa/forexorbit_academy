@@ -8,6 +8,7 @@ import { useRouter } from 'next/router';
 import Image from 'next/image';
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
+import LoadingSpinner from '@/components/LoadingSpinner';
 import { useAuth } from '@/hooks/useAuth';
 import { useSocket } from '@/hooks/useSocket';
 import { apiClient } from '@/lib/api-client';
@@ -187,7 +188,7 @@ export default function Consultations() {
   };
 
   if (authLoading || !isAuthenticated) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+    return <LoadingSpinner message="Loading consultations..." fullScreen />;
   }
 
   if (user?.role !== 'student') {

@@ -10,6 +10,7 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import Sidebar from '@/components/Sidebar';
 import CourseCard from '@/components/CourseCard';
+import LoadingSpinner from '@/components/LoadingSpinner';
 import { useAuth } from '@/hooks/useAuth';
 import { useProgress } from '@/hooks/useProgress';
 import { useCourses } from '@/hooks/useCourses';
@@ -145,11 +146,7 @@ export default function Dashboard() {
   }, [isAuthenticated, user, progressLoading]);
 
   if (authLoading || progressLoading || loadingData) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p>Loading...</p>
-      </div>
-    );
+    return <LoadingSpinner message="Loading your dashboard..." fullScreen />;
   }
 
   if (!isAuthenticated || (user && user.role !== 'student')) {

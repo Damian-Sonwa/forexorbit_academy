@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
+import LoadingSpinner from '@/components/LoadingSpinner';
 import { useAuth } from '@/hooks/useAuth';
 import { apiClient } from '@/lib/api-client';
 import { formatDistanceToNow } from 'date-fns';
@@ -166,7 +167,7 @@ export default function ExpertConsultation() {
   };
 
   if (authLoading || !isAuthenticated) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+    return <LoadingSpinner message="Loading expert consultations..." fullScreen />;
   }
 
   if (user?.role !== 'instructor' && user?.role !== 'admin' && user?.role !== 'superadmin') {

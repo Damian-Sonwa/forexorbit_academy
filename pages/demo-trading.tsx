@@ -9,6 +9,7 @@ import { useRouter } from 'next/router';
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
 import Footer from '@/components/Footer';
+import LoadingSpinner from '@/components/LoadingSpinner';
 import { useAuth } from '@/hooks/useAuth';
 import { apiClient } from '@/lib/api-client';
 import { format } from 'date-fns';
@@ -217,11 +218,7 @@ export default function DemoTrading() {
   };
 
   if (authLoading || loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p>Loading...</p>
-      </div>
-    );
+    return <LoadingSpinner message="Loading demo trading..." fullScreen />;
   }
 
   if (!isAuthenticated || user?.role !== 'student') {
@@ -646,7 +643,7 @@ export default function DemoTrading() {
                 </div>
 
                 {loading ? (
-                  <p className="text-gray-500">Loading tasks...</p>
+                  <LoadingSpinner message="Loading tasks..." size="sm" />
                 ) : (
                   <>
                     {/* Pending Tasks */}
@@ -738,7 +735,7 @@ export default function DemoTrading() {
                 </div>
 
                 {loading ? (
-                  <p className="text-gray-500">Loading journal entries...</p>
+                  <LoadingSpinner message="Loading journal entries..." size="sm" />
                 ) : (
                   <>
                     {/* Open Trades */}

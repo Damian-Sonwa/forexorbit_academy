@@ -6,6 +6,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Header from '@/components/Header';
+import LoadingSpinner from '@/components/LoadingSpinner';
 import { useAuth } from '@/hooks/useAuth';
 import { apiClient } from '@/lib/api-client';
 
@@ -242,11 +243,7 @@ export default function Onboarding() {
   };
 
   if (authLoading || !isAuthenticated || (user && user.role !== 'student')) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p>Loading...</p>
-      </div>
-    );
+    return <LoadingSpinner message="Loading onboarding..." fullScreen />;
   }
 
   const steps = [

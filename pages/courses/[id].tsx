@@ -8,6 +8,7 @@ import Link from 'next/link';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import BackButton from '@/components/BackButton';
+import LoadingSpinner from '@/components/LoadingSpinner';
 import { useCourse } from '@/hooks/useCourses';
 import { useAuth } from '@/hooks/useAuth';
 import { useState } from 'react';
@@ -43,11 +44,7 @@ export default function CourseDetailPage() {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p>Loading...</p>
-      </div>
-    );
+    return <LoadingSpinner message="Loading course..." fullScreen />;
   }
 
   if (!course) {

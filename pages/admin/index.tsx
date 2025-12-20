@@ -9,6 +9,7 @@ import Link from 'next/link';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import Sidebar from '@/components/Sidebar';
+import LoadingSpinner from '@/components/LoadingSpinner';
 import { useAuth } from '@/hooks/useAuth';
 import { apiClient } from '@/lib/api-client';
 import { useCourses } from '@/hooks/useCourses';
@@ -643,11 +644,7 @@ export default function AdminPanel() {
   // const isSuperAdmin = user?.role === 'superadmin' || user?.email === 'madudamian25@gmail.com';
 
   if (authLoading || !isAuthenticated || !isAdminOrSuperAdmin) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p>Loading...</p>
-      </div>
-    );
+    return <LoadingSpinner message="Loading admin panel..." fullScreen />;
   }
 
   return (
