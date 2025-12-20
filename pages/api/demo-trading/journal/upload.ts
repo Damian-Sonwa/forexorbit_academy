@@ -24,14 +24,37 @@ async function uploadJournalScreenshot(req: AuthRequest, res: NextApiResponse) {
   }
 
   try {
-    // Ensure upload directory exists BEFORE creating formidable instance (like profile upload)
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'demo-trading');
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
+    // Detect serverless environment (Vercel uses /var/task)
+    const isServerless = process.env.VERCEL === '1' || process.cwd().includes('/var/task');
+    
+    // Use /tmp in serverless (only writable location), public/uploads in regular Node.js
+    const tempDir = isServerless ? '/tmp' : path.join(process.cwd(), 'public', 'uploads', 'demo-trading');
+    const finalDir = isServerless 
+      ? path.join('/tmp', 'uploads', 'demo-trading')
+      : path.join(process.cwd(), 'public', 'uploads', 'demo-trading');
+    
+    // Ensure final directory exists
+    try {
+      if (!fs.existsSync(finalDir)) {
+        fs.mkdirSync(finalDir, { recursive: true });
+      }
+    } catch (dirError: any) {
+      console.error('Directory creation error:', dirError);
+      // If directory creation fails in serverless, try /tmp directly
+      if (isServerless) {
+        try {
+          if (!fs.existsSync('/tmp')) {
+            // /tmp should always exist, but just in case
+            throw new Error('Cannot access /tmp directory');
+          }
+        } catch (tmpError: any) {
+          return res.status(500).json({ error: 'Serverless environment error: Cannot access temporary storage' });
+        }
+      }
     }
 
     const form = formidable({
-      uploadDir,
+      uploadDir: tempDir, // Formidable will use this for initial upload
       keepExtensions: true,
       maxFileSize: 10 * 1024 * 1024, // 10MB
       filter: ({ name, originalFilename, mimetype }) => {
@@ -57,13 +80,21 @@ async function uploadJournalScreenshot(req: AuthRequest, res: NextApiResponse) {
     // Generate unique filename - simpler pattern like profile upload
     const fileExt = path.extname(file.originalFilename || '');
     const uniqueFilename = `journal_${req.user!.userId}_${Date.now()}${fileExt}`;
-    const newPath = path.join(uploadDir, uniqueFilename);
+    
+    // Ensure final directory exists before moving file
+    if (!fs.existsSync(finalDir)) {
+      fs.mkdirSync(finalDir, { recursive: true });
+    }
+    const newPath = path.join(finalDir, uniqueFilename);
 
     // Move file to final location - simple rename like profile upload
     fs.renameSync(file.filepath, newPath);
 
-    // Generate URL
-    const imageUrl = `/uploads/demo-trading/${uniqueFilename}`;
+    // Generate URL - in serverless, we'll need to serve via API route
+    // For now, use the same pattern but note it won't work as static file in serverless
+    const imageUrl = isServerless 
+      ? `/api/demo-trading/journal/screenshot/${uniqueFilename}` // API route to serve from /tmp
+      : `/uploads/demo-trading/${uniqueFilename}`; // Static file in regular Node.js
 
     // Save screenshot metadata to database
     let insertResult = null;
@@ -76,9 +107,10 @@ async function uploadJournalScreenshot(req: AuthRequest, res: NextApiResponse) {
         filename: uniqueFilename,
         originalFilename: file.originalFilename || 'screenshot',
         url: imageUrl,
-        filePath: imageUrl,
+        filePath: isServerless ? newPath : imageUrl, // Store actual path in serverless, URL otherwise
         fileSize: file.size || 0,
         mimeType: file.mimetype || 'image/jpeg',
+        isServerless: isServerless, // Flag to know how to serve
         uploadedAt: new Date(),
         createdAt: new Date(),
       };
