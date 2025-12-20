@@ -5,9 +5,11 @@
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
+import { getDb } from '@/lib/mongodb';
 import formidable from 'formidable';
 import fs from 'fs';
 import path from 'path';
+import { ObjectId } from 'mongodb';
 
 export const config = {
   api: {
@@ -73,7 +75,7 @@ async function uploadJournalScreenshot(req: AuthRequest, res: NextApiResponse) {
     const newFilePath = path.join(uploadDir, newFileName);
 
     // Ensure the file was actually uploaded
-    if (!fs.existsSync(file.filepath)) {
+    if (!file.filepath || !fs.existsSync(file.filepath)) {
       return res.status(400).json({ error: 'File upload failed. Please try again.' });
     }
 
@@ -82,7 +84,7 @@ async function uploadJournalScreenshot(req: AuthRequest, res: NextApiResponse) {
       fs.renameSync(file.filepath, newFilePath);
     } catch (renameError: any) {
       console.error('File rename error:', renameError);
-      return res.status(500).json({ error: 'Failed to save uploaded file' });
+      return res.status(500).json({ error: `Failed to save uploaded file: ${renameError.message}` });
     }
 
     // Verify file was saved
@@ -90,21 +92,59 @@ async function uploadJournalScreenshot(req: AuthRequest, res: NextApiResponse) {
       return res.status(500).json({ error: 'File was not saved correctly' });
     }
 
-    // Return the URL path (absolute path for production compatibility)
+    // Get file stats
+    const fileStats = fs.statSync(newFilePath);
+    const fileSize = fileStats.size;
+
+    // Generate URL path
     const url = `/uploads/demo-trading/${newFileName}`;
+
+    // Save screenshot metadata to database
+    const db = await getDb();
+    const screenshots = db.collection('Screenshots');
+
+    const screenshotDoc = {
+      studentId: req.user!.userId,
+      filename: newFileName,
+      originalFilename: file.originalFilename || 'screenshot',
+      url: url,
+      filePath: url, // Store URL for serving
+      fileSize: fileSize,
+      mimeType: file.mimetype || 'image/jpeg',
+      uploadedAt: new Date(),
+      createdAt: new Date(),
+    };
+
+    let insertResult;
+    try {
+      insertResult = await screenshots.insertOne(screenshotDoc);
+    } catch (dbError: any) {
+      console.error('Database insert error:', dbError);
+      // Even if DB insert fails, the file is uploaded, so we can still return success
+      // but log the error for debugging
+    }
 
     res.status(200).json({
       success: true,
       url,
       imageUrl: url, // Alias for compatibility
       filename: newFileName,
+      screenshotId: insertResult?.insertedId?.toString() || null,
     });
   } catch (error: any) {
     console.error('Journal screenshot upload error:', error);
+    console.error('Error stack:', error.stack);
+    
     if (error.code === 'LIMIT_FILE_SIZE') {
       return res.status(400).json({ error: 'File size exceeds 10MB limit' });
     }
-    res.status(500).json({ error: 'Failed to upload screenshot' });
+    
+    // Return more detailed error in development
+    const errorMessage = process.env.NODE_ENV === 'development' 
+      ? error.message || 'Failed to upload screenshot'
+      : 'Failed to upload screenshot. Please try again.';
+    
+    res.status(500).json({ error: errorMessage });
   }
 }
 
