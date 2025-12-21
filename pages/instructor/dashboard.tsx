@@ -113,6 +113,9 @@ export default function InstructorDashboard() {
   const [submittingClass, setSubmittingClass] = useState(false);
   const [showClassForm, setShowClassForm] = useState(false);
   const [editingClass, setEditingClass] = useState<any>(null);
+  // Demo task submissions state
+  const [demoSubmissions, setDemoSubmissions] = useState<any[]>([]);
+  const [loadingSubmissions, setLoadingSubmissions] = useState(false);
 
   // Group courses by difficulty level - Show ALL courses for instructors
   const coursesByLevel = {
@@ -146,6 +149,7 @@ export default function InstructorDashboard() {
       loadAnalytics();
       loadNews();
       loadUpcomingClasses();
+      loadDemoSubmissions();
     }
   }, [user, courses]);
 
@@ -199,6 +203,20 @@ export default function InstructorDashboard() {
     } catch (error) {
       console.error('Failed to load upcoming classes:', error);
       setUpcomingClasses([]);
+    }
+  };
+
+  // Load student demo task submissions
+  const loadDemoSubmissions = async () => {
+    try {
+      setLoadingSubmissions(true);
+      const data = await apiClient.get<any[]>('/demo-trading/submissions');
+      setDemoSubmissions(data || []);
+    } catch (error) {
+      console.error('Failed to load demo submissions:', error);
+      setDemoSubmissions([]);
+    } finally {
+      setLoadingSubmissions(false);
     }
   };
 
@@ -850,6 +868,130 @@ export default function InstructorDashboard() {
             </div>
           </div>
         )}
+
+        {/* Student Demo Task Submissions */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6 mb-3 sm:mb-4">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white">Student Demo Task Submissions</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">View student submissions for your demo trading tasks</p>
+            </div>
+            <button
+              onClick={loadDemoSubmissions}
+              className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold text-sm transition-colors flex items-center space-x-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              <span>Refresh</span>
+            </button>
+          </div>
+
+          {loadingSubmissions ? (
+            <div className="text-center py-8">
+              <p className="text-gray-500">Loading submissions...</p>
+            </div>
+          ) : demoSubmissions.length > 0 ? (
+            <div className="space-y-4">
+              {demoSubmissions.map((submission) => (
+                <div
+                  key={submission._id}
+                  className="p-4 bg-gray-50 dark:bg-gray-700 rounded-xl border border-gray-200 dark:border-gray-600"
+                >
+                  <div className="flex flex-col lg:flex-row gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-start justify-between mb-2">
+                        <div>
+                          <h4 className="font-bold text-gray-900 dark:text-white">{submission.taskTitle}</h4>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                            Submitted by: <span className="font-medium">{submission.studentName}</span> ({submission.studentEmail})
+                          </p>
+                        </div>
+                        <span className={`px-3 py-1 rounded text-xs font-medium ${
+                          submission.result === 'win' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+                          submission.result === 'loss' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' :
+                          'bg-gray-100 text-gray-800 dark:bg-gray-600 dark:text-gray-200'
+                        }`}>
+                          {submission.result?.toUpperCase() || 'OPEN'}
+                        </span>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3 text-sm">
+                        <div>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">Pair</p>
+                          <p className="font-medium text-gray-900 dark:text-white">{submission.pair}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">Direction</p>
+                          <p className="font-medium text-gray-900 dark:text-white">{submission.direction?.toUpperCase()}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">Entry Price</p>
+                          <p className="font-medium text-gray-900 dark:text-white">{submission.entryPrice}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">P/L</p>
+                          <p className={`font-medium ${
+                            submission.profitLoss > 0 ? 'text-green-600 dark:text-green-400' :
+                            submission.profitLoss < 0 ? 'text-red-600 dark:text-red-400' :
+                            'text-gray-900 dark:text-white'
+                          }`}>
+                            {submission.profitLoss !== undefined ? `$${submission.profitLoss.toFixed(2)}` : '-'}
+                          </p>
+                        </div>
+                      </div>
+
+                      {submission.notes && (
+                        <div className="mt-3 p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600">
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Notes</p>
+                          <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{submission.notes}</p>
+                        </div>
+                      )}
+
+                      {submission.screenshot && (
+                        <div className="mt-3">
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Screenshot</p>
+                          <a
+                            href={submission.screenshot}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-block"
+                          >
+                            <img
+                              src={submission.screenshot}
+                              alt="Trade screenshot"
+                              className="max-w-full h-auto max-h-64 rounded-lg border border-gray-300 dark:border-gray-600 hover:shadow-lg transition-shadow cursor-pointer"
+                              onError={(e) => {
+                                console.error('Failed to load screenshot:', submission.screenshot);
+                                const img = e.target as HTMLImageElement;
+                                img.style.display = 'none';
+                                const errorDiv = document.createElement('div');
+                                errorDiv.className = 'text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-2';
+                                errorDiv.textContent = 'Failed to load screenshot';
+                                img.parentElement?.appendChild(errorDiv);
+                              }}
+                            />
+                          </a>
+                        </div>
+                      )}
+
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">
+                        Submitted: {new Date(submission.createdAt).toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <p className="text-gray-500 dark:text-gray-400">No student submissions yet.</p>
+              <p className="text-sm text-gray-400 dark:text-gray-500 mt-2">
+                Students will appear here when they submit demo trading tasks assigned by you.
+              </p>
+            </div>
+          )}
+        </div>
 
         {/* Statistics Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 mb-3 sm:mb-4 flex-shrink-0">

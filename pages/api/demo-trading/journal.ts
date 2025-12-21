@@ -110,6 +110,7 @@ async function createJournalEntry(req: AuthRequest, res: NextApiResponse) {
     }
 
     // If taskId is provided, verify it exists and is assigned to the student
+    let instructorId = null;
     if (taskId) {
       const tasks = db.collection('demoTasks');
       const task = await tasks.findOne({
@@ -123,6 +124,9 @@ async function createJournalEntry(req: AuthRequest, res: NextApiResponse) {
       if (!task) {
         return res.status(404).json({ error: 'Task not found or not assigned to you' });
       }
+
+      // Get instructorId from the task (assignedBy field)
+      instructorId = task.assignedBy || null;
     }
 
     const entry = {
@@ -137,7 +141,8 @@ async function createJournalEntry(req: AuthRequest, res: NextApiResponse) {
       profitLoss: profitLoss !== undefined ? parseFloat(profitLoss) : undefined,
       notes: notes || '',
       taskId: taskId || null,
-      screenshot: screenshot || null, // Store screenshot URL
+      instructorId: instructorId, // Save instructorId for filtering in instructor dashboard
+      screenshot: screenshot || null, // Store Cloudinary URL directly
       createdAt: new Date(),
       updatedAt: new Date(),
     };
