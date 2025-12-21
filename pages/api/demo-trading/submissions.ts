@@ -17,28 +17,26 @@ async function getSubmissions(req: AuthRequest, res: NextApiResponse) {
     }
 
     const db = await getDb();
-    const journal = db.collection('demoTradeJournal');
+    const submissions = db.collection('demoTaskSubmissions');
     const users = db.collection('users');
     const tasks = db.collection('demoTasks');
 
     // For instructors, filter by instructorId
     // For admins, show all submissions
-    const query: any = {
-      taskId: { $ne: null }, // Only entries linked to tasks
-    };
+    const query: Record<string, unknown> = {};
 
     if (req.user!.role === 'instructor') {
       query.instructorId = req.user!.userId;
     }
 
-    const submissions = await journal
+    const submissionDocs = await submissions
       .find(query)
-      .sort({ createdAt: -1 })
+      .sort({ submittedAt: -1 })
       .toArray();
 
     // Populate student and task details
     const submissionsWithDetails = await Promise.all(
-      submissions.map(async (submission) => {
+      submissionDocs.map(async (submission) => {
         const [student, task] = await Promise.all([
           users.findOne(
             { _id: new ObjectId(submission.studentId) },
@@ -60,16 +58,12 @@ async function getSubmissions(req: AuthRequest, res: NextApiResponse) {
           taskId: submission.taskId,
           taskTitle: task?.title || 'Unknown Task',
           taskDescription: task?.description || '',
-          pair: submission.pair,
-          direction: submission.direction,
-          entryPrice: submission.entryPrice,
-          stopLoss: submission.stopLoss,
-          takeProfit: submission.takeProfit,
-          lotSize: submission.lotSize,
-          result: submission.result,
-          profitLoss: submission.profitLoss,
-          notes: submission.notes,
-          screenshot: submission.screenshot, // Cloudinary URL
+          reasoning: submission.reasoning || '',
+          screenshotUrls: submission.screenshotUrls || [],
+          grade: submission.grade || null,
+          feedback: submission.feedback || null,
+          reviewedAt: submission.reviewedAt || null,
+          submittedAt: submission.submittedAt || submission.createdAt,
           createdAt: submission.createdAt,
           updatedAt: submission.updatedAt,
         };

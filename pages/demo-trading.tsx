@@ -57,7 +57,18 @@ export default function DemoTrading() {
   const [loading, setLoading] = useState(true);
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [showJournalModal, setShowJournalModal] = useState(false);
+  const [showSubmissionModal, setShowSubmissionModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState<DemoTask | null>(null);
+  
+  // Task submission form state
+  const [submissionForm, setSubmissionForm] = useState({
+    reasoning: '',
+    screenshot: '',
+  });
+  const [uploadingSubmissionScreenshot, setUploadingSubmissionScreenshot] = useState(false);
+  const [submissionScreenshotPreview, setSubmissionScreenshotPreview] = useState<string | null>(null);
+  const [isSubmittingTask, setIsSubmittingTask] = useState(false);
+  const [submissionUploadError, setSubmissionUploadError] = useState<string | null>(null);
   
   // Trade journal form state
   const [journalForm, setJournalForm] = useState({
@@ -117,6 +128,94 @@ export default function DemoTrading() {
       await loadData();
     } catch (error: any) {
       alert(error.response?.data?.error || 'Failed to mark task as complete');
+    }
+  };
+
+  const handleOpenSubmissionModal = (task: DemoTask) => {
+    setSelectedTask(task);
+    setSubmissionForm({ reasoning: '', screenshot: '' });
+    setSubmissionScreenshotPreview(null);
+    setSubmissionUploadError(null);
+    setShowSubmissionModal(true);
+  };
+
+  const handleSubmissionScreenshotUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setSubmissionUploadError(null);
+
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+    if (!allowedTypes.includes(file.type.toLowerCase())) {
+      setSubmissionUploadError('Invalid file type. Only JPG, JPEG, and PNG images are allowed.');
+      e.target.value = '';
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      setSubmissionUploadError('File size must be less than 10MB');
+      e.target.value = '';
+      return;
+    }
+
+    try {
+      setUploadingSubmissionScreenshot(true);
+      setSubmissionUploadError(null);
+      
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const data = await apiClient.post<{ success: boolean; url: string; imageUrl?: string; filename: string }>(
+        '/demo-trading/journal/upload',
+        formData
+      );
+
+      const imageUrl = data.imageUrl || data.url;
+      setSubmissionForm({ ...submissionForm, screenshot: imageUrl });
+      setSubmissionScreenshotPreview(imageUrl);
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.error || error.message || 'Failed to upload screenshot';
+      setSubmissionUploadError(errorMessage);
+      console.error('Screenshot upload error:', error);
+    } finally {
+      setUploadingSubmissionScreenshot(false);
+    }
+  };
+
+  const handleSubmitTask = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (isSubmittingTask || !selectedTask) {
+      return;
+    }
+
+    try {
+      setIsSubmittingTask(true);
+      
+      const submissionData = {
+        reasoning: submissionForm.reasoning.trim(),
+        screenshotUrls: submissionForm.screenshot ? [submissionForm.screenshot] : [],
+      };
+
+      await apiClient.post(`/demo-trading/tasks/${selectedTask._id}/submit`, submissionData);
+      
+      // Reset form and close modal
+      setShowSubmissionModal(false);
+      setSubmissionForm({ reasoning: '', screenshot: '' });
+      setSubmissionScreenshotPreview(null);
+      setSubmissionUploadError(null);
+      setSelectedTask(null);
+      
+      // Reload data
+      await loadData();
+      
+      alert('Task submitted successfully!');
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.error || 'Failed to submit task';
+      alert(errorMessage);
+      console.error('Task submission error:', error);
+    } finally {
+      setIsSubmittingTask(false);
     }
   };
 
@@ -673,12 +772,20 @@ export default function DemoTrading() {
                                     <span>Created: {format(new Date(task.createdAt), 'MMM dd, yyyy')}</span>
                                   </div>
                                 </div>
-                                <button
-                                  onClick={() => handleCompleteTask(task._id)}
-                                  className="ml-4 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium"
-                                >
-                                  Mark Complete
-                                </button>
+                                <div className="ml-4 flex space-x-2">
+                                  <button
+                                    onClick={() => handleOpenSubmissionModal(task)}
+                                    className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium"
+                                  >
+                                    Submit Task
+                                  </button>
+                                  <button
+                                    onClick={() => handleCompleteTask(task._id)}
+                                    className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg text-sm font-medium"
+                                  >
+                                    Mark Complete
+                                  </button>
+                                </div>
                               </div>
                             </div>
                           ))}
@@ -1172,6 +1279,139 @@ export default function DemoTrading() {
                       </>
                     ) : (
                       'Save Trade'
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Task Submission Modal */}
+      {showSubmissionModal && selectedTask && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">Submit Task</h2>
+                  <p className="text-sm text-gray-600 mt-1">{selectedTask.title}</p>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowSubmissionModal(false);
+                    setSubmissionForm({ reasoning: '', screenshot: '' });
+                    setSubmissionScreenshotPreview(null);
+                    setSubmissionUploadError(null);
+                    setSelectedTask(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <form onSubmit={handleSubmitTask} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Reasoning / Analysis *
+                  </label>
+                  <p className="text-xs text-gray-500 mb-2">
+                    Explain your approach, analysis, or reasoning for completing this task
+                  </p>
+                  <textarea
+                    required
+                    value={submissionForm.reasoning}
+                    onChange={(e) => setSubmissionForm({ ...submissionForm, reasoning: e.target.value })}
+                    rows={6}
+                    placeholder="Describe your approach, analysis, key observations, or reasoning for this task..."
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Screenshot (Optional)
+                  </label>
+                  <p className="text-xs text-gray-500 mb-2">
+                    Upload a screenshot of your demo trading activity related to this task (JPG, JPEG, or PNG only, max 10MB)
+                  </p>
+                  <div className="space-y-2">
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/jpg,image/png"
+                      onChange={handleSubmissionScreenshotUpload}
+                      disabled={uploadingSubmissionScreenshot || isSubmittingTask}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 bg-white disabled:opacity-50 disabled:cursor-not-allowed"
+                    />
+                    {uploadingSubmissionScreenshot && (
+                      <p className="text-sm text-blue-600 flex items-center">
+                        <span className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></span>
+                        Uploading screenshot...
+                      </p>
+                    )}
+                    {submissionUploadError && (
+                      <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-2">
+                        {submissionUploadError}
+                      </p>
+                    )}
+                    {submissionScreenshotPreview && !submissionUploadError && (
+                      <div className="mt-2">
+                        <img
+                          src={submissionScreenshotPreview}
+                          alt="Screenshot preview"
+                          className="max-w-full h-auto max-h-48 rounded-lg border border-gray-300"
+                          onError={(e) => {
+                            console.error('Image load error:', submissionScreenshotPreview);
+                            (e.target as HTMLImageElement).style.display = 'none';
+                            setSubmissionUploadError('Failed to load image preview. Please try uploading again.');
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSubmissionScreenshotPreview(null);
+                            setSubmissionForm({ ...submissionForm, screenshot: '' });
+                            setSubmissionUploadError(null);
+                          }}
+                          disabled={isSubmittingTask}
+                          className="mt-2 text-sm text-red-600 hover:text-red-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Remove screenshot
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex justify-end space-x-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowSubmissionModal(false);
+                      setSubmissionForm({ reasoning: '', screenshot: '' });
+                      setSubmissionScreenshotPreview(null);
+                      setSubmissionUploadError(null);
+                      setSelectedTask(null);
+                    }}
+                    disabled={isSubmittingTask}
+                    className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmittingTask}
+                    className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                  >
+                    {isSubmittingTask ? (
+                      <>
+                        <span className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></span>
+                        Submitting...
+                      </>
+                    ) : (
+                      'Submit Task'
                     )}
                   </button>
                 </div>

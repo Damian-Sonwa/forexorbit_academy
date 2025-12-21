@@ -22,7 +22,7 @@ async function getTaskSubmissions(req: AuthRequest, res: NextApiResponse) {
     }
 
     const db = await getDb();
-    const journal = db.collection('demoTradeJournal');
+    const submissions = db.collection('demoTaskSubmissions');
     const users = db.collection('users');
     const tasks = db.collection('demoTasks');
 
@@ -38,14 +38,14 @@ async function getTaskSubmissions(req: AuthRequest, res: NextApiResponse) {
     }
 
     // Get all submissions for this task
-    const submissions = await journal
+    const submissionDocs = await submissions
       .find({ taskId: id })
-      .sort({ createdAt: -1 })
+      .sort({ submittedAt: -1 })
       .toArray();
 
     // Populate student details
     const submissionsWithDetails = await Promise.all(
-      submissions.map(async (submission) => {
+      submissionDocs.map(async (submission) => {
         const student = await users.findOne(
           { _id: new ObjectId(submission.studentId) },
           { projection: { name: 1, email: 1 } }
@@ -57,19 +57,11 @@ async function getTaskSubmissions(req: AuthRequest, res: NextApiResponse) {
           studentName: student?.name || 'Unknown Student',
           studentEmail: student?.email || 'Unknown Email',
           taskId: submission.taskId,
-          screenshot: submission.screenshot, // Cloudinary URL
-          notes: submission.notes,
-          pair: submission.pair,
-          direction: submission.direction,
-          entryPrice: submission.entryPrice,
-          stopLoss: submission.stopLoss,
-          takeProfit: submission.takeProfit,
-          lotSize: submission.lotSize,
-          result: submission.result,
-          profitLoss: submission.profitLoss,
+          reasoning: submission.reasoning || '',
+          screenshotUrls: submission.screenshotUrls || [],
           grade: submission.grade || null,
           feedback: submission.feedback || null,
-          submittedAt: submission.createdAt,
+          submittedAt: submission.submittedAt || submission.createdAt,
           reviewedAt: submission.reviewedAt || null,
         };
       })

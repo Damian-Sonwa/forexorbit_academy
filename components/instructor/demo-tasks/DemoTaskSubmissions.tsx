@@ -25,16 +25,12 @@ interface Submission {
   studentName: string;
   studentEmail: string;
   taskId: string;
-  screenshot: string | null;
-  notes: string;
-  pair: string;
-  direction: string;
-  entryPrice: number;
-  result: string;
-  profitLoss?: number;
+  reasoning: string;
+  screenshotUrls: string[];
   submittedAt: string;
   grade?: number | string | null;
   feedback?: string | null;
+  reviewedAt?: string | null;
 }
 
 interface TaskSubmissions {
@@ -159,75 +155,46 @@ export default function DemoTaskSubmissions() {
                         {submission.studentEmail}
                       </p>
                     </div>
-                    <span className={`px-3 py-1 rounded text-xs font-medium ${
-                      submission.result === 'win' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
-                      submission.result === 'loss' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' :
-                      'bg-gray-100 text-gray-800 dark:bg-gray-600 dark:text-gray-200'
-                    }`}>
-                      {submission.result?.toUpperCase() || 'OPEN'}
-                    </span>
                   </div>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3 text-sm">
-                    <div>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">Pair</p>
-                      <p className="font-medium text-gray-900 dark:text-white">{submission.pair}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">Direction</p>
-                      <p className="font-medium text-gray-900 dark:text-white">{submission.direction?.toUpperCase()}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">Entry Price</p>
-                      <p className="font-medium text-gray-900 dark:text-white">{submission.entryPrice}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">P/L</p>
-                      <p className={`font-medium ${
-                        submission.profitLoss && submission.profitLoss > 0 ? 'text-green-600 dark:text-green-400' :
-                        submission.profitLoss && submission.profitLoss < 0 ? 'text-red-600 dark:text-red-400' :
-                        'text-gray-900 dark:text-white'
-                      }`}>
-                        {submission.profitLoss !== undefined ? `$${submission.profitLoss.toFixed(2)}` : '-'}
-                      </p>
-                    </div>
-                  </div>
-
-                  {submission.notes && (
+                  {submission.reasoning && (
                     <div className="mb-3 p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600">
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Notes</p>
-                      <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{submission.notes}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Reasoning / Analysis</p>
+                      <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{submission.reasoning}</p>
                     </div>
                   )}
 
-                  {submission.screenshot && (
+                  {submission.screenshotUrls && submission.screenshotUrls.length > 0 && (
                     <div className="mb-3">
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Screenshot</p>
-                      <a
-                        href={submission.screenshot}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-block"
-                      >
-                        <div className="relative w-full max-w-full h-64 rounded-lg border border-gray-300 dark:border-gray-600 hover:shadow-lg transition-shadow cursor-pointer overflow-hidden bg-gray-100 dark:bg-gray-800">
-                          <Image
-                            src={submission.screenshot}
-                            alt="Trade screenshot"
-                            fill
-                            className="object-contain"
-                            unoptimized
-                            onError={(e) => {
-                              console.error('Failed to load screenshot:', submission.screenshot);
-                              const img = e.target as HTMLImageElement;
-                              img.style.display = 'none';
-                              const errorDiv = document.createElement('div');
-                              errorDiv.className = 'text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-2';
-                              errorDiv.textContent = 'Failed to load screenshot';
-                              img.parentElement?.appendChild(errorDiv);
-                            }}
-                          />
-                        </div>
-                      </a>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                        Screenshot{submission.screenshotUrls.length > 1 ? 's' : ''}
+                      </p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {submission.screenshotUrls.map((url, index) => (
+                          <a
+                            key={index}
+                            href={url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-block"
+                          >
+                            <div className="relative w-full max-w-full h-64 rounded-lg border border-gray-300 dark:border-gray-600 hover:shadow-lg transition-shadow cursor-pointer overflow-hidden bg-gray-100 dark:bg-gray-800">
+                              <Image
+                                src={url}
+                                alt={`Screenshot ${index + 1}`}
+                                fill
+                                className="object-contain"
+                                unoptimized
+                                onError={(e) => {
+                                  console.error('Failed to load screenshot:', url);
+                                  const img = e.target as HTMLImageElement;
+                                  img.style.display = 'none';
+                                }}
+                              />
+                            </div>
+                          </a>
+                        ))}
+                      </div>
                     </div>
                   )}
 

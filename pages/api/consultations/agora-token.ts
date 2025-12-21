@@ -17,13 +17,45 @@ import { RtcTokenBuilder, RtcRole } from 'agora-access-token';
 const AGORA_APP_ID = process.env.NEXT_PUBLIC_AGORA_APP_ID || process.env.AGORA_APP_ID || '';
 const AGORA_APP_CERTIFICATE = process.env.AGORA_APP_CERTIFICATE || '';
 
+// Allowed frontend origin
+const ALLOWED_ORIGIN = 'https://forexorbit-academy.vercel.app';
+
+// CORS headers helper
+function setCorsHeaders(res: NextApiResponse, origin?: string) {
+  // Check if origin is allowed (for production) or allow localhost for development
+  const isAllowedOrigin = origin === ALLOWED_ORIGIN || 
+                         origin?.includes('localhost') || 
+                         origin?.includes('127.0.0.1') ||
+                         origin?.includes('forexorbit-academy.vercel.app');
+  
+  if (isAllowedOrigin && origin) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  } else {
+    // Default to allowed origin if no origin header or not matching
+    res.setHeader('Access-Control-Allow-Origin', ALLOWED_ORIGIN);
+  }
+  
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  // Handle preflight OPTIONS request
+  if (req.method === 'OPTIONS') {
+    setCorsHeaders(res, req.headers.origin);
+    return res.status(200).end();
+  }
+
+  // Set CORS headers for all requests
+  setCorsHeaders(res, req.headers.origin);
+
   // CRITICAL: This endpoint must run on Render backend only
   // AGORA_APP_CERTIFICATE should NEVER be set in Vercel environment
   if (!AGORA_APP_CERTIFICATE) {
     console.error('AGORA_APP_CERTIFICATE not configured. This endpoint must run on Render backend.');
-    return res.status(503).json({ 
-      error: 'Agora token service is only available on Render backend. Please contact support.',
+    return res.status(500).json({ 
+      error: 'Agora token service unavailable. Please contact support.',
     });
   }
 

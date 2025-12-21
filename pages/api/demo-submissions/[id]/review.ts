@@ -35,11 +35,11 @@ async function reviewSubmission(req: AuthRequest, res: NextApiResponse) {
     }
 
     const db = await getDb();
-    const journal = db.collection('demoTradeJournal');
+    const submissions = db.collection('demoTaskSubmissions');
     const tasks = db.collection('demoTasks');
 
     // Get submission
-    const submission = await journal.findOne({ _id: new ObjectId(id) });
+    const submission = await submissions.findOne({ _id: new ObjectId(id) });
     if (!submission) {
       return res.status(404).json({ error: 'Submission not found' });
     }
@@ -58,7 +58,7 @@ async function reviewSubmission(req: AuthRequest, res: NextApiResponse) {
     }
 
     // Update submission with grade and feedback
-    const updateData: any = {
+    const updateData: Record<string, unknown> = {
       reviewedAt: new Date(),
       updatedAt: new Date(),
     };
@@ -71,7 +71,7 @@ async function reviewSubmission(req: AuthRequest, res: NextApiResponse) {
       updateData.feedback = feedback;
     }
 
-    await journal.updateOne(
+    await submissions.updateOne(
       { _id: new ObjectId(id) },
       { $set: updateData }
     );
