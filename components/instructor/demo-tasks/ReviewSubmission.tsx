@@ -82,8 +82,11 @@ export default function ReviewSubmission() {
       await loadSubmissions();
       setReviewingId(null);
       setReviewForm({ grade: '', feedback: '' });
-    } catch (error: any) {
-      setError(error.response?.data?.error || 'Failed to submit review');
+    } catch (error: unknown) {
+      const errorMessage = error && typeof error === 'object' && 'response' in error
+        ? (error as { response?: { data?: { error?: string } } }).response?.data?.error || 'Failed to submit review'
+        : 'Failed to submit review';
+      setError(errorMessage);
     }
   };
 
