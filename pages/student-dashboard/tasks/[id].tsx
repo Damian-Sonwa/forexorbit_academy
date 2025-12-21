@@ -196,6 +196,24 @@ export default function TaskDetail() {
     }
   };
 
+  const handleDeleteSubmission = async () => {
+    if (!submission) return;
+
+    if (!confirm('Are you sure you want to delete this submission? You can resubmit later. This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      await apiClient.delete(`/demo-trading/submissions/${submission._id}`);
+      await loadTaskData();
+      alert('Submission deleted successfully. You can submit again.');
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to delete submission';
+      alert(errorMessage);
+      console.error('Delete submission error:', error);
+    }
+  };
+
   if (authLoading || loading) {
     return <LoadingSpinner message="Loading task..." fullScreen />;
   }
@@ -337,13 +355,38 @@ export default function TaskDetail() {
                   )}
                 </div>
               )}
+
+              {/* Delete button - only show if not reviewed */}
+              {!submission.reviewedAt && submission.grade === null && (
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                  <button
+                    onClick={handleDeleteSubmission}
+                    className="inline-flex items-center space-x-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-semibold transition-all"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                    <span>Delete Submission</span>
+                  </button>
+                  <p className="text-xs text-gray-500 mt-2">You can delete and resubmit if not yet reviewed</p>
+                </div>
+              )}
             </div>
           )}
 
           {/* Submission Form */}
-          {!hasSubmission && (
+          {(!hasSubmission || (!isReviewed && !isGraded)) && (
             <div className="bg-white rounded-xl shadow-md border border-gray-100 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Submit Task</h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-gray-900">
+                  {hasSubmission ? 'Update Submission' : 'Submit Task'}
+                </h2>
+                {hasSubmission && !isReviewed && !isGraded && (
+                  <span className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-semibold">
+                    You can edit your submission
+                  </span>
+                )}
+              </div>
               
               <form onSubmit={handleSubmitTask} className="space-y-4">
                 <div>
@@ -434,10 +477,10 @@ export default function TaskDetail() {
                     {isSubmitting ? (
                       <>
                         <span className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></span>
-                        Submitting...
+                        {hasSubmission ? 'Updating...' : 'Submitting...'}
                       </>
                     ) : (
-                      'Submit Task'
+                      hasSubmission ? 'Update Submission' : 'Submit Task'
                     )}
                   </button>
                 </div>

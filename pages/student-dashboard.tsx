@@ -71,6 +71,7 @@ export default function StudentDashboard() {
   const [journalEntries, setJournalEntries] = useState<TradeJournalEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [showJournalModal, setShowJournalModal] = useState(false);
+  const [editingJournalEntry, setEditingJournalEntry] = useState<TradeJournalEntry | null>(null);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
   // Trade journal form state
@@ -199,6 +200,42 @@ export default function StudentDashboard() {
     }
   };
 
+  const handleEditJournalEntry = (entry: TradeJournalEntry) => {
+    setEditingJournalEntry(entry);
+    setJournalForm({
+      pair: entry.pair,
+      direction: entry.direction,
+      entryPrice: entry.entryPrice.toString(),
+      stopLoss: entry.stopLoss.toString(),
+      takeProfit: entry.takeProfit.toString(),
+      lotSize: entry.lotSize.toString(),
+      result: entry.result,
+      profitLoss: entry.profitLoss?.toString() || '',
+      notes: entry.notes || '',
+      screenshot: entry.screenshot || '',
+    });
+    if (entry.screenshot) {
+      setScreenshotPreview(entry.screenshot);
+    }
+    setShowJournalModal(true);
+  };
+
+  const handleDeleteJournalEntry = async (entryId: string) => {
+    if (!confirm('Are you sure you want to delete this trade entry? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      await apiClient.delete(`/demo-trading/journal/${entryId}`);
+      await loadData();
+      alert('Trade entry deleted successfully');
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to delete trade entry';
+      alert(errorMessage);
+      console.error('Delete journal entry error:', error);
+    }
+  };
+
   const handleSubmitJournal = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -219,10 +256,17 @@ export default function StudentDashboard() {
         screenshot: journalForm.screenshot || undefined,
       };
 
-      await apiClient.post('/demo-trading/journal', entryData);
+      if (editingJournalEntry) {
+        // Update existing entry
+        await apiClient.put(`/demo-trading/journal/${editingJournalEntry._id}`, entryData);
+      } else {
+        // Create new entry
+        await apiClient.post('/demo-trading/journal', entryData);
+      }
       
       // Reset form and close modal
       setShowJournalModal(false);
+      setEditingJournalEntry(null);
       setJournalForm({
         pair: '',
         direction: 'buy',
@@ -640,6 +684,7 @@ export default function StudentDashboard() {
                               <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">TP</th>
                               <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Lot Size</th>
                               <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Date</th>
+                              <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Actions</th>
                             </tr>
                           </thead>
                           <tbody className="bg-white divide-y divide-gray-200">
@@ -658,6 +703,28 @@ export default function StudentDashboard() {
                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{trade.takeProfit}</td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{trade.lotSize}</td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{format(new Date(trade.createdAt), 'MMM dd, yyyy')}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                  <div className="flex items-center space-x-2">
+                                    <button
+                                      onClick={() => handleEditJournalEntry(trade)}
+                                      className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
+                                      title="Edit"
+                                    >
+                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                      </svg>
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteJournalEntry(trade._id)}
+                                      className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
+                                      title="Delete"
+                                    >
+                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                      </svg>
+                                    </button>
+                                  </div>
+                                </td>
                               </tr>
                             ))}
                           </tbody>
@@ -751,6 +818,26 @@ export default function StudentDashboard() {
                                 )}
                               </div>
                             )}
+                            <div className="mt-4 pt-4 border-t-2 border-gray-200 flex justify-end space-x-2">
+                              <button
+                                onClick={() => handleEditJournalEntry(trade)}
+                                className="inline-flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition-all"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
+                                <span>Edit</span>
+                              </button>
+                              <button
+                                onClick={() => handleDeleteJournalEntry(trade._id)}
+                                className="inline-flex items-center space-x-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-semibold transition-all"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                                <span>Delete</span>
+                              </button>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -787,12 +874,13 @@ export default function StudentDashboard() {
             <div className="sticky top-0 bg-gradient-to-r from-primary-600 to-purple-600 text-white p-6 rounded-t-2xl">
               <div className="flex justify-between items-center">
                 <div>
-                  <h2 className="text-2xl font-bold mb-1">Log Trade</h2>
-                  <p className="text-primary-100 text-sm">Record your trading activity and analysis</p>
+                  <h2 className="text-2xl font-bold mb-1">{editingJournalEntry ? 'Edit Trade' : 'Log Trade'}</h2>
+                  <p className="text-primary-100 text-sm">{editingJournalEntry ? 'Update your trade entry' : 'Record your trading activity and analysis'}</p>
                 </div>
                 <button
                   onClick={() => {
                     setShowJournalModal(false);
+                    setEditingJournalEntry(null);
                     setJournalForm({
                       pair: '',
                       direction: 'buy',
@@ -806,6 +894,7 @@ export default function StudentDashboard() {
                       screenshot: '',
                     });
                     setScreenshotPreview(null);
+                    setUploadError(null);
                   }}
                   className="w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors"
                 >
@@ -993,6 +1082,7 @@ export default function StudentDashboard() {
                     type="button"
                     onClick={() => {
                       setShowJournalModal(false);
+                      setEditingJournalEntry(null);
                       setJournalForm({
                         pair: '',
                         direction: 'buy',
