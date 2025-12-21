@@ -16,9 +16,12 @@ async function getRequests(req: AuthRequest, res: NextApiResponse) {
     const users = db.collection('users');
 
     if (req.user!.role === 'student') {
-      // Students see their own requests
+      // Students see their own requests EXCEPT pending ones (pending requests are only visible to instructors)
       const userRequests = await requests
-        .find({ studentId: req.user!.userId })
+        .find({ 
+          studentId: req.user!.userId,
+          status: { $ne: 'pending' } // Exclude pending requests
+        })
         .sort({ createdAt: -1 })
         .toArray();
 
@@ -46,7 +49,7 @@ async function getRequests(req: AuthRequest, res: NextApiResponse) {
 
       res.json(requestsWithExpert);
     } else if (req.user!.role === 'instructor') {
-      // Instructors see requests directed to them (all statuses)
+      // Instructors see requests directed to them (all statuses including pending)
       const instructorRequests = await requests
         .find({ 
           expertId: req.user!.userId
@@ -76,7 +79,7 @@ async function getRequests(req: AuthRequest, res: NextApiResponse) {
 
       res.json(requestsWithStudent);
     } else if (req.user!.role === 'admin' || req.user!.role === 'superadmin') {
-      // Admins see ALL requests (all statuses, all instructors)
+      // Super admin and admin see ALL requests (all statuses including pending, all instructors)
       const allRequests = await requests
         .find({})
         .sort({ createdAt: -1 })

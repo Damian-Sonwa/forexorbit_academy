@@ -377,32 +377,7 @@ export default function Consultations() {
               <div className="space-y-4">
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">My Consultations</h2>
 
-                {/* Requests */}
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
-                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Pending Requests</h3>
-                  {requests.filter(r => r.status === 'pending').length === 0 ? (
-                    <p className="text-gray-500 dark:text-gray-400">No pending requests</p>
-                  ) : (
-                    <div className="space-y-3">
-                      {requests.filter(r => r.status === 'pending').map((request) => (
-                        <div key={request._id} className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="font-semibold text-gray-900 dark:text-white">{request.expert?.name || 'Expert'}</p>
-                              <p className="text-sm text-gray-600 dark:text-gray-400">{request.topic}</p>
-                              <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                                {formatDistanceToNow(new Date(request.createdAt), { addSuffix: true })}
-                              </p>
-                            </div>
-                            <span className="px-3 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 rounded-full text-sm font-semibold">
-                              Pending
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                {/* Note: Pending requests are not shown to students - only instructors can see pending requests sent to them */}
 
                 {/* Accepted Requests - Show with communication buttons */}
                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
