@@ -2,25 +2,30 @@
  * API Route: Generate Agora Token for Consultation Calls
  * Generates temporary token for voice/video calls
  * GET /api/consultations/agora-token?channel=<sessionId>
+ * 
+ * SECURITY: This endpoint MUST run ONLY on Render backend
+ * - AGORA_APP_CERTIFICATE must be set in Render environment variables only
+ * - This endpoint should NOT be deployed to Vercel (or will return error)
+ * - Frontend should call: https://forexorbit-academy.onrender.com/api/consultations/agora-token
  */
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { RtcTokenBuilder, RtcRole } from 'agora-access-token';
 
 // Agora App ID - check both NEXT_PUBLIC_AGORA_APP_ID (Vercel) and AGORA_APP_ID (Render)
-// App Certificate - MUST be set on Render backend only
+// App Certificate - MUST be set on Render backend only (NOT in Vercel)
 const AGORA_APP_ID = process.env.NEXT_PUBLIC_AGORA_APP_ID || process.env.AGORA_APP_ID || '';
 const AGORA_APP_CERTIFICATE = process.env.AGORA_APP_CERTIFICATE || '';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  // TEMPORARY: Add logging to debug environment variables
-  console.log('=== AGORA TOKEN API DEBUG ===');
-  console.log('AGORA_APP_ID:', !!AGORA_APP_ID, AGORA_APP_ID ? AGORA_APP_ID.substring(0, 8) + '...' : 'MISSING');
-  console.log('AGORA_APP_CERTIFICATE:', !!AGORA_APP_CERTIFICATE, AGORA_APP_CERTIFICATE ? 'SET (hidden)' : 'MISSING');
-  console.log('process.env.NEXT_PUBLIC_AGORA_APP_ID:', !!process.env.NEXT_PUBLIC_AGORA_APP_ID);
-  console.log('process.env.AGORA_APP_ID:', !!process.env.AGORA_APP_ID);
-  console.log('process.env.AGORA_APP_CERTIFICATE:', !!process.env.AGORA_APP_CERTIFICATE);
-  console.log('================================');
+  // CRITICAL: This endpoint must run on Render backend only
+  // AGORA_APP_CERTIFICATE should NEVER be set in Vercel environment
+  if (!AGORA_APP_CERTIFICATE) {
+    console.error('AGORA_APP_CERTIFICATE not configured. This endpoint must run on Render backend.');
+    return res.status(503).json({ 
+      error: 'Agora token service is only available on Render backend. Please contact support.',
+    });
+  }
 
   // Support both GET and POST for compatibility
   if (req.method !== 'GET' && req.method !== 'POST') {
@@ -43,10 +48,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
 
+    // AGORA_APP_CERTIFICATE check is already done above, but double-check for safety
     if (!AGORA_APP_CERTIFICATE) {
-      console.error('Agora App Certificate not configured on server. Set AGORA_APP_CERTIFICATE environment variable on Render.');
-      return res.status(500).json({ 
-        error: 'Agora token service unavailable. Please contact support.',
+      console.error('Agora App Certificate not configured. This endpoint must run on Render backend with AGORA_APP_CERTIFICATE set.');
+      return res.status(503).json({ 
+        error: 'Agora token service is only available on Render backend. Please contact support.',
       });
     }
 

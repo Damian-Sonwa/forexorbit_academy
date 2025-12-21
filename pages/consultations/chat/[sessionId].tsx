@@ -218,13 +218,36 @@ export default function ConsultationChat() {
 
     try {
       // Generate Agora token using GET request
-      // This is the ONLY check - if token API fails, show error
-      const response = await apiClient.get<{
+      // IMPORTANT: Agora token must be generated on Render backend only (not Vercel)
+      // Use NEXT_PUBLIC_SOCKET_URL (Render backend) for token requests
+      const renderBackendUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'https://forexorbit-academy.onrender.com';
+      const tokenUrl = `${renderBackendUrl}/api/consultations/agora-token?channel=${sessionId}`;
+      
+      // Get auth token for the request
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+      
+      // Call Render backend directly for Agora token
+      const tokenResponse = await fetch(tokenUrl, {
+        method: 'GET',
+        headers,
+      });
+      
+      if (!tokenResponse.ok) {
+        throw new Error(`Token request failed: ${tokenResponse.status} ${tokenResponse.statusText}`);
+      }
+      
+      const response = await tokenResponse.json() as {
         token: string;
         appId: string;
         channel: string;
         uid: string | number;
-      }>(`/consultations/agora-token?channel=${sessionId}`);
+      };
 
       // Validate token response - this determines readiness
       if (!response.token || !response.appId || !response.channel) {
