@@ -8,6 +8,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { getDb } from '@/lib/mongodb';
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
+import { sendPasswordResetEmail, isEmailConfigured } from '@/lib/email';
 
 export default async function handler(
   req: NextApiRequest,
@@ -66,12 +67,22 @@ export default async function handler(
                     'http://localhost:3000';
     const resetUrl = `${baseUrl}/reset-password?token=${resetToken}&id=${user._id.toString()}`;
 
-    // TODO: Send email with reset link
-    // For now, log the reset URL (remove in production)
-    console.log('Password reset link for', email, ':', resetUrl);
-    
-    // In production, use nodemailer or similar:
-    // await sendPasswordResetEmail(user.email, user.name, resetUrl);
+    // Send password reset email
+    try {
+      if (isEmailConfigured()) {
+        await sendPasswordResetEmail(user.email, user.name || 'User', resetUrl);
+        console.log('Password reset email sent successfully to', email);
+      } else {
+        // Email not configured - log the URL for manual use (development/testing)
+        console.warn('Email not configured. Password reset URL for', email, ':', resetUrl);
+        console.log('To enable email sending, configure SMTP environment variables in Vercel.');
+      }
+    } catch (emailError) {
+      // Log error but don't fail the request - still log the URL as fallback
+      console.error('Failed to send password reset email:', emailError);
+      console.log('Password reset URL for', email, ':', resetUrl);
+      // Continue - user can still reset password if they have the link
+    }
 
     return res.status(200).json({ 
       message: 'If an account with that email exists, a password reset link has been sent.' 
