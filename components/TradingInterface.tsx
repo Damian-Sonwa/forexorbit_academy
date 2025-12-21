@@ -3,7 +3,7 @@
  * Allows students to place orders and manage positions via broker API
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { apiClient } from '@/lib/api-client';
 import { format } from 'date-fns';
 
@@ -80,18 +80,25 @@ export default function TradingInterface() {
     { value: 'USD_CHF', label: 'USD/CHF' },
   ];
 
-  useEffect(() => {
-    loadData();
-    // Refresh prices every 5 seconds
-    const priceInterval = setInterval(() => {
-      if (account) {
-        loadPrices();
-      }
-    }, 5000);
-    return () => clearInterval(priceInterval);
+  const loadPrices = useCallback(async () => {
+    try {
+      const instruments = popularPairs.map(p => p.value);
+      // This would call a prices API endpoint
+      // For now, we'll use mock data structure
+      const mockPrices: Record<string, { bid: number; ask: number }> = {};
+      instruments.forEach(instrument => {
+        mockPrices[instrument] = {
+          bid: 1.0 + Math.random() * 0.1,
+          ask: 1.0 + Math.random() * 0.1 + 0.0001,
+        };
+      });
+      setPrices(mockPrices);
+    } catch (error) {
+      console.error('Failed to load prices:', error);
+    }
   }, []);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
       const [accountData, tradesData, performanceData] = await Promise.all([
@@ -116,25 +123,18 @@ export default function TradingInterface() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [loadPrices]);
 
-  const loadPrices = async () => {
-    try {
-      const instruments = popularPairs.map(p => p.value);
-      // This would call a prices API endpoint
-      // For now, we'll use mock data structure
-      const mockPrices: Record<string, { bid: number; ask: number }> = {};
-      instruments.forEach(instrument => {
-        mockPrices[instrument] = {
-          bid: 1.0 + Math.random() * 0.1,
-          ask: 1.0 + Math.random() * 0.1 + 0.0001,
-        };
-      });
-      setPrices(mockPrices);
-    } catch (error) {
-      console.error('Failed to load prices:', error);
-    }
-  };
+  useEffect(() => {
+    loadData();
+    // Refresh prices every 5 seconds
+    const priceInterval = setInterval(() => {
+      if (account) {
+        loadPrices();
+      }
+    }, 5000);
+    return () => clearInterval(priceInterval);
+  }, [account, loadData, loadPrices]);
 
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -262,7 +262,7 @@ export default function TradingInterface() {
         <div className="mt-6 bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded">
           <p className="text-sm text-yellow-800">
             <strong>Note:</strong> After creating your demo account, you can use it to practice trading. 
-            If you've already created an account, make sure you're logged in to the broker's platform.
+            If you&apos;ve already created an account, make sure you&apos;re logged in to the broker&apos;s platform.
           </p>
         </div>
       </div>
