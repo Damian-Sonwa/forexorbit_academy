@@ -32,7 +32,7 @@ export async function uploadImage(
   options: {
     userId?: string;
     resourceType?: 'image' | 'auto';
-    transformation?: any;
+    transformation?: Record<string, unknown>;
   } = {}
 ): Promise<UploadResult> {
   if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
@@ -88,9 +88,10 @@ export async function deleteImage(publicId: string): Promise<void> {
 
   try {
     await cloudinary.uploader.destroy(publicId);
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error('Cloudinary delete error:', error);
-    throw new Error(`Failed to delete image: ${error.message}`);
+    throw new Error(`Failed to delete image: ${errorMessage}`);
   }
 }
 

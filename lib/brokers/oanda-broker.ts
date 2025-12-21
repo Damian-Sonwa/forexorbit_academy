@@ -280,7 +280,13 @@ export class OandaBroker extends BaseBroker {
     }
 
     const data = await response.json();
-    return data.positions.map((pos: any) => ({
+    return data.positions.map((pos: {
+      id: string;
+      instrument: string;
+      long?: { units: string; averagePrice: string; currentPrice: string; openTime: string; stopLossOrder?: { price: string }; takeProfitOrder?: { price: string } };
+      short?: { units: string; averagePrice: string; currentPrice: string; openTime: string; stopLossOrder?: { price: string }; takeProfitOrder?: { price: string } };
+      unrealizedPL: string;
+    }) => ({
       positionId: pos.id,
       instrument: pos.instrument,
       units: parseFloat(pos.long?.units || pos.short?.units || '0'),
@@ -356,8 +362,15 @@ export class OandaBroker extends BaseBroker {
 
     const data = await response.json();
     return data.transactions
-      .filter((t: any) => t.type === 'ORDER_FILL' || t.type === 'ORDER_CREATE')
-      .map((t: any) => ({
+      .filter((t: { type: string }) => t.type === 'ORDER_FILL' || t.type === 'ORDER_CREATE')
+      .map((t: {
+        id: string;
+        type: string;
+        instrument: string;
+        units: string;
+        time: string;
+        price?: string;
+      }) => ({
         orderId: t.id,
         instrument: t.instrument,
         units: Math.abs(parseFloat(t.units || '0')),
@@ -386,7 +399,12 @@ export class OandaBroker extends BaseBroker {
     const data = await response.json();
     const prices: Record<string, { bid: number; ask: number; time: Date }> = {};
 
-    data.prices.forEach((price: any) => {
+    data.prices.forEach((price: {
+      instrument: string;
+      bids: Array<{ price: string }>;
+      asks: Array<{ price: string }>;
+      time: string;
+    }) => {
       prices[price.instrument] = {
         bid: parseFloat(price.bids[0].price),
         ask: parseFloat(price.asks[0].price),
@@ -417,7 +435,11 @@ export class OandaBroker extends BaseBroker {
     }
 
     const data = await response.json();
-    return data.candles.map((c: any) => ({
+    return data.candles.map((c: {
+      time: string;
+      mid: { o: string; h: string; l: string; c: string };
+      volume: string;
+    }) => ({
       time: new Date(c.time),
       open: parseFloat(c.mid.o),
       high: parseFloat(c.mid.h),
