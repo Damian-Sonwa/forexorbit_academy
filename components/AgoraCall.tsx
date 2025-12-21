@@ -37,6 +37,8 @@ export default function AgoraCall({ appId, channel, token, uid, callType, onCall
   const [remoteUsers, setRemoteUsers] = useState<RemoteUser[]>([]);
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
+  const [videoEnabled, setVideoEnabled] = useState(false); // Track if video is enabled by user
+  const [videoError, setVideoError] = useState<string | null>(null); // Track video-specific errors
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -47,6 +49,38 @@ export default function AgoraCall({ appId, channel, token, uid, callType, onCall
   const localVideoContainerRef = useRef<HTMLDivElement>(null);
   const remoteVideoContainerRef = useRef<HTMLDivElement>(null);
   const initTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Helper function to wait for container with ID (used by both init and enableVideo)
+  const waitForContainer = (containerId: string, fallbackRef: React.RefObject<HTMLDivElement> | null, maxAttempts = 20) => {
+    return new Promise<HTMLElement>((resolve, reject) => {
+      let attempts = 0;
+      const checkContainer = () => {
+        const container = document.getElementById(containerId);
+        if (container) {
+          const rect = container.getBoundingClientRect();
+          // Check if container has non-zero dimensions
+          if (rect.width > 0 && rect.height > 0) {
+            console.log(`AgoraCall: Container ${containerId} found with dimensions:`, rect.width, 'x', rect.height);
+            resolve(container);
+            return;
+          }
+        }
+        attempts++;
+        if (attempts >= maxAttempts) {
+          // Fallback: use ref container if ID not found
+          if (fallbackRef?.current) {
+            console.warn(`AgoraCall: Using ref fallback for ${containerId}`);
+            resolve(fallbackRef.current);
+            return;
+          }
+          reject(new Error(`${containerId} container not found or has zero dimensions`));
+          return;
+        }
+        setTimeout(checkContainer, 100);
+      };
+      checkContainer();
+    });
+  };
 
   // Ensure component only runs on client
   useEffect(() => {
@@ -98,38 +132,6 @@ export default function AgoraCall({ appId, channel, token, uid, callType, onCall
         const client = AgoraRTC.createClient({ mode: 'rtc', codec: 'vp8' });
         clientRef.current = client;
 
-        // Helper function to wait for container with ID
-        const waitForContainer = (containerId: string, fallbackRef: React.RefObject<HTMLDivElement> | null, maxAttempts = 20) => {
-          return new Promise<HTMLElement>((resolve, reject) => {
-            let attempts = 0;
-            const checkContainer = () => {
-              const container = document.getElementById(containerId);
-              if (container) {
-                const rect = container.getBoundingClientRect();
-                // Check if container has non-zero dimensions
-                if (rect.width > 0 && rect.height > 0) {
-                  console.log(`AgoraCall: Container ${containerId} found with dimensions:`, rect.width, 'x', rect.height);
-                  resolve(container);
-                  return;
-                }
-              }
-              attempts++;
-              if (attempts >= maxAttempts) {
-                // Fallback: use ref container if ID not found
-                if (fallbackRef?.current) {
-                  console.warn(`AgoraCall: Using ref fallback for ${containerId}`);
-                  resolve(fallbackRef.current);
-                  return;
-                }
-                reject(new Error(`${containerId} container not found or has zero dimensions`));
-                return;
-              }
-              setTimeout(checkContainer, 100);
-            };
-            checkContainer();
-          });
-        };
-
         // Handle remote user events
         client.on('user-published', async (user, mediaType) => {
           try {
@@ -180,52 +182,25 @@ export default function AgoraCall({ appId, channel, token, uid, callType, onCall
           throw new Error('Agora token is required');
         }
 
-        // Join channel with token
+        // Join channel with token (AUDIO ONLY by default - no camera auto-start)
         await client.join(appId, channel, token, uid);
         console.log('Agora client joined channel:', channel);
 
-        // Create local tracks based on call type
-        console.log('AgoraCall: Creating local tracks...', { callType });
+        // Create microphone audio track first (always required)
+        console.log('AgoraCall: Creating microphone audio track...');
         try {
-          if (callType === 'video') {
-            // Create camera video track explicitly with facingMode: "user" (front-facing camera)
-            const videoTrack = await AgoraRTC.createCameraVideoTrack({ facingMode: 'user' });
-            console.log('AgoraCall: Camera video track created');
-            
-            // Create microphone audio track
-            const audioTrack = await AgoraRTC.createMicrophoneAudioTrack();
-            console.log('AgoraCall: Microphone audio track created');
-            
-            localAudioTrackRef.current = audioTrack;
-            localVideoTrackRef.current = videoTrack;
+          const audioTrack = await AgoraRTC.createMicrophoneAudioTrack();
+          console.log('AgoraCall: Microphone audio track created');
+          localAudioTrackRef.current = audioTrack;
 
-            // Wait for container to be available in DOM
-            // Ensure local-video container exists and has non-zero dimensions
-            const localVideoContainer = await waitForContainer('local-video', localVideoContainerRef);
-            
-            // Play local video - Agora SDK will handle playsinline for iOS Safari automatically
-            // The SDK creates a video element inside the container with proper attributes
-            await videoTrack.play(localVideoContainer);
-            console.log('AgoraCall: Local video playing in container');
-
-            // Publish both audio and video tracks together
-            await client.publish([audioTrack, videoTrack]);
-            console.log('AgoraCall: Video and audio tracks published');
-          } else {
-            // Voice only
-            const audioTrack = await AgoraRTC.createMicrophoneAudioTrack();
-            console.log('AgoraCall: Audio track created');
-            localAudioTrackRef.current = audioTrack;
-
-            // Publish track
-            await client.publish([audioTrack]);
-            console.log('AgoraCall: Audio track published');
-          }
+          // Publish audio track only (video will be added later if user enables it)
+          await client.publish([audioTrack]);
+          console.log('AgoraCall: Audio track published');
         } catch (trackError: any) {
-          console.error('AgoraCall: Error creating/publishing tracks:', trackError);
+          console.error('AgoraCall: Error creating/publishing audio track:', trackError);
           // Check if it's a permission error
           if (trackError.name === 'NotAllowedError' || trackError.message?.includes('permission')) {
-            throw new Error('Microphone/Camera permission denied. Please allow access and try again.');
+            throw new Error('Microphone permission denied. Please allow access and try again.');
           }
           throw trackError;
         }
@@ -349,13 +324,87 @@ export default function AgoraCall({ appId, channel, token, uid, callType, onCall
   };
 
   const toggleVideo = async () => {
-    if (localVideoTrackRef.current && callType === 'video') {
+    // If video is not enabled yet, enable it (create camera track)
+    if (!videoEnabled && callType === 'video') {
+      await enableVideo();
+    } else if (localVideoTrackRef.current) {
+      // Video is already enabled, just toggle on/off
       if (isVideoOff) {
         await localVideoTrackRef.current.setEnabled(true);
         setIsVideoOff(false);
       } else {
         await localVideoTrackRef.current.setEnabled(false);
         setIsVideoOff(true);
+      }
+    }
+  };
+
+  const enableVideo = async () => {
+    // Only enable video if call type supports it
+    if (callType !== 'video') {
+      return;
+    }
+
+    // Don't enable if already enabled
+    if (videoEnabled && localVideoTrackRef.current) {
+      return;
+    }
+
+    setVideoError(null);
+    
+    try {
+      // Dynamically import Agora SDK if not already loaded
+      const AgoraRTC = (await import('agora-rtc-sdk-ng')).default;
+      
+      // Create camera video track with proper error handling
+      console.log('AgoraCall: Creating camera video track...');
+      const videoTrack = await AgoraRTC.createCameraVideoTrack({ facingMode: 'user' });
+      console.log('AgoraCall: Camera video track created');
+      
+      localVideoTrackRef.current = videoTrack;
+
+      // Wait for container to be available in DOM
+      const localVideoContainer = await waitForContainer('local-video', localVideoContainerRef);
+      
+      // Play local video
+      await videoTrack.play(localVideoContainer);
+      console.log('AgoraCall: Local video playing in container');
+
+      // Publish video track (audio is already published)
+      if (clientRef.current) {
+        await clientRef.current.publish([videoTrack]);
+        console.log('AgoraCall: Video track published');
+      }
+
+      setVideoEnabled(true);
+      setIsVideoOff(false);
+      setVideoError(null);
+    } catch (err: any) {
+      console.error('AgoraCall: Error enabling video:', err);
+      
+      // Handle camera failure gracefully - don't crash the call
+      let errorMessage = 'Failed to enable camera. ';
+      if (err.name === 'NotAllowedError' || err.message?.includes('permission')) {
+        errorMessage += 'Camera permission denied. Please allow access and try again.';
+      } else if (err.name === 'AbortError' || err.message?.includes('Starting videoinput failed')) {
+        errorMessage += 'Camera initialization failed. You can continue the call with audio only.';
+      } else if (err.name === 'NotFoundError' || err.message?.includes('no camera')) {
+        errorMessage += 'No camera found. You can continue the call with audio only.';
+      } else {
+        errorMessage += err.message || 'Unknown error. You can continue the call with audio only.';
+      }
+      
+      setVideoError(errorMessage);
+      // Don't throw - allow call to continue with audio only
+      // Clean up any partial video track
+      if (localVideoTrackRef.current) {
+        try {
+          localVideoTrackRef.current.stop();
+          localVideoTrackRef.current.close();
+        } catch (cleanupErr) {
+          console.error('AgoraCall: Error cleaning up failed video track:', cleanupErr);
+        }
+        localVideoTrackRef.current = null;
       }
     }
   };
@@ -425,7 +474,7 @@ export default function AgoraCall({ appId, channel, token, uid, callType, onCall
         </button>
       </div>
 
-      {/* Video Display */}
+      {/* Video Display - Only show if video is enabled or call type is video */}
       {callType === 'video' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           {/* Remote Video */}
@@ -455,18 +504,36 @@ export default function AgoraCall({ appId, channel, token, uid, callType, onCall
           >
             {/* Explicit ID for local video container - required for Agora playback */}
             {/* Agora SDK will create video element inside this container with playsinline for iOS */}
-            <div 
-              id="local-video" 
-              ref={localVideoContainerRef} 
-              className="w-full h-full"
-              style={{ minHeight: '300px', width: '100%', position: 'relative' }}
-            />
-            {isVideoOff && (
-              <div className="absolute inset-0 flex items-center justify-center bg-gray-800 pointer-events-none z-10">
-                <p className="text-gray-400">Camera Off</p>
+            {videoEnabled ? (
+              <>
+                <div 
+                  id="local-video" 
+                  ref={localVideoContainerRef} 
+                  className="w-full h-full"
+                  style={{ minHeight: '300px', width: '100%', position: 'relative' }}
+                />
+                {isVideoOff && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-gray-800 pointer-events-none z-10">
+                    <p className="text-gray-400">Camera Off</p>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center bg-gray-800">
+                <div className="text-center">
+                  <p className="text-gray-400 mb-2">Camera not enabled</p>
+                  <p className="text-gray-500 text-sm">Click "Enable Video" to start camera</p>
+                </div>
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Video Error Warning */}
+      {videoError && (
+        <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-3 mb-4 border border-yellow-200 dark:border-yellow-800">
+          <p className="text-sm text-yellow-800 dark:text-yellow-200">{videoError}</p>
         </div>
       )}
 
@@ -507,19 +574,33 @@ export default function AgoraCall({ appId, channel, token, uid, callType, onCall
         </button>
 
         {callType === 'video' && (
-          <button
-            onClick={toggleVideo}
-            className={`p-3 rounded-full transition-colors ${
-              isVideoOff
-                ? 'bg-red-600 hover:bg-red-700 text-white'
-                : 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-900 dark:text-white'
-            }`}
-            title={isVideoOff ? 'Turn Camera On' : 'Turn Camera Off'}
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-            </svg>
-          </button>
+          <>
+            {!videoEnabled ? (
+              <button
+                onClick={enableVideo}
+                className="p-3 rounded-full bg-green-600 hover:bg-green-700 text-white transition-colors"
+                title="Enable Video"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+              </button>
+            ) : (
+              <button
+                onClick={toggleVideo}
+                className={`p-3 rounded-full transition-colors ${
+                  isVideoOff
+                    ? 'bg-red-600 hover:bg-red-700 text-white'
+                    : 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-900 dark:text-white'
+                }`}
+                title={isVideoOff ? 'Turn Camera On' : 'Turn Camera Off'}
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+              </button>
+            )}
+          </>
         )}
 
         <button

@@ -233,9 +233,12 @@ export default function ConsultationChat() {
       }
       
       // Call Render backend directly for Agora token
+      // Include credentials for CORS with credentials support
       const tokenResponse = await fetch(tokenUrl, {
         method: 'GET',
         headers,
+        credentials: 'include', // Required for CORS with credentials
+        mode: 'cors', // Explicitly enable CORS mode
       });
       
       if (!tokenResponse.ok) {

@@ -17,36 +17,56 @@ import { RtcTokenBuilder, RtcRole } from 'agora-access-token';
 const AGORA_APP_ID = process.env.NEXT_PUBLIC_AGORA_APP_ID || process.env.AGORA_APP_ID || '';
 const AGORA_APP_CERTIFICATE = process.env.AGORA_APP_CERTIFICATE || '';
 
-// Allowed frontend origin
-const ALLOWED_ORIGIN = 'https://forexorbit-academy.vercel.app';
+// Allowed frontend origins - explicitly list all Vercel domains
+const ALLOWED_ORIGINS = [
+  'https://forexorbit-academy.vercel.app',
+  'https://forexorbit-academy11.vercel.app',
+  'https://forexorbit-academy001.vercel.app',
+  // Allow any Vercel preview URLs
+  ...(process.env.VERCEL_URL ? [`https://${process.env.VERCEL_URL}`] : []),
+];
 
 // CORS headers helper
 function setCorsHeaders(res: NextApiResponse, origin?: string) {
-  // Check if origin is allowed (production only - NO localhost)
-  const isAllowedOrigin = origin === ALLOWED_ORIGIN || 
-                         origin?.includes('forexorbit-academy.vercel.app');
+  // Check if origin is in allowed list
+  const isAllowedOrigin = origin && (
+    ALLOWED_ORIGINS.includes(origin) ||
+    origin.includes('forexorbit-academy.vercel.app') ||
+    origin.includes('.vercel.app')
+  );
   
+  // CRITICAL: Do NOT use wildcard (*) when credentials are enabled
+  // Must explicitly set the origin that made the request
   if (isAllowedOrigin && origin) {
     res.setHeader('Access-Control-Allow-Origin', origin);
+  } else if (origin && origin.includes('vercel.app')) {
+    // Fallback: allow any Vercel domain (for preview deployments)
+    res.setHeader('Access-Control-Allow-Origin', origin);
   } else {
-    // Default to allowed origin if no origin header or not matching
-    res.setHeader('Access-Control-Allow-Origin', ALLOWED_ORIGIN);
+    // Default to main Vercel domain if origin doesn't match
+    res.setHeader('Access-Control-Allow-Origin', 'https://forexorbit-academy.vercel.app');
   }
   
+  // Set required CORS headers
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.setHeader('Access-Control-Allow-Credentials', 'true');
+  // Add preflight cache control
+  res.setHeader('Access-Control-Max-Age', '86400'); // 24 hours
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  // Handle preflight OPTIONS request
+  // Get origin from request headers (browser automatically sends Origin header for CORS requests)
+  const origin = req.headers.origin as string | undefined;
+  
+  // Handle preflight OPTIONS request - MUST return 200 with CORS headers
   if (req.method === 'OPTIONS') {
-    setCorsHeaders(res, req.headers.origin);
+    setCorsHeaders(res, origin);
     return res.status(200).end();
   }
 
-  // Set CORS headers for all requests
-  setCorsHeaders(res, req.headers.origin);
+  // Set CORS headers for all actual requests (GET, POST) - must be set before any response
+  setCorsHeaders(res, origin);
 
   // CRITICAL: This endpoint must run on Render backend only
   // AGORA_APP_CERTIFICATE should NEVER be set in Vercel environment
