@@ -35,18 +35,21 @@ async function markAsRead(req: AuthRequest, res: NextApiResponse) {
     );
 
     // Determine user's learning level
+    // CRITICAL: Use tradingLevel from onboarding if learningLevel is not set
     let userLevel: 'beginner' | 'intermediate' | 'advanced' = 'beginner';
     if (user?.role !== 'student') {
       userLevel = 'advanced';
     } else {
-      userLevel = (user?.learningLevel as 'beginner' | 'intermediate' | 'advanced') || 'beginner';
+      userLevel = (user?.learningLevel as 'beginner' | 'intermediate' | 'advanced') || 
+                  (user?.studentDetails?.tradingLevel as 'beginner' | 'intermediate' | 'advanced') || 
+                  'beginner';
     }
 
-    // Check access for global rooms
+    // Check access for global rooms - students can ONLY access their exact level room
     if (room.type === 'global' && ['Beginner', 'Intermediate', 'Advanced'].includes(room.name)) {
-      if (!canAccessRoom(userLevel, room.name)) {
+      if (!canAccessRoom(userLevel, room.name, user?.role)) {
         return res.status(403).json({ 
-          error: 'Access denied. Complete the previous level to unlock this group.' 
+          error: 'Access denied. You can only access the community room for your current level.' 
         });
       }
     }

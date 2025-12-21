@@ -140,10 +140,11 @@ async function getRooms(req: AuthRequest, res: NextApiResponse) {
             ]
           });
 
-          // For students, check if room is locked. For instructors/admins, always unlocked.
+          // For students, check if room is locked based on their exact level. For instructors/admins, always unlocked.
           let isLocked = false;
           try {
-            isLocked = user?.role === 'student' ? !canAccessRoom(userLevel, room.name) : false;
+            // Pass user role to canAccessRoom to allow instructors/admins access to all rooms
+            isLocked = user?.role === 'student' ? !canAccessRoom(userLevel, room.name, user.role) : false;
           } catch (err) {
             console.error('Error checking room access:', err);
             isLocked = false; // Default to unlocked on error

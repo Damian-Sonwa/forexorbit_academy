@@ -68,22 +68,25 @@ async function uploadMessageFile(req: AuthRequest, res: NextApiResponse) {
     // Get user's learning level
     const user = await users.findOne(
       { _id: new ObjectId(req.user!.userId) },
-      { projection: { learningLevel: 1, role: 1 } }
+      { projection: { learningLevel: 1, role: 1, studentDetails: 1 } }
     );
 
     // Determine user's learning level
+    // CRITICAL: Use tradingLevel from onboarding if learningLevel is not set
     let userLevel: 'beginner' | 'intermediate' | 'advanced' = 'beginner';
     if (user?.role !== 'student') {
       userLevel = 'advanced';
     } else {
-      userLevel = (user?.learningLevel as 'beginner' | 'intermediate' | 'advanced') || 'beginner';
+      userLevel = (user?.learningLevel as 'beginner' | 'intermediate' | 'advanced') || 
+                  (user?.studentDetails?.tradingLevel as 'beginner' | 'intermediate' | 'advanced') || 
+                  'beginner';
     }
 
-    // Check access for global rooms based on learning level
+    // Check access for global rooms - students can ONLY access their exact level room
     if (room.type === 'global' && ['Beginner', 'Intermediate', 'Advanced'].includes(room.name)) {
-      if (!canAccessRoom(userLevel, room.name)) {
+      if (!canAccessRoom(userLevel, room.name, user?.role)) {
         return res.status(403).json({ 
-          error: 'Access denied. Complete the previous level to unlock this group.' 
+          error: 'Access denied. You can only access the community room for your current level.' 
         });
       }
     }

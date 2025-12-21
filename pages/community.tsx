@@ -1099,10 +1099,19 @@ export default function Community() {
     }
   }, [showEmojiPicker]);
 
-  // Filter rooms based on search query (role-based filtering already done in loadRooms)
-  const filteredRooms = rooms.filter((room) =>
-    room.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Filter rooms based on search query and access level
+  // CRITICAL: Students can ONLY see their exact level room (hide locked rooms)
+  const filteredRooms = rooms.filter((room) => {
+    const matchesSearch = room.name.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    // For students: Only show rooms they have access to (not locked)
+    if (user?.role === 'student') {
+      return matchesSearch && !room.isLocked;
+    }
+    
+    // Instructors/admins can see all rooms
+    return matchesSearch;
+  });
 
   // Filter messages to ensure they're level-specific (only show messages for selected room)
   const filteredMessages = (messageSearchQuery
@@ -1194,19 +1203,18 @@ export default function Community() {
 
             {/* Room Selection Cards - Role-based display */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {/* Show rooms based on role: Students see only their level, Admins/Instructors see all */}
-              {rooms.length === 0 ? (
+              {/* Show rooms based on role: Students see ONLY their exact level room, Admins/Instructors see all */}
+              {filteredRooms.length === 0 ? (
                 <div className="col-span-full text-center py-12">
                   <p className="text-gray-500 dark:text-gray-400">No rooms available. Please contact support.</p>
                 </div>
               ) : (
-                rooms.map((room) => {
+                filteredRooms.map((room) => {
                   const onlineCount = room.participants?.filter((p) => onlineUsers.has(p)).length || 0;
                   const isLocked = room.isLocked || false;
-                  // const userRole = user?.role; // Reserved for future use
                   
-                  // Students can see all rooms but locked ones are disabled
-                  // This ensures students can see the community page UI normally
+                  // Students can ONLY see their exact level room (locked rooms are filtered out)
+                  // Instructors/admins can see all rooms
                   
                   return (
                     <div
@@ -1520,49 +1528,17 @@ export default function Community() {
                 .filter((room) => room.type === 'global' && ['Beginner', 'Intermediate', 'Advanced'].includes(room.name))
                 .map((room) => {
                   const onlineCount = room.participants?.filter((p) => onlineUsers.has(p)).length || 0;
-                  const isLocked = room.isLocked || false;
+                  // Locked rooms are already filtered out for students in filteredRooms
+                  // Students can only see their exact level room
                   return (
                     <div
                       key={room._id}
                       onClick={() => {
-                        if (isLocked) {
-                          setToastMessage('This group unlocks when you complete the previous level.');
-                          setShowToast(true);
-                          setTimeout(() => setShowToast(false), 3000);
-                        } else {
-                          // For students, select room based on their trading level from onboarding
-                          if (user?.role === 'student') {
-                            // Get user's level from profile or default to beginner
-                            const userLevel = (user as any)?.learningLevel || 
-                                            (user as any)?.studentDetails?.tradingLevel || 
-                                            'beginner';
-                            
-                            // Map level to room name
-                            const levelRoomMap: Record<string, string> = {
-                              'beginner': 'Beginner',
-                              'intermediate': 'Intermediate',
-                              'advanced': 'Advanced'
-                            };
-                            
-                            const targetRoomName = levelRoomMap[userLevel.toLowerCase()] || 'Beginner';
-                            const targetRoom = rooms.find(r => r.name === targetRoomName && !r._id?.toString().startsWith('placeholder-'));
-                            
-                            if (targetRoom) {
-                              setSelectedRoom(targetRoom);
-                            } else {
-                              // Fallback to the clicked room if target room not found
-                              setSelectedRoom(room);
-                            }
-                          } else {
-                            setSelectedRoom(room);
-                          }
-                        }
+                        // Students can only access their exact level room (locked rooms already filtered)
+                        // Instructors/admins can access any room
+                        setSelectedRoom(room);
                       }}
-                      className={`p-3 mb-2 rounded-xl transition-colors ${
-                        isLocked
-                          ? 'opacity-50 cursor-not-allowed'
-                          : 'cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50'
-                      } ${
+                      className={`p-3 mb-2 rounded-xl transition-colors cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 ${
                         selectedRoom?._id === room._id ? 'bg-primary-50 dark:bg-primary-900/20 border-2 border-primary-300 dark:border-primary-700' : 'border-2 border-transparent'
                       }`}
                     >
@@ -1571,13 +1547,7 @@ export default function Community() {
                           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-white font-bold">
                             {room.name.charAt(0)}
                           </div>
-                          {isLocked ? (
-                            <div className="absolute -top-1 -right-1 bg-gray-600 dark:bg-gray-400 rounded-full p-0.5">
-                              <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                              </svg>
-                            </div>
-                          ) : onlineCount > 0 && (
+                          {onlineCount > 0 && (
                             <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white dark:border-gray-800 flex items-center justify-center">
                               <span className="text-xs text-white font-bold">{onlineCount}</span>
                             </div>
@@ -1586,14 +1556,9 @@ export default function Community() {
                         <div className="flex-1 min-w-0">
                           <h3 className="font-semibold text-gray-900 dark:text-white text-sm flex items-center">
                             {room.name}
-                            {isLocked && (
-                              <svg className="w-3 h-3 ml-1 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                              </svg>
-                            )}
                           </h3>
                           <p className="text-xs text-gray-500 dark:text-gray-400">
-                            {isLocked ? 'Locked' : onlineCount > 0 ? `${onlineCount} online` : 'No one online'}
+                            {onlineCount > 0 ? `${onlineCount} online` : 'No one online'}
                           </p>
                         </div>
                       </div>

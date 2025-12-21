@@ -10,22 +10,25 @@ export type LearningLevel = 'beginner' | 'intermediate' | 'advanced';
 
 /**
  * Check if user has access to a room based on their learning level
+ * CRITICAL: Students can ONLY access their exact level room (level-specific access)
+ * Instructors/Admins have access to all rooms
  */
-export function canAccessRoom(userLevel: LearningLevel, roomName: string): boolean {
-  // Non-students (instructors, admins) have access to all rooms
-  if (userLevel === 'advanced' && roomName !== 'Beginner' && roomName !== 'Intermediate' && roomName !== 'Advanced') {
-    return true; // For non-student roles
+export function canAccessRoom(userLevel: LearningLevel, roomName: string, userRole?: string): boolean {
+  // Non-students (instructors, admins, superadmins) have access to all rooms
+  if (userRole && userRole !== 'student') {
+    return true; // Instructors, admins, and superadmins can access all rooms
   }
 
   const roomLevel = roomName.toLowerCase();
   
+  // For students: STRICT level matching - only access their exact level room
   switch (userLevel) {
     case 'beginner':
       return roomLevel === 'beginner';
     case 'intermediate':
-      return roomLevel === 'beginner' || roomLevel === 'intermediate';
+      return roomLevel === 'intermediate'; // ONLY intermediate, not beginner
     case 'advanced':
-      return true; // Access to all rooms
+      return roomLevel === 'advanced'; // ONLY advanced, not beginner or intermediate
     default:
       return false;
   }
