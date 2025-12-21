@@ -507,6 +507,7 @@ export default function Community() {
 
   // Track pending room joins for retry after connection
   const pendingRoomJoinsRef = useRef<Set<string>>(new Set());
+  const retryCountRef = useRef<Map<string, number>>(new Map());
 
   // Safe room join - Use unique room ID from database for full isolation
   // Each room (Beginner, Intermediate, Advanced) has a unique database ID
@@ -533,16 +534,28 @@ export default function Community() {
     }
   };
 
-  // Retry pending room joins when socket connects
+  // Retry pending room joins when socket connects (with retry limit)
+  const MAX_RETRIES = 3;
+
   useEffect(() => {
-    if (socket && pendingRoomJoinsRef.current.size > 0) {
+    if (socket && connected && pendingRoomJoinsRef.current.size > 0) {
       const pendingRooms = Array.from(pendingRoomJoinsRef.current);
       console.log('Retrying pending room joins:', pendingRooms);
+      
       pendingRooms.forEach((roomId) => {
-        joinRoomSafely(roomId);
+        const retryCount = retryCountRef.current.get(roomId) || 0;
+        if (retryCount < MAX_RETRIES) {
+          retryCountRef.current.set(roomId, retryCount + 1);
+          joinRoomSafely(roomId);
+        } else {
+          // Max retries reached - remove from pending and log error
+          console.error(`Max retries reached for room ${roomId}, removing from pending`);
+          pendingRoomJoinsRef.current.delete(roomId);
+          retryCountRef.current.delete(roomId);
+        }
       });
     }
-  }, [socket, rooms]);
+  }, [socket, connected]); // Removed 'rooms' dependency to prevent infinite loops
 
   // Listen for room_joined confirmation
   useEffect(() => {
@@ -550,6 +563,10 @@ export default function Community() {
 
     const handleRoomJoined = (data: { roomId: string; roomName?: string }) => {
       console.log('Room joined confirmed:', data.roomId, data.roomName);
+      
+      // Clear retry count on successful join
+      retryCountRef.current.delete(data.roomId);
+      pendingRoomJoinsRef.current.delete(data.roomId);
       
       // Mark room as confirmed - allow sending messages now
       // Room ID must match the selected room's database ID for isolation

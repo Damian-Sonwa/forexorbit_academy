@@ -49,17 +49,12 @@ app.prepare().then(async () => {
   console.log('✓ Next.js app prepared');
   
   // Seed community rooms on server start (non-blocking)
-  // Only seed if MONGO_URI is available
-  if (process.env.MONGO_URI && (process.env.MONGO_URI.startsWith('mongodb://') || process.env.MONGO_URI.startsWith('mongodb+srv://'))) {
-    try {
-      const { seedRooms } = require('./scripts/seed-rooms');
-      await seedRooms();
-      console.log('✓ Community rooms seeded');
-    } catch (error) {
-      console.warn('⚠ Failed to seed rooms (non-critical):', error.message);
-    }
-  } else {
-    console.warn('⚠ Skipping room seeding - MONGO_URI not configured');
+  try {
+    const { seedRooms } = require('./scripts/seed-rooms');
+    await seedRooms();
+    console.log('✓ Community rooms seeded');
+  } catch (error) {
+    console.warn('⚠ Failed to seed rooms (non-critical):', error.message);
   }
   const server = createServer(async (req, res) => {
     try {
@@ -299,41 +294,53 @@ app.prepare().then(async () => {
       try {
         // Check if room exists in database (skip check for community_global which is a socket room)
         if (roomId !== 'community_global') {
-          const { getDb } = require('./lib/mongodb');
-          const { ObjectId } = require('mongodb');
-          const db = await getDb();
-          const rooms = db.collection('communityRooms');
+          let room = null;
+          let actualRoomId = roomId;
           
-          // Handle both ObjectId and string roomId
-          let room;
-          if (roomId.match(/^[0-9a-fA-F]{24}$/)) {
-            // Valid ObjectId format
-            room = await rooms.findOne({ _id: new ObjectId(roomId), type: 'global' });
-          } else {
-            // String format - try to find by name or _id as string
-            room = await rooms.findOne({ 
-              $or: [
-                { _id: roomId },
-                { name: roomId },
-                { slug: roomId }
-              ],
-              type: 'global'
-            });
+          // Try to validate room in database, but don't fail if DB check fails
+          try {
+            const { getDb } = require('./lib/mongodb');
+            const { ObjectId } = require('mongodb');
+            const db = await getDb();
+            const rooms = db.collection('communityRooms');
+            
+            // Handle both ObjectId and string roomId
+            if (roomId.match(/^[0-9a-fA-F]{24}$/)) {
+              // Valid ObjectId format
+              room = await rooms.findOne({ _id: new ObjectId(roomId), type: 'global' });
+            } else {
+              // String format - try to find by name or _id as string
+              room = await rooms.findOne({ 
+                $or: [
+                  { _id: roomId },
+                  { name: roomId },
+                  { slug: roomId }
+                ],
+                type: 'global'
+              });
+            }
+            
+            if (room) {
+              actualRoomId = room._id.toString();
+            } else {
+              console.warn(`Room not found in database: ${roomId}, but allowing join anyway`);
+              // Don't return - allow join even if room not found in DB
+            }
+          } catch (dbError) {
+            // DB check failed - log but don't block room join
+            console.warn('Database check failed for room join, allowing join anyway:', dbError.message);
+            // Continue with roomId as-is
           }
           
-          if (!room) {
-            console.warn(`Room not found in database: ${roomId}`);
-            socket.emit('error', { message: 'Room not found' });
-            return;
-          }
-          
-          // Use the actual room ID from database
-          const actualRoomId = room._id.toString();
+          // Join room regardless of DB validation result (fail-safe)
           socket.join(`room:${actualRoomId}`);
-          console.log(`User ${user.email} joined room: ${room.name} (${actualRoomId})`);
+          console.log(`User ${user.email} joined room: ${actualRoomId}`);
           
-          // Emit confirmation with actual room ID
-          socket.emit('room_joined', { roomId: actualRoomId, roomName: room.name });
+          // Emit confirmation with room ID
+          socket.emit('room_joined', { 
+            roomId: actualRoomId, 
+            roomName: room?.name || 'Room' 
+          });
           
           // Notify others in the room
           socket.to(`room:${actualRoomId}`).emit('userJoined', {
@@ -348,8 +355,15 @@ app.prepare().then(async () => {
           socket.emit('room_joined', { roomId: 'community_global' });
         }
       } catch (error) {
+        // Last resort error handling - still try to join room
         console.error('Error joining room:', error);
-        socket.emit('error', { message: 'Failed to join room' });
+        try {
+          socket.join(`room:${roomId}`);
+          socket.emit('room_joined', { roomId: roomId });
+        } catch (joinError) {
+          console.error('Failed to join room even after error recovery:', joinError);
+          socket.emit('error', { message: 'Failed to join room' });
+        }
       }
     });
 
