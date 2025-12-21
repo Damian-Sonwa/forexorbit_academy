@@ -12,6 +12,7 @@ import Footer from '@/components/Footer';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import TradingInterface from '@/components/TradingInterface';
 import MarketSignal from '@/components/MarketSignal';
+import SetupGuide from '@/components/student/SetupGuide';
 import { useAuth } from '@/hooks/useAuth';
 import { useSocket } from '@/hooks/useSocket';
 import { apiClient } from '@/lib/api-client';
@@ -58,13 +59,13 @@ interface TradeJournalEntry {
   createdAt: string;
 }
 
-type ActiveSection = 'live' | 'tasks' | 'journal';
+type ActiveSection = 'guide' | 'live' | 'tasks' | 'journal';
 
 export default function StudentDashboard() {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const { connected } = useSocket();
   const router = useRouter();
-  const [activeSection, setActiveSection] = useState<ActiveSection>('tasks');
+  const [activeSection, setActiveSection] = useState<ActiveSection>('guide');
   const [tasks, setTasks] = useState<DemoTask[]>([]);
   const [taskSubmissions, setTaskSubmissions] = useState<Record<string, TaskSubmission>>({});
   const [journalEntries, setJournalEntries] = useState<TradeJournalEntry[]>([]);
@@ -262,396 +263,533 @@ export default function StudentDashboard() {
   const closedTrades = journalEntries.filter(t => t.result !== 'open');
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50">
       <Header />
 
       <div className="flex flex-1 relative overflow-hidden lg:items-start">
         <Sidebar />
 
-        <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:ml-0 pt-14 lg:pt-6 bg-white lg:bg-gray-50 overflow-y-auto w-full">
-          {/* Header */}
-          <div className="mb-6">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Student Dashboard</h1>
-            <p className="text-gray-600">Live Trading | Tasks | Trade Journal</p>
+        <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:ml-0 pt-14 lg:pt-6 overflow-y-auto w-full">
+          {/* Hero Header Section */}
+          <div className="mb-8">
+            <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 rounded-2xl shadow-2xl p-8 text-white relative overflow-hidden">
+              <div className="absolute inset-0 bg-black opacity-10"></div>
+              <div className="relative z-10">
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                  <div>
+                    <h1 className="text-4xl md:text-5xl font-bold mb-3 bg-clip-text text-transparent bg-gradient-to-r from-white to-blue-100">
+                      Trading Dashboard
+                    </h1>
+                    <p className="text-blue-100 text-lg md:text-xl">
+                      Master Forex trading with live practice, instructor tasks, and trade analysis
+                    </p>
+                  </div>
+                  <div className="flex items-center space-x-2 bg-white/20 backdrop-blur-sm rounded-xl px-4 py-3">
+                    <div className={`w-3 h-3 rounded-full ${connected ? 'bg-green-400 animate-pulse' : 'bg-gray-400'}`}></div>
+                    <span className="text-sm font-medium">
+                      {connected ? 'Live Data Connected' : 'Connecting...'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full -mr-32 -mt-32"></div>
+              <div className="absolute bottom-0 left-0 w-48 h-48 bg-white opacity-5 rounded-full -ml-24 -mb-24"></div>
+            </div>
           </div>
 
-          {/* Section Navigation Tabs */}
-          <div className="mb-6 border-b border-gray-200 dark:border-gray-700">
-            <nav className="-mb-px flex space-x-4 sm:space-x-8 overflow-x-auto" aria-label="Sections">
-              <button
-                onClick={() => setActiveSection('live')}
-                className={`
-                  whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm
-                  ${activeSection === 'live'
-                    ? 'border-primary-500 text-primary-600 dark:text-primary-400'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
-                  }
-                `}
-              >
-                ⚡ Live Trading
-              </button>
-              <button
-                onClick={() => setActiveSection('tasks')}
-                className={`
-                  whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm
-                  ${activeSection === 'tasks'
-                    ? 'border-primary-500 text-primary-600 dark:text-primary-400'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
-                  }
-                `}
-              >
-                📋 Tasks
-                {pendingTasks.length > 0 && (
-                  <span className="ml-2 px-2 py-0.5 bg-red-500 text-white text-xs rounded-full">
-                    {pendingTasks.length}
-                  </span>
-                )}
-              </button>
-              <button
-                onClick={() => setActiveSection('journal')}
-                className={`
-                  whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm
-                  ${activeSection === 'journal'
-                    ? 'border-primary-500 text-primary-600 dark:text-primary-400'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
-                  }
-                `}
-              >
-                📊 Trade Journal
-              </button>
-            </nav>
+          {/* Section Navigation Tabs - Enhanced Design */}
+          <div className="mb-8">
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-2">
+              <nav className="flex space-x-2 overflow-x-auto" aria-label="Sections">
+                <button
+                  onClick={() => setActiveSection('guide')}
+                  className={`
+                    flex items-center space-x-2 px-6 py-3 rounded-xl font-semibold text-sm transition-all duration-200 whitespace-nowrap
+                    ${activeSection === 'guide'
+                      ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg transform scale-105'
+                      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                    }
+                  `}
+                >
+                  <span className="text-lg">📖</span>
+                  <span>Setup Guide</span>
+                </button>
+                <button
+                  onClick={() => setActiveSection('live')}
+                  className={`
+                    flex items-center space-x-2 px-6 py-3 rounded-xl font-semibold text-sm transition-all duration-200 whitespace-nowrap
+                    ${activeSection === 'live'
+                      ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg transform scale-105'
+                      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                    }
+                  `}
+                >
+                  <span className="text-lg">⚡</span>
+                  <span>Live Trading</span>
+                </button>
+                <button
+                  onClick={() => setActiveSection('tasks')}
+                  className={`
+                    flex items-center space-x-2 px-6 py-3 rounded-xl font-semibold text-sm transition-all duration-200 whitespace-nowrap relative
+                    ${activeSection === 'tasks'
+                      ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg transform scale-105'
+                      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                    }
+                  `}
+                >
+                  <span className="text-lg">📋</span>
+                  <span>Tasks</span>
+                  {pendingTasks.length > 0 && (
+                    <span className="ml-2 px-2.5 py-0.5 bg-red-500 text-white text-xs font-bold rounded-full animate-pulse">
+                      {pendingTasks.length}
+                    </span>
+                  )}
+                </button>
+                <button
+                  onClick={() => setActiveSection('journal')}
+                  className={`
+                    flex items-center space-x-2 px-6 py-3 rounded-xl font-semibold text-sm transition-all duration-200 whitespace-nowrap
+                    ${activeSection === 'journal'
+                      ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg transform scale-105'
+                      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                    }
+                  `}
+                >
+                  <span className="text-lg">📊</span>
+                  <span>Trade Journal</span>
+                </button>
+              </nav>
+            </div>
           </div>
 
-          {/* Section Content */}
-          <div className="bg-white rounded-xl shadow-md border border-gray-100 p-4 sm:p-6">
+          {/* Section Content - Enhanced with better spacing and design */}
+          <div className="space-y-6">
+            {/* Setup Guide Section */}
+            {activeSection === 'guide' && (
+              <div className="animate-in fade-in duration-300">
+                <SetupGuide />
+              </div>
+            )}
+
             {/* Live Trading Section */}
             {activeSection === 'live' && (
-              <div className="space-y-6">
-                <div className="mb-6 bg-red-50 border-l-4 border-red-400 p-4 rounded-lg">
-                  <div className="flex">
+              <div className="space-y-6 animate-in fade-in duration-300">
+                <div className="bg-gradient-to-r from-red-50 to-orange-50 border-l-4 border-red-500 rounded-xl p-6 shadow-md">
+                  <div className="flex items-start">
                     <div className="flex-shrink-0">
-                      <span className="text-2xl">⚠️</span>
+                      <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                        <span className="text-2xl">⚠️</span>
+                      </div>
                     </div>
-                    <div className="ml-3">
-                      <h3 className="text-sm font-medium text-red-800">Critical Security Notice</h3>
-                      <div className="mt-2 text-sm text-red-700">
-                        <p className="mb-2">
-                          <strong>This is a DEMO trading interface using paper trading only.</strong>
-                        </p>
-                        <p className="mb-2">• All trades are executed in demo/paper trading mode with virtual money</p>
-                        <p className="mb-2">• No real money can be deposited, traded, or withdrawn</p>
-                        <p className="mb-2">• ForexOrbit Academy does not provide brokerage services</p>
-                        <p>• This feature is for educational purposes only. Trading involves substantial risk.</p>
+                    <div className="ml-4 flex-1">
+                      <h3 className="text-lg font-bold text-red-900 mb-2">Critical Security Notice</h3>
+                      <div className="space-y-2 text-sm text-red-800">
+                        <p className="font-semibold">This is a DEMO trading interface using paper trading only.</p>
+                        <ul className="list-disc list-inside space-y-1 ml-2">
+                          <li>All trades are executed in demo/paper trading mode with virtual money</li>
+                          <li>No real money can be deposited, traded, or withdrawn</li>
+                          <li>ForexOrbit Academy does not provide brokerage services</li>
+                          <li>This feature is for educational purposes only. Trading involves substantial risk.</li>
+                        </ul>
                       </div>
                     </div>
                   </div>
                 </div>
 
                 {/* Market Signals */}
-                <div className="mb-6">
+                <div className="transform transition-all hover:scale-[1.01]">
                   <MarketSignal />
                 </div>
 
                 {/* Trading Interface */}
-                <TradingInterface />
+                <div className="transform transition-all hover:scale-[1.01]">
+                  <TradingInterface />
+                </div>
               </div>
             )}
 
             {/* Tasks Section */}
             {activeSection === 'tasks' && (
-              <div className="space-y-6">
-                <div className="flex justify-between items-center">
-                  <h2 className="text-2xl font-bold text-gray-900">Demo Trading Tasks</h2>
-                </div>
+              <div className="space-y-6 animate-in fade-in duration-300">
+                <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                    <div>
+                      <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
+                        Demo Trading Tasks
+                      </h2>
+                      <p className="text-gray-600">Complete tasks assigned by your instructor and submit for review</p>
+                    </div>
+                    <div className="flex items-center space-x-4">
+                      <div className="text-right">
+                        <div className="text-2xl font-bold text-primary-600">{pendingTasks.length}</div>
+                        <div className="text-xs text-gray-500">Pending</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-2xl font-bold text-green-600">{submittedTasks.length}</div>
+                        <div className="text-xs text-gray-500">Submitted</div>
+                      </div>
+                    </div>
+                  </div>
 
-                {/* Pending Tasks */}
-                {pendingTasks.length > 0 && (
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Pending Tasks</h3>
-                    <div className="space-y-4">
-                      {pendingTasks.map((task) => {
-                        const status = getTaskStatus(task);
-                        return (
-                          <div key={task._id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-2">
-                                  <h4 className="font-semibold text-gray-900">{task.title}</h4>
-                                  {task.level && (
-                                    <span className={`px-2 py-1 rounded text-xs font-medium ${
-                                      task.level === 'beginner' ? 'bg-green-100 text-green-800' :
-                                      task.level === 'intermediate' ? 'bg-yellow-100 text-yellow-800' :
-                                      'bg-red-100 text-red-800'
-                                    }`}>
-                                      {task.level.charAt(0).toUpperCase() + task.level.slice(1)}
+                  {/* Pending Tasks */}
+                  {pendingTasks.length > 0 && (
+                    <div className="mb-8">
+                      <div className="flex items-center space-x-3 mb-6">
+                        <div className="w-1 h-8 bg-gradient-to-b from-yellow-400 to-orange-500 rounded-full"></div>
+                        <h3 className="text-xl font-bold text-gray-900">Pending Tasks</h3>
+                        <span className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-bold">
+                          {pendingTasks.length}
+                        </span>
+                      </div>
+                      <div className="grid gap-4">
+                        {pendingTasks.map((task) => {
+                          const status = getTaskStatus(task);
+                          return (
+                            <div 
+                              key={task._id} 
+                              className="group bg-gradient-to-br from-white to-gray-50 border-2 border-gray-200 rounded-2xl p-6 hover:shadow-xl hover:border-primary-300 transition-all duration-300 transform hover:-translate-y-1"
+                            >
+                              <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+                                <div className="flex-1">
+                                  <div className="flex flex-wrap items-center gap-3 mb-3">
+                                    <h4 className="text-xl font-bold text-gray-900 group-hover:text-primary-600 transition-colors">
+                                      {task.title}
+                                    </h4>
+                                    {task.level && (
+                                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                                        task.level === 'beginner' ? 'bg-green-100 text-green-700 border border-green-300' :
+                                        task.level === 'intermediate' ? 'bg-yellow-100 text-yellow-700 border border-yellow-300' :
+                                        'bg-red-100 text-red-700 border border-red-300'
+                                      }`}>
+                                        {task.level.charAt(0).toUpperCase() + task.level.slice(1)}
+                                      </span>
+                                    )}
+                                    <span className="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-bold border border-yellow-300">
+                                      {status.charAt(0).toUpperCase() + status.slice(1)}
                                     </span>
-                                  )}
-                                  <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded text-xs font-medium">
-                                    {status.charAt(0).toUpperCase() + status.slice(1)}
-                                  </span>
-                                </div>
-                                <p className="text-sm text-gray-600 mb-2">{task.description}</p>
-                                {task.instructions && (
-                                  <div className="bg-blue-50 border-l-4 border-blue-400 p-3 rounded mb-2">
-                                    <p className="text-sm text-gray-700 whitespace-pre-line">{task.instructions}</p>
                                   </div>
-                                )}
-                                <div className="flex flex-wrap items-center gap-4 text-xs text-gray-500 mt-2">
-                                  <span>Assigned by: {task.assignedByName || 'Instructor'}</span>
-                                  {task.dueDate && (
-                                    <span>Due: {format(new Date(task.dueDate), 'MMM dd, yyyy')}</span>
+                                  <p className="text-gray-600 mb-4 leading-relaxed">{task.description}</p>
+                                  {task.instructions && (
+                                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-blue-500 rounded-lg p-4 mb-4">
+                                      <p className="text-sm text-gray-700 whitespace-pre-line leading-relaxed">{task.instructions}</p>
+                                    </div>
                                   )}
-                                  <span>Created: {format(new Date(task.createdAt), 'MMM dd, yyyy')}</span>
-                                </div>
-                              </div>
-                              <div className="flex flex-col sm:flex-row gap-2">
-                                <Link
-                                  href={`/student-dashboard/tasks/${task._id}`}
-                                  className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium text-center"
-                                >
-                                  View Task
-                                </Link>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {/* Submitted/Reviewed Tasks */}
-                {submittedTasks.length > 0 && (
-                  <div className={pendingTasks.length > 0 ? 'mt-6' : ''}>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Submitted Tasks</h3>
-                    <div className="space-y-4">
-                      {submittedTasks.map((task) => {
-                        const submission = taskSubmissions[task._id];
-                        const status = getTaskStatus(task);
-                        return (
-                          <div key={task._id} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
-                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-2">
-                                  <h4 className="font-semibold text-gray-900">{task.title}</h4>
-                                  <span className={`px-2 py-1 rounded text-xs font-medium ${
-                                    status === 'graded' ? 'bg-green-100 text-green-800' :
-                                    status === 'reviewed' ? 'bg-blue-100 text-blue-800' :
-                                    'bg-yellow-100 text-yellow-800'
-                                  }`}>
-                                    {status.charAt(0).toUpperCase() + status.slice(1)}
-                                  </span>
-                                </div>
-                                <p className="text-sm text-gray-600 mb-2">{task.description}</p>
-                                {submission && (
-                                  <div className="mt-3 space-y-2">
-                                    {submission.grade && (
-                                      <div className="flex items-center gap-2">
-                                        <span className="text-sm font-semibold text-gray-700">Grade:</span>
-                                        <span className="px-3 py-1 bg-green-600 text-white rounded-lg text-sm font-bold">
-                                          {submission.grade}
-                                        </span>
+                                  <div className="flex flex-wrap items-center gap-4 text-xs text-gray-500">
+                                    <div className="flex items-center space-x-1">
+                                      <span className="text-gray-400">👤</span>
+                                      <span>Assigned by: <strong>{task.assignedByName || 'Instructor'}</strong></span>
+                                    </div>
+                                    {task.dueDate && (
+                                      <div className="flex items-center space-x-1">
+                                        <span className="text-gray-400">📅</span>
+                                        <span>Due: <strong>{format(new Date(task.dueDate), 'MMM dd, yyyy')}</strong></span>
                                       </div>
                                     )}
-                                    {submission.feedback && (
-                                      <div className="bg-green-50 border-l-4 border-green-400 p-3 rounded">
-                                        <p className="text-sm font-semibold text-green-800 mb-1">Instructor Feedback:</p>
-                                        <p className="text-sm text-gray-700 whitespace-pre-wrap">{submission.feedback}</p>
-                                      </div>
-                                    )}
-                                    {submission.reviewedAt && (
-                                      <p className="text-xs text-gray-500">
-                                        Reviewed: {format(new Date(submission.reviewedAt), 'MMM dd, yyyy HH:mm')}
-                                      </p>
-                                    )}
+                                    <div className="flex items-center space-x-1">
+                                      <span className="text-gray-400">🕐</span>
+                                      <span>Created: {format(new Date(task.createdAt), 'MMM dd, yyyy')}</span>
+                                    </div>
                                   </div>
-                                )}
-                              </div>
-                              <div className="flex flex-col sm:flex-row gap-2">
-                                <Link
-                                  href={`/student-dashboard/tasks/${task._id}`}
-                                  className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg text-sm font-medium text-center"
-                                >
-                                  View Details
-                                </Link>
+                                </div>
+                                <div className="flex-shrink-0">
+                                  <Link
+                                    href={`/student-dashboard/tasks/${task._id}`}
+                                    className="inline-flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-primary-600 to-purple-600 hover:from-primary-700 hover:to-purple-700 text-white rounded-xl text-sm font-bold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+                                  >
+                                    <span>View Task</span>
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                    </svg>
+                                  </Link>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        );
-                      })}
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {tasks.length === 0 && (
-                  <div className="text-center py-12">
-                    <p className="text-gray-500 mb-4">No tasks assigned yet.</p>
-                    <p className="text-sm text-gray-400">Your instructor will assign practice tasks here.</p>
-                  </div>
-                )}
+                  {/* Submitted/Reviewed Tasks */}
+                  {submittedTasks.length > 0 && (
+                    <div className={pendingTasks.length > 0 ? 'mt-8' : ''}>
+                      <div className="flex items-center space-x-3 mb-6">
+                        <div className="w-1 h-8 bg-gradient-to-b from-green-400 to-emerald-500 rounded-full"></div>
+                        <h3 className="text-xl font-bold text-gray-900">Submitted Tasks</h3>
+                        <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs font-bold">
+                          {submittedTasks.length}
+                        </span>
+                      </div>
+                      <div className="grid gap-4">
+                        {submittedTasks.map((task) => {
+                          const submission = taskSubmissions[task._id];
+                          const status = getTaskStatus(task);
+                          return (
+                            <div 
+                              key={task._id} 
+                              className="bg-gradient-to-br from-white to-gray-50 border-2 border-gray-200 rounded-2xl p-6 hover:shadow-xl transition-all duration-300"
+                            >
+                              <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+                                <div className="flex-1">
+                                  <div className="flex flex-wrap items-center gap-3 mb-3">
+                                    <h4 className="text-xl font-bold text-gray-900">{task.title}</h4>
+                                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                                      status === 'graded' ? 'bg-green-100 text-green-700 border border-green-300' :
+                                      status === 'reviewed' ? 'bg-blue-100 text-blue-700 border border-blue-300' :
+                                      'bg-yellow-100 text-yellow-700 border border-yellow-300'
+                                    }`}>
+                                      {status.charAt(0).toUpperCase() + status.slice(1)}
+                                    </span>
+                                  </div>
+                                  <p className="text-gray-600 mb-4">{task.description}</p>
+                                  {submission && (
+                                    <div className="space-y-3">
+                                      {submission.grade && (
+                                        <div className="flex items-center gap-3">
+                                          <span className="text-sm font-semibold text-gray-700">Grade:</span>
+                                          <span className="px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl text-lg font-bold shadow-md">
+                                            {submission.grade}
+                                          </span>
+                                        </div>
+                                      )}
+                                      {submission.feedback && (
+                                        <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-l-4 border-green-500 rounded-lg p-4">
+                                          <p className="text-sm font-bold text-green-800 mb-2">💬 Instructor Feedback:</p>
+                                          <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{submission.feedback}</p>
+                                        </div>
+                                      )}
+                                      {submission.reviewedAt && (
+                                        <p className="text-xs text-gray-500 flex items-center space-x-1">
+                                          <span>🕐</span>
+                                          <span>Reviewed: {format(new Date(submission.reviewedAt), 'MMM dd, yyyy HH:mm')}</span>
+                                        </p>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="flex-shrink-0">
+                                  <Link
+                                    href={`/student-dashboard/tasks/${task._id}`}
+                                    className="inline-flex items-center space-x-2 px-6 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-xl text-sm font-bold shadow-lg hover:shadow-xl transition-all duration-200"
+                                  >
+                                    <span>View Details</span>
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                    </svg>
+                                  </Link>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {tasks.length === 0 && (
+                    <div className="text-center py-16 bg-white rounded-2xl border-2 border-dashed border-gray-300">
+                      <div className="text-6xl mb-4">📋</div>
+                      <p className="text-xl font-semibold text-gray-700 mb-2">No tasks assigned yet</p>
+                      <p className="text-gray-500">Your instructor will assign practice tasks here.</p>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
             {/* Trade Journal Section */}
             {activeSection === 'journal' && (
-              <div className="space-y-6">
-                <div className="flex justify-between items-center">
-                  <h2 className="text-2xl font-bold text-gray-900">Trade Journal</h2>
-                  <button
-                    onClick={() => setShowJournalModal(true)}
-                    className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium"
-                  >
-                    + Add Trade
-                  </button>
-                </div>
+              <div className="space-y-6 animate-in fade-in duration-300">
+                <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                    <div>
+                      <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
+                        Trade Journal
+                      </h2>
+                      <p className="text-gray-600">Track your trading performance and learn from each trade</p>
+                    </div>
+                    <button
+                      onClick={() => setShowJournalModal(true)}
+                      className="inline-flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-primary-600 to-purple-600 hover:from-primary-700 hover:to-purple-700 text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                      <span>Add Trade</span>
+                    </button>
+                  </div>
 
-                {/* Open Trades */}
-                {openTrades.length > 0 && (
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Open Trades</h3>
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Pair</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Direction</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Entry</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">SL</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">TP</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Lot Size</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                          </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                          {openTrades.map((trade) => (
-                            <tr key={trade._id} className="hover:bg-gray-50">
-                              <td className="px-4 py-3 text-sm font-medium text-gray-900">{trade.pair}</td>
-                              <td className="px-4 py-3 text-sm">
-                                <span className={`px-2 py-1 rounded text-xs font-medium ${
-                                  trade.direction === 'buy' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                  {/* Open Trades */}
+                  {openTrades.length > 0 && (
+                    <div className="mb-8">
+                      <div className="flex items-center space-x-3 mb-6">
+                        <div className="w-1 h-8 bg-gradient-to-b from-blue-400 to-cyan-500 rounded-full"></div>
+                        <h3 className="text-xl font-bold text-gray-900">Open Trades</h3>
+                        <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-bold">
+                          {openTrades.length}
+                        </span>
+                      </div>
+                      <div className="overflow-x-auto rounded-xl border border-gray-200 shadow-sm">
+                        <table className="min-w-full divide-y divide-gray-200">
+                          <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
+                            <tr>
+                              <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Pair</th>
+                              <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Direction</th>
+                              <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Entry</th>
+                              <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">SL</th>
+                              <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">TP</th>
+                              <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Lot Size</th>
+                              <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Date</th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white divide-y divide-gray-200">
+                            {openTrades.map((trade) => (
+                              <tr key={trade._id} className="hover:bg-blue-50 transition-colors">
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">{trade.pair}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                  <span className={`px-3 py-1.5 rounded-full text-xs font-bold ${
+                                    trade.direction === 'buy' ? 'bg-green-100 text-green-700 border border-green-300' : 'bg-red-100 text-red-700 border border-red-300'
+                                  }`}>
+                                    {trade.direction.toUpperCase()}
+                                  </span>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{trade.entryPrice}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{trade.stopLoss}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{trade.takeProfit}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{trade.lotSize}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{format(new Date(trade.createdAt), 'MMM dd, yyyy')}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Closed Trades */}
+                  {closedTrades.length > 0 && (
+                    <div className={openTrades.length > 0 ? 'mt-8' : ''}>
+                      <div className="flex items-center space-x-3 mb-6">
+                        <div className="w-1 h-8 bg-gradient-to-b from-purple-400 to-pink-500 rounded-full"></div>
+                        <h3 className="text-xl font-bold text-gray-900">Closed Trades</h3>
+                        <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-xs font-bold">
+                          {closedTrades.length}
+                        </span>
+                      </div>
+                      <div className="grid gap-4">
+                        {closedTrades.map((trade) => (
+                          <div 
+                            key={trade._id} 
+                            className="bg-gradient-to-br from-white to-gray-50 border-2 border-gray-200 rounded-2xl p-6 hover:shadow-xl transition-all duration-300"
+                          >
+                            <div className="grid md:grid-cols-6 gap-6 items-center mb-4">
+                              <div>
+                                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Pair</p>
+                                <p className="text-lg font-bold text-gray-900">{trade.pair}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Direction</p>
+                                <span className={`inline-block px-3 py-1.5 rounded-full text-xs font-bold ${
+                                  trade.direction === 'buy' ? 'bg-green-100 text-green-700 border border-green-300' : 'bg-red-100 text-red-700 border border-red-300'
                                 }`}>
                                   {trade.direction.toUpperCase()}
                                 </span>
-                              </td>
-                              <td className="px-4 py-3 text-sm text-gray-900">{trade.entryPrice}</td>
-                              <td className="px-4 py-3 text-sm text-gray-900">{trade.stopLoss}</td>
-                              <td className="px-4 py-3 text-sm text-gray-900">{trade.takeProfit}</td>
-                              <td className="px-4 py-3 text-sm text-gray-900">{trade.lotSize}</td>
-                              <td className="px-4 py-3 text-sm text-gray-500">{format(new Date(trade.createdAt), 'MMM dd, yyyy')}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-
-                {/* Closed Trades */}
-                {closedTrades.length > 0 && (
-                  <div className={openTrades.length > 0 ? 'mt-6' : ''}>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Closed Trades</h3>
-                    <div className="space-y-4">
-                      {closedTrades.map((trade) => (
-                        <div key={trade._id} className="border border-gray-200 rounded-lg p-4 bg-white hover:shadow-md transition-shadow">
-                          <div className="grid md:grid-cols-6 gap-4 items-center">
-                            <div>
-                              <p className="text-xs text-gray-500 mb-1">Pair</p>
-                              <p className="text-sm font-medium text-gray-900">{trade.pair}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Entry</p>
+                                <p className="text-lg font-bold text-gray-900">{trade.entryPrice}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Result</p>
+                                <span className={`inline-block px-3 py-1.5 rounded-full text-xs font-bold ${
+                                  trade.result === 'win' ? 'bg-green-100 text-green-700 border border-green-300' :
+                                  trade.result === 'loss' ? 'bg-red-100 text-red-700 border border-red-300' :
+                                  'bg-gray-100 text-gray-700 border border-gray-300'
+                                }`}>
+                                  {trade.result.toUpperCase()}
+                                </span>
+                              </div>
+                              <div>
+                                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">P/L</p>
+                                <p className={`text-lg font-bold ${
+                                  trade.profitLoss && trade.profitLoss > 0 ? 'text-green-600' :
+                                  trade.profitLoss && trade.profitLoss < 0 ? 'text-red-600' : 'text-gray-900'
+                                }`}>
+                                  {trade.profitLoss !== undefined ? `$${trade.profitLoss.toFixed(2)}` : '-'}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Date</p>
+                                <p className="text-sm text-gray-600">{format(new Date(trade.createdAt), 'MMM dd, yyyy')}</p>
+                              </div>
                             </div>
-                            <div>
-                              <p className="text-xs text-gray-500 mb-1">Direction</p>
-                              <span className={`px-2 py-1 rounded text-xs font-medium ${
-                                trade.direction === 'buy' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                              }`}>
-                                {trade.direction.toUpperCase()}
-                              </span>
-                            </div>
-                            <div>
-                              <p className="text-xs text-gray-500 mb-1">Entry</p>
-                              <p className="text-sm text-gray-900">{trade.entryPrice}</p>
-                            </div>
-                            <div>
-                              <p className="text-xs text-gray-500 mb-1">Result</p>
-                              <span className={`px-2 py-1 rounded text-xs font-medium ${
-                                trade.result === 'win' ? 'bg-green-100 text-green-800' :
-                                trade.result === 'loss' ? 'bg-red-100 text-red-800' :
-                                'bg-gray-100 text-gray-800'
-                              }`}>
-                                {trade.result.toUpperCase()}
-                              </span>
-                            </div>
-                            <div>
-                              <p className="text-xs text-gray-500 mb-1">P/L</p>
-                              <p className={`text-sm font-medium ${
-                                trade.profitLoss && trade.profitLoss > 0 ? 'text-green-600' :
-                                trade.profitLoss && trade.profitLoss < 0 ? 'text-red-600' : 'text-gray-900'
-                              }`}>
-                                {trade.profitLoss !== undefined ? `$${trade.profitLoss.toFixed(2)}` : '-'}
-                              </p>
-                            </div>
-                            <div>
-                              <p className="text-xs text-gray-500 mb-1">Date</p>
-                              <p className="text-sm text-gray-500">{format(new Date(trade.createdAt), 'MMM dd, yyyy')}</p>
-                            </div>
-                          </div>
-                          {(trade.notes || trade.screenshot) && (
-                            <div className="mt-4 pt-4 border-t border-gray-200">
-                              {trade.notes && (
-                                <div className="mb-3">
-                                  <p className="text-xs text-gray-500 mb-1">Notes</p>
-                                  <p className="text-sm text-gray-700 whitespace-pre-wrap">{trade.notes}</p>
-                                </div>
-                              )}
-                              {trade.screenshot && (
-                                <div>
-                                  <p className="text-xs text-gray-500 mb-2">Screenshot</p>
-                                  <div className="relative w-full max-w-md h-48 rounded-lg overflow-hidden border border-gray-300">
-                                    <Image
-                                      src={trade.screenshot}
-                                      alt="Trade screenshot"
-                                      fill
-                                      className="object-contain"
-                                      onError={(e) => {
-                                        console.error('Failed to load trade screenshot:', trade.screenshot);
-                                        const img = e.target as HTMLImageElement;
-                                        img.style.display = 'none';
-                                      }}
-                                    />
+                            {(trade.notes || trade.screenshot) && (
+                              <div className="mt-6 pt-6 border-t-2 border-gray-200">
+                                {trade.notes && (
+                                  <div className="mb-4">
+                                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">📝 Notes</p>
+                                    <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed bg-gray-50 rounded-lg p-4">{trade.notes}</p>
                                   </div>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      ))}
+                                )}
+                                {trade.screenshot && (
+                                  <div>
+                                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">📷 Screenshot</p>
+                                    <div className="relative w-full max-w-md h-64 rounded-xl overflow-hidden border-2 border-gray-300 shadow-md">
+                                      <Image
+                                        src={trade.screenshot}
+                                        alt="Trade screenshot"
+                                        fill
+                                        className="object-contain"
+                                        onError={(e) => {
+                                          console.error('Failed to load trade screenshot:', trade.screenshot);
+                                          const img = e.target as HTMLImageElement;
+                                          img.style.display = 'none';
+                                        }}
+                                      />
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {journalEntries.length === 0 && (
-                  <div className="text-center py-12">
-                    <p className="text-gray-500 mb-4">No trades logged yet.</p>
-                    <button
-                      onClick={() => setShowJournalModal(true)}
-                      className="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium"
-                    >
-                      Log Your First Trade
-                    </button>
-                  </div>
-                )}
+                  {journalEntries.length === 0 && (
+                    <div className="text-center py-16 bg-white rounded-2xl border-2 border-dashed border-gray-300">
+                      <div className="text-6xl mb-4">📊</div>
+                      <p className="text-xl font-semibold text-gray-700 mb-2">No trades logged yet</p>
+                      <p className="text-gray-500 mb-6">Start tracking your trading performance</p>
+                      <button
+                        onClick={() => setShowJournalModal(true)}
+                        className="inline-flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-primary-600 to-purple-600 hover:from-primary-700 hover:to-purple-700 text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        </svg>
+                        <span>Log Your First Trade</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>
         </main>
       </div>
 
-      {/* Trade Journal Modal */}
+      {/* Trade Journal Modal - Enhanced Design */}
       {showJournalModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold text-gray-900">Log Trade</h2>
+        <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto transform transition-all animate-in zoom-in-95 duration-200">
+            <div className="sticky top-0 bg-gradient-to-r from-primary-600 to-purple-600 text-white p-6 rounded-t-2xl">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h2 className="text-2xl font-bold mb-1">Log Trade</h2>
+                  <p className="text-primary-100 text-sm">Record your trading activity and analysis</p>
+                </div>
                 <button
                   onClick={() => {
                     setShowJournalModal(false);
@@ -669,33 +807,37 @@ export default function StudentDashboard() {
                     });
                     setScreenshotPreview(null);
                   }}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors"
                 >
-                  ✕
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
                 </button>
               </div>
+            </div>
+            <div className="p-6">
 
-              <form onSubmit={handleSubmitJournal} className="space-y-4">
-                <div className="grid md:grid-cols-2 gap-4">
+              <form onSubmit={handleSubmitJournal} className="space-y-6">
+                <div className="grid md:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Currency Pair *</label>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">Currency Pair *</label>
                     <input
                       type="text"
                       required
                       value={journalForm.pair}
                       onChange={(e) => setJournalForm({ ...journalForm, pair: e.target.value.toUpperCase() })}
                       placeholder="EUR/USD"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 bg-white"
+                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-gray-900 bg-white transition-all"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Direction *</label>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">Direction *</label>
                     <select
                       required
                       value={journalForm.direction}
                       onChange={(e) => setJournalForm({ ...journalForm, direction: e.target.value as 'buy' | 'sell' })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 bg-white"
+                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-gray-900 bg-white transition-all"
                     >
                       <option value="buy">Buy (Long)</option>
                       <option value="sell">Sell (Short)</option>
@@ -846,7 +988,7 @@ export default function StudentDashboard() {
                   </div>
                 </div>
 
-                <div className="flex justify-end space-x-3 pt-4">
+                <div className="flex justify-end space-x-4 pt-6 border-t-2 border-gray-200">
                   <button
                     type="button"
                     onClick={() => {
@@ -867,22 +1009,25 @@ export default function StudentDashboard() {
                       setUploadError(null);
                     }}
                     disabled={isSubmitting}
-                    className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-6 py-3 border-2 border-gray-300 rounded-xl text-gray-700 font-bold hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                    className="px-6 py-3 bg-gradient-to-r from-primary-600 to-purple-600 hover:from-primary-700 hover:to-purple-700 text-white rounded-xl font-bold shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 transition-all transform hover:scale-105"
                   >
                     {isSubmitting ? (
                       <>
-                        <span className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></span>
-                        Saving...
+                        <span className="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-white"></span>
+                        <span>Saving...</span>
                       </>
                     ) : (
-                      'Save Trade'
+                      <>
+                        <span>💾</span>
+                        <span>Save Trade</span>
+                      </>
                     )}
                   </button>
                 </div>
