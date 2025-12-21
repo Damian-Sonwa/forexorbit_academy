@@ -363,8 +363,29 @@ export default function AgoraCall({ appId, channel, token, uid, callType, onCall
       
       localVideoTrackRef.current = videoTrack;
 
-      // Wait for container to be available in DOM
+      // CRITICAL: Wait for container to be available in DOM with proper dimensions
+      // Use multiple attempts with delays to ensure container is fully rendered
       const localVideoContainer = await waitForContainer('local-video', localVideoContainerRef);
+      
+      // CRITICAL: Verify container has valid dimensions before playing
+      const rect = localVideoContainer.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) {
+        console.warn('AgoraCall: Container has zero dimensions, waiting for render...');
+        // Wait for next frame and check again
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        const rect2 = localVideoContainer.getBoundingClientRect();
+        if (rect2.width === 0 || rect2.height === 0) {
+          throw new Error('Video container has zero dimensions. Please try again.');
+        }
+      }
+      
+      // CRITICAL: Delay play() until after DOM is fully rendered
+      // Use requestAnimationFrame to ensure container is visible and has dimensions
+      await new Promise(resolve => {
+        requestAnimationFrame(() => {
+          setTimeout(resolve, 100); // Small delay to ensure render
+        });
+      });
       
       // Play local video
       await videoTrack.play(localVideoContainer);
@@ -390,6 +411,8 @@ export default function AgoraCall({ appId, channel, token, uid, callType, onCall
         errorMessage += 'Camera initialization failed. You can continue the call with audio only.';
       } else if (err.name === 'NotFoundError' || err.message?.includes('no camera')) {
         errorMessage += 'No camera found. You can continue the call with audio only.';
+      } else if (err.message?.includes('zero dimensions') || err.message?.includes('container not found')) {
+        errorMessage += 'Video container not ready. Please try enabling video again.';
       } else {
         errorMessage += err.message || 'Unknown error. You can continue the call with audio only.';
       }
@@ -474,7 +497,7 @@ export default function AgoraCall({ appId, channel, token, uid, callType, onCall
         </button>
       </div>
 
-      {/* Video Display - Only show if video is enabled or call type is video */}
+      {/* Video Display - Always render containers for video calls, even if video not enabled yet */}
       {callType === 'video' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           {/* Remote Video */}
@@ -497,29 +520,40 @@ export default function AgoraCall({ appId, channel, token, uid, callType, onCall
             )}
           </div>
 
-          {/* Local Video */}
+          {/* Local Video - CRITICAL: Always render container, never conditionally mount/unmount */}
           <div 
             className="relative bg-gray-900 rounded-lg overflow-hidden" 
-            style={{ minHeight: '300px', width: '100%' }}
+            style={{ minHeight: '300px', width: '100%', position: 'relative' }}
           >
+            {/* CRITICAL: Always render the container - never conditionally mount/unmount */}
             {/* Explicit ID for local video container - required for Agora playback */}
             {/* Agora SDK will create video element inside this container with playsinline for iOS */}
-            {videoEnabled ? (
-              <>
-                <div 
-                  id="local-video" 
-                  ref={localVideoContainerRef} 
-                  className="w-full h-full"
-                  style={{ minHeight: '300px', width: '100%', position: 'relative' }}
-                />
-                {isVideoOff && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-gray-800 pointer-events-none z-10">
-                    <p className="text-gray-400">Camera Off</p>
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="absolute inset-0 flex items-center justify-center bg-gray-800">
+            <div 
+              id="local-video" 
+              ref={localVideoContainerRef} 
+              className="w-full h-full"
+              style={{ 
+                minHeight: '300px', 
+                minWidth: '100%', 
+                width: '100%', 
+                height: '300px', // Fixed height to ensure dimensions
+                position: 'relative',
+                display: 'block', // Ensure it's always displayed, not hidden
+                visibility: videoEnabled ? 'visible' : 'hidden', // Use visibility instead of conditional render
+                opacity: videoEnabled ? 1 : 0, // Also use opacity for smoother transitions
+              }}
+            />
+            
+            {/* Overlay for camera off state */}
+            {videoEnabled && isVideoOff && (
+              <div className="absolute inset-0 flex items-center justify-center bg-gray-800 pointer-events-none z-10">
+                <p className="text-gray-400">Camera Off</p>
+              </div>
+            )}
+            
+            {/* Overlay for camera not enabled state */}
+            {!videoEnabled && (
+              <div className="absolute inset-0 flex items-center justify-center bg-gray-800 z-10">
                 <div className="text-center">
                   <p className="text-gray-400 mb-2">Camera not enabled</p>
                   <p className="text-gray-500 text-sm">Click "Enable Video" to start camera</p>
