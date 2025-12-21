@@ -26,10 +26,14 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
     const isSuperAdmin = user.email === 'madudamian25@gmail.com';
     const role = isSuperAdmin ? 'superadmin' : user.role;
 
-    // Determine learning level (default to beginner for students)
-    let learningLevel = user.learningLevel || 'beginner';
-    if (role === 'student' && !user.learningLevel) {
-      learningLevel = 'beginner';
+    // Determine learning level
+    // CRITICAL: For students, use tradingLevel from onboarding if learningLevel is not set
+    let learningLevel = user.learningLevel;
+    if (role === 'student') {
+      // Use learningLevel if set, otherwise fall back to tradingLevel from onboarding
+      learningLevel = user.learningLevel || 
+                     (user.studentDetails?.tradingLevel as 'beginner' | 'intermediate' | 'advanced') || 
+                     'beginner';
     } else if (role !== 'student') {
       // Instructors, admins, and super admins have access to all levels
       learningLevel = 'advanced';

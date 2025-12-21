@@ -175,11 +175,11 @@ export default function Dashboard() {
                   Welcome back, {user?.name?.split(' ')[0] || 'Student'}!
                 </h1>
                 <p className="text-sm sm:text-base text-gray-600">Continue your learning journey</p>
-                {user?.learningLevel && (
+                {(user?.learningLevel || (user as any)?.studentDetails?.tradingLevel) && (
                   <div className="mt-3 flex items-center space-x-2">
                     <span className="text-sm text-gray-500">Current Level:</span>
                     <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-semibold capitalize">
-                      {user.learningLevel}
+                      {user?.learningLevel || (user as any)?.studentDetails?.tradingLevel || 'Beginner'}
                     </span>
                   </div>
                 )}

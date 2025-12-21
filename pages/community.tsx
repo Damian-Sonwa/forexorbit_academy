@@ -145,29 +145,34 @@ export default function Community() {
 
   useEffect(() => {
     if (selectedRoom) {
-      // CRITICAL FIX: For students, ALWAYS use real Beginner room, never placeholder
-      // If selectedRoom has placeholder ID, replace it with real Beginner room
+      // For students, ensure we're using a room based on their trading level from onboarding
       let roomToUse = selectedRoom;
       if (user?.role === 'student') {
         const roomIdStr = selectedRoom._id?.toString() || selectedRoom._id;
         // Check if selectedRoom is a placeholder
         if (typeof roomIdStr === 'string' && roomIdStr.startsWith('placeholder-')) {
-          // Find real Beginner room
-          const beginnerRoom = rooms.find(r => r.name === 'Beginner' && !r._id?.toString().startsWith('placeholder-'));
-          if (beginnerRoom) {
-            roomToUse = beginnerRoom;
-            setSelectedRoom(beginnerRoom); // Update selectedRoom to real room
-            console.log('Student: Replaced placeholder room with real Beginner room');
+          // Get user's level from profile or default to beginner
+          const userLevel = (user as any)?.learningLevel || 
+                          (user as any)?.studentDetails?.tradingLevel || 
+                          'beginner';
+          
+          // Map level to room name
+          const levelRoomMap: Record<string, string> = {
+            'beginner': 'Beginner',
+            'intermediate': 'Intermediate',
+            'advanced': 'Advanced'
+          };
+          
+          const targetRoomName = levelRoomMap[userLevel.toLowerCase()] || 'Beginner';
+          const targetRoom = rooms.find(r => r.name === targetRoomName && !r._id?.toString().startsWith('placeholder-'));
+          
+          if (targetRoom) {
+            roomToUse = targetRoom;
+            setSelectedRoom(targetRoom);
+            console.log(`Student: Using ${targetRoomName} room based on trading level: ${userLevel}`);
           } else {
-            console.error('Student: No real Beginner room found');
-        return;
-          }
-        } else {
-          // Ensure we're using Beginner room for students
-          const beginnerRoom = rooms.find(r => r.name === 'Beginner' && !r._id?.toString().startsWith('placeholder-'));
-          if (beginnerRoom && roomIdStr !== beginnerRoom._id?.toString()) {
-            roomToUse = beginnerRoom;
-            setSelectedRoom(beginnerRoom);
+            console.error(`Student: No ${targetRoomName} room found`);
+            return;
           }
         }
       }
@@ -377,6 +382,35 @@ export default function Community() {
       // Only use rooms returned from API
       if (mainRooms.length > 0) {
         setRooms(mainRooms);
+        
+        // Auto-select room based on user's trading level from onboarding
+        if (!selectedRoom && user?.role === 'student') {
+          // Get user's level from profile or default to beginner
+          const userLevel = (user as any)?.learningLevel || 
+                          (user as any)?.studentDetails?.tradingLevel || 
+                          'beginner';
+          
+          // Map level to room name
+          const levelRoomMap: Record<string, string> = {
+            'beginner': 'Beginner',
+            'intermediate': 'Intermediate',
+            'advanced': 'Advanced'
+          };
+          
+          const targetRoomName = levelRoomMap[userLevel.toLowerCase()] || 'Beginner';
+          const targetRoom = mainRooms.find((r: Room) => r.name === targetRoomName && !r.isLocked);
+          
+          if (targetRoom) {
+            setSelectedRoom(targetRoom);
+            console.log(`Auto-selected ${targetRoomName} room based on trading level: ${userLevel}`);
+          } else {
+            // Fallback to first unlocked room
+            const firstUnlockedRoom = mainRooms.find((r: Room) => !r.isLocked);
+            if (firstUnlockedRoom) {
+              setSelectedRoom(firstUnlockedRoom);
+            }
+          }
+        }
       } else {
         // If API returns no rooms, set empty array (no placeholders)
         setRooms([]);
@@ -1496,13 +1530,28 @@ export default function Community() {
                           setShowToast(true);
                           setTimeout(() => setShowToast(false), 3000);
                         } else {
-                          // CRITICAL FIX: For students, always select Beginner room (never placeholder)
+                          // For students, select room based on their trading level from onboarding
                           if (user?.role === 'student') {
-                            const beginnerRoom = rooms.find(r => r.name === 'Beginner' && !r._id?.toString().startsWith('placeholder-'));
-                            if (beginnerRoom) {
-                              setSelectedRoom(beginnerRoom);
+                            // Get user's level from profile or default to beginner
+                            const userLevel = (user as any)?.learningLevel || 
+                                            (user as any)?.studentDetails?.tradingLevel || 
+                                            'beginner';
+                            
+                            // Map level to room name
+                            const levelRoomMap: Record<string, string> = {
+                              'beginner': 'Beginner',
+                              'intermediate': 'Intermediate',
+                              'advanced': 'Advanced'
+                            };
+                            
+                            const targetRoomName = levelRoomMap[userLevel.toLowerCase()] || 'Beginner';
+                            const targetRoom = rooms.find(r => r.name === targetRoomName && !r._id?.toString().startsWith('placeholder-'));
+                            
+                            if (targetRoom) {
+                              setSelectedRoom(targetRoom);
                             } else {
-                              setSelectedRoom(room); // Fallback if no Beginner room found
+                              // Fallback to the clicked room if target room not found
+                              setSelectedRoom(room);
                             }
                           } else {
                             setSelectedRoom(room);

@@ -41,11 +41,13 @@ async function saveOnboarding(req: AuthRequest, res: NextApiResponse) {
     const users = db.collection('users');
 
     // Update user with onboarding data
+    // CRITICAL: Set learningLevel from tradingLevel to determine community room access and dashboard display
     const result = await users.updateOne(
       { _id: new ObjectId(req.user!.userId) },
       {
         $set: {
           name: fullName, // Update main name field
+          learningLevel: tradingLevel, // Set learningLevel from onboarding tradingLevel
           studentDetails: {
             fullName,
             dateOfBirth,

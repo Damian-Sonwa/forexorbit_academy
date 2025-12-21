@@ -42,6 +42,7 @@ async function getRooms(req: AuthRequest, res: NextApiResponse) {
       (user.studentDetails && user.studentDetails.completedAt);
 
     // Determine user's learning level
+    // CRITICAL: Use tradingLevel from onboarding if learningLevel is not set
     let userLevel: 'beginner' | 'intermediate' | 'advanced' = 'beginner';
     if (user?.role !== 'student') {
       // Instructors, admins, and super admins have access to all levels
@@ -52,7 +53,10 @@ async function getRooms(req: AuthRequest, res: NextApiResponse) {
         // Return empty rooms array with a message
         return res.json([]);
       }
-      userLevel = (user?.learningLevel as 'beginner' | 'intermediate' | 'advanced') || 'beginner';
+      // Use learningLevel if set, otherwise fall back to tradingLevel from onboarding
+      userLevel = (user?.learningLevel as 'beginner' | 'intermediate' | 'advanced') || 
+                  (user?.studentDetails?.tradingLevel as 'beginner' | 'intermediate' | 'advanced') || 
+                  'beginner';
       // Check and update level if eligible (async, doesn't block) - wrap in try-catch to prevent errors
       // Only call if function exists (defensive check)
       if (typeof updateLearningLevelIfEligible === 'function') {

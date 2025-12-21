@@ -247,7 +247,8 @@ export default function Sidebar({ }: SidebarProps) {
   const profilePhoto = profileData?.profilePhoto;
   const displayName = profileData?.studentDetails?.fullName || user?.name || 'User';
   const displayEmail = user?.email || '';
-  const tradingLevel = profileData?.studentDetails?.tradingLevel;
+  // Use learningLevel if set, otherwise fall back to tradingLevel from onboarding
+  const tradingLevel = profileData?.learningLevel || profileData?.studentDetails?.tradingLevel;
 
   // Check if a route is active (handles query params for admin tabs)
   const isActiveRoute = (href: string, tab?: string) => {
