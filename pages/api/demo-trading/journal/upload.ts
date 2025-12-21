@@ -49,9 +49,9 @@ async function uploadJournalScreenshot(req: AuthRequest, res: NextApiResponse) {
 
     // Validate file using Cloudinary utility
     const validation = validateImageFile({
-      mimetype: file.mimetype,
+      mimetype: file.mimetype || undefined,
       size: file.size,
-      originalFilename: file.originalFilename,
+      originalFilename: file.originalFilename || undefined,
     });
 
     if (!validation.valid) {

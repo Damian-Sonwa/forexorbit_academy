@@ -12,6 +12,7 @@ import Link from 'next/link';
 import Header from '@/components/Header';
 // import Footer from '@/components/Footer'; // Reserved for future use
 import BackButton from '@/components/BackButton';
+import LoadingSpinner from '@/components/LoadingSpinner';
 import { useAuth } from '@/hooks/useAuth';
 import { useSocket } from '@/hooks/useSocket';
 import { apiClient } from '@/lib/api-client';
