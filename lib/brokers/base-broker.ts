@@ -172,7 +172,7 @@ export abstract class BaseBroker {
   /**
    * Validate that this is a demo account (security check)
    */
-  protected validateDemoAccount(accountId: string): void {
+  protected validateDemoAccount(_accountId: string): void {
     // Each broker implementation should validate account is demo
     if (!this.isDemo) {
       throw new Error('Only demo accounts are allowed');

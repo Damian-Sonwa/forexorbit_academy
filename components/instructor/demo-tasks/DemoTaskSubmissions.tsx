@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { apiClient } from '@/lib/api-client';
 import { format } from 'date-fns';
 import LoadingSpinner from '@/components/LoadingSpinner';
@@ -208,20 +209,24 @@ export default function DemoTaskSubmissions() {
                         rel="noopener noreferrer"
                         className="inline-block"
                       >
-                        <img
-                          src={submission.screenshot}
-                          alt="Trade screenshot"
-                          className="max-w-full h-auto max-h-64 rounded-lg border border-gray-300 dark:border-gray-600 hover:shadow-lg transition-shadow cursor-pointer"
-                          onError={(e) => {
-                            console.error('Failed to load screenshot:', submission.screenshot);
-                            const img = e.target as HTMLImageElement;
-                            img.style.display = 'none';
-                            const errorDiv = document.createElement('div');
-                            errorDiv.className = 'text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-2';
-                            errorDiv.textContent = 'Failed to load screenshot';
-                            img.parentElement?.appendChild(errorDiv);
-                          }}
-                        />
+                        <div className="relative w-full max-w-full h-64 rounded-lg border border-gray-300 dark:border-gray-600 hover:shadow-lg transition-shadow cursor-pointer overflow-hidden bg-gray-100 dark:bg-gray-800">
+                          <Image
+                            src={submission.screenshot}
+                            alt="Trade screenshot"
+                            fill
+                            className="object-contain"
+                            unoptimized
+                            onError={(e) => {
+                              console.error('Failed to load screenshot:', submission.screenshot);
+                              const img = e.target as HTMLImageElement;
+                              img.style.display = 'none';
+                              const errorDiv = document.createElement('div');
+                              errorDiv.className = 'text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-2';
+                              errorDiv.textContent = 'Failed to load screenshot';
+                              img.parentElement?.appendChild(errorDiv);
+                            }}
+                          />
+                        </div>
                       </a>
                     </div>
                   )}
