@@ -42,6 +42,9 @@ interface TradeJournalEntry {
   taskId?: string;
   taskTitle?: string;
   screenshot?: string; // URL to screenshot/image
+  grade?: number | string | null; // Grade from instructor
+  feedback?: string | null; // Feedback from instructor
+  reviewedAt?: string | null; // When feedback was provided
   createdAt: string;
 }
 
@@ -860,6 +863,32 @@ export default function DemoTrading() {
                                         />
                                       </a>
                                     </div>
+                                  )}
+                                </div>
+                              )}
+
+                              {/* Instructor Feedback */}
+                              {(trade.grade || trade.feedback) && (
+                                <div className="mt-4 pt-4 border-t border-green-200 bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
+                                  <div className="flex items-center justify-between mb-2">
+                                    <p className="text-sm font-semibold text-green-800 dark:text-green-200">
+                                      Instructor Feedback
+                                    </p>
+                                    {trade.grade && (
+                                      <span className="px-3 py-1 bg-green-600 text-white rounded-lg text-sm font-bold">
+                                        Grade: {trade.grade}
+                                      </span>
+                                    )}
+                                  </div>
+                                  {trade.feedback && (
+                                    <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap mt-2">
+                                      {trade.feedback}
+                                    </p>
+                                  )}
+                                  {trade.reviewedAt && (
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                                      Reviewed: {format(new Date(trade.reviewedAt), 'MMM dd, yyyy HH:mm')}
+                                    </p>
                                   )}
                                 </div>
                               )}

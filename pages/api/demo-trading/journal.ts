@@ -25,7 +25,7 @@ async function getJournal(req: AuthRequest, res: NextApiResponse) {
       .sort({ createdAt: -1 })
       .toArray();
 
-    // Populate task titles if taskId exists
+    // Populate task titles if taskId exists, and include grade/feedback
     const entriesWithTasks = await Promise.all(
       entries.map(async (entry) => {
         if (entry.taskId) {
@@ -37,11 +37,17 @@ async function getJournal(req: AuthRequest, res: NextApiResponse) {
             ...entry,
             _id: entry._id.toString(),
             taskTitle: task?.title || 'Unknown Task',
+            grade: entry.grade || null,
+            feedback: entry.feedback || null,
+            reviewedAt: entry.reviewedAt || null,
           };
         }
         return {
           ...entry,
           _id: entry._id.toString(),
+          grade: entry.grade || null,
+          feedback: entry.feedback || null,
+          reviewedAt: entry.reviewedAt || null,
         };
       })
     );
