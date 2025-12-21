@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { apiClient } from '@/lib/api-client';
 import { format } from 'date-fns';
 import LoadingSpinner from '@/components/LoadingSpinner';
@@ -236,16 +237,20 @@ export default function ReviewSubmission() {
                           rel="noopener noreferrer"
                           className="inline-block"
                         >
-                          <img
-                            src={submission.screenshot}
-                            alt="Trade screenshot"
-                            className="max-w-full h-auto max-h-64 rounded-lg border border-gray-300 dark:border-gray-600 hover:shadow-lg transition-shadow cursor-pointer"
-                            onError={(e) => {
-                              console.error('Failed to load screenshot:', submission.screenshot);
-                              const img = e.target as HTMLImageElement;
-                              img.style.display = 'none';
-                            }}
-                          />
+                          <div className="relative w-full max-w-full h-64 rounded-lg border border-gray-300 dark:border-gray-600 hover:shadow-lg transition-shadow cursor-pointer overflow-hidden bg-gray-100 dark:bg-gray-800">
+                            <Image
+                              src={submission.screenshot}
+                              alt="Trade screenshot"
+                              fill
+                              className="object-contain"
+                              unoptimized
+                              onError={(e) => {
+                                console.error('Failed to load screenshot:', submission.screenshot);
+                                const img = e.target as HTMLImageElement;
+                                img.style.display = 'none';
+                              }}
+                            />
+                          </div>
                         </a>
                       </div>
                     )}
@@ -318,15 +323,19 @@ export default function ReviewSubmission() {
                       rel="noopener noreferrer"
                       className="inline-block"
                     >
-                      <img
-                        src={submission.screenshot}
-                        alt="Trade screenshot"
-                        className="max-w-full h-auto max-h-64 rounded-lg border border-gray-300 dark:border-gray-600"
-                        onError={(e) => {
-                          const img = e.target as HTMLImageElement;
-                          img.style.display = 'none';
-                        }}
-                      />
+                      <div className="relative w-full max-w-full h-64 rounded-lg border border-gray-300 dark:border-gray-600 overflow-hidden bg-gray-100 dark:bg-gray-800">
+                        <Image
+                          src={submission.screenshot}
+                          alt="Trade screenshot"
+                          fill
+                          className="object-contain"
+                          unoptimized
+                          onError={(e) => {
+                            const img = e.target as HTMLImageElement;
+                            img.style.display = 'none';
+                          }}
+                        />
+                      </div>
                     </a>
                   </div>
                 )}
