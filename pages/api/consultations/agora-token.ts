@@ -22,10 +22,8 @@ const ALLOWED_ORIGIN = 'https://forexorbit-academy.vercel.app';
 
 // CORS headers helper
 function setCorsHeaders(res: NextApiResponse, origin?: string) {
-  // Check if origin is allowed (for production) or allow localhost for development
+  // Check if origin is allowed (production only - NO localhost)
   const isAllowedOrigin = origin === ALLOWED_ORIGIN || 
-                         origin?.includes('localhost') || 
-                         origin?.includes('127.0.0.1') ||
                          origin?.includes('forexorbit-academy.vercel.app');
   
   if (isAllowedOrigin && origin) {

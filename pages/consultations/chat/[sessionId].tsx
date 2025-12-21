@@ -219,8 +219,8 @@ export default function ConsultationChat() {
     try {
       // Generate Agora token using GET request
       // IMPORTANT: Agora token must be generated on Render backend only (not Vercel)
-      // Use NEXT_PUBLIC_SOCKET_URL (Render backend) for token requests
-      const renderBackendUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'https://forexorbit-academy.onrender.com';
+      // ALWAYS use Render backend for token requests - NO fallbacks
+      const renderBackendUrl = 'https://forexorbit-academy.onrender.com';
       const tokenUrl = `${renderBackendUrl}/api/consultations/agora-token?channel=${sessionId}`;
       
       // Get auth token for the request

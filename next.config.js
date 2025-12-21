@@ -13,7 +13,7 @@ const nextConfig = {
   env: {
     MONGO_URI: process.env.MONGO_URI,
     JWT_SECRET: process.env.JWT_SECRET,
-    NEXT_PUBLIC_SOCKET_URL: process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3000',
+    // NOTE: Socket.IO URL is hardcoded in useSocket.ts to always use Render backend
     // NOTE: NEXT_PUBLIC_AGORA_APP_ID is NOT exposed to client
     // Frontend determines readiness solely by token API response
   },
