@@ -171,8 +171,10 @@ export abstract class BaseBroker {
 
   /**
    * Validate that this is a demo account (security check)
+   * @param accountId - Account ID (may be used by subclasses)
    */
-  protected validateDemoAccount(_accountId: string): void {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  protected validateDemoAccount(accountId: string): void {
     // Each broker implementation should validate account is demo
     if (!this.isDemo) {
       throw new Error('Only demo accounts are allowed');

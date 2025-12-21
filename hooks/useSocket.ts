@@ -6,9 +6,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 
-// Get socket URL - prioritize NEXT_PUBLIC_SOCKET_URL environment variable
+// Get socket URL - use production URL by default, fallback to localhost only in development
 const getSocketUrl = (): string => {
-  // CRITICAL: Always use NEXT_PUBLIC_SOCKET_URL if set (for production)
+  // If explicitly set via environment variable, use it
   if (process.env.NEXT_PUBLIC_SOCKET_URL) {
     return process.env.NEXT_PUBLIC_SOCKET_URL;
   }
@@ -16,20 +16,19 @@ const getSocketUrl = (): string => {
   // Client-side: detect current origin
   if (typeof window !== 'undefined') {
     const origin = window.location.origin;
-    // If we're on the production domain, use Render URL
+    // If we're on the production domain, use it
     if (origin.includes('forexorbit-academy.onrender.com') || origin.includes('vercel.app')) {
-      // Use Render URL for Socket.IO server
-      return 'https://forexorbit-academy.onrender.com';
+      return origin;
     }
     // If we're on localhost, use localhost
     if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
       return 'http://localhost:3000';
     }
-    // Default to production Render URL
+    // Default to production URL for any other case
     return 'https://forexorbit-academy.onrender.com';
   }
   
-  // Server-side: default to production Render URL (never use localhost on server)
+  // Server-side: default to production URL (never use localhost on server)
   return 'https://forexorbit-academy.onrender.com';
 };
 

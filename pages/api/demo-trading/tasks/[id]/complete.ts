@@ -15,9 +15,9 @@ async function completeTask(req: AuthRequest, res: NextApiResponse) {
       return res.status(403).json({ error: 'Only students can complete tasks' });
     }
 
-    const { taskId } = req.query;
+    const { id } = req.query;
 
-    if (!taskId || typeof taskId !== 'string') {
+    if (!id || typeof id !== 'string') {
       return res.status(400).json({ error: 'Task ID is required' });
     }
 
@@ -26,7 +26,7 @@ async function completeTask(req: AuthRequest, res: NextApiResponse) {
 
     // Check if task exists and is assigned to this student
     const task = await tasks.findOne({
-      _id: new ObjectId(taskId),
+      _id: new ObjectId(id),
       $or: [
         { assignedTo: req.user!.userId },
         { assignedTo: null }, // General tasks
@@ -43,7 +43,7 @@ async function completeTask(req: AuthRequest, res: NextApiResponse) {
 
     // Mark task as completed
     await tasks.updateOne(
-      { _id: new ObjectId(taskId) },
+      { _id: new ObjectId(id) },
       {
         $set: {
           completed: true,
@@ -55,9 +55,10 @@ async function completeTask(req: AuthRequest, res: NextApiResponse) {
     );
 
     res.json({ success: true, message: 'Task marked as completed' });
-  } catch (error: any) {
-    console.error('Complete task error:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
+    console.error('Complete task error:', errorMessage);
+    res.status(500).json({ error: errorMessage });
   }
 }
 

@@ -10,41 +10,13 @@ import { ObjectId } from 'mongodb';
 
 async function handler(req: AuthRequest, res: NextApiResponse) {
   try {
-    // Validate user is authenticated
-    if (!req.user || !req.user.userId) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
-
-    let db;
-    try {
-      db = await getDb();
-    } catch (dbError) {
-      console.error('Database connection error:', dbError);
-      return res.status(500).json({ 
-        error: 'Database connection failed',
-        details: process.env.NODE_ENV === 'development' 
-          ? (dbError instanceof Error ? dbError.message : 'Unknown error')
-          : 'Please check server logs'
-      });
-    }
-
+    const db = await getDb();
     const users = db.collection('users');
 
-    let user;
-    try {
-      user = await users.findOne(
-        { _id: new ObjectId(req.user.userId) },
-        { projection: { password: 0 } }
-      );
-    } catch (queryError) {
-      console.error('Database query error:', queryError);
-      return res.status(500).json({ 
-        error: 'Failed to query user',
-        details: process.env.NODE_ENV === 'development' 
-          ? (queryError instanceof Error ? queryError.message : 'Unknown error')
-          : 'Please check server logs'
-      });
-    }
+    const user = await users.findOne(
+      { _id: new ObjectId(req.user!.userId) },
+      { projection: { password: 0 } }
+    );
 
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
@@ -75,13 +47,9 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
       profilePhoto: user.profilePhoto || null, // Include profile photo
       learningLevel, // Include learning level for access control
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Get user error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    res.status(500).json({ 
-      error: 'Internal server error',
-      details: process.env.NODE_ENV === 'development' ? errorMessage : 'Please check server logs'
-    });
+    res.status(500).json({ error: 'Internal server error' });
   }
 }
 
