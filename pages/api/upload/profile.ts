@@ -51,8 +51,21 @@ async function uploadProfilePhoto(req: AuthRequest, res: NextApiResponse) {
           // Ignore cleanup errors
         }
       }
-      console.error('Cloudinary not configured - missing environment variables');
-      return res.status(500).json({ error: 'Image upload service is not configured. Please contact support.' });
+      const missing = [];
+      if (!process.env.CLOUDINARY_CLOUD_NAME) missing.push('CLOUDINARY_CLOUD_NAME');
+      if (!process.env.CLOUDINARY_API_KEY) missing.push('CLOUDINARY_API_KEY');
+      if (!process.env.CLOUDINARY_API_SECRET) missing.push('CLOUDINARY_API_SECRET');
+      console.error('Cloudinary not configured - missing environment variables:', missing.join(', '));
+      console.error('Environment check:', {
+        nodeEnv: process.env.NODE_ENV,
+        hasCloudName: !!process.env.CLOUDINARY_CLOUD_NAME,
+        hasApiKey: !!process.env.CLOUDINARY_API_KEY,
+        hasApiSecret: !!process.env.CLOUDINARY_API_SECRET,
+      });
+      return res.status(500).json({ 
+        error: 'Image upload service is not configured. Please contact support.',
+        details: `Missing: ${missing.join(', ')}`
+      });
     }
 
     // Validate file using Cloudinary utility

@@ -27,11 +27,22 @@ export interface UploadResult {
  * Check if Cloudinary is configured
  */
 export function isCloudinaryConfigured(): boolean {
-  return !!(
-    process.env.CLOUDINARY_CLOUD_NAME &&
-    process.env.CLOUDINARY_API_KEY &&
-    process.env.CLOUDINARY_API_SECRET
-  );
+  const hasCloudName = !!process.env.CLOUDINARY_CLOUD_NAME;
+  const hasApiKey = !!process.env.CLOUDINARY_API_KEY;
+  const hasApiSecret = !!process.env.CLOUDINARY_API_SECRET;
+  
+  if (!hasCloudName || !hasApiKey || !hasApiSecret) {
+    console.error('Cloudinary configuration check:', {
+      hasCloudName,
+      hasApiKey,
+      hasApiSecret,
+      cloudNameLength: process.env.CLOUDINARY_CLOUD_NAME?.length || 0,
+      apiKeyLength: process.env.CLOUDINARY_API_KEY?.length || 0,
+      apiSecretLength: process.env.CLOUDINARY_API_SECRET?.length || 0,
+    });
+  }
+  
+  return hasCloudName && hasApiKey && hasApiSecret;
 }
 
 /**
