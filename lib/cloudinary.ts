@@ -24,6 +24,17 @@ export interface UploadResult {
 }
 
 /**
+ * Check if Cloudinary is configured
+ */
+export function isCloudinaryConfigured(): boolean {
+  return !!(
+    process.env.CLOUDINARY_CLOUD_NAME &&
+    process.env.CLOUDINARY_API_KEY &&
+    process.env.CLOUDINARY_API_SECRET
+  );
+}
+
+/**
  * Upload image buffer to Cloudinary
  */
 export async function uploadImage(
@@ -35,7 +46,12 @@ export async function uploadImage(
     transformation?: Record<string, unknown>;
   } = {}
 ): Promise<UploadResult> {
-  if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+  if (!isCloudinaryConfigured()) {
+    const missing = [];
+    if (!process.env.CLOUDINARY_CLOUD_NAME) missing.push('CLOUDINARY_CLOUD_NAME');
+    if (!process.env.CLOUDINARY_API_KEY) missing.push('CLOUDINARY_API_KEY');
+    if (!process.env.CLOUDINARY_API_SECRET) missing.push('CLOUDINARY_API_SECRET');
+    console.error('Cloudinary configuration missing:', missing.join(', '));
     throw new Error('Cloudinary configuration is missing. Please set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET environment variables.');
   }
 
@@ -79,10 +95,65 @@ export async function uploadImage(
 }
 
 /**
+ * Upload image from file path to Cloudinary (more efficient for large files)
+ */
+export async function uploadImageFromPath(
+  filePath: string,
+  folder: string,
+  options: {
+    userId?: string;
+    resourceType?: 'image' | 'auto';
+    transformation?: Record<string, unknown>;
+  } = {}
+): Promise<UploadResult> {
+  if (!isCloudinaryConfigured()) {
+    const missing = [];
+    if (!process.env.CLOUDINARY_CLOUD_NAME) missing.push('CLOUDINARY_CLOUD_NAME');
+    if (!process.env.CLOUDINARY_API_KEY) missing.push('CLOUDINARY_API_KEY');
+    if (!process.env.CLOUDINARY_API_SECRET) missing.push('CLOUDINARY_API_SECRET');
+    console.error('Cloudinary configuration missing:', missing.join(', '));
+    throw new Error('Cloudinary configuration is missing. Please set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET environment variables.');
+  }
+
+  return new Promise((resolve, reject) => {
+    cloudinary.uploader.upload(
+      filePath,
+      {
+        folder: `forexorbit/${folder}`,
+        resource_type: options.resourceType || 'image',
+        transformation: options.transformation,
+        public_id: options.userId ? `${options.userId}_${Date.now()}` : undefined,
+        overwrite: false,
+        unique_filename: true,
+        use_filename: true,
+      },
+      (error, result) => {
+        if (error) {
+          console.error('Cloudinary upload error:', error);
+          reject(new Error(`Failed to upload image: ${error.message}`));
+        } else if (!result) {
+          reject(new Error('Cloudinary upload returned no result'));
+        } else {
+          resolve({
+            url: result.secure_url || result.url,
+            publicId: result.public_id,
+            secureUrl: result.secure_url || result.url,
+            width: result.width,
+            height: result.height,
+            format: result.format,
+            bytes: result.bytes,
+          });
+        }
+      }
+    );
+  });
+}
+
+/**
  * Delete image from Cloudinary by public ID
  */
 export async function deleteImage(publicId: string): Promise<void> {
-  if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+  if (!isCloudinaryConfigured()) {
     throw new Error('Cloudinary configuration is missing');
   }
 

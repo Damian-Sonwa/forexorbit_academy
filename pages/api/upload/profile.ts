@@ -9,7 +9,7 @@ import { getDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 import formidable from 'formidable';
 import fs from 'fs';
-import { uploadImage, validateImageFile, deleteImage } from '@/lib/cloudinary';
+import { uploadImageFromPath, validateImageFile, deleteImage, isCloudinaryConfigured } from '@/lib/cloudinary';
 
 export const config = {
   api: {
@@ -41,6 +41,20 @@ async function uploadProfilePhoto(req: AuthRequest, res: NextApiResponse) {
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
+    // Check if Cloudinary is configured
+    if (!isCloudinaryConfigured()) {
+      // Clean up temp file
+      if (fs.existsSync(file.filepath)) {
+        try {
+          fs.unlinkSync(file.filepath);
+        } catch (unlinkError) {
+          // Ignore cleanup errors
+        }
+      }
+      console.error('Cloudinary not configured - missing environment variables');
+      return res.status(500).json({ error: 'Image upload service is not configured. Please contact support.' });
+    }
+
     // Validate file using Cloudinary utility
     const validation = validateImageFile({
       mimetype: file.mimetype || undefined,
@@ -60,10 +74,18 @@ async function uploadProfilePhoto(req: AuthRequest, res: NextApiResponse) {
       return res.status(400).json({ error: validation.error });
     }
 
-    // Read file into buffer
-    const fileBuffer = fs.readFileSync(file.filepath);
+    // Get old profile photo to delete it from Cloudinary if it exists
+    const db = await getDb();
+    const users = db.collection('users');
+    const user = await users.findOne({ _id: new ObjectId(req.user!.userId) });
+    const oldProfilePhotoPublicId = user?.profilePhotoPublicId;
 
-    // Clean up temp file immediately after reading
+    // Upload to Cloudinary directly from file path (more efficient)
+    const uploadResult = await uploadImageFromPath(file.filepath, 'profiles', {
+      userId: req.user!.userId,
+    });
+
+    // Clean up temp file after upload
     if (fs.existsSync(file.filepath)) {
       try {
         fs.unlinkSync(file.filepath);
@@ -71,17 +93,6 @@ async function uploadProfilePhoto(req: AuthRequest, res: NextApiResponse) {
         // Ignore cleanup errors
       }
     }
-
-    // Get old profile photo to delete it from Cloudinary if it exists
-    const db = await getDb();
-    const users = db.collection('users');
-    const user = await users.findOne({ _id: new ObjectId(req.user!.userId) });
-    const oldProfilePhotoPublicId = user?.profilePhotoPublicId;
-
-    // Upload to Cloudinary
-    const uploadResult = await uploadImage(fileBuffer, 'profiles', {
-      userId: req.user!.userId,
-    });
 
     // Update user profile photo in database with Cloudinary URL
     await users.updateOne(

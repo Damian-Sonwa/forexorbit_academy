@@ -9,7 +9,7 @@ import { getDb } from '@/lib/mongodb';
 import formidable from 'formidable';
 import fs from 'fs';
 import { ObjectId } from 'mongodb';
-import { uploadImage, validateImageFile } from '@/lib/cloudinary';
+import { uploadImageFromPath, validateImageFile, isCloudinaryConfigured } from '@/lib/cloudinary';
 
 export const config = {
   api: {
@@ -47,6 +47,20 @@ async function uploadJournalScreenshot(req: AuthRequest, res: NextApiResponse) {
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
+    // Check if Cloudinary is configured
+    if (!isCloudinaryConfigured()) {
+      // Clean up temp file
+      if (fs.existsSync(file.filepath)) {
+        try {
+          fs.unlinkSync(file.filepath);
+        } catch (unlinkError) {
+          // Ignore cleanup errors
+        }
+      }
+      console.error('Cloudinary not configured - missing environment variables');
+      return res.status(500).json({ error: 'Image upload service is not configured. Please contact support.' });
+    }
+
     // Validate file using Cloudinary utility
     const validation = validateImageFile({
       mimetype: file.mimetype || undefined,
@@ -66,10 +80,12 @@ async function uploadJournalScreenshot(req: AuthRequest, res: NextApiResponse) {
       return res.status(400).json({ error: validation.error });
     }
 
-    // Read file into buffer
-    const fileBuffer = fs.readFileSync(file.filepath);
+    // Upload to Cloudinary directly from file path (more efficient)
+    const uploadResult = await uploadImageFromPath(file.filepath, 'journal-screenshots', {
+      userId: req.user!.userId,
+    });
 
-    // Clean up temp file immediately after reading
+    // Clean up temp file after upload
     if (fs.existsSync(file.filepath)) {
       try {
         fs.unlinkSync(file.filepath);
@@ -77,11 +93,6 @@ async function uploadJournalScreenshot(req: AuthRequest, res: NextApiResponse) {
         // Ignore cleanup errors
       }
     }
-
-    // Upload to Cloudinary
-    const uploadResult = await uploadImage(fileBuffer, 'journal-screenshots', {
-      userId: req.user!.userId,
-    });
 
     // Save screenshot metadata to database
     const db = await getDb();
