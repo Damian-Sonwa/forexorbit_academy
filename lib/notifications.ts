@@ -4,7 +4,6 @@
  */
 
 import { getDb } from './mongodb';
-import { ObjectId } from 'mongodb';
 import type { NotificationType } from '@/pages/api/notifications';
 
 export interface CreateNotificationParams {
@@ -16,7 +15,7 @@ export interface CreateNotificationParams {
   roomId?: string;
   taskId?: string;
   relatedId?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 /**

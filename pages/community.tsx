@@ -254,14 +254,14 @@ export default function Community() {
     // Mark current room ID to prevent duplicate processing
     currentRoomIdRef.current = finalRoomIdStr;
     
-    // Set validation state (but don't reset if already validating)
+    // Set validation state (but do not reset if already validating)
     if (!isRoomValidating) {
       setIsRoomValidating(true);
     }
     
     // Use the actual room ID from database - each room is fully isolated
     // CRITICAL: Batch state updates to prevent flicker
-    // Don't clear messages or hide room selection until room is confirmed
+    // Do not clear messages or hide room selection until room is confirmed
     setPage(1);
     setHasMoreMessages(true);
     setRoomConfirmed(false); // Reset confirmation when switching rooms
@@ -272,7 +272,7 @@ export default function Community() {
     joinRoomSafely(finalRoomIdStr);
     hasJoinedRoomRef.current.add(finalRoomIdStr); // Mark as joined
     
-    // Don't clear messages or hide room selection yet - wait for room_joined confirmation
+    // Do not clear messages or hide room selection yet - wait for room_joined confirmation
     
     return () => {
       // Cleanup: Leave room when switching away
@@ -739,11 +739,11 @@ export default function Community() {
     
     const handleRoomError = (data: { message: string }) => {
       console.error('❌ Room join error:', data.message);
-      // Don't permanently disable - allow retry
+      // Do not permanently disable - allow retry
       // DO NOT reset loading state - show error toast but keep UI visible
       setRoomConfirmed(false);
       canSendMessageRef.current = false;
-      setIsRoomValidating(false); // Validation failed, but don't reset loading
+      setIsRoomValidating(false); // Validation failed, but do not reset loading
       setToastMessage(data.message || 'Failed to join room. Please try again.');
       setShowToast(true);
       // Clear the joined flag to allow retry
@@ -770,7 +770,7 @@ export default function Community() {
   const leaveRoom = (roomId: string) => {
     if (socket && connected) {
       const roomIdStr = roomId?.toString() || roomId;
-      // Don't leave placeholder rooms
+      // Do not leave placeholder rooms
       if (typeof roomIdStr === 'string' && roomIdStr.startsWith('placeholder-')) {
         return;
       }
@@ -2210,7 +2210,7 @@ export default function Community() {
                       </svg>
                     </button>
 
-                    {/* FIX: Textarea - responsive padding, ensure it doesn't push send button off screen */}
+                    {/* FIX: Textarea - responsive padding, ensure it does not push send button off screen */}
                     <textarea
                       ref={inputRef}
                       value={input}

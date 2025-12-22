@@ -147,7 +147,7 @@ export async function sendPasswordResetEmail(
       accepted: info.accepted,
       rejected: info.rejected,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Error sending password reset email:', error);
     console.error('Error details:', {
       message: error?.message,
