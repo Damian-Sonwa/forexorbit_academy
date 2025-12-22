@@ -32,7 +32,8 @@ export function withAuth(
       
       if (!token) {
         console.error('No token found in request headers');
-        return res.status(401).json({ error: 'Authentication required' });
+        res.status(401).json({ error: 'Authentication required' });
+        return;
       }
 
       const payload = verifyToken(token);
@@ -43,7 +44,8 @@ export function withAuth(
       // Check role if specified
       if (allowedRoles && !allowedRoles.includes(payload.role)) {
         console.error('Role check failed - User role:', payload.role, 'Allowed:', allowedRoles);
-        return res.status(403).json({ error: 'Insufficient permissions' });
+        res.status(403).json({ error: 'Insufficient permissions' });
+        return;
       }
 
       req.user = payload;
@@ -56,7 +58,7 @@ export function withAuth(
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Invalid token';
       console.error('Auth middleware error:', errorMessage);
-      return res.status(401).json({ error: errorMessage });
+      res.status(401).json({ error: errorMessage });
     }
   };
 }
