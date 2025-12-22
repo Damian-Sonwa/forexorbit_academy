@@ -44,20 +44,7 @@ async function handler(req: AuthRequest, res: NextApiResponse): Promise<void> {
   // Get origin from request headers
   const origin = req.headers.origin || req.headers.referer?.split('/').slice(0, 3).join('/');
   
-  // Handle preflight OPTIONS request
-  if (req.method === 'OPTIONS') {
-    setCorsHeaders(res, origin);
-    res.status(200).end();
-    return;
-  }
-
-  if (req.method !== 'POST') {
-    setCorsHeaders(res, origin);
-    res.status(405).json({ error: 'Method not allowed' });
-    return;
-  }
-
-  // Set CORS headers for actual requests
+  // Set CORS headers for all responses (including errors)
   setCorsHeaders(res, origin);
 
   if (!isAIConfigured()) {
@@ -78,10 +65,31 @@ async function handler(req: AuthRequest, res: NextApiResponse): Promise<void> {
     res.json({ answer });
   } catch (error: unknown) {
     console.error('AI answer question error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Failed to get AI answer';
+    const errorMessage = error instanceof Error ? error.message : 'Failed to get AI response';
     res.status(500).json({ error: errorMessage });
   }
 }
 
-export default withAuth(handler, ['student', 'instructor', 'admin', 'superadmin']);
+// Wrapper to handle CORS before auth
+export default async function(req: NextApiRequest, res: NextApiResponse) {
+  const origin = req.headers.origin || req.headers.referer?.split('/').slice(0, 3).join('/');
+  
+  // Handle preflight OPTIONS request - must be before withAuth
+  if (req.method === 'OPTIONS') {
+    setCorsHeaders(res, origin);
+    res.status(200).end();
+    return;
+  }
 
+  if (req.method !== 'POST') {
+    setCorsHeaders(res, origin);
+    res.status(405).json({ error: 'Method not allowed' });
+    return;
+  }
+
+  // Set CORS headers before calling withAuth (so 401 responses include CORS headers)
+  setCorsHeaders(res, origin);
+
+  // Now call withAuth - it will handle authentication
+  return withAuth(handler, ['student', 'instructor', 'admin', 'superadmin'])(req as AuthRequest, res);
+}
