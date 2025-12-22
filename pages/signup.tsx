@@ -10,6 +10,18 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { useAuth } from '@/hooks/useAuth';
 
+// Helper function to normalize email (trim + lowercase)
+const normalizeEmail = (email: string): string => {
+  return email.trim().toLowerCase();
+};
+
+// Helper function to validate email format
+const isValidEmail = (email: string): boolean => {
+  if (!email || !email.includes('@')) return false;
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+};
+
 export default function Signup() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -23,10 +35,39 @@ export default function Signup() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    
+    // Client-side validation
+    const normalizedEmail = normalizeEmail(email);
+    if (!normalizedEmail) {
+      setError('Please enter your email address');
+      return;
+    }
+
+    if (!isValidEmail(normalizedEmail)) {
+      setError('Please enter a valid email address');
+      return;
+    }
+
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters long');
+      return;
+    }
+
     setLoading(true);
 
+    // Development-only logging
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Signup attempted for:', normalizedEmail, 'role:', role);
+    }
+
     try {
-      await signup(email, password, name, role);
+      await signup(normalizedEmail, password, name, role);
+      
+      // Development-only logging
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Signup successful');
+      }
+      
       // Redirect students to onboarding, others to dashboard
       if (role === 'student') {
         router.push('/onboarding');
@@ -34,7 +75,24 @@ export default function Signup() {
         router.push('/dashboard');
       }
     } catch (err: any) {
-      setError(err.message || 'Signup failed');
+      // Map errors safely without exposing backend details
+      let errorMessage = 'Signup failed. Please try again.';
+      
+      if (err.message) {
+        // Use the error message from useAuth or API
+        errorMessage = err.message;
+      } else if (err.response) {
+        const status = err.response.status;
+        if (status >= 500) {
+          errorMessage = 'Service temporarily unavailable. Please try again later.';
+        } else if (status === 408 || err.code === 'ECONNABORTED') {
+          errorMessage = 'Request took too long. Please try again.';
+        }
+      } else if (err.message?.includes('timeout') || err.message?.includes('network')) {
+        errorMessage = 'Network issue. Please check your connection and try again.';
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -149,7 +207,7 @@ export default function Signup() {
 
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || !email.trim() || !password.trim() || !name.trim()}
                 className="bg-white text-[#1565C0] hover:bg-gray-100 w-full rounded-xl py-3 font-semibold transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed"
               >
                 {loading ? (

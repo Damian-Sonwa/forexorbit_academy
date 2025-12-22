@@ -10,6 +10,18 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { useAuth } from '@/hooks/useAuth';
 
+// Helper function to normalize email (trim + lowercase)
+const normalizeEmail = (email: string): string => {
+  return email.trim().toLowerCase();
+};
+
+// Helper function to validate email format
+const isValidEmail = (email: string): boolean => {
+  if (!email || !email.includes('@')) return false;
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+};
+
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -21,13 +33,54 @@ export default function Login() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    
+    // Client-side validation
+    const normalizedEmail = normalizeEmail(email);
+    if (!normalizedEmail) {
+      setError('Please enter your email address');
+      return;
+    }
+
+    if (!isValidEmail(normalizedEmail)) {
+      setError('Please enter a valid email address');
+      return;
+    }
+
     setLoading(true);
 
+    // Development-only logging
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Login attempted for:', normalizedEmail);
+    }
+
     try {
-      await login(email, password);
+      await login(normalizedEmail, password);
+      
+      // Development-only logging
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Login successful');
+      }
+      
       router.push('/dashboard');
     } catch (err: any) {
-      setError(err.message || 'Login failed');
+      // Map errors safely without exposing backend details
+      let errorMessage = 'Login failed. Please check your credentials.';
+      
+      if (err.message) {
+        // Use the error message from useAuth (which already handles API errors)
+        errorMessage = err.message;
+      } else if (err.response) {
+        const status = err.response.status;
+        if (status >= 500) {
+          errorMessage = 'Service temporarily unavailable. Please try again later.';
+        } else if (status === 408 || err.code === 'ECONNABORTED') {
+          errorMessage = 'Request took too long. Please try again.';
+        }
+      } else if (err.message?.includes('timeout') || err.message?.includes('network')) {
+        errorMessage = 'Network issue. Please check your connection and try again.';
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -90,11 +143,11 @@ export default function Login() {
                 />
               </div>
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="bg-white text-[#003153] hover:bg-gray-100 w-full rounded-xl py-3 font-semibold transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed"
-              >
+                  <button
+                    type="submit"
+                    disabled={loading || !email.trim() || !password.trim()}
+                    className="bg-white text-[#003153] hover:bg-gray-100 w-full rounded-xl py-3 font-semibold transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed"
+                  >
                 {loading ? (
                   <span className="flex items-center justify-center">
                     <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">

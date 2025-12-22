@@ -281,7 +281,7 @@ app.prepare().then(async () => {
       }
     });
 
-    // Community room handlers - Validate room exists in database before joining
+    // Community room handlers - Validate room exists and user has access
     socket.on('joinRoom', async (data) => {
       const { roomId } = data;
       if (!roomId) {
@@ -296,12 +296,13 @@ app.prepare().then(async () => {
           let room = null;
           let actualRoomId = roomId;
           
-          // Try to validate room in database, but don't fail if DB check fails
+          // Validate room in database and check user access
           try {
             const { getDb } = require('./lib/mongodb');
             const { ObjectId } = require('mongodb');
             const db = await getDb();
             const rooms = db.collection('communityRooms');
+            const users = db.collection('users');
             
             // Handle both ObjectId and string roomId
             if (roomId.match(/^[0-9a-fA-F]{24}$/)) {
@@ -319,26 +320,64 @@ app.prepare().then(async () => {
               });
             }
             
-            if (room) {
-              actualRoomId = room._id.toString();
-            } else {
-              console.warn(`Room not found in database: ${roomId}, but allowing join anyway`);
-              // Don't return - allow join even if room not found in DB
+            if (!room) {
+              console.warn(`Room not found in database: ${roomId}`);
+              socket.emit('error', { message: 'Room not found' });
+              return;
             }
+            
+            actualRoomId = room._id.toString();
+            
+            // CRITICAL: Validate room access for students
+            if (user.role === 'student') {
+              // Get user's learning level from database
+              const userDoc = await users.findOne(
+                { _id: new ObjectId(user.userId) },
+                { projection: { learningLevel: 1, studentDetails: 1 } }
+              );
+              
+              const userLevel = userDoc?.learningLevel || 
+                              userDoc?.studentDetails?.tradingLevel;
+              
+              if (!userLevel) {
+                console.warn(`Student ${user.email} has no trading level - access denied`);
+                socket.emit('error', { message: 'Please complete onboarding to access community rooms' });
+                return;
+              }
+              
+              // Map level to room name
+              const levelRoomMap = {
+                'beginner': 'Beginner',
+                'intermediate': 'Intermediate',
+                'advanced': 'Advanced'
+              };
+              
+              const allowedRoomName = levelRoomMap[userLevel.toLowerCase()];
+              
+              // Validate that room matches user's level
+              if (room.name !== allowedRoomName) {
+                console.warn(`Student ${user.email} attempted to join ${room.name} but is assigned to ${allowedRoomName}`);
+                socket.emit('error', { message: 'Access restricted to your learning level' });
+                return;
+              }
+            }
+            // Instructors/admins can access all rooms - no validation needed
+            
           } catch (dbError) {
-            // DB check failed - log but don't block room join
-            console.warn('Database check failed for room join, allowing join anyway:', dbError.message);
-            // Continue with roomId as-is
+            // DB check failed - reject join for security
+            console.error('Database check failed for room join:', dbError.message);
+            socket.emit('error', { message: 'Failed to validate room access' });
+            return;
           }
           
-          // Join room regardless of DB validation result (fail-safe)
+          // Join room after validation passes
           socket.join(`room:${actualRoomId}`);
-          console.log(`User ${user.email} joined room: ${actualRoomId}`);
+          console.log(`User ${user.email} (${user.role}) joined room: ${actualRoomId} (${room.name})`);
           
           // Emit confirmation with room ID
           socket.emit('room_joined', { 
             roomId: actualRoomId, 
-            roomName: room?.name || 'Room' 
+            roomName: room.name 
           });
           
           // Notify others in the room
@@ -354,15 +393,8 @@ app.prepare().then(async () => {
           socket.emit('room_joined', { roomId: 'community_global' });
         }
       } catch (error) {
-        // Last resort error handling - still try to join room
         console.error('Error joining room:', error);
-        try {
-          socket.join(`room:${roomId}`);
-          socket.emit('room_joined', { roomId: roomId });
-        } catch (joinError) {
-          console.error('Failed to join room even after error recovery:', joinError);
-          socket.emit('error', { message: 'Failed to join room' });
-        }
+        socket.emit('error', { message: 'Failed to join room' });
       }
     });
 

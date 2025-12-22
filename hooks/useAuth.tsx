@@ -64,9 +64,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (email: string, password: string) => {
+    // Normalize email (trim + lowercase)
+    const normalizedEmail = email.trim().toLowerCase();
+    
+    // Development-only logging
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Login API call for:', normalizedEmail);
+    }
+    
     try {
       const response = await apiClient.post<{ token: string; user: User }>('/auth/login', {
-        email,
+        email: normalizedEmail,
         password,
       });
 
@@ -90,8 +98,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signup = async (email: string, password: string, name: string, role = 'student') => {
+    // Normalize email (trim + lowercase)
+    const normalizedEmail = email.trim().toLowerCase();
+    
+    // Development-only logging
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Signup API call for:', normalizedEmail, 'role:', role);
+    }
+    
     const response = await apiClient.post<{ token: string | null; user: User; message?: string }>('/auth/signup', {
-      email,
+      email: normalizedEmail,
       password,
       name,
       role,

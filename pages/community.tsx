@@ -145,33 +145,42 @@ export default function Community() {
 
   useEffect(() => {
     if (selectedRoom) {
-      // For students, ensure we're using a room based on their trading level from onboarding
+      // For students, validate room access based on their trading level from onboarding
       let roomToUse = selectedRoom;
       if (user?.role === 'student') {
-        const roomIdStr = selectedRoom._id?.toString() || selectedRoom._id;
-        // Check if selectedRoom is a placeholder
-        if (typeof roomIdStr === 'string' && roomIdStr.startsWith('placeholder-')) {
-          // Get user's level from profile or default to beginner
-          const userLevel = (user as any)?.learningLevel || 
-                          (user as any)?.studentDetails?.tradingLevel || 
-                          'beginner';
+        // Get user's level from profile - MUST come from onboarding
+        const userLevel = (user as any)?.learningLevel || 
+                        (user as any)?.studentDetails?.tradingLevel;
+        
+        // If no level found, redirect to onboarding
+        if (!userLevel) {
+          console.warn('Student has no trading level - redirecting to onboarding');
+          router.push('/onboarding');
+          return;
+        }
+        
+        // Map level to room name
+        const levelRoomMap: Record<string, string> = {
+          'beginner': 'Beginner',
+          'intermediate': 'Intermediate',
+          'advanced': 'Advanced'
+        };
+        
+        const allowedRoomName = levelRoomMap[userLevel.toLowerCase()];
+        
+        // Validate that selected room matches user's level
+        if (selectedRoom.name !== allowedRoomName) {
+          console.warn(`Student attempted to access ${selectedRoom.name} but is assigned to ${allowedRoomName}`);
+          setToastMessage('Access restricted to your learning level.');
+          setShowToast(true);
           
-          // Map level to room name
-          const levelRoomMap: Record<string, string> = {
-            'beginner': 'Beginner',
-            'intermediate': 'Intermediate',
-            'advanced': 'Advanced'
-          };
-          
-          const targetRoomName = levelRoomMap[userLevel.toLowerCase()] || 'Beginner';
-          const targetRoom = rooms.find(r => r.name === targetRoomName && !r._id?.toString().startsWith('placeholder-'));
-          
-          if (targetRoom) {
-            roomToUse = targetRoom;
-            setSelectedRoom(targetRoom);
-            console.log(`Student: Using ${targetRoomName} room based on trading level: ${userLevel}`);
+          // Find and select the correct room
+          const correctRoom = rooms.find(r => r.name === allowedRoomName && !r.isLocked);
+          if (correctRoom) {
+            setSelectedRoom(correctRoom);
+            roomToUse = correctRoom;
           } else {
-            console.error(`Student: No ${targetRoomName} room found`);
+            router.push('/onboarding');
             return;
           }
         }
@@ -384,31 +393,48 @@ export default function Community() {
         setRooms(mainRooms);
         
         // Auto-select room based on user's trading level from onboarding
+        // CRITICAL: No fallback to Beginner - redirect to onboarding if level missing
         if (!selectedRoom && user?.role === 'student') {
-          // Get user's level from profile or default to beginner
+          // Get user's level from profile - MUST come from onboarding
           const userLevel = (user as any)?.learningLevel || 
-                          (user as any)?.studentDetails?.tradingLevel || 
-                          'beginner';
+                          (user as any)?.studentDetails?.tradingLevel;
           
-          // Map level to room name
+          // If no level found, redirect to onboarding
+          if (!userLevel) {
+            console.warn('Student has no trading level - redirecting to onboarding');
+            router.push('/onboarding');
+            return;
+          }
+          
+          // Map level to room name - NO FALLBACK
           const levelRoomMap: Record<string, string> = {
             'beginner': 'Beginner',
             'intermediate': 'Intermediate',
             'advanced': 'Advanced'
           };
           
-          const targetRoomName = levelRoomMap[userLevel.toLowerCase()] || 'Beginner';
+          const targetRoomName = levelRoomMap[userLevel.toLowerCase()];
+          
+          // If level doesn't map to a room, redirect to onboarding
+          if (!targetRoomName) {
+            console.warn(`Invalid user level: ${userLevel} - redirecting to onboarding`);
+            router.push('/onboarding');
+            return;
+          }
+          
           const targetRoom = mainRooms.find((r: Room) => r.name === targetRoomName && !r.isLocked);
           
           if (targetRoom) {
             setSelectedRoom(targetRoom);
             console.log(`Auto-selected ${targetRoomName} room based on trading level: ${userLevel}`);
           } else {
-            // Fallback to first unlocked room
-            const firstUnlockedRoom = mainRooms.find((r: Room) => !r.isLocked);
-            if (firstUnlockedRoom) {
-              setSelectedRoom(firstUnlockedRoom);
-            }
+            // Room not found or locked - show error and redirect to onboarding
+            console.error(`Student's assigned room (${targetRoomName}) not found or locked`);
+            setToastMessage(`Your assigned room (${targetRoomName}) is not available. Please contact support.`);
+            setShowToast(true);
+            setTimeout(() => {
+              router.push('/onboarding');
+            }, 3000);
           }
         }
       } else {
@@ -677,20 +703,40 @@ export default function Community() {
       return;
     }
     
+    // CRITICAL FIX: Students use their assigned room ID, not forced Beginner
     if (user?.role === 'student') {
-      // For students, always use the Beginner room ID for API calls (which is the default accessible room)
-      // Ensure we're using the real room, not placeholder
-      const beginnerRoom = rooms.find(r => r.name === 'Beginner' && !r._id?.toString().startsWith('placeholder-'));
-      if (beginnerRoom) {
-        roomIdStr = beginnerRoom._id.toString();
-        console.log('Student: Using Beginner room ID for message sending:', roomIdStr);
-      } else {
-        // If no Beginner room found, show error
-        setToastMessage('Please select a valid room to send messages.');
+      // Validate that selected room matches user's level
+      const userLevel = (user as any)?.learningLevel || 
+                      (user as any)?.studentDetails?.tradingLevel;
+      
+      if (!userLevel) {
+        setToastMessage('Please complete onboarding to access community rooms.');
+        setShowToast(true);
+        setTimeout(() => {
+          router.push('/onboarding');
+        }, 2000);
+        return;
+      }
+      
+      const levelRoomMap: Record<string, string> = {
+        'beginner': 'Beginner',
+        'intermediate': 'Intermediate',
+        'advanced': 'Advanced'
+      };
+      
+      const allowedRoomName = levelRoomMap[userLevel.toLowerCase()];
+      
+      // Ensure selected room matches user's level
+      if (selectedRoom.name !== allowedRoomName) {
+        setToastMessage('Access restricted to your learning level.');
         setShowToast(true);
         setTimeout(() => setShowToast(false), 3000);
         return;
       }
+      
+      // Use the selected room's ID (which should match user's level)
+      roomIdStr = selectedRoom._id?.toString() || selectedRoom._id;
+      console.log(`Student: Using ${selectedRoom.name} room ID for message sending:`, roomIdStr);
     }
     
     if (!input.trim() && !selectedFile) {
@@ -1100,13 +1146,30 @@ export default function Community() {
   }, [showEmojiPicker]);
 
   // Filter rooms based on search query and access level
-  // CRITICAL: Students can ONLY see their exact level room (hide locked rooms)
+  // CRITICAL: Students can ONLY see their exact level room (no other rooms visible)
   const filteredRooms = rooms.filter((room) => {
     const matchesSearch = room.name.toLowerCase().includes(searchQuery.toLowerCase());
     
-    // For students: Only show rooms they have access to (not locked)
+    // For students: Only show their assigned level room
     if (user?.role === 'student') {
-      return matchesSearch && !room.isLocked;
+      const userLevel = (user as any)?.learningLevel || 
+                      (user as any)?.studentDetails?.tradingLevel;
+      
+      if (!userLevel) {
+        // No level = no rooms visible (will redirect to onboarding)
+        return false;
+      }
+      
+      const levelRoomMap: Record<string, string> = {
+        'beginner': 'Beginner',
+        'intermediate': 'Intermediate',
+        'advanced': 'Advanced'
+      };
+      
+      const allowedRoomName = levelRoomMap[userLevel.toLowerCase()];
+      
+      // Only show the room that matches user's level
+      return matchesSearch && room.name === allowedRoomName && !room.isLocked;
     }
     
     // Instructors/admins can see all rooms
@@ -1230,6 +1293,36 @@ export default function Community() {
                           setShowToast(true);
                           setTimeout(() => setShowToast(false), 3000);
                         } else {
+                          // For students: Validate room access before selecting
+                          if (user?.role === 'student') {
+                            const userLevel = (user as any)?.learningLevel || 
+                                            (user as any)?.studentDetails?.tradingLevel;
+                            
+                            if (!userLevel) {
+                              setToastMessage('Please complete onboarding to access community rooms.');
+                              setShowToast(true);
+                              setTimeout(() => {
+                                router.push('/onboarding');
+                              }, 2000);
+                              return;
+                            }
+                            
+                            const levelRoomMap: Record<string, string> = {
+                              'beginner': 'Beginner',
+                              'intermediate': 'Intermediate',
+                              'advanced': 'Advanced'
+                            };
+                            
+                            const allowedRoomName = levelRoomMap[userLevel.toLowerCase()];
+                            
+                            if (room.name !== allowedRoomName) {
+                              setToastMessage('Access restricted to your learning level.');
+                              setShowToast(true);
+                              setTimeout(() => setShowToast(false), 3000);
+                              return;
+                            }
+                          }
+                          
                           setSelectedRoom(room);
                         }
                       }}
@@ -1278,6 +1371,36 @@ export default function Community() {
                             setShowToast(true);
                             setTimeout(() => setShowToast(false), 3000);
                           } else {
+                            // For students: Validate room access before selecting
+                            if (user?.role === 'student') {
+                              const userLevel = (user as any)?.learningLevel || 
+                                              (user as any)?.studentDetails?.tradingLevel;
+                              
+                              if (!userLevel) {
+                                setToastMessage('Please complete onboarding to access community rooms.');
+                                setShowToast(true);
+                                setTimeout(() => {
+                                  router.push('/onboarding');
+                                }, 2000);
+                                return;
+                              }
+                              
+                              const levelRoomMap: Record<string, string> = {
+                                'beginner': 'Beginner',
+                                'intermediate': 'Intermediate',
+                                'advanced': 'Advanced'
+                              };
+                              
+                              const allowedRoomName = levelRoomMap[userLevel.toLowerCase()];
+                              
+                              if (room.name !== allowedRoomName) {
+                                setToastMessage('Access restricted to your learning level.');
+                                setShowToast(true);
+                                setTimeout(() => setShowToast(false), 3000);
+                                return;
+                              }
+                            }
+                            
                             setSelectedRoom(room);
                           }
                         }}
@@ -1534,7 +1657,36 @@ export default function Community() {
                     <div
                       key={room._id}
                       onClick={() => {
-                        // Students can only access their exact level room (locked rooms already filtered)
+                        // For students: Validate room access before selecting
+                        if (user?.role === 'student') {
+                          const userLevel = (user as any)?.learningLevel || 
+                                          (user as any)?.studentDetails?.tradingLevel;
+                          
+                          if (!userLevel) {
+                            setToastMessage('Please complete onboarding to access community rooms.');
+                            setShowToast(true);
+                            setTimeout(() => {
+                              router.push('/onboarding');
+                            }, 2000);
+                            return;
+                          }
+                          
+                          const levelRoomMap: Record<string, string> = {
+                            'beginner': 'Beginner',
+                            'intermediate': 'Intermediate',
+                            'advanced': 'Advanced'
+                          };
+                          
+                          const allowedRoomName = levelRoomMap[userLevel.toLowerCase()];
+                          
+                          if (room.name !== allowedRoomName) {
+                            setToastMessage('Access restricted to your learning level.');
+                            setShowToast(true);
+                            setTimeout(() => setShowToast(false), 3000);
+                            return;
+                          }
+                        }
+                        
                         // Instructors/admins can access any room
                         setSelectedRoom(room);
                       }}

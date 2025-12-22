@@ -3,32 +3,178 @@
  * Allows users to request password reset
  */
 
-import { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { apiClient } from '@/lib/api-client';
 
+// Helper function to normalize email (trim + lowercase)
+const normalizeEmail = (email: string): string => {
+  return email.trim().toLowerCase();
+};
+
+// Helper function to validate email format
+const isValidEmail = (email: string): boolean => {
+  if (!email || !email.includes('@')) return false;
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+};
+
 export default function ForgotPassword() {
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [lastEmailSent, setLastEmailSent] = useState<string | null>(null);
+  const cooldownTimerRef = useRef<NodeJS.Timeout | null>(null);
   const router = useRouter();
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (cooldownTimerRef.current) {
+        clearInterval(cooldownTimerRef.current);
+      }
+    };
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSuccess(false);
+
+    // Client-side validation
+    const normalizedEmail = normalizeEmail(email);
+    if (!normalizedEmail) {
+      setError('Please enter your email address');
+      return;
+    }
+
+    if (!isValidEmail(normalizedEmail)) {
+      setError('Please enter a valid email address');
+      return;
+    }
+
     setLoading(true);
 
+    // Development-only logging
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Password reset requested for:', normalizedEmail);
+    }
+
     try {
-      await apiClient.post('/auth/forgot-password', { email });
+      await apiClient.post('/auth/forgot-password', { email: normalizedEmail });
       setSuccess(true);
+      setLastEmailSent(normalizedEmail);
+      
+      // Development-only logging
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Password reset email sent successfully');
+      }
     } catch (err: any) {
-      // Always show success message (security: don't reveal if email exists)
-      setSuccess(true);
+      // Map errors safely without exposing backend details
+      // Security: Always show success for 4xx errors (don't reveal if email exists)
+      // Only show error for network/server issues (5xx, timeouts, network errors)
+      
+      let shouldShowError = false;
+      let errorMessage = '';
+      
+      if (err.response) {
+        const status = err.response.status;
+        if (status >= 500) {
+          // Server errors - show error message
+          shouldShowError = true;
+          errorMessage = 'Service temporarily unavailable. Please try again later.';
+        } else if (status === 408 || err.code === 'ECONNABORTED') {
+          // Timeout errors - show error message
+          shouldShowError = true;
+          errorMessage = 'Request took too long. Please try again.';
+        } else {
+          // 4xx errors (including 400, 404, etc.) - show success for security
+          setSuccess(true);
+          setLastEmailSent(normalizedEmail);
+          setLoading(false);
+          return;
+        }
+      } else if (err.message?.includes('timeout') || err.message?.includes('network') || err.code === 'ECONNREFUSED') {
+        // Network errors - show error message
+        shouldShowError = true;
+        errorMessage = 'Network issue. Please check your connection and try again.';
+      } else {
+        // Unknown errors - default to success for security
+        setSuccess(true);
+        setLastEmailSent(normalizedEmail);
+        setLoading(false);
+        return;
+      }
+
+      // Show error only for network/server issues
+      if (shouldShowError) {
+        setError(errorMessage);
+      } else {
+        // Fallback to success
+        setSuccess(true);
+        setLastEmailSent(normalizedEmail);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResend = async () => {
+    if (resendCooldown > 0 || !lastEmailSent) return;
+
+    setError('');
+    setLoading(true);
+
+    // Development-only logging
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Resending password reset email for:', lastEmailSent);
+    }
+
+    try {
+      await apiClient.post('/auth/forgot-password', { email: lastEmailSent });
+      
+      // Start 30-second cooldown
+      setResendCooldown(30);
+      if (cooldownTimerRef.current) {
+        clearInterval(cooldownTimerRef.current);
+      }
+      cooldownTimerRef.current = setInterval(() => {
+        setResendCooldown((prev) => {
+          if (prev <= 1) {
+            if (cooldownTimerRef.current) {
+              clearInterval(cooldownTimerRef.current);
+            }
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+
+      // Development-only logging
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Password reset email resent successfully');
+      }
+    } catch (err: any) {
+      // Map errors safely
+      let errorMessage = 'Network issue. Please try again.';
+      
+      if (err.response) {
+        const status = err.response.status;
+        if (status >= 500) {
+          errorMessage = 'Service temporarily unavailable. Please try again later.';
+        } else if (status === 408 || err.code === 'ECONNABORTED') {
+          errorMessage = 'Request took too long. Please try again.';
+        }
+      } else if (err.message?.includes('timeout') || err.message?.includes('network')) {
+        errorMessage = 'Network issue. Please check your connection and try again.';
+      }
+
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -60,13 +206,31 @@ export default function ForgotPassword() {
             {success ? (
               <div className="space-y-4">
                 <div className="p-4 bg-green-900/30 border border-green-700 rounded-xl">
-                  <p className="text-green-300 text-sm text-center">
-                    If an account with that email exists, a password reset link has been sent. Please check your email.
+                  <p className="text-green-300 text-sm text-center mb-2">
+                    If this email exists, a reset link has been sent.
+                  </p>
+                  <p className="text-green-200 text-xs text-center">
+                    Didn't receive it? Check Spam or Promotions, or try again.
                   </p>
                 </div>
+                
+                {lastEmailSent && (
+                  <button
+                    onClick={handleResend}
+                    disabled={resendCooldown > 0 || loading}
+                    className="w-full px-6 py-3 bg-primary-600 hover:bg-primary-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-xl font-semibold transition-colors"
+                  >
+                    {resendCooldown > 0 ? (
+                      `Resend in ${resendCooldown}s`
+                    ) : (
+                      'Resend Reset Email'
+                    )}
+                  </button>
+                )}
+                
                 <Link
                   href="/login"
-                  className="block w-full text-center px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-semibold transition-colors"
+                  className="block w-full text-center px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-xl font-semibold transition-colors"
                 >
                   Back to Login
                 </Link>
@@ -94,7 +258,7 @@ export default function ForgotPassword() {
 
                   <button
                     type="submit"
-                    disabled={loading}
+                    disabled={loading || !email.trim()}
                     className="bg-white text-[#003153] hover:bg-gray-100 w-full rounded-xl py-3 font-semibold transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed"
                   >
                     {loading ? (
