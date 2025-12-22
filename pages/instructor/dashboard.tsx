@@ -1649,7 +1649,7 @@ export default function InstructorDashboard() {
                                   <img
                                     src={aid.url}
                                     alt={aid.caption || 'Visual aid preview'}
-                                    className="max-w-full h-32 object-contain rounded border border-gray-200 dark:border-gray-700"
+                                    className="max-w-full max-h-96 w-auto h-auto object-contain rounded border border-gray-200 dark:border-gray-700"
                                     onError={(e) => {
                                       (e.target as HTMLImageElement).style.display = 'none';
                                     }}
