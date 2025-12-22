@@ -619,6 +619,71 @@ app.prepare().then(async () => {
     io.emit('marketSignal', signal);
   }, 3000);
 
+  // Reminder checker - runs every minute
+  const checkTodoReminders = async () => {
+    try {
+      const { getDb } = require('./lib/mongodb');
+      const { createNotification } = require('./lib/notifications');
+      const db = await getDb();
+      const todos = db.collection('todos');
+      const now = new Date();
+
+      // Find todos with due reminders that haven't been triggered
+      const dueReminders = await todos.find({
+        reminderAt: { $lte: now, $ne: null },
+        reminderTriggered: false,
+        status: 'pending', // Only trigger for pending todos
+      }).toArray();
+
+      for (const todo of dueReminders) {
+        // Mark reminder as triggered
+        await todos.updateOne(
+          { _id: todo._id },
+          { $set: { reminderTriggered: true } }
+        );
+
+        // Create notification
+        try {
+          await createNotification({
+            type: 'todo_reminder',
+            title: '⏰ Reminder: ' + todo.title,
+            message: `Your task "${todo.title}" is due now.`,
+            userId: todo.userId,
+            relatedId: todo._id.toString(),
+            metadata: {
+              todoTitle: todo.title,
+              todoId: todo._id.toString(),
+            },
+          });
+
+          // Emit socket event to user
+          io.to(`user:${todo.userId}`).emit('todo_reminder_triggered', {
+            todoId: todo._id.toString(),
+            title: todo.title,
+            reminderAt: todo.reminderAt,
+          });
+
+          console.log(`✅ Reminder triggered for todo ${todo._id} (user: ${todo.userId})`);
+        } catch (notifError) {
+          console.error(`Failed to create notification for todo ${todo._id}:`, notifError);
+          // Continue processing other reminders even if one fails
+        }
+      }
+
+      if (dueReminders.length > 0) {
+        console.log(`⏰ Processed ${dueReminders.length} todo reminder(s)`);
+      }
+    } catch (error) {
+      console.error('Error checking todo reminders:', error);
+      // Don't throw - allow the interval to continue
+    }
+  };
+
+  // Check reminders every minute
+  setInterval(checkTodoReminders, 60000); // 60 seconds
+  // Run immediately on server start
+  checkTodoReminders();
+
   server.listen(port, hostname, (err) => {
     if (err) throw err;
     const serverUrl = process.env.NODE_ENV === 'production' 

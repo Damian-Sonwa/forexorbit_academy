@@ -21,6 +21,8 @@ export interface TodoItem {
   relatedType?: 'task' | 'live_class' | 'reminder' | 'consultation' | null;
   relatedId?: string;
   dueDate?: Date;
+  reminderAt?: Date | null;
+  reminderTriggered?: boolean;
   completedAt?: Date;
   createdAt: Date;
   metadata?: Record<string, any>;
@@ -61,6 +63,8 @@ async function getTodos(req: AuthRequest, res: NextApiResponse) {
       relatedType: todo.relatedType || null,
       relatedId: todo.relatedId,
       dueDate: todo.dueDate,
+      reminderAt: todo.reminderAt || null,
+      reminderTriggered: todo.reminderTriggered || false,
       completedAt: todo.completedAt,
       createdAt: todo.createdAt,
       metadata: todo.metadata || {},
@@ -69,8 +73,7 @@ async function getTodos(req: AuthRequest, res: NextApiResponse) {
     res.json({ todos: result });
   } catch (error: unknown) {
     console.error('Get todos error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
-    res.status(500).json({ error: 'Failed to fetch todos', message: errorMessage });
+    res.status(500).json({ error: 'Failed to fetch todos', message: error instanceof Error ? error.message : 'Internal server error' });
   }
 }
 
@@ -86,6 +89,7 @@ async function createTodo(req: AuthRequest, res: NextApiResponse) {
       relatedType,
       relatedId,
       dueDate,
+      reminderAt,
       metadata,
     } = req.body;
 
@@ -102,6 +106,8 @@ async function createTodo(req: AuthRequest, res: NextApiResponse) {
       relatedType: relatedType || null,
       relatedId: relatedId || undefined,
       dueDate: dueDate ? new Date(dueDate) : undefined,
+      reminderAt: reminderAt ? new Date(reminderAt) : null,
+      reminderTriggered: false,
       createdAt: new Date(),
       metadata: metadata || {},
     };
@@ -125,8 +131,7 @@ async function createTodo(req: AuthRequest, res: NextApiResponse) {
     });
   } catch (error: unknown) {
     console.error('Create todo error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
-    res.status(500).json({ error: 'Failed to create todo', message: errorMessage });
+    res.status(500).json({ error: 'Failed to create todo', message: error instanceof Error ? error.message : 'Internal server error' });
   }
 }
 
@@ -160,6 +165,11 @@ async function updateTodo(req: AuthRequest, res: NextApiResponse) {
       updateData.status = updates.status;
       if (updates.status === 'completed' && !todo.completedAt) {
         updateData.completedAt = new Date();
+        // Clear reminder when task is completed
+        if (todo.reminderAt) {
+          updateData.reminderAt = null;
+          updateData.reminderTriggered = false;
+        }
       } else if (updates.status === 'pending' && todo.completedAt) {
         updateData.completedAt = null;
       }
@@ -168,6 +178,14 @@ async function updateTodo(req: AuthRequest, res: NextApiResponse) {
     if (updates.dueDate !== undefined) {
       updateData.dueDate = updates.dueDate ? new Date(updates.dueDate) : null;
     }
+    if (updates.reminderAt !== undefined) {
+      updateData.reminderAt = updates.reminderAt ? new Date(updates.reminderAt) : null;
+      // Reset reminderTriggered when reminder time is changed
+      if (updates.reminderAt) {
+        updateData.reminderTriggered = false;
+      }
+    }
+    if (updates.reminderTriggered !== undefined) updateData.reminderTriggered = updates.reminderTriggered;
     if (updates.metadata !== undefined) updateData.metadata = updates.metadata;
 
     await todos.updateOne(
@@ -186,8 +204,7 @@ async function updateTodo(req: AuthRequest, res: NextApiResponse) {
     res.json({ success: true });
   } catch (error: unknown) {
     console.error('Update todo error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
-    res.status(500).json({ error: 'Failed to update todo', message: errorMessage });
+    res.status(500).json({ error: 'Failed to update todo', message: error instanceof Error ? error.message : 'Internal server error' });
   }
 }
 
@@ -222,8 +239,7 @@ async function deleteTodo(req: AuthRequest, res: NextApiResponse) {
     res.json({ success: true });
   } catch (error: unknown) {
     console.error('Delete todo error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
-    res.status(500).json({ error: 'Failed to delete todo', message: errorMessage });
+    res.status(500).json({ error: 'Failed to delete todo', message: error instanceof Error ? error.message : 'Internal server error' });
   }
 }
 

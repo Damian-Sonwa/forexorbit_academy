@@ -18,8 +18,10 @@ export type NotificationType =
   | 'task_updated'
   | 'task_submission'
   | 'task_feedback'
+  | 'task_assignment'
   | 'live_class_reminder'
   | 'consultation_reminder'
+  | 'todo_reminder'
   | 'system_alert';
 
 export interface Notification {
