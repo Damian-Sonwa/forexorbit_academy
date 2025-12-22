@@ -1,6 +1,6 @@
 /**
  * Certificate Upload API Route (Admin Only)
- * POST: Upload certificate template for a course level
+ * POST: Upload certificate template for a course level using Cloudinary
  * Certificates uploaded here will be available to all students who complete courses of that level
  */
 
@@ -9,7 +9,7 @@ import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
 import formidable from 'formidable';
 import fs from 'fs';
-import path from 'path';
+import { uploadImageFromPath, isCloudinaryConfigured } from '@/lib/cloudinary';
 
 export const config = {
   api: {
@@ -17,19 +17,15 @@ export const config = {
   },
 };
 
-const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'certificates');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-
 async function uploadCertificate(req: AuthRequest, res: NextApiResponse) {
   try {
-    if (req.user!.role !== 'admin') {
+    if (req.user!.role !== 'admin' && req.user!.role !== 'superadmin') {
       return res.status(403).json({ error: 'Admin only' });
     }
 
+    // Use /tmp for temporary file storage (works in both serverless and regular environments)
     const form = formidable({
-      uploadDir,
+      uploadDir: '/tmp',
       keepExtensions: true,
       maxFileSize: 10 * 1024 * 1024, // 10MB limit
       filter: ({ name, mimetype }) => {
@@ -40,59 +36,100 @@ async function uploadCertificate(req: AuthRequest, res: NextApiResponse) {
       },
     });
 
-    form.parse(req, async (err, fields, files) => {
-      if (err) {
-        console.error('Upload error:', err);
-        return res.status(400).json({ error: 'Failed to upload file' });
+    const [fields, files] = await form.parse(req);
+
+    const file = Array.isArray(files.certificate) ? files.certificate[0] : files.certificate;
+    const level = Array.isArray(fields.level) ? fields.level[0] : fields.level;
+
+    if (!file) {
+      return res.status(400).json({ error: 'No certificate file provided' });
+    }
+
+    if (!level || !['beginner', 'intermediate', 'advanced'].includes(level as string)) {
+      // Clean up temp file
+      if (fs.existsSync(file.filepath)) {
+        try {
+          fs.unlinkSync(file.filepath);
+        } catch (unlinkError) {
+          // Ignore cleanup errors
+        }
       }
+      return res.status(400).json({ error: 'Invalid level. Must be beginner, intermediate, or advanced' });
+    }
 
-      const file = Array.isArray(files.certificate) ? files.certificate[0] : files.certificate;
-      const level = Array.isArray(fields.level) ? fields.level[0] : fields.level;
-
-      if (!file) {
-        return res.status(400).json({ error: 'No certificate file provided' });
+    // Check if Cloudinary is configured
+    if (!isCloudinaryConfigured()) {
+      // Clean up temp file
+      if (fs.existsSync(file.filepath)) {
+        try {
+          fs.unlinkSync(file.filepath);
+        } catch (unlinkError) {
+          // Ignore cleanup errors
+        }
       }
-
-      if (!level || !['beginner', 'intermediate', 'advanced'].includes(level as string)) {
-        return res.status(400).json({ error: 'Invalid level. Must be beginner, intermediate, or advanced' });
-      }
-
-      const timestamp = Date.now();
-      const ext = path.extname(file.originalFilename || '');
-      const filename = `certificate-${level}-${timestamp}${ext}`;
-      const filepath = path.join(uploadDir, filename);
-      const publicUrl = `/uploads/certificates/${filename}`;
-
-      fs.renameSync(file.filepath, filepath);
-
-      // Save certificate template to database
-      const db = await getDb();
-      const certificateTemplates = db.collection('certificateTemplates');
-
-      await certificateTemplates.insertOne({
-        level: level as string,
-        fileUrl: publicUrl,
-        filename: filename,
-        uploadedBy: req.user!.userId,
-        uploadedAt: new Date(),
-        createdAt: new Date(),
-        updatedAt: new Date(),
+      const missing = [];
+      if (!process.env.CLOUDINARY_CLOUD_NAME) missing.push('CLOUDINARY_CLOUD_NAME');
+      if (!process.env.CLOUDINARY_API_KEY) missing.push('CLOUDINARY_API_KEY');
+      if (!process.env.CLOUDINARY_API_SECRET) missing.push('CLOUDINARY_API_SECRET');
+      console.error('Cloudinary not configured - missing environment variables:', missing.join(', '));
+      return res.status(500).json({ 
+        error: 'Image upload service is not configured. Please contact support.',
+        details: `Missing: ${missing.join(', ')}`
       });
+    }
 
-      res.status(200).json({
-        success: true,
-        url: publicUrl,
-        filename: filename,
-        level: level,
-      });
+    // Upload to Cloudinary directly from file path (more efficient)
+    // Note: Cloudinary supports PDF files as well as images
+    const uploadResult = await uploadImageFromPath(file.filepath, 'certificates', {
+      userId: req.user!.userId,
+      resourceType: 'auto', // 'auto' allows both images and PDFs
+    });
+
+    // Clean up temp file after upload
+    if (fs.existsSync(file.filepath)) {
+      try {
+        fs.unlinkSync(file.filepath);
+      } catch (unlinkError) {
+        // Ignore cleanup errors
+      }
+    }
+
+    // Save certificate template to database with Cloudinary URL
+    const db = await getDb();
+    const certificateTemplates = db.collection('certificateTemplates');
+
+    await certificateTemplates.insertOne({
+      level: level as string,
+      fileUrl: uploadResult.secureUrl,
+      publicId: uploadResult.publicId, // Store public ID for future deletion
+      filename: uploadResult.publicId.split('/').pop() || 'certificate',
+      uploadedBy: req.user!.userId,
+      uploadedAt: new Date(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    res.status(200).json({
+      success: true,
+      url: uploadResult.secureUrl,
+      imageUrl: uploadResult.secureUrl, // Support both response formats
+      filename: uploadResult.publicId.split('/').pop() || 'certificate',
+      publicId: uploadResult.publicId,
+      level: level,
     });
   } catch (error: any) {
-    console.error('Upload error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Certificate upload error:', error);
+    if (error.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ error: 'File size exceeds 10MB limit' });
+    }
+    if (error.message?.includes('Cloudinary configuration is missing')) {
+      return res.status(500).json({ error: 'Image upload service is not configured. Please contact support.' });
+    }
+    res.status(500).json({ error: error.message || 'Internal server error' });
   }
 }
 
-export default withAuth(uploadCertificate, ['admin']);
+export default withAuth(uploadCertificate, ['admin', 'superadmin']);
 
 
 

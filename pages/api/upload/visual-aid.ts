@@ -1,13 +1,13 @@
 /**
  * Visual Aid Image Upload API
- * Allows instructors and admins to upload images for lesson visual aids
+ * Allows instructors and admins to upload images for lesson visual aids using Cloudinary
  */
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import formidable from 'formidable';
 import fs from 'fs';
-import path from 'path';
+import { uploadImageFromPath, validateImageFile, isCloudinaryConfigured } from '@/lib/cloudinary';
 
 export const config = {
   api: {
@@ -30,15 +30,9 @@ async function uploadVisualAid(req: AuthRequest, res: NextApiResponse) {
   console.log('Upload authorized for user:', req.user.email, 'with role:', req.user.role);
 
   try {
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'visual-aids');
-    
-    // Create upload directory if it doesn't exist
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-
+    // Use /tmp for temporary file storage (works in both serverless and regular environments)
     const form = formidable({
-      uploadDir,
+      uploadDir: '/tmp',
       keepExtensions: true,
       maxFileSize: 10 * 1024 * 1024, // 10MB
       filter: (part) => {
@@ -58,31 +52,76 @@ async function uploadVisualAid(req: AuthRequest, res: NextApiResponse) {
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
-    // Generate unique filename
-    const timestamp = Date.now();
-    const originalName = file.originalFilename || 'image';
-    const ext = path.extname(originalName);
-    const baseName = path.basename(originalName, ext);
-    const newFileName = `${baseName}_${timestamp}${ext}`;
-    const newFilePath = path.join(uploadDir, newFileName);
+    // Check if Cloudinary is configured
+    if (!isCloudinaryConfigured()) {
+      // Clean up temp file
+      if (fs.existsSync(file.filepath)) {
+        try {
+          fs.unlinkSync(file.filepath);
+        } catch (unlinkError) {
+          // Ignore cleanup errors
+        }
+      }
+      const missing = [];
+      if (!process.env.CLOUDINARY_CLOUD_NAME) missing.push('CLOUDINARY_CLOUD_NAME');
+      if (!process.env.CLOUDINARY_API_KEY) missing.push('CLOUDINARY_API_KEY');
+      if (!process.env.CLOUDINARY_API_SECRET) missing.push('CLOUDINARY_API_SECRET');
+      console.error('Cloudinary not configured - missing environment variables:', missing.join(', '));
+      return res.status(500).json({ 
+        error: 'Image upload service is not configured. Please contact support.',
+        details: `Missing: ${missing.join(', ')}`
+      });
+    }
 
-    // Rename file
-    fs.renameSync(file.filepath, newFilePath);
+    // Validate file using Cloudinary utility
+    const validation = validateImageFile({
+      mimetype: file.mimetype || undefined,
+      size: file.size,
+      originalFilename: file.originalFilename || undefined,
+    });
 
-    // Return the URL path
-    const url = `/uploads/visual-aids/${newFileName}`;
+    if (!validation.valid) {
+      // Clean up temp file
+      if (fs.existsSync(file.filepath)) {
+        try {
+          fs.unlinkSync(file.filepath);
+        } catch (unlinkError) {
+          // Ignore cleanup errors
+        }
+      }
+      return res.status(400).json({ error: validation.error });
+    }
+
+    // Upload to Cloudinary directly from file path (more efficient)
+    const uploadResult = await uploadImageFromPath(file.filepath, 'visual-aids', {
+      userId: req.user!.userId,
+    });
+
+    // Clean up temp file after upload
+    if (fs.existsSync(file.filepath)) {
+      try {
+        fs.unlinkSync(file.filepath);
+      } catch (unlinkError) {
+        // Ignore cleanup errors
+      }
+    }
 
     res.status(200).json({
       success: true,
-      url,
-      filename: newFileName,
+      url: uploadResult.secureUrl,
+      imageUrl: uploadResult.secureUrl, // Support both response formats
+      publicId: uploadResult.publicId,
+      filename: uploadResult.publicId.split('/').pop() || 'image',
     });
   } catch (error: any) {
     console.error('Visual aid upload error:', error);
     if (error.code === 'LIMIT_FILE_SIZE') {
       return res.status(400).json({ error: 'File size exceeds 10MB limit' });
     }
-    res.status(500).json({ error: 'Failed to upload image' });
+    if (error.message?.includes('Cloudinary configuration is missing')) {
+      return res.status(500).json({ error: 'Image upload service is not configured. Please contact support.' });
+    }
+    res.status(500).json({ error: error.message || 'Failed to upload image' });
   }
 }
 
