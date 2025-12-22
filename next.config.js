@@ -16,6 +16,7 @@ const nextConfig = {
     // NOTE: Socket.IO URL is hardcoded in useSocket.ts to always use Render backend
     // NOTE: NEXT_PUBLIC_AGORA_APP_ID is NOT exposed to client
     // Frontend determines readiness solely by token API response
+    // CRITICAL: AI_API_KEY is NEVER exposed to frontend - only used on Render backend
   },
 }
 

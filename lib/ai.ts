@@ -2,7 +2,10 @@
  * AI Service
  * Server-side AI integration using OpenAI API
  * Handles prompt building, role-aware responses, rate limiting, and error handling
+ * IMPORTANT: Only runs on Render backend, never on Vercel frontend
  */
+
+import OpenAI from 'openai';
 
 interface AIConfig {
   apiKey: string;
@@ -29,6 +32,9 @@ interface AIRequest {
   temperature?: number;
 }
 
+// Global OpenAI client instance (initialized only on backend)
+let openaiClient: OpenAI | null = null;
+
 // Cache for AI responses (in-memory, can be upgraded to Redis)
 const responseCache = new Map<string, { response: string; timestamp: number }>();
 const CACHE_TTL = 1000 * 60 * 60; // 1 hour
@@ -39,12 +45,33 @@ const RATE_LIMIT_WINDOW = 1000 * 60; // 1 minute
 const RATE_LIMIT_MAX = 10; // 10 requests per minute per user
 
 /**
+ * Check if we're running on the backend (server-side)
+ * AI should NEVER run on Vercel frontend, only on Render backend
+ */
+function isBackend(): boolean {
+  return typeof window === 'undefined' && typeof process !== 'undefined';
+}
+
+/**
  * Get AI configuration from environment variables
+ * Only works on server-side (Render backend)
  */
 function getAIConfig(): AIConfig | null {
+  // CRITICAL: Only allow on server-side (backend)
+  if (!isBackend()) {
+    console.warn('AI service called from frontend - this should never happen');
+    return null;
+  }
+
   const apiKey = process.env.AI_API_KEY;
   if (!apiKey) {
-    console.warn('AI_API_KEY not configured. AI features will be disabled.');
+    console.warn('[AI] AI_API_KEY not configured. AI features will be disabled.');
+    return null;
+  }
+
+  // Verify API key format (should start with sk-)
+  if (!apiKey.startsWith('sk-')) {
+    console.warn('[AI] AI_API_KEY format appears invalid (should start with sk-)');
     return null;
   }
 
@@ -57,10 +84,51 @@ function getAIConfig(): AIConfig | null {
 }
 
 /**
+ * Initialize OpenAI client (only on backend)
+ */
+function getOpenAIClient(): OpenAI | null {
+  // CRITICAL: Only initialize on server-side
+  if (!isBackend()) {
+    return null;
+  }
+
+  // Return cached client if already initialized
+  if (openaiClient) {
+    return openaiClient;
+  }
+
+  const config = getAIConfig();
+  if (!config) {
+    return null;
+  }
+
+  try {
+    openaiClient = new OpenAI({
+      apiKey: config.apiKey,
+    });
+    console.log('[AI] OpenAI client initialized successfully');
+    return openaiClient;
+  } catch (error) {
+    console.error('[AI] Failed to initialize OpenAI client:', error);
+    return null;
+  }
+}
+
+/**
  * Check if AI is configured
+ * Only returns true if running on backend with valid API key
  */
 export function isAIConfigured(): boolean {
-  return !!process.env.AI_API_KEY;
+  if (!isBackend()) {
+    return false;
+  }
+  
+  const apiKey = process.env.AI_API_KEY;
+  if (!apiKey || !apiKey.startsWith('sk-')) {
+    return false;
+  }
+  
+  return true;
 }
 
 /**
@@ -139,7 +207,8 @@ function buildSystemPrompt(role?: string, level?: string): string {
 }
 
 /**
- * Call OpenAI API
+ * Call OpenAI API using the official OpenAI client
+ * Only works on backend (Render)
  */
 async function callOpenAI(
   config: AIConfig,
@@ -148,33 +217,45 @@ async function callOpenAI(
   maxTokens?: number,
   temperature?: number
 ): Promise<AIResponse> {
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${config.apiKey}`,
-    },
-    body: JSON.stringify({
-      model: config.model,
+  // CRITICAL: Ensure we're on backend
+  if (!isBackend()) {
+    throw new Error('AI service can only be called from server-side (backend)');
+  }
+
+  const client = getOpenAIClient();
+  if (!client) {
+    throw new Error('OpenAI client not initialized. Check AI_API_KEY configuration.');
+  }
+
+  try {
+    const completion = await client.chat.completions.create({
+      model: config.model || 'gpt-3.5-turbo',
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
       ],
       max_tokens: maxTokens || config.maxTokens,
       temperature: temperature || config.temperature,
-    }),
-  });
+    });
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'Unknown error' }));
-    throw new Error(`OpenAI API error: ${error.error?.message || 'Failed to get AI response'}`);
+    const message = completion.choices[0]?.message?.content;
+    if (!message) {
+      throw new Error('No response generated from OpenAI');
+    }
+
+    return {
+      content: message,
+      usage: completion.usage ? {
+        promptTokens: completion.usage.prompt_tokens,
+        completionTokens: completion.usage.completion_tokens,
+        totalTokens: completion.usage.total_tokens,
+      } : undefined,
+    };
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown OpenAI API error';
+    console.error('[AI] OpenAI API error:', errorMessage);
+    throw new Error(`OpenAI API error: ${errorMessage}`);
   }
-
-  const data = await response.json();
-  return {
-    content: data.choices[0]?.message?.content || 'No response generated',
-    usage: data.usage,
-  };
 }
 
 /**
