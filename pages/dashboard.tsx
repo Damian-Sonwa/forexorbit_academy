@@ -11,6 +11,8 @@ import Footer from '@/components/Footer';
 import Sidebar from '@/components/Sidebar';
 import CourseCard from '@/components/CourseCard';
 import LoadingSpinner from '@/components/LoadingSpinner';
+import TodoList from '@/components/TodoList';
+import RemindersPanel from '@/components/RemindersPanel';
 import { useAuth } from '@/hooks/useAuth';
 import { useProgress } from '@/hooks/useProgress';
 import { useCourses } from '@/hooks/useCourses';
@@ -395,6 +397,24 @@ export default function Dashboard() {
             ) : (
               <p className="text-gray-500 text-center py-8">No course recommendations available at the moment.</p>
             )}
+          </div>
+
+          {/* Reminders & To-Do List Section */}
+          <div className="mb-4 sm:mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Reminders & To-Do</h2>
+              <Link href="/student-dashboard?section=reminders" className="text-primary-600 hover:text-primary-700 font-medium text-sm">
+                View Full →
+              </Link>
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+              <div className="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden">
+                <RemindersPanel />
+              </div>
+              <div className="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden">
+                <TodoList />
+              </div>
+            </div>
           </div>
 
           {/* Leaderboard */}

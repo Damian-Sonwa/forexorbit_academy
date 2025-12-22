@@ -883,14 +883,22 @@ export default function StudentDashboard() {
             {/* Reminders & To-Do Section */}
             {activeSection === 'reminders' && (
               <div className="space-y-6 animate-in fade-in duration-300">
+                {/* Section Header */}
+                <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6">
+                  <h2 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-2">
+                    Reminders & To-Do List
+                  </h2>
+                  <p className="text-gray-600">Manage your reminders and track your tasks</p>
+                </div>
+
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   {/* Reminders Panel */}
-                  <div>
+                  <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
                     <RemindersPanel />
                   </div>
 
                   {/* To-Do List */}
-                  <div>
+                  <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
                     <TodoList />
                   </div>
                 </div>
