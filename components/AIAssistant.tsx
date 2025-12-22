@@ -99,16 +99,36 @@ export default function AIAssistant() {
     setError(null);
 
     try {
+      // CRITICAL: Must call Render backend directly for AI requests
+      // Vercel doesn't have AI_API_KEY, so all AI calls must go to Render
+      const renderBackendUrl = 'https://forexorbit-academy.onrender.com';
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
       const userLevel = user?.learningLevel || (user as any)?.studentDetails?.tradingLevel || 'beginner';
-      const response = await apiClient.post<{ answer: string }>('/ai/answer-question', {
-        question: userMessage.content,
-        userLevel,
+      
+      const response = await fetch(`${renderBackendUrl}/api/ai/answer-question`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          question: userMessage.content,
+          userLevel,
+        }),
       });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Failed to get AI response' }));
+        throw new Error(errorData.error || `Request failed with status code ${response.status}`);
+      }
+
+      const data = await response.json();
 
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: response.answer,
+        content: data.answer,
         timestamp: new Date(),
       };
 
