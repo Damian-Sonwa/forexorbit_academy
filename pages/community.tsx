@@ -780,6 +780,64 @@ export default function Community() {
     }
   };
 
+  const handleAskAI = async () => {
+    if (!input.trim() || !selectedRoom || askingAI || !socket || !connected || !roomConfirmed) return;
+
+    setAskingAI(true);
+    try {
+      const userLevel = (user as any)?.learningLevel || (user as any)?.studentDetails?.tradingLevel || 'beginner';
+      const response = await apiClient.post<{ answer: string }>('/ai/community/answer', {
+        question: input.trim(),
+        userLevel,
+      });
+
+      // Send AI response as a message in the chat using the same API endpoint
+      const aiMessage = `🤖 AI Assistant: ${response.answer}`;
+      const roomIdStr = selectedRoom._id?.toString() || selectedRoom._id;
+      
+      // Use the same message sending API as regular messages
+      const messageResponse = await apiClient.post<{ message: Message }>('/community/messages', {
+        roomId: roomIdStr,
+        type: 'text',
+        content: aiMessage,
+      });
+
+      // Optimistically add message
+      if (messageResponse?.message) {
+        const optimisticMessage: Message = {
+          ...messageResponse.message,
+          roomId: selectedRoom._id.toString(),
+          senderId: 'ai-assistant',
+          senderName: 'AI Assistant',
+          delivered: true,
+        };
+        
+        setMessages((prev) => {
+          const exists = prev.some(m => m._id === optimisticMessage._id);
+          if (exists) return prev;
+          return [...prev, optimisticMessage];
+        });
+        
+        setTimeout(() => {
+          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
+      }
+
+      // Clear input after sending
+      setInput('');
+      if (inputRef.current) {
+        inputRef.current.style.height = 'auto';
+      }
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to get AI answer';
+      setToastMessage(errorMessage);
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 5000);
+    } finally {
+      setAskingAI(false);
+    }
+  };
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     
