@@ -639,6 +639,19 @@ export default function InstructorDashboard() {
     });
   };
 
+  // Handle section-based navigation (e.g., ?section=courses)
+  useEffect(() => {
+    if (router.query.section === 'courses' && allCourses.length > 0) {
+      // Scroll to course management section after a short delay to ensure DOM is ready
+      setTimeout(() => {
+        const courseSection = document.getElementById('course-management-section');
+        if (courseSection) {
+          courseSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 300);
+    }
+  }, [router.query.section, allCourses.length]);
+
   if (authLoading || !isAuthenticated || user?.role !== 'instructor') {
     return <LoadingSpinner message="Loading instructor dashboard..." fullScreen />;
   }
@@ -1045,7 +1058,7 @@ export default function InstructorDashboard() {
         </div>
 
         {/* Main Content Area */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+        <div id="course-management-section" className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
           {/* Left Panel: Courses by Level */}
           <div className="lg:col-span-1 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700">
             <div className="p-3 sm:p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between sticky top-0 bg-white dark:bg-gray-800 z-10">

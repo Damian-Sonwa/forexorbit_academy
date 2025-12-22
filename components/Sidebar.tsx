@@ -141,10 +141,11 @@ export default function Sidebar({ }: SidebarProps) {
 
   // Instructor navigation
   // Lessons & Quizzes removed from sidebar - they remain in Dashboard only
-  // Courses link points to instructor dashboard where course management is available
+  // Dashboard and Course Management are separate navigation items
+  // Course Management uses section parameter to focus on course management area
   const instructorNavItems = [
     { href: '/instructor/dashboard', label: 'Dashboard', icon: DashboardIcon },
-    { href: '/instructor/dashboard', label: 'Course Management', icon: CoursesIcon },
+    { href: '/instructor/dashboard?section=courses', label: 'Course Management', icon: CoursesIcon },
     { href: '/instructor/demo-tasks', label: 'Demo Tasks', icon: CoursesIcon },
     { href: '/progress', label: 'Progress', icon: ProgressIcon },
     { href: '/certificates', label: 'Certificates', icon: CertificatesIcon },
@@ -259,7 +260,7 @@ export default function Sidebar({ }: SidebarProps) {
   // Use learningLevel if set, otherwise fall back to tradingLevel from onboarding
   const tradingLevel = profileData?.learningLevel || profileData?.studentDetails?.tradingLevel;
 
-  // Check if a route is active (handles query params for admin tabs)
+  // Check if a route is active (handles query params for admin tabs and instructor dashboard sections)
   const isActiveRoute = (href: string, tab?: string) => {
     if (router.pathname === href) {
       // For admin page, check if tab matches
@@ -270,7 +271,8 @@ export default function Sidebar({ }: SidebarProps) {
       if (href === '/admin' && !tab && !router.query.tab) {
         return true;
       }
-      // For other pages, exact match
+      // For instructor dashboard, section parameter is handled in the map function below
+      // This function just checks pathname match
       if (href !== '/admin') {
         return true;
       }
@@ -393,8 +395,29 @@ export default function Sidebar({ }: SidebarProps) {
         <nav className={`p-3 sm:p-4 lg:p-6 ${user?.role === 'student' ? 'space-y-2 sm:space-y-3' : 'space-y-2'}`}>
           {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive = isActiveRoute(item.href, (item as any).tab);
-            const href = (item as any).tab ? `${item.href}?tab=${(item as any).tab}` : item.href;
+            // Extract base href (without query params) for route matching
+            const baseHref = item.href.split('?')[0];
+            // Check if this item has a section parameter
+            const hasSection = item.href.includes('section=');
+            const sectionParam = hasSection ? item.href.split('section=')[1]?.split('&')[0] : null;
+            
+            // Determine if this nav item is active
+            let isActive = false;
+            if (baseHref === '/instructor/dashboard') {
+              // For instructor dashboard items
+              if (hasSection && sectionParam === 'courses') {
+                // Course Management is active when section=courses
+                isActive = router.query.section === 'courses';
+              } else if (!hasSection) {
+                // Dashboard is active when no section parameter
+                isActive = !router.query.section;
+              }
+            } else {
+              // For other pages, use standard route matching
+              isActive = isActiveRoute(baseHref, (item as any).tab);
+            }
+            
+            const href = (item as any).tab ? `${baseHref}?tab=${(item as any).tab}` : item.href;
             
             // For students, use rectangular boxes with blue styling
             if (user?.role === 'student') {
