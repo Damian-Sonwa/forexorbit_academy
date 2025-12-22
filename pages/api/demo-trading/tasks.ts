@@ -8,6 +8,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
+import { createNotification } from '@/lib/notifications';
 
 async function getTasks(req: AuthRequest, res: NextApiResponse) {
   try {
@@ -113,9 +114,72 @@ async function createTask(req: AuthRequest, res: NextApiResponse) {
     };
 
     const result = await tasks.insertOne(task);
+    const taskId = result.insertedId.toString();
+
+    // Create notifications for assigned students
+    try {
+      if (assignedTo) {
+        // Notify specific student
+        await createNotification({
+          type: 'task_created',
+          title: 'New Task Assigned',
+          message: `You have been assigned a new task: ${title}`,
+          userId: assignedTo,
+          taskId,
+          roleTarget: 'student',
+          metadata: { taskTitle: title },
+        });
+
+        // Emit socket event
+        if (req.io) {
+          req.io.to(`user:${assignedTo}`).emit('notification', {
+            type: 'task_created',
+            title: 'New Task Assigned',
+            message: `You have been assigned a new task: ${title}`,
+            taskId,
+            read: false,
+            createdAt: new Date(),
+          });
+        }
+      } else {
+        // Notify all students (general task)
+        const users = db.collection('users');
+        const students = await users
+          .find({ role: 'student' })
+          .project({ _id: 1 })
+          .toArray();
+
+        for (const student of students) {
+          await createNotification({
+            type: 'task_created',
+            title: 'New Task Available',
+            message: `A new task is available: ${title}`,
+            userId: student._id.toString(),
+            taskId,
+            roleTarget: 'student',
+            metadata: { taskTitle: title },
+          });
+
+          // Emit socket event
+          if (req.io) {
+            req.io.to(`user:${student._id.toString()}`).emit('notification', {
+              type: 'task_created',
+              title: 'New Task Available',
+              message: `A new task is available: ${title}`,
+              taskId,
+              read: false,
+              createdAt: new Date(),
+            });
+          }
+        }
+      }
+    } catch (notifError) {
+      console.error('Failed to create task notifications:', notifError);
+      // Don't fail the request if notification creation fails
+    }
 
     res.status(201).json({
-      _id: result.insertedId.toString(),
+      _id: taskId,
       ...task,
     });
   } catch (error: any) {

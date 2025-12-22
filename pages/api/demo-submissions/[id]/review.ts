@@ -8,6 +8,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
+import { createNotification } from '@/lib/notifications';
 
 async function reviewSubmission(req: AuthRequest, res: NextApiResponse) {
   try {
@@ -75,6 +76,45 @@ async function reviewSubmission(req: AuthRequest, res: NextApiResponse) {
       { _id: new ObjectId(id) },
       { $set: updateData }
     );
+
+    // Notify student about feedback
+    try {
+      const users = db.collection('users');
+      const instructor = await users.findOne(
+        { _id: new ObjectId(req.user!.userId) },
+        { projection: { name: 1 } }
+      );
+
+      await createNotification({
+        type: 'task_feedback',
+        title: 'Task Feedback Received',
+        message: `You received feedback on task: ${task?.title || 'your submission'}`,
+        userId: submission.studentId,
+        taskId: submission.taskId,
+        relatedId: id,
+        roleTarget: 'student',
+        metadata: { 
+          taskTitle: task?.title || 'Task',
+          instructorName: instructor?.name || 'Instructor',
+          grade: grade !== undefined ? grade : submission.grade,
+        },
+      });
+
+      // Emit socket event
+      if (req.io) {
+        req.io.to(`user:${submission.studentId}`).emit('notification', {
+          type: 'task_feedback',
+          title: 'Task Feedback Received',
+          message: `You received feedback on task: ${task?.title || 'your submission'}`,
+          taskId: submission.taskId,
+          read: false,
+          createdAt: new Date(),
+        });
+      }
+    } catch (notifError) {
+      console.error('Failed to create feedback notification:', notifError);
+      // Don't fail the request if notification creation fails
+    }
 
     res.json({
       success: true,

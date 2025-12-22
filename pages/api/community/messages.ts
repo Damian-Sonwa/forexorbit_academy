@@ -250,6 +250,58 @@ async function sendMessage(req: AuthRequest, res: NextApiResponse) {
       console.log(`Message broadcast to room:${roomIdStr} only (isolated)`);
     }
 
+    // Create notification for instructors in the room (if message is from a student)
+    // Note: This is optional - instructors can choose to monitor rooms
+    // For now, we'll skip this to avoid notification spam
+    // Uncomment if you want instructors to be notified of all student messages
+    /*
+    if (req.user!.role === 'student') {
+      try {
+        const { createNotification } = await import('@/lib/notifications');
+        const users = db.collection('users');
+        
+        // Get all instructors/admins who might be monitoring this room
+        const instructors = await users
+          .find({ 
+            role: { $in: ['instructor', 'admin', 'superadmin'] }
+          })
+          .project({ _id: 1 })
+          .toArray();
+
+        // Create room-level notification that instructors can see
+        await createNotification({
+          type: 'community_message',
+          title: 'New Message in Community',
+          message: `${sender?.name || 'A student'} sent a message in ${room.name}`,
+          roomId: roomIdStr,
+          roleTarget: 'instructor',
+          metadata: {
+            roomName: room.name,
+            senderName: sender?.name || 'Unknown',
+            messagePreview: content.substring(0, 100),
+          },
+        });
+
+        // Emit to instructors in the room
+        if (req.io) {
+          instructors.forEach((instructor) => {
+            req.io.to(`user:${instructor._id.toString()}`).emit('notification', {
+              type: 'community_message',
+              title: 'New Message in Community',
+              message: `${sender?.name || 'A student'} sent a message in ${room.name}`,
+              roomId: roomIdStr,
+              read: false,
+              createdAt: new Date(),
+            });
+          });
+        }
+      } catch (notifError) {
+        console.error('Failed to create message notification:', notifError);
+        // Don't fail the request if notification creation fails
+      }
+    }
+    */
+
     res.json({
       success: true,
       message: {

@@ -87,6 +87,11 @@ export default function Community() {
   const [toastMessage, setToastMessage] = useState('');
   const [showNewsModal, setShowNewsModal] = useState(false);
   const [roomConfirmed, setRoomConfirmed] = useState(false); // Track if room join is confirmed
+  
+  // Separate loading states to prevent flicker
+  const [isSocketConnecting, setIsSocketConnecting] = useState(true);
+  const [isRoomValidating, setIsRoomValidating] = useState(false);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(false);
   const [editingNews, setEditingNews] = useState<any>(null);
   const [newsEditForm, setNewsEditForm] = useState({
     title: '',
@@ -114,12 +119,29 @@ export default function Community() {
   const hasJoinedRoomRef = useRef<Set<string>>(new Set()); // Track which rooms we've joined
   const roomSelectionDoneRef = useRef(false); // Track if room selection has happened
   const canSendMessageRef = useRef(false); // Track if we can send messages
+  const hasSelectedRoomRef = useRef(false); // Track if room has been auto-selected (ONCE)
+  const currentRoomIdRef = useRef<string | null>(null); // Track current room ID to prevent duplicate joins
+  const socketInstanceRef = useRef(socket); // Memoize socket instance
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
       router.push('/login');
     }
   }, [isAuthenticated, authLoading, router]);
+
+  // Update socket instance ref when socket changes
+  useEffect(() => {
+    socketInstanceRef.current = socket;
+  }, [socket]);
+
+  // Track socket connection state
+  useEffect(() => {
+    if (connected) {
+      setIsSocketConnecting(false);
+    } else {
+      setIsSocketConnecting(true);
+    }
+  }, [connected]);
 
   useEffect(() => {
     if (user) {
@@ -149,21 +171,33 @@ export default function Community() {
   // Each room uses its unique database ID for full isolation
 
   // CRITICAL FIX: Delay room join until ALL dependencies are ready
+  // This effect runs ONLY ONCE per room selection to prevent flicker
   useEffect(() => {
     if (!selectedRoom) return;
     
-    // Wait for socket to be connected
-    if (!socket || !connected) {
-      console.log('Waiting for socket connection before joining room...');
+    const roomIdStr = selectedRoom._id?.toString() || selectedRoom._id;
+    
+    // Prevent duplicate joins for the same room
+    if (currentRoomIdRef.current === roomIdStr && hasJoinedRoomRef.current.has(roomIdStr)) {
+      console.log('[SKIP] Already processing this room, skipping duplicate join:', roomIdStr);
       return;
     }
+    
+    // Wait for socket to be connected
+    if (!socket || !connected) {
+      console.log('[WAIT] Waiting for socket connection before joining room...');
+      setIsSocketConnecting(true);
+      return;
+    }
+    
+    setIsSocketConnecting(false);
     
     // Wait for user data to be ready (especially for students)
     if (user?.role === 'student') {
       const userLevel = (user as any)?.learningLevel || 
                       (user as any)?.studentDetails?.tradingLevel;
       if (!userLevel) {
-        console.log('Waiting for user level before joining room...');
+        console.log('[WAIT] Waiting for user level before joining room...');
         return;
       }
     }
@@ -209,12 +243,20 @@ export default function Community() {
       }
     }
     
-    const roomIdStr = roomToUse._id?.toString() || roomToUse._id;
+    const finalRoomIdStr = roomToUse._id?.toString() || roomToUse._id;
     
     // Check if we've already joined this room to prevent duplicates
-    if (hasJoinedRoomRef.current.has(roomIdStr)) {
-      console.log('Already joined room, skipping duplicate join:', roomIdStr);
+    if (hasJoinedRoomRef.current.has(finalRoomIdStr) && currentRoomIdRef.current === finalRoomIdStr) {
+      console.log('[SKIP] Already joined room, skipping duplicate join:', finalRoomIdStr);
       return;
+    }
+    
+    // Mark current room ID to prevent duplicate processing
+    currentRoomIdRef.current = finalRoomIdStr;
+    
+    // Set validation state (but don't reset if already validating)
+    if (!isRoomValidating) {
+      setIsRoomValidating(true);
     }
     
     // Use the actual room ID from database - each room is fully isolated
@@ -227,19 +269,19 @@ export default function Community() {
     
     // Join the room first, then load messages after confirmation
     // This prevents flicker by not clearing messages until room is ready
-    joinRoomSafely(roomIdStr);
-    hasJoinedRoomRef.current.add(roomIdStr); // Mark as joined
+    joinRoomSafely(finalRoomIdStr);
+    hasJoinedRoomRef.current.add(finalRoomIdStr); // Mark as joined
     
     // Don't clear messages or hide room selection yet - wait for room_joined confirmation
     
     return () => {
       // Cleanup: Leave room when switching away
-      if (roomIdStr) {
-        leaveRoom(roomIdStr);
-        hasJoinedRoomRef.current.delete(roomIdStr); // Remove from joined set
+      if (finalRoomIdStr && currentRoomIdRef.current !== finalRoomIdStr) {
+        leaveRoom(finalRoomIdStr);
+        hasJoinedRoomRef.current.delete(finalRoomIdStr); // Remove from joined set
       }
     };
-  }, [selectedRoom?._id, socket, connected, user, rooms]);
+  }, [selectedRoom?._id, socket, connected, user, rooms, isRoomValidating]);
 
   useEffect(() => {
     const container = messagesContainerRef.current;
@@ -424,8 +466,8 @@ export default function Community() {
         setRooms(mainRooms);
         
         // Auto-select room based on user's trading level from onboarding
-        // CRITICAL: Only run once per session to prevent duplicate logs
-        if (!selectedRoom && !roomSelectionDoneRef.current && user?.role === 'student') {
+        // CRITICAL: Only run ONCE per session to prevent duplicate logs and flicker
+        if (!selectedRoom && !roomSelectionDoneRef.current && !hasSelectedRoomRef.current && user?.role === 'student') {
           // Get user's level from profile - MUST come from onboarding
           const userLevel = (user as any)?.learningLevel || 
                           (user as any)?.studentDetails?.tradingLevel;
@@ -460,6 +502,7 @@ export default function Community() {
           if (targetRoom) {
             setSelectedRoom(targetRoom);
             roomSelectionDoneRef.current = true; // Mark selection as done
+            hasSelectedRoomRef.current = true; // Mark as selected to prevent re-selection
             console.log(`[ONCE] Auto-selected ${targetRoomName} room based on trading level: ${userLevel}`);
           } else {
             // Room not found or locked - show error and redirect to onboarding
@@ -492,6 +535,9 @@ export default function Community() {
     // All rooms are valid - no placeholder logic
     
     try {
+      if (!append) {
+        setIsHistoryLoading(true); // Only set history loading for initial load
+      }
       setLoadingMessages(true);
       // Load messages for this specific room (level-specific)
       const data = await apiClient.get<Message[]>(`/community/messages?roomId=${roomId}&page=${pageNum}&limit=50`);
@@ -547,6 +593,7 @@ export default function Community() {
       }
     } finally {
       setLoadingMessages(false);
+      setIsHistoryLoading(false); // Clear history loading state
     }
   };
 
@@ -606,9 +653,9 @@ export default function Community() {
   const joinRoomSafely = (roomId: string) => {
     const roomIdStr = roomId?.toString() || roomId;
     
-    // Prevent duplicate joins
-    if (hasJoinedRoomRef.current.has(roomIdStr)) {
-      console.log('Already joined this room, skipping:', roomIdStr);
+    // Prevent duplicate joins - idempotent operation
+    if (hasJoinedRoomRef.current.has(roomIdStr) && currentRoomIdRef.current === roomIdStr) {
+      console.log('[IDEMPOTENT] Already joined this room, skipping:', roomIdStr);
       return;
     }
     
@@ -624,6 +671,7 @@ export default function Community() {
       console.log(`[ONCE] Joining room with unique ID: ${roomIdStr}`);
       pendingRoomJoinsRef.current.delete(roomIdStr);
       hasJoinedRoomRef.current.add(roomIdStr); // Mark as joined
+      currentRoomIdRef.current = roomIdStr; // Track current room
     } else {
       // Store for retry after socket connects
       pendingRoomJoinsRef.current.add(roomIdStr);
@@ -672,14 +720,17 @@ export default function Community() {
         if (data.roomId === selectedRoomId || data.roomId === selectedRoom._id?.toString()) {
           // CRITICAL: Batch all state updates together to prevent flicker
           // Only update UI after room is fully confirmed
+          setIsRoomValidating(false); // Room validation complete
           setRoomConfirmed(true);
           canSendMessageRef.current = true; // Enable send button
           setShowRoomSelection(false); // Hide room selection only after room is confirmed
           
-          // Clear and load messages only after room is confirmed
-          // This prevents showing empty chat before messages load
+          // Load messages with history loading state
+          setIsHistoryLoading(true);
           setMessages([]);
-          loadMessages(data.roomId, 1, false);
+          loadMessages(data.roomId, 1, false).finally(() => {
+            setIsHistoryLoading(false);
+          });
           
           console.log('✅ Room confirmed, messages can now be sent');
         }
@@ -689,14 +740,17 @@ export default function Community() {
     const handleRoomError = (data: { message: string }) => {
       console.error('❌ Room join error:', data.message);
       // Don't permanently disable - allow retry
+      // DO NOT reset loading state - show error toast but keep UI visible
       setRoomConfirmed(false);
       canSendMessageRef.current = false;
+      setIsRoomValidating(false); // Validation failed, but don't reset loading
       setToastMessage(data.message || 'Failed to join room. Please try again.');
       setShowToast(true);
       // Clear the joined flag to allow retry
       if (selectedRoom) {
         const selectedRoomId = selectedRoom._id?.toString() || selectedRoom._id;
         hasJoinedRoomRef.current.delete(selectedRoomId);
+        currentRoomIdRef.current = null; // Clear current room to allow retry
       }
     };
 
@@ -1254,8 +1308,36 @@ export default function Community() {
     return messageRoomId === selectedRoomId;
   });
 
+  // Determine if we should show loading
+  // Loading should appear ONLY when:
+  // 1. Auth is loading OR
+  // 2. Socket is connecting OR
+  // 3. Room is validating OR
+  // 4. History is loading (initial load only)
+  const shouldShowLoading = authLoading || 
+    (isSocketConnecting && !connected) || 
+    (isRoomValidating && selectedRoom && !roomConfirmed) ||
+    (isHistoryLoading && selectedRoom && roomConfirmed && messages.length === 0);
+
   if (authLoading) {
     return <LoadingSpinner message="Loading community..." fullScreen />;
+  }
+
+  // Show loading only when necessary (socket connecting, room validating, or history loading)
+  if (shouldShowLoading && selectedRoom) {
+    return (
+      <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
+        <Header />
+        <main className="flex-1 pt-20 lg:pt-8 px-4 sm:px-6 lg:px-8 py-8">
+          <LoadingSpinner message={
+            isSocketConnecting ? "Connecting to chat..." :
+            isRoomValidating ? "Validating room access..." :
+            isHistoryLoading ? "Loading chat history..." :
+            "Loading..."
+          } />
+        </main>
+      </div>
+    );
   }
 
   // Room selection view

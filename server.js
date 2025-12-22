@@ -152,6 +152,10 @@ app.prepare().then(async () => {
   io.on('connection', async (socket) => {
     const user = socket.data.user;
     console.log(`User connected: ${user.email}`);
+    
+    // Join user's personal room for targeted notifications
+    socket.join(`user:${user.userId}`);
+    console.log(`User ${user.email} joined personal notification room: user:${user.userId}`);
 
     // Join lesson room
     socket.on('joinLesson', (lessonId) => {

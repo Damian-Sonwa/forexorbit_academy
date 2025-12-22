@@ -8,20 +8,38 @@ import { useRouter } from 'next/router';
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
 import { useState, useEffect, useRef } from 'react';
-// import { apiClient } from '@/lib/api-client'; // Reserved for future use
+import { apiClient } from '@/lib/api-client';
+import { useSocket } from '@/hooks/useSocket';
+
+interface Notification {
+  _id: string;
+  type: string;
+  title: string;
+  message: string;
+  roleTarget?: string;
+  userId?: string;
+  roomId?: string;
+  taskId?: string;
+  read: boolean;
+  createdAt: Date | string;
+  metadata?: Record<string, any>;
+}
 
 export default function Header() {
   const { user, logout, isAuthenticated } = useAuth();
   const { isDark, toggleTheme } = useTheme();
+  const { socket, connected } = useSocket();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [languageOpen, setLanguageOpen] = useState(false);
-  const [notifications, setNotifications] = useState<any[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [selectedLanguage, setSelectedLanguage] = useState('en');
+  const [loadingNotifications, setLoadingNotifications] = useState(false);
   const notificationsRef = useRef<HTMLDivElement>(null);
   const languageRef = useRef<HTMLDivElement>(null);
+  const hasSetupSocketListener = useRef(false);
 
   const handleLogout = () => {
     logout();
@@ -30,26 +48,82 @@ export default function Header() {
     router.push('/login');
   };
 
-  // Fetch notifications
+  // Fetch notifications on mount and when user changes
   useEffect(() => {
     if (isAuthenticated && user) {
       fetchNotifications();
-      // Poll for new notifications every 30 seconds
-      const interval = setInterval(fetchNotifications, 30000);
-      return () => clearInterval(interval);
     }
   }, [isAuthenticated, user]);
 
+  // Setup Socket.io listener for real-time notifications (only once)
+  useEffect(() => {
+    if (!socket || !connected || hasSetupSocketListener.current) return;
+
+    const handleNotification = (notification: Notification) => {
+      console.log('New notification received:', notification);
+      // Add notification to the list
+      setNotifications((prev) => {
+        // Check if notification already exists (prevent duplicates)
+        const exists = prev.some((n) => n._id === notification._id);
+        if (exists) return prev;
+        // Add to beginning of list
+        return [notification, ...prev];
+      });
+      // Update unread count
+      setUnreadCount((prev) => prev + 1);
+    };
+
+    socket.on('notification', handleNotification);
+    hasSetupSocketListener.current = true;
+
+    return () => {
+      socket.off('notification', handleNotification);
+      hasSetupSocketListener.current = false;
+    };
+  }, [socket, connected]);
+
   const fetchNotifications = async () => {
+    if (!isAuthenticated || !user) return;
+    
     try {
-      // For now, use a placeholder - can be replaced with actual API endpoint
-      // const data = await apiClient.get('/notifications');
-      // setNotifications(data);
-      // setUnreadCount(data.filter((n: any) => !n.read).length);
-      setNotifications([]);
-      setUnreadCount(0);
+      setLoadingNotifications(true);
+      const response = await apiClient.get<{
+        notifications: Notification[];
+        unreadCount: number;
+        total: number;
+      }>('/notifications?limit=50');
+      
+      setNotifications(response.notifications || []);
+      setUnreadCount(response.unreadCount || 0);
     } catch (error) {
       console.error('Failed to fetch notifications:', error);
+      // Don't show error to user, just log it
+    } finally {
+      setLoadingNotifications(false);
+    }
+  };
+
+  const handleMarkAsRead = async (notificationId: string) => {
+    try {
+      await apiClient.put('/notifications', { notificationId });
+      // Update local state
+      setNotifications((prev) =>
+        prev.map((n) => (n._id === notificationId ? { ...n, read: true } : n))
+      );
+      setUnreadCount((prev) => Math.max(0, prev - 1));
+    } catch (error) {
+      console.error('Failed to mark notification as read:', error);
+    }
+  };
+
+  const handleMarkAllAsRead = async () => {
+    try {
+      await apiClient.post('/notifications/mark-all-read');
+      // Update local state
+      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+      setUnreadCount(0);
+    } catch (error) {
+      console.error('Failed to mark all as read:', error);
     }
   };
 
@@ -158,28 +232,57 @@ export default function Header() {
                 </button>
 
                 {notificationsOpen && (
-                  <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 py-2 overflow-hidden z-50">
-                    <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
+                  <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden z-50">
+                    {/* Header */}
+                    <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 flex items-center justify-between">
                       <h3 className="text-sm font-bold text-gray-900 dark:text-white">Notifications</h3>
+                      {unreadCount > 0 && (
+                        <button
+                          onClick={handleMarkAllAsRead}
+                          className="text-xs text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 font-medium"
+                        >
+                          Mark all read
+                        </button>
+                      )}
                     </div>
+                    
+                    {/* Notifications List */}
                     <div className="max-h-96 overflow-y-auto">
-                      {notifications.length > 0 ? (
+                      {loadingNotifications ? (
+                        <div className="px-4 py-8 text-center">
+                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600 mx-auto"></div>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Loading...</p>
+                        </div>
+                      ) : notifications.length > 0 ? (
                         notifications.map((notification) => (
                           <div
-                            key={notification._id || notification.id}
-                            className={`px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors ${
-                              !notification.read ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+                            key={notification._id}
+                            onClick={() => !notification.read && handleMarkAsRead(notification._id)}
+                            className={`px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer border-l-2 ${
+                              !notification.read 
+                                ? 'bg-blue-50 dark:bg-blue-900/20 border-primary-500' 
+                                : 'border-transparent'
                             }`}
                           >
-                            <p className="text-sm text-gray-900 dark:text-white font-medium">{notification.title}</p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{notification.message}</p>
-                            <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                              {new Date(notification.createdAt).toLocaleDateString()}
-                            </p>
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm text-gray-900 dark:text-white font-medium">{notification.title}</p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">{notification.message}</p>
+                                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                                  {new Date(notification.createdAt).toLocaleString()}
+                                </p>
+                              </div>
+                              {!notification.read && (
+                                <div className="ml-2 w-2 h-2 bg-primary-500 rounded-full flex-shrink-0 mt-1"></div>
+                              )}
+                            </div>
                           </div>
                         ))
                       ) : (
                         <div className="px-4 py-8 text-center">
+                          <svg className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                          </svg>
                           <p className="text-sm text-gray-500 dark:text-gray-400">No notifications</p>
                         </div>
                       )}

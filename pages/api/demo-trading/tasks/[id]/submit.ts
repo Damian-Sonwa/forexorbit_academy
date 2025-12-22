@@ -8,6 +8,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
+import { createNotification } from '@/lib/notifications';
 
 async function submitTask(req: AuthRequest, res: NextApiResponse) {
   try {
@@ -80,10 +81,53 @@ async function submitTask(req: AuthRequest, res: NextApiResponse) {
         updatedAt: new Date(),
       });
 
+      const submissionId = result.insertedId.toString();
+
+      // Notify instructor about new submission
+      if (task.assignedBy) {
+        try {
+          const users = db.collection('users');
+          const student = await users.findOne(
+            { _id: new ObjectId(studentId) },
+            { projection: { name: 1 } }
+          );
+
+          await createNotification({
+            type: 'task_submission',
+            title: 'New Task Submission',
+            message: `${student?.name || 'A student'} submitted task: ${task.title}`,
+            userId: task.assignedBy,
+            taskId: id,
+            relatedId: submissionId,
+            roleTarget: 'instructor',
+            metadata: { 
+              taskTitle: task.title,
+              studentName: student?.name || 'Unknown',
+              studentId,
+            },
+          });
+
+          // Emit socket event
+          if (req.io) {
+            req.io.to(`user:${task.assignedBy}`).emit('notification', {
+              type: 'task_submission',
+              title: 'New Task Submission',
+              message: `${student?.name || 'A student'} submitted task: ${task.title}`,
+              taskId: id,
+              read: false,
+              createdAt: new Date(),
+            });
+          }
+        } catch (notifError) {
+          console.error('Failed to create submission notification:', notifError);
+          // Don't fail the request if notification creation fails
+        }
+      }
+
       return res.json({ 
         success: true, 
         message: 'Task submitted successfully',
-        submissionId: result.insertedId.toString(),
+        submissionId,
       });
     }
   } catch (error: unknown) {
