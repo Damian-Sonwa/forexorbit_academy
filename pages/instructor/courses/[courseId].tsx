@@ -201,10 +201,21 @@ export default function InstructorCoursePage() {
       const existingLessonSummary = (existingLesson as any).lessonSummary || {};
       
       // Filter out visual aids without URLs before saving (both uploaded images and URL inputs are valid)
-      const validVisualAids = ((lessonForm as any).visualAids || []).filter((aid: any) => {
+      const allVisualAids = (lessonForm as any).visualAids || [];
+      const validVisualAids = allVisualAids.filter((aid: any) => {
         const url = aid.url?.trim() || '';
         // Accept both uploaded image URLs (Cloudinary) and external URLs
-        return url !== '' && (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:image/'));
+        const isValid = url !== '' && (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:image/'));
+        if (!isValid && url) {
+          console.warn('Visual aid URL rejected:', url);
+        }
+        return isValid;
+      });
+      
+      console.log('Saving lesson - Visual aids:', {
+        total: allVisualAids.length,
+        valid: validVisualAids.length,
+        aids: allVisualAids.map((aid: any) => ({ url: aid.url, caption: aid.caption }))
       });
       
       updateData.lessonSummary = {
@@ -383,6 +394,7 @@ export default function InstructorCoursePage() {
       
       if (!token) {
         alert('Authentication required. Please log in again.');
+        setUploadingImageIndex(null);
         return;
       }
 
@@ -392,7 +404,29 @@ export default function InstructorCoursePage() {
         },
       });
 
-      updateVisualAid(index, 'url', response.data.url);
+      // Handle different response formats (url, imageUrl, secureUrl)
+      const imageUrl = response.data.url || response.data.imageUrl || response.data.secureUrl || response.data.secure_url;
+      
+      if (!imageUrl) {
+        console.error('Upload response missing URL:', response.data);
+        alert('Upload succeeded but no URL was returned. Please try again.');
+        setUploadingImageIndex(null);
+        return;
+      }
+
+      // Update the visual aid URL with the uploaded image URL
+      // Use a callback to ensure state is updated correctly
+      setLessonForm(prev => {
+        const visualAids = [...(prev.visualAids || [])];
+        if (visualAids[index]) {
+          visualAids[index] = { ...visualAids[index], url: imageUrl };
+        } else {
+          visualAids[index] = { url: imageUrl, caption: '' };
+        }
+        return { ...prev, visualAids };
+      });
+      
+      console.log('Image uploaded successfully, URL set:', imageUrl);
     } catch (error: any) {
       console.error('Image upload error:', error);
       const errorMessage = error.response?.data?.error || error.message || 'Failed to upload image';
