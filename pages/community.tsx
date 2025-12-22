@@ -109,6 +109,14 @@ export default function Community() {
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const pendingRoomJoinsRef = useRef<Set<string>>(new Set());
+  const retryCountRef = useRef<Map<string, number>>(new Map());
+  const hasJoinedRoomRef = useRef<Set<string>>(new Set()); // Track which rooms we've joined
+  const roomSelectionDoneRef = useRef(false); // Track if room selection has happened
+  const canSendMessageRef = useRef(false); // Track if we can send messages
+
+  // Retry pending room joins when socket connects (with retry limit)
+  const MAX_RETRIES = 3;
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -143,72 +151,97 @@ export default function Community() {
   // Room joining is handled when a room is selected
   // Each room uses its unique database ID for full isolation
 
+  // CRITICAL FIX: Delay room join until ALL dependencies are ready
   useEffect(() => {
-    if (selectedRoom) {
-      // For students, validate room access based on their trading level from onboarding
-      let roomToUse = selectedRoom;
-      if (user?.role === 'student') {
-        // Get user's level from profile - MUST come from onboarding
-        const userLevel = (user as any)?.learningLevel || 
-                        (user as any)?.studentDetails?.tradingLevel;
+    if (!selectedRoom) return;
+    
+    // Wait for socket to be connected
+    if (!socket || !connected) {
+      console.log('Waiting for socket connection before joining room...');
+      return;
+    }
+    
+    // Wait for user data to be ready (especially for students)
+    if (user?.role === 'student') {
+      const userLevel = (user as any)?.learningLevel || 
+                      (user as any)?.studentDetails?.tradingLevel;
+      if (!userLevel) {
+        console.log('Waiting for user level before joining room...');
+        return;
+      }
+    }
+    
+    // For students, validate room access based on their trading level from onboarding
+    let roomToUse = selectedRoom;
+    if (user?.role === 'student') {
+      // Get user's level from profile - MUST come from onboarding
+      const userLevel = (user as any)?.learningLevel || 
+                      (user as any)?.studentDetails?.tradingLevel;
+      
+      // If no level found, redirect to onboarding
+      if (!userLevel) {
+        console.warn('Student has no trading level - redirecting to onboarding');
+        router.push('/onboarding');
+        return;
+      }
+      
+      // Map level to room name
+      const levelRoomMap: Record<string, string> = {
+        'beginner': 'Beginner',
+        'intermediate': 'Intermediate',
+        'advanced': 'Advanced'
+      };
+      
+      const allowedRoomName = levelRoomMap[userLevel.toLowerCase()];
+      
+      // Validate that selected room matches user's level
+      if (selectedRoom.name !== allowedRoomName) {
+        console.warn(`Student attempted to access ${selectedRoom.name} but is assigned to ${allowedRoomName}`);
+        setToastMessage('Access restricted to your learning level.');
+        setShowToast(true);
         
-        // If no level found, redirect to onboarding
-        if (!userLevel) {
-          console.warn('Student has no trading level - redirecting to onboarding');
+        // Find and select the correct room
+        const correctRoom = rooms.find(r => r.name === allowedRoomName && !r.isLocked);
+        if (correctRoom) {
+          setSelectedRoom(correctRoom);
+          roomToUse = correctRoom;
+        } else {
           router.push('/onboarding');
           return;
         }
-        
-        // Map level to room name
-        const levelRoomMap: Record<string, string> = {
-          'beginner': 'Beginner',
-          'intermediate': 'Intermediate',
-          'advanced': 'Advanced'
-        };
-        
-        const allowedRoomName = levelRoomMap[userLevel.toLowerCase()];
-        
-        // Validate that selected room matches user's level
-        if (selectedRoom.name !== allowedRoomName) {
-          console.warn(`Student attempted to access ${selectedRoom.name} but is assigned to ${allowedRoomName}`);
-          setToastMessage('Access restricted to your learning level.');
-          setShowToast(true);
-          
-          // Find and select the correct room
-          const correctRoom = rooms.find(r => r.name === allowedRoomName && !r.isLocked);
-          if (correctRoom) {
-            setSelectedRoom(correctRoom);
-            roomToUse = correctRoom;
-          } else {
-            router.push('/onboarding');
-            return;
-          }
-        }
       }
-      
-      const roomIdStr = roomToUse._id?.toString() || roomToUse._id;
-      
-      // Use the actual room ID from database - each room is fully isolated
-      // No special handling for students - all users use room-specific IDs
-      setShowRoomSelection(false);
-      setPage(1);
-      setHasMoreMessages(true);
-      setRoomConfirmed(false); // Reset confirmation when switching rooms
-      // Clear previous messages and load messages for this specific room
-      setMessages([]);
-      // Load messages from the selected room
-      loadMessages(roomIdStr, 1, false);
-      // Join the room safely using its unique database ID
-      joinRoomSafely(roomIdStr);
     }
+    
+    const roomIdStr = roomToUse._id?.toString() || roomToUse._id;
+    
+    // Check if we've already joined this room to prevent duplicates
+    if (hasJoinedRoomRef.current.has(roomIdStr)) {
+      console.log('Already joined room, skipping duplicate join:', roomIdStr);
+      return;
+    }
+    
+    // Use the actual room ID from database - each room is fully isolated
+    setShowRoomSelection(false);
+    setPage(1);
+    setHasMoreMessages(true);
+    setRoomConfirmed(false); // Reset confirmation when switching rooms
+    canSendMessageRef.current = false; // Reset send ability
+    // Clear previous messages and load messages for this specific room
+    setMessages([]);
+    // Load messages from the selected room
+    loadMessages(roomIdStr, 1, false);
+    // Join the room safely using its unique database ID (only once)
+    joinRoomSafely(roomIdStr);
+    hasJoinedRoomRef.current.add(roomIdStr); // Mark as joined
+    
     return () => {
-      if (selectedRoom) {
-        // Leave room when switching away
-        const roomIdStr = selectedRoom._id?.toString() || selectedRoom._id;
+      // Cleanup: Leave room when switching away
+      if (roomIdStr) {
         leaveRoom(roomIdStr);
+        hasJoinedRoomRef.current.delete(roomIdStr); // Remove from joined set
       }
     };
-  }, [selectedRoom?._id, user, rooms]);
+  }, [selectedRoom?._id, socket, connected, user, rooms]);
 
   useEffect(() => {
     const container = messagesContainerRef.current;
@@ -393,8 +426,8 @@ export default function Community() {
         setRooms(mainRooms);
         
         // Auto-select room based on user's trading level from onboarding
-        // CRITICAL: No fallback to Beginner - redirect to onboarding if level missing
-        if (!selectedRoom && user?.role === 'student') {
+        // CRITICAL: Only run once per session to prevent duplicate logs
+        if (!selectedRoom && !roomSelectionDoneRef.current && user?.role === 'student') {
           // Get user's level from profile - MUST come from onboarding
           const userLevel = (user as any)?.learningLevel || 
                           (user as any)?.studentDetails?.tradingLevel;
@@ -402,6 +435,7 @@ export default function Community() {
           // If no level found, redirect to onboarding
           if (!userLevel) {
             console.warn('Student has no trading level - redirecting to onboarding');
+            roomSelectionDoneRef.current = true; // Mark as done to prevent retry
             router.push('/onboarding');
             return;
           }
@@ -418,6 +452,7 @@ export default function Community() {
           // If level doesn't map to a room, redirect to onboarding
           if (!targetRoomName) {
             console.warn(`Invalid user level: ${userLevel} - redirecting to onboarding`);
+            roomSelectionDoneRef.current = true; // Mark as done to prevent retry
             router.push('/onboarding');
             return;
           }
@@ -426,10 +461,12 @@ export default function Community() {
           
           if (targetRoom) {
             setSelectedRoom(targetRoom);
-            console.log(`Auto-selected ${targetRoomName} room based on trading level: ${userLevel}`);
+            roomSelectionDoneRef.current = true; // Mark selection as done
+            console.log(`[ONCE] Auto-selected ${targetRoomName} room based on trading level: ${userLevel}`);
           } else {
             // Room not found or locked - show error and redirect to onboarding
             console.error(`Student's assigned room (${targetRoomName}) not found or locked`);
+            roomSelectionDoneRef.current = true; // Mark as done to prevent retry
             setToastMessage(`Your assigned room (${targetRoomName}) is not available. Please contact support.`);
             setShowToast(true);
             setTimeout(() => {
@@ -565,15 +602,17 @@ export default function Community() {
   // Calculate unread news count
   const unreadNewsCount = newsItems.filter((item) => !item.isRead).length;
 
-  // Track pending room joins for retry after connection
-  const pendingRoomJoinsRef = useRef<Set<string>>(new Set());
-  const retryCountRef = useRef<Map<string, number>>(new Map());
-
   // Safe room join - Use unique room ID from database for full isolation
   // Each room (Beginner, Intermediate, Advanced) has a unique database ID
   // Socket rooms are namespaced by room ID: room:<roomId>
   const joinRoomSafely = (roomId: string) => {
     const roomIdStr = roomId?.toString() || roomId;
+    
+    // Prevent duplicate joins
+    if (hasJoinedRoomRef.current.has(roomIdStr)) {
+      console.log('Already joined this room, skipping:', roomIdStr);
+      return;
+    }
     
     // Validate roomId is not a placeholder
     if (typeof roomIdStr === 'string' && roomIdStr.startsWith('placeholder-')) {
@@ -581,16 +620,16 @@ export default function Community() {
       return;
     }
 
-    // Join room immediately if socket exists - room is created automatically
-    // Each room uses its unique database ID for complete isolation
-    if (socket) {
+    // CRITICAL: Only join if socket is connected
+    if (socket && connected) {
       socket.emit('joinRoom', { roomId: roomIdStr });
-      console.log(`Joining room with unique ID: ${roomIdStr}`);
+      console.log(`[ONCE] Joining room with unique ID: ${roomIdStr}`);
       pendingRoomJoinsRef.current.delete(roomIdStr);
+      hasJoinedRoomRef.current.add(roomIdStr); // Mark as joined
     } else {
       // Store for retry after socket connects
       pendingRoomJoinsRef.current.add(roomIdStr);
-      console.log('Socket not available, queuing room join for:', roomIdStr);
+      console.log('Socket not connected, queuing room join for:', roomIdStr);
     }
   };
 
@@ -622,7 +661,7 @@ export default function Community() {
     if (!socket) return;
 
     const handleRoomJoined = (data: { roomId: string; roomName?: string }) => {
-      console.log('Room joined confirmed:', data.roomId, data.roomName);
+      console.log('✅ Room joined confirmed:', data.roomId, data.roomName);
       
       // Clear retry count on successful join
       retryCountRef.current.delete(data.roomId);
@@ -634,15 +673,32 @@ export default function Community() {
         const selectedRoomId = selectedRoom._id?.toString() || selectedRoom._id;
         if (data.roomId === selectedRoomId || data.roomId === selectedRoom._id?.toString()) {
           setRoomConfirmed(true);
-          console.log('Room confirmed, messages can now be sent');
+          canSendMessageRef.current = true; // Enable send button
+          console.log('✅ Room confirmed, messages can now be sent');
         }
+      }
+    };
+    
+    const handleRoomError = (data: { message: string }) => {
+      console.error('❌ Room join error:', data.message);
+      // Don't permanently disable - allow retry
+      setRoomConfirmed(false);
+      canSendMessageRef.current = false;
+      setToastMessage(data.message || 'Failed to join room. Please try again.');
+      setShowToast(true);
+      // Clear the joined flag to allow retry
+      if (selectedRoom) {
+        const selectedRoomId = selectedRoom._id?.toString() || selectedRoom._id;
+        hasJoinedRoomRef.current.delete(selectedRoomId);
       }
     };
 
     socket.on('room_joined', handleRoomJoined);
+    socket.on('error', handleRoomError);
 
     return () => {
       socket.off('room_joined', handleRoomJoined);
+      socket.off('error', handleRoomError);
     };
   }, [socket, user, selectedRoom, rooms]);
 
@@ -666,14 +722,15 @@ export default function Community() {
     e.preventDefault();
     
     // CRITICAL: Block sending if socket not connected or room not confirmed
-    if (!socket || !socket.connected) {
+    if (!socket || !connected) {
       setToastMessage('Not connected to chat. Please wait or refresh.');
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
       return;
     }
     
-    if (!roomConfirmed) {
+    // Use ref for send ability check (more reliable than state)
+    if (!canSendMessageRef.current || !roomConfirmed) {
       setToastMessage('Room not confirmed. Please wait...');
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
