@@ -13,6 +13,8 @@ import LoadingSpinner from '@/components/LoadingSpinner';
 import TradingInterface from '@/components/TradingInterface';
 import MarketSignal from '@/components/MarketSignal';
 import SetupGuide from '@/components/student/SetupGuide';
+import TodoList from '@/components/TodoList';
+import RemindersPanel from '@/components/RemindersPanel';
 import { useAuth } from '@/hooks/useAuth';
 import { useSocket } from '@/hooks/useSocket';
 import { apiClient } from '@/lib/api-client';
@@ -59,7 +61,7 @@ interface TradeJournalEntry {
   createdAt: string;
 }
 
-type ActiveSection = 'guide' | 'live' | 'tasks' | 'journal';
+type ActiveSection = 'guide' | 'live' | 'tasks' | 'journal' | 'reminders';
 
 export default function StudentDashboard() {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
@@ -401,6 +403,20 @@ export default function StudentDashboard() {
                 >
                   <span className="text-lg">📊</span>
                   <span>Trade Journal</span>
+                </button>
+                <button
+                  onClick={() => setActiveSection('reminders')}
+                  className={`
+                    flex items-center space-x-2 px-4 sm:px-6 py-3 rounded-xl font-semibold text-sm transition-all duration-200 whitespace-nowrap
+                    ${activeSection === 'reminders'
+                      ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg transform scale-105'
+                      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                    }
+                  `}
+                >
+                  <span className="text-lg">⏰</span>
+                  <span className="hidden sm:inline">Reminders & To-Do</span>
+                  <span className="sm:hidden">Reminders</span>
                 </button>
               </nav>
             </div>
@@ -860,6 +876,23 @@ export default function StudentDashboard() {
                       </button>
                     </div>
                   )}
+                </div>
+              </div>
+            )}
+
+            {/* Reminders & To-Do Section */}
+            {activeSection === 'reminders' && (
+              <div className="space-y-6 animate-in fade-in duration-300">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Reminders Panel */}
+                  <div>
+                    <RemindersPanel />
+                  </div>
+
+                  {/* To-Do List */}
+                  <div>
+                    <TodoList />
+                  </div>
                 </div>
               </div>
             )}
