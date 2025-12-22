@@ -125,6 +125,7 @@ export default function Sidebar({ }: SidebarProps) {
     { href: '/courses', label: 'My Courses', icon: CoursesIcon },
     { href: '/progress', label: 'Progress', icon: ProgressIcon },
     { href: '/student-dashboard', label: 'Trading Dashboard', icon: CoursesIcon },
+    { href: '/leaderboard', label: 'Leaderboard', icon: AnalyticsIcon },
     { href: '/certificates', label: 'Certificates', icon: CertificatesIcon },
     { href: '/community', label: 'Community', icon: CommunityIcon },
     { href: '/consultations', label: 'Expert Consultation', icon: ConsultationIcon },

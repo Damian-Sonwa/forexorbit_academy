@@ -18,14 +18,6 @@ import { useProgress } from '@/hooks/useProgress';
 import { useCourses } from '@/hooks/useCourses';
 import { apiClient } from '@/lib/api-client';
 
-interface LeaderboardEntry {
-  rank: number;
-  userId: string;
-  name: string;
-  email: string;
-  points?: number;
-  avatar?: string;
-}
 
 interface UpcomingLesson {
   courseId: string;
@@ -41,7 +33,6 @@ export default function Dashboard() {
   const { progress, loading: progressLoading } = useProgress();
   const { courses } = useCourses();
   const router = useRouter();
-  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [userPoints, setUserPoints] = useState(0);
   const [upcomingLessons, setUpcomingLessons] = useState<UpcomingLesson[]>([]);
   const [loadingData, setLoadingData] = useState(true);
@@ -51,15 +42,6 @@ export default function Dashboard() {
     
     try {
       setLoadingData(true);
-      
-      // Fetch leaderboard
-      try {
-        const leaderboardData = await apiClient.get<LeaderboardEntry[]>('/leaderboard?type=points');
-        setLeaderboard(leaderboardData.slice(0, 5)); // Top 5
-      } catch (error) {
-        console.error('Failed to fetch leaderboard:', error);
-        setLeaderboard([]);
-      }
       
       // Fetch user points
       try {
@@ -417,51 +399,25 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Leaderboard */}
-          <div className="mb-4 sm:mb-6 bg-white rounded-xl shadow-md border border-gray-100 p-4 sm:p-6">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 sm:mb-6 gap-2">
-              <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Leaderboard</h2>
-              <Link href="/leaderboard" className="text-primary-600 hover:text-primary-700 font-medium text-sm">
-                View Full →
+          {/* Leaderboard Link Card */}
+          <div className="mb-4 sm:mb-6 bg-gradient-to-r from-primary-600 to-purple-600 rounded-xl shadow-lg border border-gray-100 p-4 sm:p-6 text-white">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex-1">
+                <h2 className="text-xl sm:text-2xl font-bold mb-2 flex items-center">
+                  <span className="mr-2 text-2xl sm:text-3xl">🏆</span>
+                  Leaderboard
+                </h2>
+                <p className="text-primary-100 text-sm sm:text-base">
+                  See how you rank against other students and track your progress.
+                </p>
+              </div>
+              <Link
+                href="/leaderboard"
+                className="w-full sm:w-auto px-6 py-3 bg-white text-primary-600 hover:bg-primary-50 rounded-xl font-semibold transition-colors text-sm shadow-md hover:shadow-lg whitespace-nowrap flex-shrink-0 text-center"
+              >
+                View Leaderboard →
               </Link>
             </div>
-            {leaderboard.length > 0 ? (
-              <div className="space-y-3">
-                {leaderboard.map((entry, index) => (
-                  <div
-                    key={entry.userId}
-                    className={`flex items-center justify-between p-4 rounded-xl transition-colors ${
-                      entry.userId === user?.id
-                        ? 'bg-blue-50 border-2 border-blue-200'
-                        : 'bg-gray-50 border border-gray-200 hover:bg-gray-100'
-                    }`}
-                  >
-                    <div className="flex items-center space-x-3">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white text-sm ${
-                        index === 0 ? 'bg-gradient-to-br from-yellow-400 to-yellow-600' :
-                        index === 1 ? 'bg-gradient-to-br from-gray-300 to-gray-500' :
-                        index === 2 ? 'bg-gradient-to-br from-orange-400 to-orange-600' :
-                        'bg-gradient-to-br from-primary-500 to-primary-600'
-                      }`}>
-                        {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`}
-                      </div>
-                      <div>
-                        <p className="font-semibold text-gray-900">
-                          {entry.name} {entry.userId === user?.id && '(You)'}
-                        </p>
-                        <p className="text-xs text-gray-500">{entry.email}</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-lg font-bold text-primary-600">{entry.points || 0}</div>
-                      <div className="text-xs text-gray-500">points</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-gray-500 text-center py-8">No leaderboard data available yet.</p>
-            )}
           </div>
 
         </main>
