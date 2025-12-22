@@ -2,7 +2,7 @@
 
 A comprehensive e-learning platform for Forex trading with real-time features, interactive lessons, quizzes, and live market signals.
 
-<!-- Last updated: Enhanced email logging and diagnostics for password reset -->
+<!-- Last updated: Enhanced email logging and diagnostics for password reset - Redeployment -->
 
 ## Features
 
