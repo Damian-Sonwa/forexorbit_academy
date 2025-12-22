@@ -70,18 +70,41 @@ export default async function handler(
     // Send password reset email
     try {
       if (isEmailConfigured()) {
+        console.log('Attempting to send password reset email to:', user.email);
+        console.log('SMTP Config:', {
+          host: process.env.SMTP_HOST,
+          port: process.env.SMTP_PORT,
+          secure: process.env.SMTP_SECURE,
+          user: process.env.SMTP_USER ? `${process.env.SMTP_USER.substring(0, 3)}...` : 'not set',
+          passwordSet: !!process.env.SMTP_PASSWORD,
+        });
+        
         await sendPasswordResetEmail(user.email, user.name || 'User', resetUrl);
-        console.log('Password reset email sent successfully to', email);
+        console.log('✅ Password reset email sent successfully to', user.email);
       } else {
         // Email not configured - log the URL for manual use (development/testing)
-        console.warn('Email not configured. Password reset URL for', email, ':', resetUrl);
-        console.log('To enable email sending, configure SMTP environment variables in Vercel.');
+        console.warn('❌ Email not configured. Password reset URL for', email, ':', resetUrl);
+        console.log('To enable email sending, configure SMTP environment variables in Vercel:');
+        console.log('- SMTP_HOST (e.g., smtp.gmail.com)');
+        console.log('- SMTP_PORT (e.g., 587)');
+        console.log('- SMTP_SECURE (true or false)');
+        console.log('- SMTP_USER (your email address)');
+        console.log('- SMTP_PASSWORD (your app password)');
       }
-    } catch (emailError) {
-      // Log error but don't fail the request - still log the URL as fallback
-      console.error('Failed to send password reset email:', emailError);
+    } catch (emailError: any) {
+      // Log detailed error for debugging
+      console.error('❌ Failed to send password reset email:', emailError);
+      console.error('Error details:', {
+        message: emailError?.message,
+        code: emailError?.code,
+        command: emailError?.command,
+        response: emailError?.response,
+        responseCode: emailError?.responseCode,
+        stack: emailError?.stack,
+      });
       console.log('Password reset URL for', email, ':', resetUrl);
       // Continue - user can still reset password if they have the link
+      // But log the error so it can be fixed
     }
 
     return res.status(200).json({ 

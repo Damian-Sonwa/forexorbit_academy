@@ -19,15 +19,31 @@ const emailConfig = {
 // Create reusable transporter
 const createTransporter = () => {
   if (!emailConfig.auth.user || !emailConfig.auth.pass) {
-    console.warn('Email credentials not configured. Email sending will be disabled.');
+    console.warn('❌ Email credentials not configured. Email sending will be disabled.');
+    console.warn('Missing:', {
+      user: !emailConfig.auth.user,
+      pass: !emailConfig.auth.pass,
+    });
     return null;
   }
+
+  console.log('✅ Email transporter created with config:', {
+    host: emailConfig.host,
+    port: emailConfig.port,
+    secure: emailConfig.secure,
+    user: emailConfig.auth.user,
+    passwordLength: emailConfig.auth.pass?.length || 0,
+  });
 
   return nodemailer.createTransport({
     host: emailConfig.host,
     port: emailConfig.port,
     secure: emailConfig.secure,
     auth: emailConfig.auth,
+    // Add connection timeout
+    connectionTimeout: 10000, // 10 seconds
+    greetingTimeout: 10000,
+    socketTimeout: 10000,
   });
 };
 
@@ -116,11 +132,35 @@ export async function sendPasswordResetEmail(
   };
 
   try {
+    console.log('Sending email via SMTP:', {
+      from: mailOptions.from,
+      to: mailOptions.to,
+      host: emailConfig.host,
+      port: emailConfig.port,
+      secure: emailConfig.secure,
+    });
+    
     const info = await transporter.sendMail(mailOptions);
-    console.log('Password reset email sent:', info.messageId);
-  } catch (error) {
-    console.error('Error sending password reset email:', error);
-    // Don't throw - log the URL as fallback
+    console.log('✅ Password reset email sent successfully:', {
+      messageId: info.messageId,
+      response: info.response,
+      accepted: info.accepted,
+      rejected: info.rejected,
+    });
+  } catch (error: any) {
+    console.error('❌ Error sending password reset email:', error);
+    console.error('Error details:', {
+      message: error?.message,
+      code: error?.code,
+      command: error?.command,
+      response: error?.response,
+      responseCode: error?.responseCode,
+      errno: error?.errno,
+      syscall: error?.syscall,
+      hostname: error?.hostname,
+      port: error?.port,
+    });
+    // Log the URL as fallback
     console.log('Password reset URL for', email, ':', resetUrl);
     throw error;
   }
