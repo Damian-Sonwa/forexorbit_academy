@@ -68,7 +68,7 @@ interface TradeJournalEntry {
   createdAt: string;
 }
 
-type ActiveSection = 'guide' | 'live' | 'tasks' | 'journal' | 'reminders' | 'ai';
+type ActiveSection = 'guide' | 'live' | 'tasks' | 'journal' | 'reminders';
 
 export default function StudentDashboard() {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
