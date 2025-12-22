@@ -12,7 +12,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-// import Link from 'next/link'; // Reserved for future use
+import Link from 'next/link';
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
 import LoadingSpinner from '@/components/LoadingSpinner';
@@ -1079,13 +1079,13 @@ export default function InstructorDashboard() {
                             : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
                         }`}
                       >
-                        <button
-                          onClick={() => handleSelectCourse(course._id || course.id || '')}
-                          className="w-full text-left p-3"
+                        <Link
+                          href={`/instructor/courses/${course._id || course.id}`}
+                          className="w-full text-left p-3 block hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded transition-colors"
                         >
                           <p className="font-semibold text-sm text-gray-900 dark:text-white">{course.title}</p>
                           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">{course.description}</p>
-                        </button>
+                        </Link>
                         <div className="px-3 pb-2 flex gap-1">
                           <button
                             onClick={(e) => {
@@ -1119,13 +1119,13 @@ export default function InstructorDashboard() {
                             : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
                         }`}
                       >
-                        <button
-                          onClick={() => handleSelectCourse(course._id || course.id || '')}
-                          className="w-full text-left p-3"
+                        <Link
+                          href={`/instructor/courses/${course._id || course.id}`}
+                          className="w-full text-left p-3 block hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded transition-colors"
                         >
                           <p className="font-semibold text-sm text-gray-900 dark:text-white">{course.title}</p>
                           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">{course.description}</p>
-                        </button>
+                        </Link>
                         <div className="px-3 pb-2 flex gap-1">
                           <button
                             onClick={(e) => {
@@ -1159,13 +1159,13 @@ export default function InstructorDashboard() {
                             : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
                         }`}
                       >
-                        <button
-                          onClick={() => handleSelectCourse(course._id || course.id || '')}
-                          className="w-full text-left p-3"
+                        <Link
+                          href={`/instructor/courses/${course._id || course.id}`}
+                          className="w-full text-left p-3 block hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded transition-colors"
                         >
                           <p className="font-semibold text-sm text-gray-900 dark:text-white">{course.title}</p>
                           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">{course.description}</p>
-                        </button>
+                        </Link>
                         <div className="px-3 pb-2 flex gap-1">
                           <button
                             onClick={(e) => {

@@ -11,16 +11,22 @@ import BackButton from '@/components/BackButton';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { useCourse } from '@/hooks/useCourses';
 import { useAuth } from '@/hooks/useAuth';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { apiClient } from '@/lib/api-client';
 
 export default function CourseDetailPage() {
   const router = useRouter();
   const { id } = router.query;
   const { course, loading } = useCourse(id);
-  const { isAuthenticated } = useAuth();
-  // const { user } = useAuth(); // Reserved for future use
+  const { isAuthenticated, user } = useAuth();
   const [enrolling, setEnrolling] = useState(false);
+
+  // Redirect instructors to instructor course management page
+  useEffect(() => {
+    if (user && (user.role === 'instructor' || user.role === 'admin' || user.role === 'superadmin')) {
+      router.replace(`/instructor/courses/${id}`);
+    }
+  }, [user, id, router]);
 
   const handleEnroll = async () => {
     if (!isAuthenticated) {
