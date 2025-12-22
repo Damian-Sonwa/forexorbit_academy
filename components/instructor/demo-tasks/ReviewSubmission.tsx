@@ -33,6 +33,7 @@ export default function ReviewSubmission() {
     feedback: '',
   });
   const [error, setError] = useState<string | null>(null);
+  const [draftingFeedback, setDraftingFeedback] = useState<string | null>(null);
 
   useEffect(() => {
     loadSubmissions();
@@ -90,6 +91,24 @@ export default function ReviewSubmission() {
     setReviewingId(null);
     setReviewForm({ grade: '', feedback: '' });
     setError(null);
+    setDraftingFeedback(null);
+  };
+
+  const handleDraftFeedback = async (submissionId: string) => {
+    setDraftingFeedback(submissionId);
+    setError(null);
+    try {
+      const response = await apiClient.post<{ feedback: string }>('/ai/instructor/draft-feedback', {
+        submissionId,
+      });
+      setReviewForm({ ...reviewForm, feedback: response.feedback });
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to draft feedback';
+      setError(errorMessage);
+      console.error('AI draft feedback error:', err);
+    } finally {
+      setDraftingFeedback(null);
+    }
   };
 
   if (loading) {
@@ -141,16 +160,41 @@ export default function ReviewSubmission() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Feedback
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                          Feedback
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => handleDraftFeedback(submission._id)}
+                          disabled={draftingFeedback === submission._id}
+                          className="px-3 py-1 text-xs bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white rounded-lg font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-1"
+                        >
+                          {draftingFeedback === submission._id ? (
+                            <>
+                              <span className="inline-block animate-spin rounded-full h-3 w-3 border-b-2 border-white"></span>
+                              <span>Drafting...</span>
+                            </>
+                          ) : (
+                            <>
+                              <span>🤖</span>
+                              <span>AI Draft Feedback</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
                       <textarea
                         value={reviewForm.feedback}
                         onChange={(e) => setReviewForm({ ...reviewForm, feedback: e.target.value })}
                         rows={4}
-                        placeholder="Provide constructive feedback for the student..."
+                        placeholder="Provide constructive feedback for the student... (You can use AI to draft feedback)"
                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 dark:text-white bg-white dark:bg-gray-700"
                       />
+                      {reviewForm.feedback && (
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                          💡 AI-drafted feedback is editable. Review and customize before submitting.
+                        </p>
+                      )}
                     </div>
 
                     <div className="flex justify-end space-x-3">

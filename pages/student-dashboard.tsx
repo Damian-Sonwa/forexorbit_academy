@@ -425,6 +425,20 @@ export default function StudentDashboard() {
                   <span className="hidden sm:inline">Reminders & To-Do</span>
                   <span className="sm:hidden">Reminders</span>
                 </button>
+                <button
+                  onClick={() => setActiveSection('ai')}
+                  className={`
+                    flex items-center space-x-2 px-4 sm:px-6 py-3 rounded-xl font-semibold text-sm transition-all duration-200 whitespace-nowrap
+                    ${activeSection === 'ai'
+                      ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-lg transform scale-105'
+                      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                    }
+                  `}
+                >
+                  <span className="text-lg">🤖</span>
+                  <span className="hidden sm:inline">AI Assistant</span>
+                  <span className="sm:hidden">AI</span>
+                </button>
               </nav>
             </div>
           </div>
@@ -953,6 +967,19 @@ export default function StudentDashboard() {
                     <TodoList />
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* AI Assistant Section */}
+            {activeSection === 'ai' && (
+              <div className="animate-in fade-in duration-300">
+                <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6 mb-6">
+                  <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent mb-2">
+                    AI Learning Assistant
+                  </h2>
+                  <p className="text-gray-600">Get instant help with Forex concepts, lessons, and trading questions</p>
+                </div>
+                <AIAssistant />
               </div>
             )}
           </div>

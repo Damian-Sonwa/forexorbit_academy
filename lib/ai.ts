@@ -249,8 +249,8 @@ Keep it concise and educational.`;
   return getAIResponse({
     prompt,
     role: 'student',
-    level: userLevel as any,
-    context: { userId },
+    level: userLevel as 'beginner' | 'intermediate' | 'advanced' | undefined,
+    context: userId ? { userId } : undefined,
   });
 }
 
@@ -304,7 +304,7 @@ IMPORTANT: This is educational feedback only. Do not provide real trading advice
     const response = await getAIResponse({
       prompt,
       role: 'student',
-      context: { userId },
+      context: userId ? { userId } : undefined,
       temperature: 0.5, // Lower temperature for more consistent analysis
     });
 
@@ -387,8 +387,194 @@ Keep it under 200 words.`;
   return getAIResponse({
     prompt,
     role: 'student',
-    level: userLevel as any,
-    context: { userId },
+    level: userLevel as 'beginner' | 'intermediate' | 'advanced' | undefined,
+    context: userId ? { userId } : undefined,
   });
 }
 
+/**
+ * Analyze student performance for instructors
+ */
+export async function analyzeStudentPerformance(
+  studentData: {
+    name: string;
+    email: string;
+    level?: string;
+    totalTrades?: number;
+    winRate?: number;
+    averageProfitLoss?: number;
+    completedTasks?: number;
+    pendingTasks?: number;
+    averageGrade?: number;
+    recentSubmissions?: Array<{
+      taskTitle: string;
+      grade?: number;
+      submittedAt: string;
+    }>;
+  },
+  userId?: string
+): Promise<{
+  summary: string;
+  strengths: string[];
+  concerns: string[];
+  recommendations: string[];
+}> {
+  const prompt = `Analyze this student's performance and provide insights for an instructor:
+
+Student: ${studentData.name} (${studentData.email})
+Level: ${studentData.level || 'Unknown'}
+Total Trades: ${studentData.totalTrades || 0}
+Win Rate: ${studentData.winRate ? (studentData.winRate * 100).toFixed(1) + '%' : 'N/A'}
+Average P/L: ${studentData.averageProfitLoss ? `$${studentData.averageProfitLoss.toFixed(2)}` : 'N/A'}
+Completed Tasks: ${studentData.completedTasks || 0}
+Pending Tasks: ${studentData.pendingTasks || 0}
+Average Grade: ${studentData.averageGrade ? studentData.averageGrade.toFixed(1) : 'N/A'}
+Recent Submissions: ${studentData.recentSubmissions?.length || 0}
+
+Please provide:
+1. A brief summary of overall performance (2-3 sentences)
+2. 2-3 key strengths
+3. 2-3 areas of concern (if any)
+4. 2-3 actionable recommendations for the instructor
+
+Format your response as JSON with keys: summary, strengths, concerns, recommendations.
+Each value should be an array of strings (except summary which is a string).
+
+Be constructive and educational.`;
+
+  try {
+    const response = await getAIResponse({
+      prompt,
+      role: 'instructor',
+      context: userId ? { userId } : undefined,
+      temperature: 0.6,
+      maxTokens: 800,
+    });
+
+    try {
+      const parsed = JSON.parse(response);
+      return {
+        summary: parsed.summary || 'Student is making progress in their Forex trading education.',
+        strengths: Array.isArray(parsed.strengths) ? parsed.strengths : [parsed.strengths || 'Good engagement'],
+        concerns: Array.isArray(parsed.concerns) ? parsed.concerns : [],
+        recommendations: Array.isArray(parsed.recommendations) ? parsed.recommendations : [parsed.recommendations || 'Continue monitoring progress'],
+      };
+    } catch {
+      return {
+        summary: response.substring(0, 200),
+        strengths: ['Active participation'],
+        concerns: [],
+        recommendations: ['Continue providing guidance'],
+      };
+    }
+  } catch (error) {
+    console.error('AI student performance analysis error:', error);
+    throw error;
+  }
+}
+
+/**
+ * Draft feedback for a student submission
+ */
+export async function draftFeedback(
+  submissionData: {
+    taskTitle: string;
+    taskDescription: string;
+    studentReasoning: string;
+    studentLevel?: string;
+  },
+  userId?: string
+): Promise<string> {
+  const prompt = `Draft constructive feedback for a student's task submission:
+
+Task: ${submissionData.taskTitle}
+Description: ${submissionData.taskDescription}
+Student Level: ${submissionData.studentLevel || 'beginner'}
+
+Student's Reasoning/Analysis:
+${submissionData.studentReasoning}
+
+Please draft feedback that:
+1. Acknowledges what the student did well
+2. Provides constructive criticism
+3. Offers specific suggestions for improvement
+4. Is encouraging and educational
+5. Is appropriate for ${submissionData.studentLevel || 'beginner'} level
+
+Keep it professional, supportive, and actionable (3-4 sentences).`;
+
+  return getAIResponse({
+    prompt,
+    role: 'instructor',
+    context: userId ? { userId } : undefined,
+    temperature: 0.7,
+    maxTokens: 300,
+  });
+}
+
+/**
+ * Get lesson improvement suggestions
+ */
+export async function suggestLessonImprovements(
+  lessonData: {
+    title: string;
+    content: string;
+    studentFeedback?: Array<{
+      rating?: number;
+      comment?: string;
+    }>;
+    completionRate?: number;
+    averageScore?: number;
+  },
+  userId?: string
+): Promise<{
+  suggestions: string[];
+  strengths: string[];
+  improvements: string[];
+}> {
+  const prompt = `Analyze this lesson and suggest improvements:
+
+Lesson Title: ${lessonData.title}
+Content Preview: ${lessonData.content.substring(0, 500)}...
+Completion Rate: ${lessonData.completionRate ? (lessonData.completionRate * 100).toFixed(1) + '%' : 'N/A'}
+Average Score: ${lessonData.averageScore ? lessonData.averageScore.toFixed(1) : 'N/A'}
+Student Feedback: ${lessonData.studentFeedback?.length || 0} reviews
+
+Please provide:
+1. 2-3 strengths of the current lesson
+2. 2-3 specific improvement suggestions
+3. 1-2 actionable recommendations
+
+Format your response as JSON with keys: strengths, improvements, suggestions.
+Each value should be an array of strings.
+
+Be constructive and focused on enhancing learning outcomes.`;
+
+  try {
+    const response = await getAIResponse({
+      prompt,
+      role: 'instructor',
+      context: userId ? { userId } : undefined,
+      temperature: 0.6,
+      maxTokens: 600,
+    });
+
+    try {
+      const parsed = JSON.parse(response);
+      return {
+        strengths: Array.isArray(parsed.strengths) ? parsed.strengths : [parsed.strengths || 'Well-structured content'],
+        improvements: Array.isArray(parsed.improvements) ? parsed.improvements : [parsed.improvements || 'Consider adding more examples'],
+        suggestions: Array.isArray(parsed.suggestions) ? parsed.suggestions : [parsed.suggestions || 'Continue refining based on student feedback'],
+      };
+    } catch {
+      return {
+        strengths: ['Good content structure'],
+        improvements: ['Consider adding more practical examples'],
+        suggestions: ['Gather more student feedback'],
+      };
+    }
+  } catch (error) {
+    console.error('AI lesson improvement suggestions error:', error);
+    throw error;
+  }
+}
