@@ -111,7 +111,8 @@ export default function AIAssistant() {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        credentials: 'include',
+        credentials: 'include', // Include credentials for CORS
+        mode: 'cors', // Explicitly enable CORS
         body: JSON.stringify({
           question: userMessage.content,
           userLevel,

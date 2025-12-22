@@ -25,6 +25,10 @@ export function withAuth(
   allowedRoles?: ('superadmin' | 'admin' | 'instructor' | 'student')[]
 ) {
   return async (req: AuthRequest, res: NextApiResponse) => {
+    // Preserve any existing CORS headers that were set before calling withAuth
+    // This ensures 401/403 responses include CORS headers for cross-origin requests
+    const existingCorsOrigin = res.getHeader('Access-Control-Allow-Origin');
+    
     try {
       // Extract token from Authorization header
       const authHeader = req.headers.authorization || req.headers.Authorization as string || null;
@@ -32,6 +36,11 @@ export function withAuth(
       
       if (!token) {
         console.error('No token found in request headers');
+        // Preserve CORS headers if they were set
+        if (existingCorsOrigin) {
+          res.setHeader('Access-Control-Allow-Origin', existingCorsOrigin);
+          res.setHeader('Access-Control-Allow-Credentials', 'true');
+        }
         res.status(401).json({ error: 'Authentication required' });
         return;
       }
@@ -44,6 +53,11 @@ export function withAuth(
       // Check role if specified
       if (allowedRoles && !allowedRoles.includes(payload.role)) {
         console.error('Role check failed - User role:', payload.role, 'Allowed:', allowedRoles);
+        // Preserve CORS headers if they were set
+        if (existingCorsOrigin) {
+          res.setHeader('Access-Control-Allow-Origin', existingCorsOrigin);
+          res.setHeader('Access-Control-Allow-Credentials', 'true');
+        }
         res.status(403).json({ error: 'Insufficient permissions' });
         return;
       }
@@ -58,6 +72,11 @@ export function withAuth(
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Invalid token';
       console.error('Auth middleware error:', errorMessage);
+      // Preserve CORS headers if they were set
+      if (existingCorsOrigin) {
+        res.setHeader('Access-Control-Allow-Origin', existingCorsOrigin);
+        res.setHeader('Access-Control-Allow-Credentials', 'true');
+      }
       res.status(401).json({ error: errorMessage });
     }
   };
