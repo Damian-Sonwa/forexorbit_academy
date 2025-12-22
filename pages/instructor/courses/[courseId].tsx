@@ -278,10 +278,21 @@ export default function InstructorCoursePage() {
       };
       
       // Filter out visual aids without URLs before saving (both uploaded images and URL inputs are valid)
-      const validVisualAids = ((lessonForm as any).visualAids || []).filter((aid: any) => {
+      const allVisualAids = (lessonForm as any).visualAids || [];
+      const validVisualAids = allVisualAids.filter((aid: any) => {
         const url = aid.url?.trim() || '';
         // Accept both uploaded image URLs (Cloudinary) and external URLs
-        return url !== '' && (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:image/'));
+        const isValid = url !== '' && (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:image/'));
+        if (!isValid && url) {
+          console.warn('Visual aid URL rejected:', url);
+        }
+        return isValid;
+      });
+      
+      console.log('Creating lesson - Visual aids:', {
+        total: allVisualAids.length,
+        valid: validVisualAids.length,
+        aids: allVisualAids.map((aid: any) => ({ url: aid.url, caption: aid.caption }))
       });
       
       if (lessonForm.summary || validVisualAids.length > 0) {
