@@ -217,6 +217,7 @@ async function createNotification(req: AuthRequest, res: NextApiResponse) {
 
     // Emit socket event for real-time notification
     if (req.io) {
+      const io = req.io; // Store in local variable for type narrowing
       // Determine who should receive this notification
       let targetUsers: string[] = [];
       
@@ -232,7 +233,7 @@ async function createNotification(req: AuthRequest, res: NextApiResponse) {
         targetUsers = targetUserDocs.map((u) => u._id.toString());
       } else {
         // Broadcast to all (for 'all' or no roleTarget)
-        req.io.emit('notification', {
+        io.emit('notification', {
           ...notification,
           _id: result.insertedId.toString(),
         });
@@ -240,7 +241,7 @@ async function createNotification(req: AuthRequest, res: NextApiResponse) {
 
       // Emit to specific users
       targetUsers.forEach((targetUserId) => {
-        req.io.to(`user:${targetUserId}`).emit('notification', {
+        io.to(`user:${targetUserId}`).emit('notification', {
           ...notification,
           _id: result.insertedId.toString(),
         });

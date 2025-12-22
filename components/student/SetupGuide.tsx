@@ -100,7 +100,7 @@ export default function SetupGuide() {
             <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded">
               <h4 className="font-semibold mb-2 text-blue-900">Option A: OANDA Demo Account (Recommended for API Integration)</h4>
               <ol className="list-decimal list-inside space-y-2 text-sm text-blue-800">
-                <li>Click the "Create OANDA Demo Account" button above</li>
+                <li>Click the &quot;Create OANDA Demo Account&quot; button above</li>
                 <li>Fill in the registration form with your email and details</li>
                 <li>Verify your email address</li>
                 <li>Log in to your OANDA practice account</li>
@@ -112,13 +112,13 @@ export default function SetupGuide() {
             <div className="bg-green-50 border-l-4 border-green-400 p-4 rounded">
               <h4 className="font-semibold mb-2 text-green-900">Option B: MetaTrader Demo Account (Recommended for Desktop Trading)</h4>
               <ol className="list-decimal list-inside space-y-2 text-sm text-green-800">
-                <li>Click the "Download MetaTrader" button above</li>
+                <li>Click the &quot;Download MetaTrader&quot; button above</li>
                 <li>Download and install MT4 or MT5</li>
-                <li>Open the platform and click "Open an Account"</li>
+                <li>Open the platform and click &quot;Open an Account&quot;</li>
                 <li>Select a broker (e.g., IC Markets, FXTM, XM)</li>
-                <li>Choose "Demo Account" option</li>
+                <li>Choose &quot;Demo Account&quot; option</li>
                 <li>Fill in the registration form</li>
-                <li>You'll receive login credentials via email</li>
+                <li>You&apos;ll receive login credentials via email</li>
               </ol>
             </div>
           </div>
@@ -137,7 +137,7 @@ export default function SetupGuide() {
               and you can trade directly in your browser - no download required!
             </p>
             <p className="text-sm text-gray-600 italic">
-              💡 Tip: Contact your instructor if you need help accessing your broker's WebTrader platform.
+              💡 Tip: Contact your instructor if you need help accessing your broker&apos;s WebTrader platform.
             </p>
           </div>
 
@@ -149,7 +149,7 @@ export default function SetupGuide() {
             <div className="mt-2 space-y-1 text-sm text-gray-600">
               <p><strong>Login:</strong> Your demo account number</p>
               <p><strong>Password:</strong> The password you received</p>
-              <p><strong>Server:</strong> Usually something like "BrokerName-Demo" or "Demo-Server"</p>
+              <p><strong>Server:</strong> Usually something like &quot;BrokerName-Demo&quot; or &quot;Demo-Server&quot;</p>
             </div>
           </div>
         </div>
@@ -170,10 +170,10 @@ export default function SetupGuide() {
                   Navigate to Trading Dashboard
                 </h5>
                 <p className="text-sm text-gray-700 mb-2">
-                  Click on <strong>"Trading Dashboard"</strong> in the sidebar or from the main dashboard page.
+                  Click on <strong>&quot;Trading Dashboard&quot;</strong> in the sidebar or from the main dashboard page.
                 </p>
                 <p className="text-xs text-gray-600">
-                  You'll see three tabs: <strong>Live Trading</strong>, <strong>Tasks</strong>, and <strong>Trade Journal</strong>
+                  You&apos;ll see three tabs: <strong>Live Trading</strong>, <strong>Tasks</strong>, and <strong>Trade Journal</strong>
                 </p>
               </div>
 
@@ -183,7 +183,7 @@ export default function SetupGuide() {
                   View Your Assigned Tasks
                 </h5>
                 <p className="text-sm text-gray-700 mb-2">
-                  Click on the <strong>"Tasks"</strong> tab to see all tasks assigned to you by your instructor.
+                  Click on the <strong>&quot;Tasks&quot;</strong> tab to see all tasks assigned to you by your instructor.
                 </p>
                 <ul className="text-xs text-gray-600 list-disc list-inside space-y-1">
                   <li>Tasks are organized by status: <strong>Pending</strong> and <strong>Submitted</strong></li>
@@ -198,7 +198,7 @@ export default function SetupGuide() {
                   Open Task Details
                 </h5>
                 <p className="text-sm text-gray-700 mb-2">
-                  Click the <strong>"View Task"</strong> button on any pending task card.
+                  Click the <strong>&quot;View Task&quot;</strong> button on any pending task card.
                 </p>
                 <p className="text-xs text-gray-600">
                   This opens the Task Detail page where you can see:
@@ -260,7 +260,7 @@ export default function SetupGuide() {
                   <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">Graded</span>
                 </div>
                 <p className="text-xs text-gray-600 mt-2">
-                  Once reviewed, you'll see instructor feedback and grades on the task detail page.
+                  Once reviewed, you&apos;ll see instructor feedback and grades on the task detail page.
                 </p>
               </div>
             </div>
@@ -350,7 +350,7 @@ export default function SetupGuide() {
 
       <div className="mt-6 p-4 bg-gradient-to-r from-primary-50 to-blue-50 rounded-lg border border-primary-200">
         <p className="text-sm text-gray-700">
-          <strong>Ready to get started?</strong> Once you've set up your demo account, head to the{' '}
+          <strong>Ready to get started?</strong> Once you&apos;ve set up your demo account, head to the{' '}
           <Link href="/student-dashboard" className="text-primary-600 hover:text-primary-700 font-semibold underline">
             Trading Dashboard
           </Link>{' '}

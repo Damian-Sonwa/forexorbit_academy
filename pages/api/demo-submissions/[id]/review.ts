@@ -46,11 +46,13 @@ async function reviewSubmission(req: AuthRequest, res: NextApiResponse) {
     }
 
     // Verify task exists and instructor has permission
+    let task: { title?: string; assignedBy?: string } | null = null;
     if (submission.taskId) {
-      const task = await tasks.findOne({ _id: new ObjectId(submission.taskId) });
-      if (!task) {
+      const taskDoc = await tasks.findOne({ _id: new ObjectId(submission.taskId) });
+      if (!taskDoc) {
         return res.status(404).json({ error: 'Task not found' });
       }
+      task = taskDoc as { title?: string; assignedBy?: string };
 
       // For instructors, verify they created this task
       if (req.user!.role === 'instructor' && task.assignedBy !== req.user!.userId) {

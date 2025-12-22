@@ -149,16 +149,27 @@ export async function sendPasswordResetEmail(
     });
   } catch (error: unknown) {
     console.error('❌ Error sending password reset email:', error);
+    const errorObj = error instanceof Error ? error : { message: String(error) };
+    const errorWithProps = error as { 
+      code?: string; 
+      command?: string; 
+      response?: string; 
+      responseCode?: string;
+      errno?: number;
+      syscall?: string;
+      hostname?: string;
+      port?: number;
+    };
     console.error('Error details:', {
-      message: error?.message,
-      code: error?.code,
-      command: error?.command,
-      response: error?.response,
-      responseCode: error?.responseCode,
-      errno: error?.errno,
-      syscall: error?.syscall,
-      hostname: error?.hostname,
-      port: error?.port,
+      message: errorObj.message,
+      code: errorWithProps?.code,
+      command: errorWithProps?.command,
+      response: errorWithProps?.response,
+      responseCode: errorWithProps?.responseCode,
+      errno: errorWithProps?.errno,
+      syscall: errorWithProps?.syscall,
+      hostname: errorWithProps?.hostname,
+      port: errorWithProps?.port,
     });
     // Log the URL as fallback
     console.log('Password reset URL for', email, ':', resetUrl);
