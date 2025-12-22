@@ -218,18 +218,19 @@ export default function Community() {
     }
     
     // Use the actual room ID from database - each room is fully isolated
-    setShowRoomSelection(false);
+    // CRITICAL: Batch state updates to prevent flicker
+    // Don't clear messages or hide room selection until room is confirmed
     setPage(1);
     setHasMoreMessages(true);
     setRoomConfirmed(false); // Reset confirmation when switching rooms
     canSendMessageRef.current = false; // Reset send ability
-    // Clear previous messages and load messages for this specific room
-    setMessages([]);
-    // Load messages from the selected room
-    loadMessages(roomIdStr, 1, false);
-    // Join the room safely using its unique database ID (only once)
+    
+    // Join the room first, then load messages after confirmation
+    // This prevents flicker by not clearing messages until room is ready
     joinRoomSafely(roomIdStr);
     hasJoinedRoomRef.current.add(roomIdStr); // Mark as joined
+    
+    // Don't clear messages or hide room selection yet - wait for room_joined confirmation
     
     return () => {
       // Cleanup: Leave room when switching away
@@ -669,8 +670,17 @@ export default function Community() {
       if (selectedRoom) {
         const selectedRoomId = selectedRoom._id?.toString() || selectedRoom._id;
         if (data.roomId === selectedRoomId || data.roomId === selectedRoom._id?.toString()) {
+          // CRITICAL: Batch all state updates together to prevent flicker
+          // Only update UI after room is fully confirmed
           setRoomConfirmed(true);
           canSendMessageRef.current = true; // Enable send button
+          setShowRoomSelection(false); // Hide room selection only after room is confirmed
+          
+          // Clear and load messages only after room is confirmed
+          // This prevents showing empty chat before messages load
+          setMessages([]);
+          loadMessages(data.roomId, 1, false);
+          
           console.log('✅ Room confirmed, messages can now be sent');
         }
       }
@@ -1806,7 +1816,7 @@ export default function Community() {
 
         {/* CENTER COLUMN: Chat Area */}
         {/* FIX: Add min-h-0 to allow flex shrinking and prevent overflow on mobile */}
-        {selectedRoom ? (
+        {selectedRoom && roomConfirmed ? (
           <div className="flex-1 flex flex-col bg-gray-100 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 min-h-0 overflow-hidden">
             {/* Chat Header - WhatsApp Style */}
             {/* FIX: Make header responsive - stack elements on mobile if needed */}
