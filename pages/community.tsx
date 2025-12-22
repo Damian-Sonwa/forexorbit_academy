@@ -87,6 +87,7 @@ export default function Community() {
   const [toastMessage, setToastMessage] = useState('');
   const [showNewsModal, setShowNewsModal] = useState(false);
   const [roomConfirmed, setRoomConfirmed] = useState(false); // Track if room join is confirmed
+  const [askingAI, setAskingAI] = useState(false);
   
   // Separate loading states to prevent flicker
   const [isSocketConnecting, setIsSocketConnecting] = useState(true);
@@ -2227,6 +2228,23 @@ export default function Community() {
                       className="flex-1 min-w-0 px-2 sm:px-4 py-2 sm:py-2.5 border-0 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-3xl focus:ring-2 focus:ring-primary-500 focus:outline-none text-xs sm:text-sm resize-none overflow-hidden max-h-32 shadow-sm"
                       style={{ minHeight: '36px' }}
                     />
+
+                    {/* Ask AI Button - Only show when there's input */}
+                    {input.trim() && (
+                      <button
+                        type="button"
+                        onClick={handleAskAI}
+                        disabled={askingAI || !connected || !roomConfirmed || !selectedRoom}
+                        title="Ask AI Assistant"
+                        className="p-2 sm:p-2.5 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-md flex-shrink-0"
+                      >
+                        {askingAI ? (
+                          <span className="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-white"></span>
+                        ) : (
+                          <span className="text-lg">🤖</span>
+                        )}
+                      </button>
+                    )}
 
                     {/* FIX: Send button - ensure it's always visible, responsive sizing */}
                     {/* Note: Button works even without WebSocket - messages sent via HTTP POST */}
