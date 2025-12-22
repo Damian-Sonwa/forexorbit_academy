@@ -8,6 +8,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
+import { analyzeTrade, isAIConfigured } from '@/lib/ai';
 
 async function getJournal(req: AuthRequest, res: NextApiResponse) {
   try {
@@ -40,6 +41,7 @@ async function getJournal(req: AuthRequest, res: NextApiResponse) {
             grade: entry.grade || null,
             feedback: entry.feedback || null,
             reviewedAt: entry.reviewedAt || null,
+            aiFeedback: entry.aiFeedback || null,
           };
         }
         return {
@@ -48,6 +50,7 @@ async function getJournal(req: AuthRequest, res: NextApiResponse) {
           grade: entry.grade || null,
           feedback: entry.feedback || null,
           reviewedAt: entry.reviewedAt || null,
+          aiFeedback: entry.aiFeedback || null,
         };
       })
     );
@@ -155,10 +158,41 @@ async function createJournalEntry(req: AuthRequest, res: NextApiResponse) {
 
     const insertResult = await journal.insertOne(entry);
 
+    // Generate AI feedback if AI is configured (non-blocking)
+    let aiFeedback = null;
+    if (isAIConfigured()) {
+      try {
+        const analysis = await analyzeTrade(
+          {
+            pair: entry.pair,
+            direction: entry.direction,
+            entryPrice: entry.entryPrice,
+            stopLoss: entry.stopLoss,
+            takeProfit: entry.takeProfit,
+            lotSize: entry.lotSize,
+            notes: entry.notes,
+          },
+          req.user!.userId
+        );
+
+        // Store AI feedback in the entry
+        await journal.updateOne(
+          { _id: insertResult.insertedId },
+          { $set: { aiFeedback: analysis } }
+        );
+
+        aiFeedback = analysis;
+      } catch (aiError) {
+        // Log but don't fail the request if AI fails
+        console.error('AI feedback generation failed:', aiError);
+      }
+    }
+
     // Return the created entry with proper formatting
     const createdEntry = {
       _id: insertResult.insertedId.toString(),
       ...entry,
+      aiFeedback,
       createdAt: entry.createdAt.toISOString(),
       updatedAt: entry.updatedAt.toISOString(),
     };

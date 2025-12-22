@@ -57,6 +57,8 @@ export default function TaskDetail() {
   const [uploadingScreenshot, setUploadingScreenshot] = useState(false);
   const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
   const [submissionUploadError, setSubmissionUploadError] = useState<string | null>(null);
+  const [aiHint, setAiHint] = useState<string | null>(null);
+  const [loadingHint, setLoadingHint] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -284,10 +286,62 @@ export default function TaskDetail() {
           {/* Task Instructions */}
           {task.instructions && (
             <div className="mb-6 bg-blue-50 border-l-4 border-blue-400 rounded-lg p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-3">Instructions</h2>
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-lg font-semibold text-gray-900">Instructions</h2>
+                <button
+                  onClick={async () => {
+                    if (loadingHint || aiHint) return;
+                    try {
+                      setLoadingHint(true);
+                      const response = await apiClient.post<{ hint: string }>('/ai/task-hint', {
+                        taskId: task._id,
+                      });
+                      setAiHint(response.hint);
+                    } catch (error) {
+                      console.error('Failed to get AI hint:', error);
+                      alert('Failed to get AI hint. Please try again later.');
+                    } finally {
+                      setLoadingHint(false);
+                    }
+                  }}
+                  disabled={loadingHint}
+                  className="px-3 py-1.5 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white rounded-lg text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                >
+                  {loadingHint ? (
+                    <>
+                      <span className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>
+                      <span>Loading...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>🤖</span>
+                      <span>Ask AI for Hint</span>
+                    </>
+                  )}
+                </button>
+              </div>
               <div className="prose max-w-none">
                 <p className="text-gray-700 whitespace-pre-line">{task.instructions}</p>
               </div>
+              {aiHint && (
+                <div className="mt-4 p-4 bg-white rounded-lg border border-blue-200">
+                  <div className="flex items-start justify-between mb-2">
+                    <h3 className="text-sm font-semibold text-gray-900 flex items-center">
+                      <span className="mr-2">💡</span>
+                      AI Hint
+                    </h3>
+                    <button
+                      onClick={() => setAiHint(null)}
+                      className="text-gray-400 hover:text-gray-600"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                  <p className="text-sm text-gray-700 whitespace-pre-wrap">{aiHint}</p>
+                </div>
+              )}
             </div>
           )}
 

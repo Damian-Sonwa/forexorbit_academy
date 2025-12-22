@@ -15,6 +15,7 @@ import MarketSignal from '@/components/MarketSignal';
 import SetupGuide from '@/components/student/SetupGuide';
 import TodoList from '@/components/TodoList';
 import RemindersPanel from '@/components/RemindersPanel';
+import AIAssistant from '@/components/AIAssistant';
 import { useAuth } from '@/hooks/useAuth';
 import { useSocket } from '@/hooks/useSocket';
 import { apiClient } from '@/lib/api-client';
@@ -56,12 +57,18 @@ interface TradeJournalEntry {
   lotSize: number;
   result: 'win' | 'loss' | 'breakeven' | 'open';
   profitLoss?: number;
-  notes: string;
+  notes?: string;
   screenshot?: string;
+  aiFeedback?: {
+    strengths: string[];
+    mistakes: string[];
+    suggestions: string[];
+    riskReward: string;
+  };
   createdAt: string;
 }
 
-type ActiveSection = 'guide' | 'live' | 'tasks' | 'journal' | 'reminders';
+type ActiveSection = 'guide' | 'live' | 'tasks' | 'journal' | 'reminders' | 'ai';
 
 export default function StudentDashboard() {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
@@ -806,7 +813,7 @@ export default function StudentDashboard() {
                                 <p className="text-sm text-gray-600">{format(new Date(trade.createdAt), 'MMM dd, yyyy')}</p>
                               </div>
                             </div>
-                            {(trade.notes || trade.screenshot) && (
+                            {(trade.notes || trade.screenshot || trade.aiFeedback) && (
                               <div className="mt-6 pt-6 border-t-2 border-gray-200">
                                 {trade.notes && (
                                   <div className="mb-4">
@@ -815,7 +822,7 @@ export default function StudentDashboard() {
                                   </div>
                                 )}
                                 {trade.screenshot && (
-                                  <div>
+                                  <div className="mb-4">
                                     <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">📷 Screenshot</p>
                                     <div className="relative w-full max-w-md h-64 rounded-xl overflow-hidden border-2 border-gray-300 shadow-md">
                                       <Image
@@ -830,6 +837,50 @@ export default function StudentDashboard() {
                                         }}
                                       />
                                     </div>
+                                  </div>
+                                )}
+                                {trade.aiFeedback && (
+                                  <div className="bg-gradient-to-br from-blue-50 to-cyan-50 border border-blue-200 rounded-lg p-4 mb-4">
+                                    <div className="flex items-center mb-3">
+                                      <span className="text-lg mr-2">🤖</span>
+                                      <h4 className="text-sm font-bold text-gray-900">AI Feedback</h4>
+                                    </div>
+                                    {trade.aiFeedback.strengths && trade.aiFeedback.strengths.length > 0 && (
+                                      <div className="mb-3">
+                                        <p className="text-xs font-semibold text-green-700 mb-1">✅ Strengths:</p>
+                                        <ul className="list-disc list-inside space-y-1">
+                                          {trade.aiFeedback.strengths.map((strength, idx) => (
+                                            <li key={idx} className="text-xs text-gray-700">{strength}</li>
+                                          ))}
+                                        </ul>
+                                      </div>
+                                    )}
+                                    {trade.aiFeedback.mistakes && trade.aiFeedback.mistakes.length > 0 && (
+                                      <div className="mb-3">
+                                        <p className="text-xs font-semibold text-orange-700 mb-1">⚠️ Areas for Improvement:</p>
+                                        <ul className="list-disc list-inside space-y-1">
+                                          {trade.aiFeedback.mistakes.map((mistake, idx) => (
+                                            <li key={idx} className="text-xs text-gray-700">{mistake}</li>
+                                          ))}
+                                        </ul>
+                                      </div>
+                                    )}
+                                    {trade.aiFeedback.suggestions && trade.aiFeedback.suggestions.length > 0 && (
+                                      <div className="mb-3">
+                                        <p className="text-xs font-semibold text-blue-700 mb-1">💡 Suggestions:</p>
+                                        <ul className="list-disc list-inside space-y-1">
+                                          {trade.aiFeedback.suggestions.map((suggestion, idx) => (
+                                            <li key={idx} className="text-xs text-gray-700">{suggestion}</li>
+                                          ))}
+                                        </ul>
+                                      </div>
+                                    )}
+                                    {trade.aiFeedback.riskReward && (
+                                      <div>
+                                        <p className="text-xs font-semibold text-purple-700 mb-1">📊 Risk-to-Reward:</p>
+                                        <p className="text-xs text-gray-700">{trade.aiFeedback.riskReward}</p>
+                                      </div>
+                                    )}
                                   </div>
                                 )}
                               </div>
