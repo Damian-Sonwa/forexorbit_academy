@@ -7,6 +7,10 @@ import { useState, useRef, useEffect } from 'react';
 import { apiClient } from '@/lib/api-client';
 import { useAuth } from '@/hooks/useAuth';
 
+interface AIConfigStatus {
+  configured: boolean;
+}
+
 interface Message {
   id: string;
   role: 'user' | 'assistant';
@@ -27,6 +31,7 @@ export default function AIAssistant() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [aiConfigured, setAiConfigured] = useState<boolean | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -37,6 +42,17 @@ export default function AIAssistant() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  useEffect(() => {
+    // Check if AI is configured
+    apiClient.get<AIConfigStatus>('/ai/check-config')
+      .then((response) => {
+        setAiConfigured(response.configured);
+      })
+      .catch(() => {
+        setAiConfigured(false);
+      });
+  }, []);
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -100,6 +116,11 @@ export default function AIAssistant() {
               <p className="text-xs text-primary-100">Ask me anything about Forex trading</p>
             </div>
           </div>
+          {aiConfigured === false && (
+            <div className="px-2 py-1 bg-yellow-500/30 rounded text-xs">
+              AI Not Configured
+            </div>
+          )}
         </div>
       </div>
 
@@ -147,6 +168,13 @@ export default function AIAssistant() {
 
       {/* Input */}
       <form onSubmit={handleSend} className="border-t border-gray-200 dark:border-gray-700 p-4">
+        {aiConfigured === false && (
+          <div className="mb-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+            <p className="text-xs text-yellow-800 dark:text-yellow-200">
+              ⚠️ AI service is not configured. Please contact your administrator to enable AI features.
+            </p>
+          </div>
+        )}
         <div className="flex space-x-2">
           <input
             ref={inputRef}
@@ -154,12 +182,12 @@ export default function AIAssistant() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Ask a question..."
-            disabled={loading}
+            disabled={loading || aiConfigured === false}
             className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50"
           />
           <button
             type="submit"
-            disabled={loading || !input.trim()}
+            disabled={loading || !input.trim() || aiConfigured === false}
             className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Send
