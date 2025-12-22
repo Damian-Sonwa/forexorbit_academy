@@ -171,9 +171,44 @@ export default function InstructorDashboard() {
       }
     });
 
+    // Real-time dashboard metrics updates
+    socket.on('student_enrolled', (data: { courseId: string; instructorId?: string }) => {
+      // Only refresh if it's for this instructor's course
+      if (!data.instructorId || data.instructorId === user?.id) {
+        loadAnalytics();
+      }
+    });
+
+    socket.on('task_submitted', (data: { taskId: string; instructorId?: string }) => {
+      // Only refresh if it's for this instructor's task
+      if (!data.instructorId || data.instructorId === user?.id) {
+        loadAnalytics();
+        loadDemoSubmissions();
+      }
+    });
+
+    socket.on('task_completed', (data: { taskId: string; instructorId?: string }) => {
+      // Only refresh if it's for this instructor's task
+      if (!data.instructorId || data.instructorId === user?.id) {
+        loadAnalytics();
+        loadDemoSubmissions();
+      }
+    });
+
+    socket.on('course_progress_updated', (data: { courseId: string; instructorId?: string }) => {
+      // Only refresh if it's for this instructor's course
+      if (!data.instructorId || data.instructorId === user?.id) {
+        loadAnalytics();
+      }
+    });
+
     return () => {
       socket.off('lessonUpdated');
       socket.off('quizUpdated');
+      socket.off('student_enrolled');
+      socket.off('task_submitted');
+      socket.off('task_completed');
+      socket.off('course_progress_updated');
     };
   }, [socket, connected, user, selectedCourse, editingQuiz]);
 
@@ -286,13 +321,10 @@ export default function InstructorDashboard() {
     try {
       const data = await apiClient.get('/instructor/analytics');
       setAnalytics(data as any);
-    } catch {
-      setAnalytics({
-        totalCourses: allCourses.length,
-        totalLessons: 0,
-        totalStudents: 0,
-        totalEnrollments: 0,
-      });
+    } catch (error: any) {
+      console.error('[Instructor Dashboard] Failed to load analytics:', error);
+      // Don't set fallback zeros - analytics will remain null and show loading/error state
+      setAnalytics(null);
     }
   };
 
@@ -1012,7 +1044,11 @@ export default function InstructorDashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-primary-100 text-xs font-medium mb-1">All Courses</p>
-                <p className="text-2xl font-bold">{analytics?.totalCourses || allCourses.length}</p>
+                {analytics === null ? (
+                  <div className="h-8 w-16 bg-primary-400/50 rounded animate-pulse"></div>
+                ) : (
+                  <p className="text-2xl font-bold">{analytics?.totalCourses ?? allCourses.length}</p>
+                )}
               </div>
               <svg className="w-8 h-8 text-primary-200 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
@@ -1024,7 +1060,11 @@ export default function InstructorDashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-secondary-100 text-xs font-medium mb-1">Total Lessons</p>
-                <p className="text-2xl font-bold">{analytics?.totalLessons || 0}</p>
+                {analytics === null ? (
+                  <div className="h-8 w-16 bg-secondary-400/50 rounded animate-pulse"></div>
+                ) : (
+                  <p className="text-2xl font-bold">{analytics?.totalLessons ?? 0}</p>
+                )}
               </div>
               <svg className="w-8 h-8 text-secondary-200 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -1036,7 +1076,11 @@ export default function InstructorDashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-green-100 text-xs font-medium mb-1">Total Students</p>
-                <p className="text-2xl font-bold">{analytics?.totalStudents || 0}</p>
+                {analytics === null ? (
+                  <div className="h-8 w-16 bg-green-400/50 rounded animate-pulse"></div>
+                ) : (
+                  <p className="text-2xl font-bold">{analytics?.totalStudents ?? 0}</p>
+                )}
               </div>
               <svg className="w-8 h-8 text-green-200 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
@@ -1048,7 +1092,11 @@ export default function InstructorDashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-yellow-100 text-xs font-medium mb-1">Enrollments</p>
-                <p className="text-2xl font-bold">{analytics?.totalEnrollments || 0}</p>
+                {analytics === null ? (
+                  <div className="h-8 w-16 bg-yellow-400/50 rounded animate-pulse"></div>
+                ) : (
+                  <p className="text-2xl font-bold">{analytics?.totalEnrollments ?? analytics?.enrolledStudents ?? 0}</p>
+                )}
               </div>
               <svg className="w-8 h-8 text-yellow-200 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
