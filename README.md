@@ -2,6 +2,8 @@
 
 A comprehensive e-learning platform for Forex trading with real-time features, interactive lessons, quizzes, and live market signals.
 
+<!-- Last updated: Community room access fix - level-specific access for students -->
+
 ## Features
 
 ### Core Features
