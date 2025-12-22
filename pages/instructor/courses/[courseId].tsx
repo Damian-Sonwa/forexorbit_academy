@@ -72,6 +72,7 @@ export default function InstructorCoursePage() {
   const [courseForm, setCourseForm] = useState<Partial<Course>>({});
   const [showLessonForm, setShowLessonForm] = useState(false);
   const [showQuizForm, setShowQuizForm] = useState(false);
+  const [uploadingImageIndex, setUploadingImageIndex] = useState<number | null>(null);
 
   // Role enforcement
   useEffect(() => {
@@ -199,10 +200,13 @@ export default function InstructorCoursePage() {
       const existingLesson = await apiClient.get(`/lessons/${editingLesson}`);
       const existingLessonSummary = (existingLesson as any).lessonSummary || {};
       
+      // Filter out visual aids without URLs before saving
+      const validVisualAids = ((lessonForm as any).visualAids || []).filter((aid: any) => aid.url && aid.url.trim() !== '');
+      
       updateData.lessonSummary = {
         ...existingLessonSummary,
         overview: lessonForm.summary || existingLessonSummary.overview || '',
-        screenshots: (lessonForm as any).visualAids || existingLessonSummary.screenshots || [],
+        screenshots: validVisualAids.length > 0 ? validVisualAids : existingLessonSummary.screenshots || [],
         updatedAt: new Date(),
       };
 
@@ -258,10 +262,13 @@ export default function InstructorCoursePage() {
         order: lessonForm.order || courseLessons.length + 1,
       };
       
-      if (lessonForm.summary || lessonForm.visualAids) {
+      // Filter out visual aids without URLs before saving
+      const validVisualAids = ((lessonForm as any).visualAids || []).filter((aid: any) => aid.url && aid.url.trim() !== '');
+      
+      if (lessonForm.summary || validVisualAids.length > 0) {
         lessonData.lessonSummary = {
           overview: lessonForm.summary || '',
-          screenshots: lessonForm.visualAids || [],
+          screenshots: validVisualAids,
           updatedAt: new Date(),
         };
       }
@@ -360,6 +367,7 @@ export default function InstructorCoursePage() {
     }
 
     try {
+      setUploadingImageIndex(index);
       const formData = new FormData();
       formData.append('file', file);
 
@@ -381,6 +389,8 @@ export default function InstructorCoursePage() {
       console.error('Image upload error:', error);
       const errorMessage = error.response?.data?.error || error.message || 'Failed to upload image';
       alert(errorMessage);
+    } finally {
+      setUploadingImageIndex(null);
     }
   };
 
@@ -728,7 +738,7 @@ export default function InstructorCoursePage() {
                 {/* Visual Aids Section */}
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300">Visual Aids</label>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300">Visual Aids (Charts & Screenshots)</label>
                     <button
                       type="button"
                       onClick={addVisualAid}
@@ -737,33 +747,107 @@ export default function InstructorCoursePage() {
                       + Add Visual Aid
                     </button>
                   </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                    Upload images, paste image URLs, or paste images directly from clipboard (Ctrl+V / Cmd+V). These will appear in the Visual Aids section for students.
+                  </p>
                   <div className="space-y-3">
                     {(lessonForm.visualAids || []).map((aid, index) => (
-                      <div key={index} className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 space-y-2">
+                      <div 
+                        key={index} 
+                        className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 space-y-2"
+                        onPaste={async (e) => {
+                          e.preventDefault();
+                          const items = e.clipboardData.items;
+                          for (let i = 0; i < items.length; i++) {
+                            if (items[i].type.indexOf('image') !== -1) {
+                              const blob = items[i].getAsFile();
+                              if (blob) {
+                                const file = new File([blob], `pasted-image-${Date.now()}.png`, { type: 'image/png' });
+                                await handleImageUpload(index, file);
+                              }
+                              break;
+                            }
+                          }
+                        }}
+                      >
                         <div className="flex gap-2">
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) handleImageUpload(index, file);
-                            }}
-                            className="hidden"
-                            id={`visual-aid-upload-${index}`}
-                          />
-                          <label
-                            htmlFor={`visual-aid-upload-${index}`}
-                            className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm"
-                          >
-                            Upload
-                          </label>
-                          <input
-                            type="url"
-                            value={aid.url || ''}
-                            onChange={(e) => updateVisualAid(index, 'url', e.target.value)}
-                            placeholder="Image URL"
-                            className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg text-sm focus:ring-2 focus:ring-primary-500"
-                          />
+                          {/* Image Upload */}
+                          <div className="flex-shrink-0">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) handleImageUpload(index, file);
+                              }}
+                              className="hidden"
+                              id={`visual-aid-upload-${index}`}
+                            />
+                            <label
+                              htmlFor={`visual-aid-upload-${index}`}
+                              className={`inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm ${
+                                uploadingImageIndex === index ? 'opacity-50 cursor-not-allowed' : ''
+                              }`}
+                            >
+                              {uploadingImageIndex === index ? (
+                                <>
+                                  <svg className="animate-spin h-4 w-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                  </svg>
+                                  Uploading...
+                                </>
+                              ) : (
+                                <>
+                                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                  </svg>
+                                  Upload
+                                </>
+                              )}
+                            </label>
+                          </div>
+                          
+                          {/* URL Input - only show if no URL exists yet */}
+                          {!aid.url && (
+                            <input
+                              type="url"
+                              value={aid.url || ''}
+                              onChange={(e) => updateVisualAid(index, 'url', e.target.value)}
+                              onPaste={(e) => {
+                                // Allow pasting URLs, but also check for image data
+                                const pastedText = e.clipboardData.getData('text');
+                                if (pastedText.startsWith('http://') || pastedText.startsWith('https://') || pastedText.startsWith('data:image/')) {
+                                  // If it's a URL or data URL, update the URL field
+                                  updateVisualAid(index, 'url', pastedText);
+                                }
+                              }}
+                              placeholder="Paste image URL here or click in this area and paste an image (Ctrl+V / Cmd+V)"
+                              className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg text-sm focus:ring-2 focus:ring-primary-500"
+                            />
+                          )}
+                          
+                          {/* Show uploaded URL as read-only text when image is uploaded */}
+                          {aid.url && (
+                            <div className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-lg text-sm flex items-center">
+                              <svg className="w-4 h-4 mr-2 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                              </svg>
+                              <span className="truncate" title={aid.url}>Image uploaded</span>
+                              <button
+                                type="button"
+                                onClick={() => updateVisualAid(index, 'url', '')}
+                                className="ml-2 text-gray-400 hover:text-red-600 dark:hover:text-red-400"
+                                title="Remove image"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </button>
+                            </div>
+                          )}
+                          
+                          {/* Remove Button */}
                           <button
                             type="button"
                             onClick={() => removeVisualAid(index)}
@@ -772,19 +856,28 @@ export default function InstructorCoursePage() {
                             Remove
                           </button>
                         </div>
+                        
+                        {/* Caption Input */}
                         <input
                           type="text"
                           value={aid.caption || ''}
                           onChange={(e) => updateVisualAid(index, 'caption', e.target.value)}
-                          placeholder="Caption"
+                          placeholder="Caption (e.g., 'RSI Indicator showing overbought levels')"
                           className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg text-sm focus:ring-2 focus:ring-primary-500"
                         />
+                        
+                        {/* Preview */}
                         {aid.url && (
-                          <img
-                            src={aid.url}
-                            alt={aid.caption || 'Visual aid'}
-                            className="max-w-full h-32 object-contain rounded border border-gray-200 dark:border-gray-700"
-                          />
+                          <div className="mt-2">
+                            <img
+                              src={aid.url}
+                              alt={aid.caption || 'Visual aid preview'}
+                              className="max-w-full h-32 object-contain rounded border border-gray-200 dark:border-gray-700"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = 'none';
+                              }}
+                            />
+                          </div>
                         )}
                       </div>
                     ))}
