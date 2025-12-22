@@ -115,9 +115,6 @@ export default function Community() {
   const roomSelectionDoneRef = useRef(false); // Track if room selection has happened
   const canSendMessageRef = useRef(false); // Track if we can send messages
 
-  // Retry pending room joins when socket connects (with retry limit)
-  const MAX_RETRIES = 3;
-
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
       router.push('/login');
