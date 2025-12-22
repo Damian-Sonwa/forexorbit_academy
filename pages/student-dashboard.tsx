@@ -956,17 +956,6 @@ export default function StudentDashboard() {
             )}
 
             {/* AI Assistant Section */}
-            {activeSection === 'ai' && (
-              <div className="animate-in fade-in duration-300">
-                <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6 mb-6">
-                  <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent mb-2">
-                    AI Learning Assistant
-                  </h2>
-                  <p className="text-gray-600">Get instant help with Forex concepts, lessons, and trading questions</p>
-                </div>
-                <AIAssistant />
-              </div>
-            )}
           </div>
         </main>
       </div>
