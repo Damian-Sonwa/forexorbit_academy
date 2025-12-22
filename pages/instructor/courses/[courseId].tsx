@@ -400,12 +400,35 @@ export default function InstructorCoursePage() {
     });
   };
 
-  if (authLoading || loading || !course) {
+  // Show loading while checking auth or loading course
+  if (authLoading || loading) {
     return <LoadingSpinner message="Loading course..." fullScreen />;
   }
 
-  if (!isAuthenticated || (user?.role !== 'instructor' && user?.role !== 'admin' && user?.role !== 'superadmin')) {
-    return null;
+  // Redirect non-authorized users
+  if (!authLoading && (!isAuthenticated || (user?.role !== 'instructor' && user?.role !== 'admin' && user?.role !== 'superadmin'))) {
+    return <LoadingSpinner message="Redirecting..." fullScreen />;
+  }
+
+  // Show error if course not found
+  if (!course) {
+    return (
+      <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
+        <Header />
+        <div className="flex flex-1 overflow-hidden pt-20 lg:pt-0">
+          <Sidebar />
+          <main className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Course Not Found</h1>
+              <p className="text-gray-600 dark:text-gray-400 mb-4">The course you're looking for doesn't exist or you don't have permission to access it.</p>
+              <Link href="/instructor/dashboard" className="text-primary-600 dark:text-primary-400 hover:underline">
+                ← Back to Dashboard
+              </Link>
+            </div>
+          </main>
+        </div>
+      </div>
+    );
   }
 
   const difficultyColors = {

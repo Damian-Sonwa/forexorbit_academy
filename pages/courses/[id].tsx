@@ -23,10 +23,15 @@ export default function CourseDetailPage() {
 
   // Redirect instructors to instructor course management page
   useEffect(() => {
-    if (user && (user.role === 'instructor' || user.role === 'admin' || user.role === 'superadmin')) {
+    if (user && id && (user.role === 'instructor' || user.role === 'admin' || user.role === 'superadmin')) {
       router.replace(`/instructor/courses/${id}`);
     }
   }, [user, id, router]);
+
+  // Early return to prevent student UI from rendering for instructors
+  if (user && (user.role === 'instructor' || user.role === 'admin' || user.role === 'superadmin')) {
+    return <LoadingSpinner message="Redirecting to course management..." fullScreen />;
+  }
 
   const handleEnroll = async () => {
     if (!isAuthenticated) {
