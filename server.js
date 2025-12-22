@@ -28,6 +28,18 @@ if (!process.env.JWT_SECRET) {
   process.exit(1);
 }
 
+// Log AI configuration status (without exposing the key)
+if (process.env.AI_API_KEY) {
+  const apiKeyPrefix = process.env.AI_API_KEY.substring(0, 7);
+  const apiKeyLength = process.env.AI_API_KEY.length;
+  console.log(`✓ AI_API_KEY configured (${apiKeyPrefix}...${apiKeyLength} chars)`);
+  if (!process.env.AI_API_KEY.startsWith('sk-')) {
+    console.warn('⚠ Warning: AI_API_KEY format may be invalid (should start with "sk-")');
+  }
+} else {
+  console.warn('⚠ Warning: AI_API_KEY not configured. AI features will be disabled.');
+}
+
 // JWT verification for Socket.io
 function verifyToken(token) {
   try {

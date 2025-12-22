@@ -7,6 +7,9 @@ import { useState, useRef, useEffect } from 'react';
 import { apiClient } from '@/lib/api-client';
 import { useAuth } from '@/hooks/useAuth';
 
+// CRITICAL: AI endpoints must call Render backend directly
+// Use apiClient which routes to Render backend via NEXT_PUBLIC_API_BASE_URL
+
 interface AIConfigStatus {
   configured: boolean;
 }

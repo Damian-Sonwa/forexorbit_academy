@@ -74,6 +74,14 @@ export default function StudentDashboard() {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const { connected } = useSocket();
   const router = useRouter();
+  
+  // Check for section query parameter (from sidebar link)
+  useEffect(() => {
+    if (router.query.section === 'ai') {
+      setActiveSection('ai');
+    }
+  }, [router.query.section]);
+  
   const [activeSection, setActiveSection] = useState<ActiveSection>('guide');
   const [tasks, setTasks] = useState<DemoTask[]>([]);
   const [taskSubmissions, setTaskSubmissions] = useState<Record<string, TaskSubmission>>({});
