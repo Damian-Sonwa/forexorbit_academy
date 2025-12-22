@@ -369,19 +369,22 @@ app.prepare().then(async () => {
             // This prevents blocking users if there's a temporary DB issue
             console.error('Database check failed for room join:', dbError.message);
             console.warn('Allowing room join without validation due to DB error');
+            // Set room to null to indicate DB validation was skipped
+            room = null;
             // Don't reject - allow join to proceed but log the error
             // In production, you may want to reject for security, but for now we'll allow it
             // to prevent blocking users when DB is temporarily unavailable
           }
           
-          // Join room after validation passes
+          // Join room after validation passes (or if DB check was skipped)
           socket.join(`room:${actualRoomId}`);
-          console.log(`User ${user.email} (${user.role}) joined room: ${actualRoomId} (${room.name})`);
+          const roomName = room ? room.name : 'Room';
+          console.log(`User ${user.email} (${user.role}) joined room: ${actualRoomId}${room ? ` (${room.name})` : ' (DB validation skipped)'}`);
           
           // Emit confirmation with room ID
           socket.emit('room_joined', { 
             roomId: actualRoomId, 
-            roomName: room.name 
+            roomName: roomName
           });
           
           // Notify others in the room
@@ -397,8 +400,19 @@ app.prepare().then(async () => {
           socket.emit('room_joined', { roomId: 'community_global' });
         }
       } catch (error) {
+        // Log detailed error for debugging
         console.error('Error joining room:', error);
-        socket.emit('error', { message: 'Failed to join room' });
+        console.error('Error details:', {
+          message: error.message,
+          stack: error.stack,
+          roomId: data?.roomId,
+          userId: user?.userId,
+          userEmail: user?.email,
+        });
+        socket.emit('error', { 
+          message: 'Failed to join room',
+          details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
       }
     });
 
