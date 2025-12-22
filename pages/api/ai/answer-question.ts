@@ -40,33 +40,37 @@ function setCorsHeaders(res: NextApiResponse, origin?: string) {
   res.setHeader('Access-Control-Max-Age', '86400');
 }
 
-async function handler(req: AuthRequest, res: NextApiResponse) {
+async function handler(req: AuthRequest, res: NextApiResponse): Promise<void> {
   // Get origin from request headers
   const origin = req.headers.origin || req.headers.referer?.split('/').slice(0, 3).join('/');
   
   // Handle preflight OPTIONS request
   if (req.method === 'OPTIONS') {
     setCorsHeaders(res, origin);
-    return res.status(200).end();
+    res.status(200).end();
+    return;
   }
 
   if (req.method !== 'POST') {
     setCorsHeaders(res, origin);
-    return res.status(405).json({ error: 'Method not allowed' });
+    res.status(405).json({ error: 'Method not allowed' });
+    return;
   }
 
   // Set CORS headers for actual requests
   setCorsHeaders(res, origin);
 
   if (!isAIConfigured()) {
-    return res.status(503).json({ error: 'AI service is not configured' });
+    res.status(503).json({ error: 'AI service is not configured' });
+    return;
   }
 
   try {
     const { question, userLevel } = req.body;
 
     if (!question || typeof question !== 'string' || question.trim().length === 0) {
-      return res.status(400).json({ error: 'question is required' });
+      res.status(400).json({ error: 'question is required' });
+      return;
     }
 
     const answer = await answerQuestion(question, userLevel, req.user!.userId);
