@@ -48,13 +48,38 @@ export default function AIAssistant() {
 
   useEffect(() => {
     // Check if AI is configured
-    apiClient.get<AIConfigStatus>('/ai/check-config')
-      .then((response) => {
-        setAiConfigured(response.configured);
-      })
-      .catch(() => {
+    // CRITICAL: Must call Render backend directly, not Vercel
+    // Vercel doesn't have AI_API_KEY, so we must hit Render backend
+    const checkAIConfig = async () => {
+      try {
+        // Always call Render backend for AI config check
+        const renderBackendUrl = 'https://forexorbit-academy.onrender.com';
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+        
+        const response = await fetch(`${renderBackendUrl}/api/ai/check-config`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          credentials: 'include', // Include cookies if needed
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setAiConfigured(data.configured);
+          console.log('[AI Assistant] AI configured:', data.configured);
+        } else {
+          console.warn('[AI Assistant] Failed to check AI config:', response.status, response.statusText);
+          setAiConfigured(false);
+        }
+      } catch (error) {
+        console.error('[AI Assistant] Error checking AI config:', error);
         setAiConfigured(false);
-      });
+      }
+    };
+    
+    checkAIConfig();
   }, []);
 
   const handleSend = async (e: React.FormEvent) => {
