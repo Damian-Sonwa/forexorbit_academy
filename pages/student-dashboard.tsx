@@ -424,20 +424,6 @@ export default function StudentDashboard() {
                   <span className="hidden sm:inline">Reminders & To-Do</span>
                   <span className="sm:hidden">Reminders</span>
                 </button>
-                <button
-                  onClick={() => setActiveSection('ai')}
-                  className={`
-                    flex items-center space-x-2 px-4 sm:px-6 py-3 rounded-xl font-semibold text-sm transition-all duration-200 whitespace-nowrap
-                    ${activeSection === 'ai'
-                      ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-lg transform scale-105'
-                      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                    }
-                  `}
-                >
-                  <span className="text-lg">🤖</span>
-                  <span className="hidden sm:inline">AI Assistant</span>
-                  <span className="sm:hidden">AI</span>
-                </button>
               </nav>
             </div>
           </div>
