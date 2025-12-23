@@ -40,11 +40,26 @@ export default async function handler(
       });
     }
 
+    // Rate limiting: Check if a reset was recently requested (within 60 seconds)
+    const recentReset = await passwordResets.findOne({
+      userId: user._id,
+      createdAt: { $gte: new Date(Date.now() - 60 * 1000) } // 60 seconds ago
+    });
+
+    if (recentReset) {
+      // Still return success to prevent timing attacks, but don't send another email
+      return res.status(200).json({ 
+        message: 'If an account with that email exists, a password reset link has been sent.',
+        cooldown: 60 // Inform frontend about cooldown
+      });
+    }
+
     // Generate secure random token
     const resetToken = crypto.randomBytes(32).toString('hex');
     
     // Hash the token before storing (security best practice)
-    const hashedToken = await bcrypt.hash(resetToken, 10);
+    // Use lower rounds for faster hashing (still secure, but faster)
+    const hashedToken = await bcrypt.hash(resetToken, 8); // Reduced from 10 to 8 for speed
     
     // Token expires in 1 hour
     const expiresAt = new Date();
@@ -67,49 +82,48 @@ export default async function handler(
                     'http://localhost:3000';
     const resetUrl = `${baseUrl}/reset-password?token=${resetToken}&id=${user._id.toString()}`;
 
-    // Send password reset email
-    try {
-      if (isEmailConfigured()) {
-        console.log('Attempting to send password reset email to:', user.email);
-        console.log('SMTP Config:', {
-          host: process.env.SMTP_HOST,
-          port: process.env.SMTP_PORT,
-          secure: process.env.SMTP_SECURE,
-          user: process.env.SMTP_USER ? `${process.env.SMTP_USER.substring(0, 3)}...` : 'not set',
-          passwordSet: !!process.env.SMTP_PASSWORD,
-        });
-        
-        await sendPasswordResetEmail(user.email, user.name || 'User', resetUrl);
-        console.log('✅ Password reset email sent successfully to', user.email);
-      } else {
-        // Email not configured - log the URL for manual use (development/testing)
-        console.warn('❌ Email not configured. Password reset URL for', email, ':', resetUrl);
-        console.log('To enable email sending, configure SMTP environment variables in Vercel:');
-        console.log('- SMTP_HOST (e.g., smtp.gmail.com)');
-        console.log('- SMTP_PORT (e.g., 587)');
-        console.log('- SMTP_SECURE (true or false)');
-        console.log('- SMTP_USER (your email address)');
-        console.log('- SMTP_PASSWORD (your app password)');
-      }
-    } catch (emailError: any) {
-      // Log detailed error for debugging
-      console.error('❌ Failed to send password reset email:', emailError);
-      console.error('Error details:', {
-        message: emailError?.message,
-        code: emailError?.code,
-        command: emailError?.command,
-        response: emailError?.response,
-        responseCode: emailError?.responseCode,
-        stack: emailError?.stack,
-      });
-      console.log('Password reset URL for', email, ':', resetUrl);
-      // Continue - user can still reset password if they have the link
-      // But log the error so it can be fixed
-    }
-
-    return res.status(200).json({ 
+    // Return response immediately (don't wait for email)
+    // This makes the API much faster
+    res.status(200).json({ 
       message: 'If an account with that email exists, a password reset link has been sent.' 
     });
+
+    // Send password reset email asynchronously (fire and forget)
+    // This prevents blocking the response
+    (async () => {
+      try {
+        if (isEmailConfigured()) {
+          console.log('Attempting to send password reset email to:', user.email);
+          await sendPasswordResetEmail(user.email, user.name || 'User', resetUrl);
+          console.log('✅ Password reset email sent successfully to', user.email);
+        } else {
+          // Email not configured - log the URL for manual use (development/testing)
+          console.warn('❌ Email not configured. Password reset URL for', email, ':', resetUrl);
+          console.log('To enable email sending, configure SMTP environment variables in Vercel:');
+          console.log('- SMTP_HOST (e.g., smtp.gmail.com)');
+          console.log('- SMTP_PORT (e.g., 587)');
+          console.log('- SMTP_SECURE (true or false)');
+          console.log('- SMTP_USER (your email address)');
+          console.log('- SMTP_PASSWORD (your app password)');
+        }
+      } catch (emailError: any) {
+        // Log detailed error for debugging
+        console.error('❌ Failed to send password reset email:', emailError);
+        console.error('Error details:', {
+          message: emailError?.message,
+          code: emailError?.code,
+          command: emailError?.command,
+          response: emailError?.response,
+          responseCode: emailError?.responseCode,
+          stack: emailError?.stack,
+        });
+        console.log('Password reset URL for', email, ':', resetUrl);
+        // Continue - user can still reset password if they have the link
+        // But log the error so it can be fixed
+      }
+    })();
+
+    return;
   } catch (error: unknown) {
     console.error('Forgot password error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Internal server error';

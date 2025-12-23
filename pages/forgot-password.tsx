@@ -66,9 +66,27 @@ export default function ForgotPassword() {
     }
 
     try {
-      await apiClient.post('/auth/forgot-password', { email: normalizedEmail });
+      const response = await apiClient.post('/auth/forgot-password', { email: normalizedEmail });
       setSuccess(true);
       setLastEmailSent(normalizedEmail);
+      
+      // Start 60-second cooldown timer (or use cooldown from API response if provided)
+      const cooldownSeconds = (response as any)?.data?.cooldown || 60;
+      setResendCooldown(cooldownSeconds);
+      if (cooldownTimerRef.current) {
+        clearInterval(cooldownTimerRef.current);
+      }
+      cooldownTimerRef.current = setInterval(() => {
+        setResendCooldown((prev) => {
+          if (prev <= 1) {
+            if (cooldownTimerRef.current) {
+              clearInterval(cooldownTimerRef.current);
+            }
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
       
       // Development-only logging
       if (process.env.NODE_ENV === 'development') {
@@ -136,10 +154,11 @@ export default function ForgotPassword() {
     }
 
     try {
-      await apiClient.post('/auth/forgot-password', { email: lastEmailSent });
+      const response = await apiClient.post('/auth/forgot-password', { email: lastEmailSent });
       
-      // Start 30-second cooldown
-      setResendCooldown(30);
+      // Start 60-second cooldown (or use cooldown from API response if provided)
+      const cooldownSeconds = (response as any)?.data?.cooldown || 60;
+      setResendCooldown(cooldownSeconds);
       if (cooldownTimerRef.current) {
         clearInterval(cooldownTimerRef.current);
       }
