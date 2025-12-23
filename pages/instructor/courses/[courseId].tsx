@@ -200,22 +200,25 @@ export default function InstructorCoursePage() {
       const existingLesson = await apiClient.get(`/lessons/${editingLesson}`);
       const existingLessonSummary = (existingLesson as any).lessonSummary || {};
       
-      // Filter out visual aids without URLs before saving (both uploaded images and URL inputs are valid)
+      // Save visual aids - URL is optional (can be uploaded file or URL, or both, or neither)
+      // Only save visual aids that have a valid URL (uploaded images get URLs automatically)
       const allVisualAids = (lessonForm as any).visualAids || [];
-      const validVisualAids = allVisualAids.filter((aid: any) => {
-        const url = aid.url?.trim() || '';
-        // Accept both uploaded image URLs (Cloudinary) and external URLs
-        const isValid = url !== '' && (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:image/'));
-        if (!isValid && url) {
-          console.warn('Visual aid URL rejected:', url);
-        }
-        return isValid;
-      });
+      const validVisualAids = allVisualAids
+        .filter((aid: any) => {
+          // Only include visual aids that have a valid URL
+          // If no URL is provided, the visual aid is simply not saved (no error)
+          const url = aid.url?.trim() || '';
+          return url !== '' && (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:image/'));
+        })
+        .map((aid: any) => ({
+          url: aid.url?.trim() || '',
+          caption: aid.caption?.trim() || '',
+        }));
       
       console.log('Saving lesson - Visual aids:', {
         total: allVisualAids.length,
         valid: validVisualAids.length,
-        aids: allVisualAids.map((aid: any) => ({ url: aid.url, caption: aid.caption }))
+        aids: validVisualAids
       });
       
       updateData.lessonSummary = {
@@ -277,22 +280,25 @@ export default function InstructorCoursePage() {
         order: lessonForm.order || courseLessons.length + 1,
       };
       
-      // Filter out visual aids without URLs before saving (both uploaded images and URL inputs are valid)
+      // Save visual aids - URL is optional (can be uploaded file or URL, or both, or neither)
+      // Only save visual aids that have a valid URL (uploaded images get URLs automatically)
       const allVisualAids = (lessonForm as any).visualAids || [];
-      const validVisualAids = allVisualAids.filter((aid: any) => {
-        const url = aid.url?.trim() || '';
-        // Accept both uploaded image URLs (Cloudinary) and external URLs
-        const isValid = url !== '' && (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:image/'));
-        if (!isValid && url) {
-          console.warn('Visual aid URL rejected:', url);
-        }
-        return isValid;
-      });
+      const validVisualAids = allVisualAids
+        .filter((aid: any) => {
+          // Only include visual aids that have a valid URL
+          // If no URL is provided, the visual aid is simply not saved (no error)
+          const url = aid.url?.trim() || '';
+          return url !== '' && (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:image/'));
+        })
+        .map((aid: any) => ({
+          url: aid.url?.trim() || '',
+          caption: aid.caption?.trim() || '',
+        }));
       
       console.log('Creating lesson - Visual aids:', {
         total: allVisualAids.length,
         valid: validVisualAids.length,
-        aids: allVisualAids.map((aid: any) => ({ url: aid.url, caption: aid.caption }))
+        aids: validVisualAids
       });
       
       if (lessonForm.summary || validVisualAids.length > 0) {
@@ -801,7 +807,7 @@ export default function InstructorCoursePage() {
                     </button>
                   </div>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
-                    Upload images, paste image URLs, or paste images directly from clipboard (Ctrl+V / Cmd+V). These will appear in the Visual Aids section for students.
+                    Upload images from your computer or paste image URLs. Both methods work independently - you can use either one or both. URL is optional when uploading files. These will appear in the Visual Aids section for students.
                   </p>
                   <div className="space-y-3">
                     {(lessonForm.visualAids || []).map((aid, index) => (
@@ -874,7 +880,7 @@ export default function InstructorCoursePage() {
                                 updateVisualAid(index, 'url', pastedText);
                               }
                             }}
-                            placeholder="Paste or type image URL here (works independently from file upload)"
+                            placeholder="Optional: Paste or type image URL here (works independently from file upload)"
                             className={`flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg text-sm focus:ring-2 focus:ring-primary-500 ${
                               aid.url ? 'border-green-500 dark:border-green-500' : ''
                             }`}
