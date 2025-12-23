@@ -79,13 +79,13 @@ export default function LessonSummaryView({ lesson }: LessonSummaryViewProps) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       {/* Note: Overview has been moved to Lesson Content section */}
       
       {/* Key Points */}
       {enrichedSummary && 'keyPoints' in enrichedSummary && enrichedSummary.keyPoints && enrichedSummary.keyPoints.length > 0 && (
-        <div className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl p-6 border border-green-100 dark:border-green-800">
-          <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center">
+        <div className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl p-4 border border-green-100 dark:border-green-800">
+          <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2 flex items-center">
             <svg className="w-5 h-5 mr-2 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
@@ -106,23 +106,23 @@ export default function LessonSummaryView({ lesson }: LessonSummaryViewProps) {
 
       {/* Trading Notes */}
       {enrichedSummary && 'tradingNotes' in enrichedSummary && enrichedSummary.tradingNotes && (
-        <div className="bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 rounded-xl p-6 border border-yellow-100 dark:border-yellow-800">
-          <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-3 flex items-center">
+        <div className="bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 rounded-xl p-4 border border-yellow-100 dark:border-yellow-800">
+          <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2 flex items-center">
             <svg className="w-5 h-5 mr-2 text-yellow-600 dark:text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
             </svg>
             Trading Notes
           </h3>
           <div className="prose prose-sm max-w-none text-gray-700 dark:text-gray-300">
-            <p className="whitespace-pre-wrap">{enrichedSummary.tradingNotes}</p>
+            <p className="whitespace-pre-wrap leading-snug">{enrichedSummary.tradingNotes}</p>
           </div>
         </div>
       )}
 
       {/* Screenshots/Charts */}
       {screenshots && screenshots.length > 0 && (
-        <div className="bg-gradient-to-br from-indigo-50 to-blue-50 dark:from-indigo-900/20 dark:to-blue-900/20 rounded-xl p-6 border border-indigo-100 dark:border-indigo-800">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="bg-gradient-to-br from-indigo-50 to-blue-50 dark:from-indigo-900/20 dark:to-blue-900/20 rounded-xl p-4 border border-indigo-100 dark:border-indigo-800">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {screenshots.map((screenshot: any, index: number) => (
               <div key={index} className="relative group">
                 {screenshot.url ? (
@@ -137,7 +137,7 @@ export default function LessonSummaryView({ lesson }: LessonSummaryViewProps) {
                   />
                 ) : null}
                 {screenshot.caption && (
-                  <p className="mt-2 text-sm text-gray-600 dark:text-gray-400 text-center">{screenshot.caption}</p>
+                  <p className="mt-1 text-sm text-gray-600 dark:text-gray-400 text-center">{screenshot.caption}</p>
                 )}
               </div>
             ))}

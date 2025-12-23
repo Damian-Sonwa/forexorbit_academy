@@ -112,24 +112,24 @@ export default function LessonPage() {
 
         <main className="flex-1 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 md:py-8 pt-20 lg:pt-8">
           {/* Lesson Header */}
-          <div className="mb-4 sm:mb-6 md:mb-8">
-            <div className="mb-3 sm:mb-4">
+          <div className="mb-4">
+            <div className="mb-2">
               <BackButton href={`/courses/${courseId}`} label="Back to Course" />
             </div>
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-display font-bold text-gray-900 mb-3 break-words">{displayLesson.title}</h1>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-display font-bold text-gray-900 mb-2 break-words">{displayLesson.title}</h1>
           </div>
 
           {/* Video Player - Display YouTube videos and other video URLs */}
           {displayLesson.videoUrl && (
-            <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg border border-gray-100 p-2 mb-4 sm:mb-6 md:mb-8 overflow-hidden">
+            <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg border border-gray-100 p-2 mb-4 overflow-hidden">
               <VideoPlayer url={displayLesson.videoUrl} onEnded={handleVideoEnd} />
             </div>
           )}
 
           {/* Lesson Description */}
           {displayLesson.content && (
-            <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 md:p-8 mb-4 sm:mb-6 md:mb-8">
-              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">Lesson Description</h2>
+            <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 mb-4">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-3">Lesson Description</h2>
               
               {/* Original Content - Display all HTML content including embedded videos */}
               <div
@@ -141,10 +141,10 @@ export default function LessonPage() {
 
           {/* Lesson Content */}
           {((displayLesson as any).lessonSummary?.overview || (displayLesson as any).summary) && (
-            <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 md:p-8 mb-4 sm:mb-6 md:mb-8">
-              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-3 sm:mb-4">Lesson Content</h2>
+            <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 mb-4">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">Lesson Content</h2>
               <div className="prose prose-lg max-w-none text-gray-700">
-                <p className="whitespace-pre-wrap leading-relaxed">
+                <p className="whitespace-pre-wrap leading-snug">
                   {(displayLesson as any).lessonSummary?.overview || (displayLesson as any).summary}
                 </p>
               </div>
@@ -152,8 +152,8 @@ export default function LessonPage() {
           )}
 
           {/* Visual Aids */}
-          <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 md:p-8 mb-4 sm:mb-6 md:mb-8">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 sm:mb-6 gap-3">
+          <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 mb-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-3 gap-3">
               <div className="flex-1">
                 <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1">Visual Aids</h2>
                 <p className="text-gray-600 text-xs sm:text-sm">Charts, screenshots, resources, and visual materials for this lesson</p>
@@ -181,14 +181,14 @@ export default function LessonPage() {
 
           {/* Lesson Resources */}
           {((displayLesson as any).resources && (displayLesson as any).resources.length > 0) && (
-            <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 md:p-8 mb-4 sm:mb-6 md:mb-8">
-              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-3 sm:mb-4 flex items-center">
+            <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 mb-4">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2 flex items-center">
                 <svg className="w-5 h-5 sm:w-6 sm:h-6 mr-2 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                 </svg>
                 Lesson Resources
               </h2>
-              <p className="text-sm sm:text-base text-gray-600 mb-4 sm:mb-6">Downloadable resources and links for this lesson</p>
+              <p className="text-sm sm:text-base text-gray-600 mb-3">Downloadable resources and links for this lesson</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                 {(displayLesson as any).resources.map((resource: any, index: number) => (
                   <a
@@ -237,8 +237,8 @@ export default function LessonPage() {
 
           {/* Quiz */}
           {displayLesson.quiz && (
-            <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 md:p-8 mb-4 sm:mb-6 md:mb-8">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 sm:mb-6 gap-3">
+            <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 mb-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-3 gap-3">
                 <div className="flex-1">
                   <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1">Lesson Quiz</h2>
                   <p className="text-gray-600 text-xs sm:text-sm">Test your understanding</p>
@@ -251,7 +251,7 @@ export default function LessonPage() {
                 </button>
               </div>
               {showQuiz && (
-                <div className="border-t border-gray-200 pt-6">
+                <div className="border-t border-gray-200 pt-4">
                   <Quiz
                     lessonId={lessonId as string}
                     courseId={courseId as string}
@@ -263,12 +263,12 @@ export default function LessonPage() {
           )}
 
           {/* Market Signal */}
-          <div className="mb-8">
+          <div className="mb-4">
             <MarketSignal />
           </div>
 
           {/* Navigation - Moved to end of page */}
-          <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center mb-4 sm:mb-6 md:mb-8 gap-3 sm:gap-4">
+          <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center mb-4 gap-3 sm:gap-4">
             {prevLesson ? (
               <Link
                 href={`/courses/${courseId}/lessons/${prevLesson._id || prevLesson.id}`}
