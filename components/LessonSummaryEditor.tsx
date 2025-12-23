@@ -389,44 +389,42 @@ export default function LessonSummaryEditor({ lessonId, lesson, onSave }: Lesson
                 placeholder="Caption (e.g., 'RSI Indicator showing overbought levels')"
               />
               
-              {/* Preview - Always show image when URL exists */}
-              {screenshot.url && (
+              {/* Preview - Only show image when URL exists, no placeholder */}
+              {screenshot.url ? (
                 <div className="mt-3">
-                  <div className="relative">
-                    <img
-                      src={screenshot.url}
-                      alt={screenshot.caption || 'Visual aid preview'}
-                      className="w-full h-96 object-contain rounded-lg border-2 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800"
-                      onError={(e) => {
-                        const img = e.target as HTMLImageElement;
-                        const container = img.parentElement;
-                        if (container) {
-                          img.style.display = 'none';
-                          // Show error message
-                          if (!container.querySelector('.image-error')) {
-                            const errorDiv = document.createElement('div');
-                            errorDiv.className = 'image-error text-red-500 text-sm p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800';
-                            errorDiv.textContent = `Failed to load image from: ${screenshot.url}`;
-                            container.appendChild(errorDiv);
-                          }
+                  <img
+                    src={screenshot.url}
+                    alt={screenshot.caption || 'Visual aid preview'}
+                    className="w-full h-auto max-w-full rounded-lg border-2 border-gray-300 dark:border-gray-600"
+                    onError={(e) => {
+                      const img = e.target as HTMLImageElement;
+                      const container = img.parentElement;
+                      if (container) {
+                        img.style.display = 'none';
+                        // Show error message
+                        if (!container.querySelector('.image-error')) {
+                          const errorDiv = document.createElement('div');
+                          errorDiv.className = 'image-error text-red-500 text-sm p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800';
+                          errorDiv.textContent = `Failed to load image from: ${screenshot.url}`;
+                          container.appendChild(errorDiv);
                         }
-                      }}
-                      onLoad={(e) => {
-                        // Hide any error messages when image loads successfully
-                        const img = e.target as HTMLImageElement;
-                        const container = img.parentElement;
-                        if (container) {
-                          const errorDiv = container.querySelector('.image-error');
-                          if (errorDiv) {
-                            errorDiv.remove();
-                          }
-                          img.style.display = 'block';
+                      }
+                    }}
+                    onLoad={(e) => {
+                      // Hide any error messages when image loads successfully
+                      const img = e.target as HTMLImageElement;
+                      const container = img.parentElement;
+                      if (container) {
+                        const errorDiv = container.querySelector('.image-error');
+                        if (errorDiv) {
+                          errorDiv.remove();
                         }
-                      }}
-                    />
-                  </div>
+                        img.style.display = 'block';
+                      }
+                    }}
+                  />
                 </div>
-              )}
+              ) : null}
             </div>
           ))}
           <button

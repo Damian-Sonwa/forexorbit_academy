@@ -125,15 +125,17 @@ export default function LessonSummaryView({ lesson }: LessonSummaryViewProps) {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {screenshots.map((screenshot: any, index: number) => (
               <div key={index} className="relative group">
-                <img
-                  src={screenshot.url}
-                  alt={screenshot.caption || `Screenshot ${index + 1}`}
-                  className="w-full h-96 object-contain rounded-lg border border-gray-200 dark:border-gray-700 group-hover:shadow-lg transition-shadow"
-                  onError={(e) => {
-                    console.error('Failed to load image:', screenshot.url);
-                    (e.target as HTMLImageElement).style.display = 'none';
-                  }}
-                />
+                {screenshot.url ? (
+                  <img
+                    src={screenshot.url}
+                    alt={screenshot.caption || `Screenshot ${index + 1}`}
+                    className="w-full h-auto max-w-full rounded-lg border border-gray-200 dark:border-gray-700 group-hover:shadow-lg transition-shadow"
+                    onError={(e) => {
+                      console.error('Failed to load image:', screenshot.url);
+                      (e.target as HTMLImageElement).style.display = 'none';
+                    }}
+                  />
+                ) : null}
                 {screenshot.caption && (
                   <p className="mt-2 text-sm text-gray-600 dark:text-gray-400 text-center">{screenshot.caption}</p>
                 )}
