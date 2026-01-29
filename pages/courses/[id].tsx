@@ -10,6 +10,7 @@ import Footer from '@/components/Footer';
 import BackButton from '@/components/BackButton';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { useCourse } from '@/hooks/useCourses';
+import { useSocket } from '@/hooks/useSocket';
 import { useAuth } from '@/hooks/useAuth';
 import { useState, useEffect } from 'react';
 import { apiClient } from '@/lib/api-client';
@@ -18,7 +19,8 @@ import { sanitizeHtml } from '@/lib/html-sanitizer';
 export default function CourseDetailPage() {
   const router = useRouter();
   const { id } = router.query;
-  const { course, loading } = useCourse(id);
+  const { course, loading, refetch: refetchCourse } = useCourse(id) as any;
+  const { socket, connected } = useSocket();
   const { isAuthenticated, user } = useAuth();
   const [enrolling, setEnrolling] = useState(false);
 
@@ -28,6 +30,20 @@ export default function CourseDetailPage() {
       router.replace(`/instructor/courses/${id}`);
     }
   }, [user, id, router]);
+
+  // Listen for lesson updates via socket and refresh course data
+  useEffect(() => {
+    if (!socket || !connected || !id || !refetchCourse) return;
+
+    const onLessonUpdated = (data: { lessonId?: string; courseId?: string }) => {
+      if (data.courseId === id) {
+        refetchCourse();
+      }
+    };
+
+    socket.on('lessonUpdated', onLessonUpdated);
+    return () => { socket.off('lessonUpdated', onLessonUpdated); };
+  }, [socket, connected, id, refetchCourse]);
 
   // Early return to prevent student UI from rendering for instructors
   if (user && (user.role === 'instructor' || user.role === 'admin' || user.role === 'superadmin')) {
@@ -73,6 +89,9 @@ export default function CourseDetailPage() {
     advanced: 'bg-red-100 text-red-800',
   };
 
+  const difficultyKey = ((course && (course.difficulty as any)) || 'beginner') as 'beginner' | 'intermediate' | 'advanced';
+  const difficultyClass = difficultyColors[difficultyKey];
+
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
@@ -91,7 +110,7 @@ export default function CourseDetailPage() {
                 <div className="flex-1">
                   <h1 className="text-2xl sm:text-3xl md:text-4xl font-display font-bold text-gray-900 mb-2 break-words">{course.title}</h1>
                   <div className="flex items-center gap-3 mb-3">
-                    <span className={`px-4 py-1.5 rounded-full text-sm font-semibold ${difficultyColors[course.difficulty]}`}>
+                      <span className={`px-4 py-1.5 rounded-full text-sm font-semibold ${difficultyClass}`}>
                       {course.difficulty}
                     </span>
                     <span className="text-sm text-gray-500">•</span>

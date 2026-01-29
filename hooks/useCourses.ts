@@ -93,6 +93,21 @@ export function useCourse(courseId: string | string[] | undefined) {
     fetchCourse();
   }, [courseId]);
 
-  return { course, loading, error };
+  // Expose a refetch function so pages can refresh course data on socket events
+  const refetch = async () => {
+    if (!courseId || Array.isArray(courseId)) return;
+    try {
+      setLoading(true);
+      const data = await apiClient.get<Course>(`/courses/${courseId}`);
+      setCourse(data);
+      setError(null);
+    } catch (err: any) {
+      setError(err.message || 'Failed to fetch course');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return { course, loading, error, refetch };
 }
 

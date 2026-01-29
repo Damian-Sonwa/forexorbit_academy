@@ -13,6 +13,7 @@ import VideoPlayer from '@/components/VideoPlayer';
 import MarketSignal from '@/components/MarketSignal';
 import Quiz from '@/components/Quiz';
 import { useLesson, useLessons } from '@/hooks/useLesson';
+import { apiClient } from '@/lib/api-client';
 // import { useCourse } from '@/hooks/useCourses'; // Reserved for future use
 import { useSocket } from '@/hooks/useSocket';
 import { useAuth } from '@/hooks/useAuth';
@@ -59,7 +60,15 @@ export default function LessonPage() {
     const handleLessonUpdate = (data: { lessonId: string; courseId: string }) => {
       if (data.lessonId === lessonId) {
         // Refetch lesson data when updated
-        router.replace(router.asPath);
+        (async () => {
+          try {
+            const fresh = await apiClient.get<any>(`/lessons/${lessonId}`);
+            setCurrentLesson(fresh);
+          } catch (err) {
+            // Fallback to route replace if direct fetch fails
+            router.replace(router.asPath);
+          }
+        })();
       }
     };
 
