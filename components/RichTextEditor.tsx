@@ -1,14 +1,13 @@
-// @ts-nocheck
 import * as React from 'react';
 import dynamic from 'next/dynamic';
 import type { Editor as TinyMCEEditor } from '@tinymce/tinymce-react';
 
 // Dynamically import TinyMCE to avoid SSR issues
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const Editor = dynamic(
-  () => import('@tinymce/tinymce-react').then(mod => mod.Editor),
+// Use `any` to avoid typing mismatches from the tinyMCE module during dynamic import
+const Editor = dynamic<any>(
+  () => import('@tinymce/tinymce-react').then((mod: any) => mod.Editor),
   { ssr: false }
-) as any;
+);
 
 interface RichTextEditorProps {
   value: string;
