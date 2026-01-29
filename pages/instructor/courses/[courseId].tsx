@@ -170,21 +170,40 @@ export default function InstructorCoursePage() {
     }
   };
 
-  const handleEditLesson = (lesson: Lesson) => {
+  const handleEditLesson = async (lesson: Lesson) => {
     setEditingLesson(lesson._id);
-    const summaryText = (lesson as any).lessonSummary?.overview || lesson.summary || '';
-    setLessonForm({
-      title: lesson.title,
-      description: lesson.description,
-      summary: summaryText,
-      videoUrl: lesson.videoUrl || '',
-      pdfUrl: lesson.pdfUrl || '',
-      type: lesson.type,
-      order: lesson.order,
-      content: lesson.content || '',
-      resources: lesson.resources || [],
-      visualAids: (lesson as any).lessonSummary?.screenshots || [],
-    });
+    try {
+      // Fetch the latest lesson from API to ensure lessonSummary is present
+      const lessonDetails = await apiClient.get<any>(`/lessons/${lesson._id}`);
+      const summaryText = (lessonDetails as any).lessonSummary?.overview || lesson.summary || '';
+      setLessonForm({
+        title: lessonDetails.title || lesson.title,
+        description: lessonDetails.description || lesson.description,
+        summary: summaryText,
+        videoUrl: lessonDetails.videoUrl || lesson.videoUrl || '',
+        pdfUrl: lessonDetails.pdfUrl || lesson.pdfUrl || '',
+        type: lessonDetails.type || lesson.type,
+        order: lessonDetails.order || lesson.order,
+        content: lessonDetails.content || lesson.content || '',
+        resources: lessonDetails.resources || lesson.resources || [],
+        visualAids: (lessonDetails as any).lessonSummary?.screenshots || (lesson as any).lessonSummary?.screenshots || [],
+      });
+    } catch (error) {
+      // Fallback to provided lesson object
+      const summaryText = (lesson as any).lessonSummary?.overview || lesson.summary || '';
+      setLessonForm({
+        title: lesson.title,
+        description: lesson.description,
+        summary: summaryText,
+        videoUrl: lesson.videoUrl || '',
+        pdfUrl: lesson.pdfUrl || '',
+        type: lesson.type,
+        order: lesson.order,
+        content: lesson.content || '',
+        resources: lesson.resources || [],
+        visualAids: (lesson as any).lessonSummary?.screenshots || [],
+      });
+    }
     setShowLessonForm(true);
   };
 
@@ -1054,7 +1073,7 @@ export default function InstructorCoursePage() {
                       >
                         <div className="flex items-start justify-between mb-2">
                           <div className="flex-1">
-                            <h3 className="font-bold text-gray-900 dark:text-white mb-1">{lesson.title}</h3>
+                            <h3 className="font-bold text-gray-900 dark:text-white mb-1" dangerouslySetInnerHTML={{ __html: sanitizeHtml(lesson.title) }} />
                             {lesson.summary && (
                               <div className="text-sm text-gray-600 dark:text-gray-400 mb-2 prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: sanitizeHtml(lesson.summary) }} />
                             )}

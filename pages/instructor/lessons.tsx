@@ -926,7 +926,7 @@ export default function InstructorLessons() {
                             >
                               <div className="flex items-start justify-between mb-2">
                                 <div className="flex-1">
-                                  <h3 className="font-bold text-gray-900 dark:text-white mb-1">{lesson.title}</h3>
+                                  <h3 className="font-bold text-gray-900 dark:text-white mb-1" dangerouslySetInnerHTML={{ __html: sanitizeHtml(lesson.title) }} />
                                   {lesson.summary && (
                                     <div className="text-sm text-gray-600 dark:text-gray-400 mb-2 prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: sanitizeHtml(lesson.summary) }} />
                                   )}

@@ -137,7 +137,7 @@ export default function CourseDetailPage() {
                           {index + 1}
                         </div>
                         <div className="flex-1">
-                          <h3 className="font-semibold text-gray-900 group-hover:text-primary-600 transition-colors">{lesson.title}</h3>
+                          <h3 className="font-semibold text-gray-900 group-hover:text-primary-600 transition-colors" dangerouslySetInnerHTML={{ __html: sanitizeHtml(lesson.title) }} />
                           {lesson.description && (
                             <p className="text-sm text-gray-500 line-clamp-1 mt-1" dangerouslySetInnerHTML={{ __html: sanitizeHtml(lesson.description).substring(0, 100) }} />
                           )}

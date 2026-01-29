@@ -11,6 +11,7 @@ import Sidebar from '@/components/Sidebar';
 import { useAuth } from '@/hooks/useAuth';
 import { useSocket } from '@/hooks/useSocket';
 import { apiClient } from '@/lib/api-client';
+import { sanitizeHtml } from '@/lib/html-sanitizer';
 import { useCourses } from '@/hooks/useCourses';
 
 interface Lesson {
@@ -450,11 +451,11 @@ export default function InstructorQuizzes() {
                         >
                           <div className="flex items-start justify-between mb-2">
                             <div className="flex-1">
-                              <h3 className="font-bold text-gray-900 dark:text-white mb-1">{lesson.title}</h3>
+                              <h3 className="font-bold text-gray-900 dark:text-white mb-1" dangerouslySetInnerHTML={{ __html: sanitizeHtml(lesson.title) }} />
                               {lesson.summary && (
-                                <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">{lesson.summary}</p>
+                                <p className="text-sm text-gray-600 dark:text-gray-400 mb-2" dangerouslySetInnerHTML={{ __html: sanitizeHtml(lesson.summary) }} />
                               )}
-                              <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2">{lesson.description}</p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2" dangerouslySetInnerHTML={{ __html: sanitizeHtml(lesson.description) }} />
                             </div>
                             <div className="flex gap-2 ml-4">
                               <button
