@@ -703,7 +703,7 @@ export default function InstructorCoursePage() {
                   <RichTextEditor
                     value={lessonForm.summary || ''}
                     onChange={(content) => setLessonForm({ ...lessonForm, summary: content })}
-                    height={200}
+                    height={400}
                     placeholder="Short text overview for the topic..."
                   />
                 </div>
