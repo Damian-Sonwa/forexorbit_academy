@@ -10,6 +10,7 @@ import Link from 'next/link';
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
 import LoadingSpinner from '@/components/LoadingSpinner';
+import RichTextEditor from '@/components/RichTextEditor';
 import { useAuth } from '@/hooks/useAuth';
 import { useSocket } from '@/hooks/useSocket';
 import { apiClient } from '@/lib/api-client';
@@ -544,12 +545,10 @@ export default function InstructorCoursePage() {
 
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Description *</label>
-                  <textarea
+                  <RichTextEditor
                     value={courseForm.description || ''}
-                    onChange={(e) => setCourseForm({ ...courseForm, description: e.target.value })}
-                    required
-                    rows={4}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500"
+                    onChange={(content) => setCourseForm({ ...courseForm, description: content })}
+                    height={300}
                   />
                 </div>
 
@@ -693,23 +692,20 @@ export default function InstructorCoursePage() {
 
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Description *</label>
-                  <textarea
+                  <RichTextEditor
                     value={lessonForm.description || ''}
-                    onChange={(e) => setLessonForm({ ...lessonForm, description: e.target.value })}
-                    required
-                    rows={3}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500"
+                    onChange={(content) => setLessonForm({ ...lessonForm, description: content })}
+                    height={250}
                   />
                 </div>
 
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Summary</label>
-                  <textarea
+                  <RichTextEditor
                     value={lessonForm.summary || ''}
-                    onChange={(e) => setLessonForm({ ...lessonForm, summary: e.target.value })}
+                    onChange={(content) => setLessonForm({ ...lessonForm, summary: content })}
+                    height={200}
                     placeholder="Short text overview for the topic..."
-                    rows={2}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
 
