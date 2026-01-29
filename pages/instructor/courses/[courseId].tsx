@@ -566,6 +566,7 @@ export default function InstructorCoursePage() {
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Description *</label>
                   <RichTextEditor
+                    key="course-description"
                     value={courseForm.description || ''}
                     onChange={(content) => setCourseForm({ ...courseForm, description: content })}
                     height={300}
@@ -702,6 +703,7 @@ export default function InstructorCoursePage() {
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Lesson Title *</label>
                   <RichTextEditor
+                    key={`lesson-title-${editingLesson || 'new'}`}
                     value={lessonForm.title || ''}
                     onChange={(content) => setLessonForm({ ...lessonForm, title: content })}
                     height={150}
@@ -711,6 +713,7 @@ export default function InstructorCoursePage() {
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Description *</label>
                   <RichTextEditor
+                    key={`lesson-description-${editingLesson || 'new'}`}
                     value={lessonForm.description || ''}
                     onChange={(content) => setLessonForm({ ...lessonForm, description: content })}
                     height={250}
@@ -720,6 +723,7 @@ export default function InstructorCoursePage() {
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Summary</label>
                   <RichTextEditor
+                    key={`lesson-summary-${editingLesson || 'new'}`}
                     value={lessonForm.summary || ''}
                     onChange={(content) => setLessonForm({ ...lessonForm, summary: content })}
                     height={400}

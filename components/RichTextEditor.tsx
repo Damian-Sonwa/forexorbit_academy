@@ -27,6 +27,21 @@ export default function RichTextEditor({
 }: RichTextEditorProps) {
   const editorRef = React.useRef<TinyMCEEditor | null>(null); // ✅ Use TinyMCEEditor type
 
+  // Update editor content when value prop changes
+  React.useEffect(() => {
+    if (editorRef.current && value !== undefined) {
+      // Use the correct method to update editor content
+      const editor = editorRef.current as any;
+      if (editor && editor.getContent) {
+        // Only update if the current content differs from the new value
+        const currentContent = editor.getContent();
+        if (currentContent !== value) {
+          editor.setContent(value);
+        }
+      }
+    }
+  }, [value]);
+
   return (
     <div className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden">
       <Editor
