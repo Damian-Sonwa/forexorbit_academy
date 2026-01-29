@@ -13,6 +13,7 @@ import { useCourse } from '@/hooks/useCourses';
 import { useAuth } from '@/hooks/useAuth';
 import { useState, useEffect } from 'react';
 import { apiClient } from '@/lib/api-client';
+import { sanitizeHtml } from '@/lib/html-sanitizer';
 
 export default function CourseDetailPage() {
   const router = useRouter();
@@ -99,7 +100,9 @@ export default function CourseDetailPage() {
                 </div>
               </div>
 
-              <p className="text-lg text-gray-700 leading-snug mb-4">{course.description}</p>
+              <div className="prose prose-lg max-w-none text-gray-700 mb-4">
+                <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(course.description) }} />
+              </div>
 
               {/* Progress Bar */}
               {course.progress !== undefined && course.progress > 0 && (
@@ -136,7 +139,7 @@ export default function CourseDetailPage() {
                         <div className="flex-1">
                           <h3 className="font-semibold text-gray-900 group-hover:text-primary-600 transition-colors">{lesson.title}</h3>
                           {lesson.description && (
-                            <p className="text-sm text-gray-500 line-clamp-1 mt-1">{lesson.description}</p>
+                            <p className="text-sm text-gray-500 line-clamp-1 mt-1" dangerouslySetInnerHTML={{ __html: sanitizeHtml(lesson.description).substring(0, 100) }} />
                           )}
                         </div>
                       </div>
