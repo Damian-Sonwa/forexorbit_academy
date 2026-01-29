@@ -1,8 +1,4 @@
-/**
- * Next.js App Component
- * Global styles and providers
- */
-
+// pages/_app.tsx
 import type { AppProps } from 'next/app';
 import { AuthProvider } from '@/hooks/useAuth';
 import { ThemeProvider } from '@/hooks/useTheme';
@@ -17,4 +13,3 @@ export default function App({ Component, pageProps }: AppProps) {
     </ThemeProvider>
   );
 }
-
