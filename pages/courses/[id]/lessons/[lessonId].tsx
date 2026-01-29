@@ -119,7 +119,7 @@ export default function LessonPage() {
             <div className="mb-2">
               <BackButton href={`/courses/${courseId}`} label="Back to Course" />
             </div>
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-display font-bold text-gray-900 mb-2 break-words">{displayLesson.title}</h1>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-display font-bold text-gray-900 mb-2 break-words" dangerouslySetInnerHTML={{ __html: sanitizeHtml(displayLesson.title) }} />
           </div>
 
           {/* Video Player - Display YouTube videos and other video URLs */}
