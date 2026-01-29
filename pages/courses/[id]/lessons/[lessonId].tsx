@@ -156,27 +156,12 @@ export default function LessonPage() {
             </div>
           )}
 
-          {/* Lesson Description */}
-          {displayLesson.content && (
-            <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 mb-4">
-              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-3">Lesson Description</h2>
-              
-              {/* Sanitized HTML content for security - removes potentially dangerous tags/attributes */}
-              <div
-                className="prose prose-lg max-w-none text-gray-700"
-                dangerouslySetInnerHTML={{ __html: sanitizeHtml(displayLesson.content) }}
-              />
-            </div>
-          )}
-
-          {/* Lesson Content */}
+          {/* Lesson Content - Summary */}
           {((displayLesson as any).lessonSummary?.overview || (displayLesson as any).summary) && (
             <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 mb-4">
-              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">Lesson Content</h2>
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-3">Lesson Content</h2>
               <div className="prose prose-lg max-w-none text-gray-700">
-                <p className="whitespace-pre-wrap leading-snug">
-                  {(displayLesson as any).lessonSummary?.overview || (displayLesson as any).summary}
-                </p>
+                <div dangerouslySetInnerHTML={{ __html: sanitizeHtml((displayLesson as any).lessonSummary?.overview || (displayLesson as any).summary) }} />
               </div>
             </div>
           )}
