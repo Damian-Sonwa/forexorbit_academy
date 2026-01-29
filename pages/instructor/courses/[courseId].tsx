@@ -681,12 +681,10 @@ export default function InstructorCoursePage() {
                 
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Lesson Title *</label>
-                  <input
-                    type="text"
+                  <RichTextEditor
                     value={lessonForm.title || ''}
-                    onChange={(e) => setLessonForm({ ...lessonForm, title: e.target.value })}
-                    required
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500"
+                    onChange={(content) => setLessonForm({ ...lessonForm, title: content })}
+                    height={150}
                   />
                 </div>
 
