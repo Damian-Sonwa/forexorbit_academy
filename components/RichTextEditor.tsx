@@ -35,37 +35,24 @@ export default function RichTextEditor({
         onEditorChange={onChange}
         onBlur={onBlur}
         disabled={disabled}
-        apiKey={process.env.NEXT_PUBLIC_TINYMCE_API_KEY}
+        apiKey='gaz94mfy7gknyb05b6a91k0d0eykt6kgebi4jf2q5kyzvj8p'
         init={{
           height,
-          menubar: true,
-          branding: false,
           plugins: [
-            'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'anchor',
-            'searchreplace', 'visualblocks', 'code', 'fullscreen', 'insertdatetime',
-            'media', 'table', 'preview', 'help', 'wordcount',
-            'checklist','mediaembed','casechange','formatpainter','pageembed',
-            'a11ychecker','tinymcespellchecker','permanentpen','powerpaste',
-            'advtable','advcode','advtemplate','ai','uploadcare','mentions',
-            'tinycomments','tableofcontents','footnotes','mergetags','autocorrect',
-            'typography','inlinecss','markdown','importword','exportword','exportpdf'
+            'anchor', 'autolink', 'charmap', 'codesample', 'emoticons', 'link', 'lists', 'media', 'searchreplace', 'table', 'visualblocks', 'wordcount',
+            'checklist', 'mediaembed', 'casechange', 'formatpainter', 'pageembed', 'a11ychecker', 'tinymcespellchecker', 'permanentpen', 'powerpaste', 'advtable', 'advcode', 'advtemplate', 'ai', 'uploadcare', 'mentions', 'tinycomments', 'tableofcontents', 'footnotes', 'mergetags', 'autocorrect', 'typography', 'inlinecss', 'markdown', 'importword', 'exportword', 'exportpdf'
           ],
-          toolbar:
-            'undo redo | blocks fontfamily fontsize | bold italic underline strikethrough | ' +
-            'link media table mergetags | addcomment showcomments | spellcheckdialog a11ycheck typography uploadcare | ' +
-            'align lineheight | checklist numlist bullist indent outdent | emoticons charmap | removeformat',
-          content_style: 'body { font-family: Helvetica, Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #333; }',
+          toolbar: 'undo redo | blocks fontfamily fontsize | bold italic underline strikethrough | link media table mergetags | addcomment showcomments | spellcheckdialog a11ycheck typography uploadcare | align lineheight | checklist numlist bullist indent outdent | emoticons charmap | removeformat',
           tinycomments_mode: 'embedded',
-          tinycomments_author: 'Instructor Name',
+          tinycomments_author: 'Author name',
           mergetags_list: [
             { value: 'First.Name', title: 'First Name' },
             { value: 'Email', title: 'Email' },
           ],
+          ai_request: (request: any, respondWith: any) => respondWith.string(() => Promise.reject('See docs to implement AI Assistant')),
           uploadcare_public_key: 'c95635c56a53e8832491',
-          table_toolbar: 'tableprops tabledelete | tableinsertrowbefore tableinsertrowafter tabledeleterow | tableinsertcolbefore tableinsertcolafter tabledeletecol',
-          relative_urls: false,
-          remove_script_host: false,
         }}
+        initialValue="Welcome to TinyMCE!"
       />
     </div>
   );
