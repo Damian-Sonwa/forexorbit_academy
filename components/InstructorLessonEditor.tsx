@@ -5,10 +5,11 @@ import dynamic from 'next/dynamic';
 import { apiClient } from '@/lib/api-client';
 
 // Dynamically import TinyMCE to avoid SSR issues
+// Cast module to `any` to avoid strict typing issues from the package's propTypes
 const Editor = dynamic(
-  () => import('@tinymce/tinymce-react').then(mod => mod.Editor),
+  () => import('@tinymce/tinymce-react').then((mod: any) => mod.Editor),
   { ssr: false }
-);
+) as any;
 
 interface InstructorLessonEditorProps {
   lessonId: string;
@@ -65,7 +66,7 @@ export default function InstructorLessonEditor({
         lastModified: new Date().toISOString(),
       };
 
-      const response = await apiClient.post(
+      const response: any = await apiClient.post(
         `/api/courses/${courseId}/lessons/${lessonId}`,
         updatedLesson
       );
@@ -103,7 +104,7 @@ export default function InstructorLessonEditor({
         lastModified: new Date().toISOString(),
       };
 
-      const response = await apiClient.post(
+      const response: any = await apiClient.post(
         `/api/courses/${courseId}/lessons/${lessonId}`,
         updatedLesson
       );
