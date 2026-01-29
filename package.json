@@ -1,0 +1,52 @@
+{
+  "name": "forex-elearning-app",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "node server.js",
+    "build": "next build",
+    "start": "node server.js",
+    "start:prod": "NODE_ENV=production node server.js",
+    "lint": "next lint",
+    "seed": "node seed/seed.js"
+  },
+  "dependencies": {
+    "@tinymce/tinymce-react": "^6.3.0",
+    "@types/formidable": "^3.4.6",
+    "@types/nodemailer": "^7.0.4",
+    "agora-access-token": "^2.0.4",
+    "agora-rtc-sdk-ng": "^4.24.2",
+    "agora-token": "^2.0.5",
+    "axios": "^1.6.0",
+    "bcryptjs": "^2.4.3",
+    "cloudinary": "^2.8.0",
+    "date-fns": "^2.30.0",
+    "dotenv": "^16.6.1",
+    "formidable": "^3.5.4",
+    "jsonwebtoken": "^9.0.2",
+    "mongodb": "^6.3.0",
+    "next": "^14.0.0",
+    "nodemailer": "^7.0.11",
+    "openai": "^6.15.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-player": "^2.13.0",
+    "recharts": "^2.10.0",
+    "socket.io": "^4.6.0",
+    "socket.io-client": "^4.6.0",
+    "tinymce": "^8.3.2"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.5",
+    "@types/node": "^20.10.0",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "autoprefixer": "^10.4.16",
+    "eslint": "^8.54.0",
+    "eslint-config-next": "^14.0.0",
+    "postcss": "^8.4.32",
+    "tailwindcss": "^3.3.6",
+    "typescript": "^5.3.0"
+  }
+}

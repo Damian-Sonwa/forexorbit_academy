@@ -1,0 +1,1428 @@
+/**
+ * Demo Trading Page
+ * Students can practice trading with MetaTrader demo accounts
+ * Includes guide, live trading, tasks, and trade journal
+ */
+
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
+import Header from '@/components/Header';
+import Sidebar from '@/components/Sidebar';
+import Footer from '@/components/Footer';
+import LoadingSpinner from '@/components/LoadingSpinner';
+import { useAuth } from '@/hooks/useAuth';
+import { apiClient } from '@/lib/api-client';
+import { format } from 'date-fns';
+import TradingInterface from '@/components/TradingInterface';
+
+interface DemoTask {
+  _id: string;
+  title: string;
+  description: string;
+  instructions: string;
+  assignedBy: string;
+  assignedByName?: string;
+  dueDate?: string;
+  completed: boolean;
+  completedAt?: string;
+  createdAt: string;
+}
+
+interface TradeJournalEntry {
+  _id: string;
+  pair: string;
+  direction: 'buy' | 'sell';
+  entryPrice: number;
+  stopLoss: number;
+  takeProfit: number;
+  lotSize: number;
+  result: 'win' | 'loss' | 'breakeven' | 'open';
+  profitLoss?: number;
+  notes: string;
+  taskId?: string;
+  taskTitle?: string;
+  screenshot?: string; // URL to screenshot/image
+  grade?: number | string | null; // Grade from instructor
+  feedback?: string | null; // Feedback from instructor
+  reviewedAt?: string | null; // When feedback was provided
+  createdAt: string;
+}
+
+export default function DemoTrading() {
+  const { user, isAuthenticated, loading: authLoading } = useAuth();
+  const router = useRouter();
+  const [activeTab, setActiveTab] = useState<'guide' | 'live' | 'tasks' | 'journal'>('guide');
+  const [tasks, setTasks] = useState<DemoTask[]>([]);
+  const [journalEntries, setJournalEntries] = useState<TradeJournalEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showTaskModal, setShowTaskModal] = useState(false);
+  const [showJournalModal, setShowJournalModal] = useState(false);
+  const [showSubmissionModal, setShowSubmissionModal] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<DemoTask | null>(null);
+  
+  // Task submission form state
+  const [submissionForm, setSubmissionForm] = useState({
+    reasoning: '',
+    screenshot: '',
+  });
+  const [uploadingSubmissionScreenshot, setUploadingSubmissionScreenshot] = useState(false);
+  const [submissionScreenshotPreview, setSubmissionScreenshotPreview] = useState<string | null>(null);
+  const [isSubmittingTask, setIsSubmittingTask] = useState(false);
+  const [submissionUploadError, setSubmissionUploadError] = useState<string | null>(null);
+  
+  // Trade journal form state
+  const [journalForm, setJournalForm] = useState({
+    pair: '',
+    direction: 'buy' as 'buy' | 'sell',
+    entryPrice: '',
+    stopLoss: '',
+    takeProfit: '',
+    lotSize: '',
+    result: 'open' as 'win' | 'loss' | 'breakeven' | 'open',
+    profitLoss: '',
+    notes: '',
+    taskId: '',
+    screenshot: '',
+  });
+  const [uploadingScreenshot, setUploadingScreenshot] = useState(false);
+  const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      router.push('/login');
+      return;
+    }
+    if (!authLoading && isAuthenticated && user?.role !== 'student') {
+      router.push('/dashboard');
+      return;
+    }
+  }, [authLoading, isAuthenticated, user, router]);
+
+  useEffect(() => {
+    if (isAuthenticated && user?.role === 'student') {
+      loadData();
+    }
+  }, [isAuthenticated, user]);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const [tasksData, journalData] = await Promise.all([
+        apiClient.get<DemoTask[]>('/demo-trading/tasks').catch(() => []),
+        apiClient.get<TradeJournalEntry[]>('/demo-trading/journal').catch(() => []),
+      ]);
+      setTasks(Array.isArray(tasksData) ? tasksData : []);
+      setJournalEntries(Array.isArray(journalData) ? journalData : []);
+    } catch (error) {
+      console.error('Failed to load demo trading data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCompleteTask = async (taskId: string) => {
+    try {
+      await apiClient.post(`/demo-trading/tasks/${taskId}/complete`);
+      await loadData();
+    } catch (error: any) {
+      alert(error.response?.data?.error || 'Failed to mark task as complete');
+    }
+  };
+
+  const handleOpenSubmissionModal = (task: DemoTask) => {
+    setSelectedTask(task);
+    setSubmissionForm({ reasoning: '', screenshot: '' });
+    setSubmissionScreenshotPreview(null);
+    setSubmissionUploadError(null);
+    setShowSubmissionModal(true);
+  };
+
+  const handleSubmissionScreenshotUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setSubmissionUploadError(null);
+
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+    if (!allowedTypes.includes(file.type.toLowerCase())) {
+      setSubmissionUploadError('Invalid file type. Only JPG, JPEG, and PNG images are allowed.');
+      e.target.value = '';
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      setSubmissionUploadError('File size must be less than 10MB');
+      e.target.value = '';
+      return;
+    }
+
+    try {
+      setUploadingSubmissionScreenshot(true);
+      setSubmissionUploadError(null);
+      
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const data = await apiClient.post<{ success: boolean; url: string; imageUrl?: string; filename: string }>(
+        '/demo-trading/journal/upload',
+        formData
+      );
+
+      const imageUrl = data.imageUrl || data.url;
+      setSubmissionForm({ ...submissionForm, screenshot: imageUrl });
+      setSubmissionScreenshotPreview(imageUrl);
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.error || error.message || 'Failed to upload screenshot';
+      setSubmissionUploadError(errorMessage);
+      console.error('Screenshot upload error:', error);
+    } finally {
+      setUploadingSubmissionScreenshot(false);
+    }
+  };
+
+  const handleSubmitTask = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (isSubmittingTask || !selectedTask) {
+      return;
+    }
+
+    try {
+      setIsSubmittingTask(true);
+      
+      const submissionData = {
+        reasoning: submissionForm.reasoning.trim(),
+        screenshotUrls: submissionForm.screenshot ? [submissionForm.screenshot] : [],
+      };
+
+      await apiClient.post(`/demo-trading/tasks/${selectedTask._id}/submit`, submissionData);
+      
+      // Reset form and close modal
+      setShowSubmissionModal(false);
+      setSubmissionForm({ reasoning: '', screenshot: '' });
+      setSubmissionScreenshotPreview(null);
+      setSubmissionUploadError(null);
+      setSelectedTask(null);
+      
+      // Reload data
+      await loadData();
+      
+      alert('Task submitted successfully!');
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.error || 'Failed to submit task';
+      alert(errorMessage);
+      console.error('Task submission error:', error);
+    } finally {
+      setIsSubmittingTask(false);
+    }
+  };
+
+  const handleScreenshotUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Clear previous errors
+    setUploadError(null);
+
+    // Validate file type - only jpg, jpeg, png
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+    if (!allowedTypes.includes(file.type.toLowerCase())) {
+      setUploadError('Invalid file type. Only JPG, JPEG, and PNG images are allowed.');
+      e.target.value = ''; // Clear the input
+      return;
+    }
+
+    // Validate file size (10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      setUploadError('File size must be less than 10MB');
+      e.target.value = ''; // Clear the input
+      return;
+    }
+
+    try {
+      setUploadingScreenshot(true);
+      setUploadError(null);
+      
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const data = await apiClient.post<{ success: boolean; url: string; imageUrl?: string; filename: string }>(
+        '/demo-trading/journal/upload',
+        formData
+      );
+
+      // Use imageUrl if available, otherwise use url
+      const imageUrl = data.imageUrl || data.url;
+      setJournalForm({ ...journalForm, screenshot: imageUrl });
+      setScreenshotPreview(imageUrl);
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.error || error.message || 'Failed to upload screenshot';
+      setUploadError(errorMessage);
+      console.error('Screenshot upload error:', error);
+    } finally {
+      setUploadingScreenshot(false);
+    }
+  };
+
+  const handleSubmitJournal = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Prevent duplicate submissions
+    if (isSubmitting) {
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      
+      const entryData = {
+        ...journalForm,
+        entryPrice: parseFloat(journalForm.entryPrice),
+        stopLoss: parseFloat(journalForm.stopLoss),
+        takeProfit: parseFloat(journalForm.takeProfit),
+        lotSize: parseFloat(journalForm.lotSize),
+        profitLoss: journalForm.profitLoss ? parseFloat(journalForm.profitLoss) : undefined,
+        taskId: journalForm.taskId || undefined,
+        screenshot: journalForm.screenshot || undefined,
+      };
+
+      await apiClient.post('/demo-trading/journal', entryData);
+      
+      // Reset form and close modal
+      setShowJournalModal(false);
+      setJournalForm({
+        pair: '',
+        direction: 'buy',
+        entryPrice: '',
+        stopLoss: '',
+        takeProfit: '',
+        lotSize: '',
+        result: 'open',
+        profitLoss: '',
+        notes: '',
+        taskId: '',
+        screenshot: '',
+      });
+      setScreenshotPreview(null);
+      setUploadError(null);
+      
+      // Reload data to show the new entry
+      await loadData();
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.error || 'Failed to save trade journal entry';
+      alert(errorMessage);
+      console.error('Journal submission error:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (authLoading || loading) {
+    return <LoadingSpinner message="Loading demo trading..." fullScreen />;
+  }
+
+  if (!isAuthenticated || user?.role !== 'student') {
+    return null;
+  }
+
+  const pendingTasks = tasks.filter(t => !t.completed);
+  const completedTasks = tasks.filter(t => t.completed);
+  const openTrades = journalEntries.filter(t => t.result === 'open');
+  const closedTrades = journalEntries.filter(t => t.result !== 'open');
+
+  return (
+    <div className="min-h-screen flex flex-col bg-gray-50">
+      <Header />
+
+      <div className="flex flex-1 relative overflow-hidden lg:items-start">
+        <Sidebar />
+
+        <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:ml-0 pt-14 lg:pt-6 bg-white lg:bg-gray-50 overflow-y-auto w-full">
+          {/* Header */}
+          <div className="mb-6">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Demo Trading</h1>
+            <p className="text-gray-600">Practice trading with virtual money using MetaTrader demo accounts</p>
+          </div>
+
+          {/* Disclaimer */}
+          <div className="mb-6 bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-lg">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <span className="text-2xl">⚠️</span>
+              </div>
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-yellow-800">Important Disclaimer</h3>
+                <div className="mt-2 text-sm text-yellow-700">
+                  <p className="mb-2">
+                    <strong>ForexOrbit Academy does not provide brokerage services or financial advice.</strong>
+                  </p>
+                  <p className="mb-2">
+                    This demo trading feature is for educational purposes only. All trades are simulated using virtual money.
+                  </p>
+                  <p>
+                    Trading forex involves substantial risk of loss. Past performance is not indicative of future results.
+                    Always consult with a licensed financial advisor before making real trading decisions.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Tabs */}
+          <div className="mb-6 border-b border-gray-200">
+            <nav className="-mb-px flex space-x-8">
+              {[
+                { id: 'guide', label: '📖 Setup Guide', icon: '📖' },
+                { id: 'live', label: '⚡ Live Trading', icon: '⚡' },
+                { id: 'tasks', label: '📋 Tasks', icon: '📋' },
+                { id: 'journal', label: '📊 Trade Journal', icon: '📊' },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                    activeTab === tab.id
+                      ? 'border-primary-500 text-primary-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </nav>
+          </div>
+
+          {/* Tab Content */}
+          <div className="bg-white rounded-xl shadow-md border border-gray-100 p-6">
+            {/* Setup Guide Tab */}
+            {activeTab === 'guide' && (
+              <div className="space-y-6">
+                <h2 className="text-2xl font-bold text-gray-900">MetaTrader Demo Account Setup Guide</h2>
+                
+                {/* What is a Demo Account Section */}
+                <div className="bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-blue-200 rounded-xl p-6 mb-8">
+                  <h3 className="text-2xl font-bold text-gray-900 mb-4">📚 What is a Demo Trading Account?</h3>
+                  
+                  <div className="space-y-4 text-gray-700">
+                    <div>
+                      <h4 className="font-semibold text-lg mb-2 text-gray-900">Definition</h4>
+                      <p className="mb-3">
+                        A <strong>demo trading account</strong> (also called a practice account or paper trading account) is a 
+                        simulated trading environment that allows you to practice trading with virtual money. It provides access to 
+                        real-time market data and trading tools without risking any real capital.
+                      </p>
+                    </div>
+
+                    <div>
+                      <h4 className="font-semibold text-lg mb-2 text-gray-900">Key Features</h4>
+                      <ul className="list-disc list-inside space-y-2 ml-2">
+                        <li><strong>Virtual Money:</strong> Start with a virtual balance (typically $10,000 - $100,000)</li>
+                        <li><strong>Real Market Data:</strong> Access live prices and market conditions</li>
+                        <li><strong>Full Trading Tools:</strong> Use all features of the trading platform</li>
+                        <li><strong>No Financial Risk:</strong> You cannot lose or make real money</li>
+                        <li><strong>Learning Environment:</strong> Perfect for practicing strategies and techniques</li>
+                      </ul>
+                    </div>
+
+                    <div>
+                      <h4 className="font-semibold text-lg mb-2 text-gray-900">Why Do You Need a Demo Account?</h4>
+                      <div className="grid md:grid-cols-2 gap-4 mt-3">
+                        <div className="bg-white rounded-lg p-4 border border-blue-200">
+                          <h5 className="font-semibold mb-2 text-blue-900">🎓 For Learning</h5>
+                          <ul className="text-sm space-y-1 list-disc list-inside text-gray-700">
+                            <li>Practice trading strategies safely</li>
+                            <li>Learn platform features and tools</li>
+                            <li>Understand market movements</li>
+                            <li>Test different trading styles</li>
+                          </ul>
+                        </div>
+                        <div className="bg-white rounded-lg p-4 border border-green-200">
+                          <h5 className="font-semibold mb-2 text-green-900">✅ For Course Completion</h5>
+                          <ul className="text-sm space-y-1 list-disc list-inside text-gray-700">
+                            <li>Complete instructor-assigned tasks</li>
+                            <li>Log trades in your Trade Journal</li>
+                            <li>Track your learning progress</li>
+                            <li>Demonstrate your skills</li>
+                          </ul>
+                        </div>
+                        <div className="bg-white rounded-lg p-4 border border-purple-200">
+                          <h5 className="font-semibold mb-2 text-purple-900">📊 For Skill Development</h5>
+                          <ul className="text-sm space-y-1 list-disc list-inside text-gray-700">
+                            <li>Build confidence before real trading</li>
+                            <li>Develop risk management skills</li>
+                            <li>Learn from mistakes without cost</li>
+                            <li>Refine your trading psychology</li>
+                          </ul>
+                        </div>
+                        <div className="bg-white rounded-lg p-4 border border-orange-200">
+                          <h5 className="font-semibold mb-2 text-orange-900">🔧 For Platform Mastery</h5>
+                          <ul className="text-sm space-y-1 list-disc list-inside text-gray-700">
+                            <li>Familiarize with MetaTrader interface</li>
+                            <li>Learn order types and execution</li>
+                            <li>Practice chart analysis</li>
+                            <li>Test indicators and tools</li>
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded mt-4">
+                      <p className="text-sm text-yellow-800">
+                        <strong>💡 Important:</strong> Demo accounts are essential for your ForexOrbit Academy journey. 
+                        They allow you to complete practice tasks, log trades in your journal, and demonstrate your 
+                        understanding of trading concepts without any financial risk.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="prose max-w-none">
+                  <section className="mb-8">
+                    <h3 className="text-xl font-semibold mb-4 text-gray-900">Step 1: Choose Your Platform</h3>
+                    <p className="text-gray-700 mb-4">
+                      MetaTrader offers two platforms: MT4 (MetaTrader 4) and MT5 (MetaTrader 5). 
+                      Both are excellent for learning, but MT5 has more features and is the newer version.
+                    </p>
+                    <div className="grid md:grid-cols-2 gap-4 mb-4">
+                      <div className="border border-gray-200 rounded-lg p-4">
+                        <h4 className="font-semibold mb-2">MetaTrader 4 (MT4)</h4>
+                        <ul className="list-disc list-inside text-sm text-gray-600 space-y-1">
+                          <li>Most popular platform</li>
+                          <li>Simpler interface</li>
+                          <li>Great for beginners</li>
+                          <li>Widely supported by brokers</li>
+                        </ul>
+                      </div>
+                      <div className="border border-gray-200 rounded-lg p-4">
+                        <h4 className="font-semibold mb-2">MetaTrader 5 (MT5)</h4>
+                        <ul className="list-disc list-inside text-sm text-gray-600 space-y-1">
+                          <li>More advanced features</li>
+                          <li>Better charting tools</li>
+                          <li>More timeframes</li>
+                          <li>Enhanced backtesting</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section className="mb-8">
+                    <h3 className="text-xl font-semibold mb-4 text-gray-900">Step 2: Create a Demo Account</h3>
+                    <div className="space-y-4">
+                      {/* Quick Links Section */}
+                      <div className="bg-gradient-to-r from-blue-50 to-green-50 border-2 border-blue-200 rounded-xl p-6 mb-6">
+                        <h4 className="font-bold text-lg mb-4 text-gray-900">🚀 Quick Start - Create Account Now</h4>
+                        <div className="grid md:grid-cols-2 gap-4">
+                          <a
+                            href="https://hub.oanda.com/apply/demo/"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center justify-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-4 rounded-lg font-medium transition-colors shadow-md hover:shadow-lg"
+                          >
+                            <span>📊</span>
+                            <span>Create OANDA Demo Account</span>
+                            <span>→</span>
+                          </a>
+                          <a
+                            href="https://www.metatrader4.com/en/download"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center justify-center space-x-2 bg-green-600 hover:bg-green-700 text-white px-6 py-4 rounded-lg font-medium transition-colors shadow-md hover:shadow-lg"
+                          >
+                            <span>💻</span>
+                            <span>Download MetaTrader</span>
+                            <span>→</span>
+                          </a>
+                        </div>
+                        <p className="text-xs text-gray-600 mt-3 text-center">
+                          Both options open in a new tab. Choose OANDA for web-based trading or MetaTrader for desktop/mobile apps.
+                        </p>
+                      </div>
+
+                      <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded">
+                        <h4 className="font-semibold mb-2">Option A: OANDA Demo Account (Recommended for API Integration)</h4>
+                        <ol className="list-decimal list-inside space-y-2 text-sm text-gray-700 mb-4">
+                          <li>Click the "Create OANDA Demo Account" button above, or</li>
+                          <li>Visit <a href="https://hub.oanda.com/apply/demo/" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium">OANDA Demo Registration</a></li>
+                          <li>Fill in the registration form with your email and details</li>
+                          <li>Verify your email address</li>
+                          <li>Log in to your OANDA practice account</li>
+                          <li>Get your Account ID from the dashboard</li>
+                          <li>Generate an API token from Account → Manage API Access</li>
+                        </ol>
+                        <div className="mt-3">
+                          <a
+                            href="https://hub.oanda.com/apply/demo/"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                          >
+                            <span>Open OANDA Demo Registration</span>
+                            <span>→</span>
+                          </a>
+                        </div>
+                      </div>
+
+                      <div className="bg-green-50 border-l-4 border-green-400 p-4 rounded">
+                        <h4 className="font-semibold mb-2">Option B: MetaTrader Demo Account (Recommended for Desktop Trading)</h4>
+                        <ol className="list-decimal list-inside space-y-2 text-sm text-gray-700 mb-4">
+                          <li>Click the "Download MetaTrader" button above, or</li>
+                          <li>Visit <a href="https://www.metatrader4.com/en/download" target="_blank" rel="noopener noreferrer" className="text-green-600 hover:underline font-medium">MetaTrader Download Page</a></li>
+                          <li>Download and install MT4 or MT5</li>
+                          <li>Open the platform and click "Open an Account"</li>
+                          <li>Select a broker (e.g., IC Markets, FXTM, XM)</li>
+                          <li>Choose "Demo Account" option</li>
+                          <li>Fill in the registration form</li>
+                          <li>You'll receive login credentials via email</li>
+                        </ol>
+                        <div className="mt-3">
+                          <a
+                            href="https://www.metatrader4.com/en/download"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center space-x-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                          >
+                            <span>Download MetaTrader</span>
+                            <span>→</span>
+                          </a>
+                        </div>
+                      </div>
+
+                      <div className="bg-gray-50 border-l-4 border-gray-400 p-4 rounded">
+                        <h4 className="font-semibold mb-2">Option C: WebTrader (Browser-Based)</h4>
+                        <ol className="list-decimal list-inside space-y-2 text-sm text-gray-700">
+                          <li>Visit a reputable broker's website (e.g., IC Markets, FXTM, XM)</li>
+                          <li>Look for "Open Demo Account" or "Try Demo" button</li>
+                          <li>Fill in your details (name, email, phone)</li>
+                          <li>Choose your demo account settings:
+                            <ul className="list-disc list-inside ml-4 mt-1">
+                              <li>Account type: Demo</li>
+                              <li>Leverage: 1:100 or 1:500 (for practice)</li>
+                              <li>Initial balance: $10,000 - $50,000 (virtual money)</li>
+                              <li>Base currency: USD</li>
+                            </ul>
+                          </li>
+                          <li>Submit the form and check your email for login credentials</li>
+                          <li>Use the WebTrader link provided or download the desktop/mobile app</li>
+                        </ol>
+                      </div>
+
+                      <div className="bg-green-50 border-l-4 border-green-400 p-4 rounded">
+                        <h4 className="font-semibold mb-2">Option B: Mobile Apps (MT4/MT5)</h4>
+                        <ol className="list-decimal list-inside space-y-2 text-sm text-gray-700">
+                          <li>Download MetaTrader 4 or MetaTrader 5 from:
+                            <ul className="list-disc list-inside ml-4 mt-1">
+                              <li>iOS: App Store</li>
+                              <li>Android: Google Play Store</li>
+                            </ul>
+                          </li>
+                          <li>Open the app and tap "Open an Account"</li>
+                          <li>Search for your broker or select "Demo"</li>
+                          <li>Fill in the registration form</li>
+                          <li>You'll receive demo account credentials instantly</li>
+                          <li>Log in and start trading!</li>
+                        </ol>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section className="mb-8">
+                    <h3 className="text-xl font-semibold mb-4 text-gray-900">Step 3: Access Your Demo Account</h3>
+                    <div className="space-y-4">
+                      <div className="border border-gray-200 rounded-lg p-4">
+                        <h4 className="font-semibold mb-2">WebTrader Access</h4>
+                        <p className="text-sm text-gray-700 mb-2">
+                          Most brokers provide a WebTrader link. Simply click the link, enter your demo account credentials, 
+                          and you can trade directly in your browser - no download required!
+                        </p>
+                        <p className="text-sm text-gray-600 italic">
+                          💡 Tip: Contact your instructor if you need help accessing your broker's WebTrader platform.
+                        </p>
+                      </div>
+
+                      <div className="border border-gray-200 rounded-lg p-4">
+                        <h4 className="font-semibold mb-2">Desktop/Mobile App Access</h4>
+                        <p className="text-sm text-gray-700 mb-2">
+                          Use your demo account credentials (login, password, server) to connect via MT4/MT5 apps.
+                        </p>
+                        <div className="mt-2 space-y-1 text-sm text-gray-600">
+                          <p><strong>Login:</strong> Your demo account number</p>
+                          <p><strong>Password:</strong> The password you received</p>
+                          <p><strong>Server:</strong> Usually something like "BrokerName-Demo" or "Demo-Server"</p>
+                        </div>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section className="mb-8">
+                    <h3 className="text-xl font-semibold mb-4 text-gray-900">Step 4: Start Practicing</h3>
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <p className="text-sm text-gray-700 mb-3">
+                        Now that you have a demo account, here's what to do next:
+                      </p>
+                      <ul className="list-disc list-inside space-y-2 text-sm text-gray-700">
+                        <li>Check your assigned tasks from instructors in the "Tasks" tab</li>
+                        <li>Practice placing trades with different currency pairs</li>
+                        <li>Learn to set stop loss and take profit levels</li>
+                        <li>Log your trades in the "Trade Journal" tab</li>
+                        <li>Review your performance and learn from each trade</li>
+                      </ul>
+                    </div>
+                  </section>
+
+                  <section className="mb-8">
+                    <h3 className="text-xl font-semibold mb-4 text-gray-900">Important Notes</h3>
+                    <div className="space-y-3 text-sm text-gray-700">
+                      <div className="flex items-start">
+                        <span className="mr-2">✅</span>
+                        <p><strong>Demo accounts use virtual money</strong> - you cannot lose real money, but you also cannot withdraw profits.</p>
+                      </div>
+                      <div className="flex items-start">
+                        <span className="mr-2">✅</span>
+                        <p><strong>Demo accounts expire</strong> - typically after 30 days. You can create a new one anytime.</p>
+                      </div>
+                      <div className="flex items-start">
+                        <span className="mr-2">✅</span>
+                        <p><strong>Market conditions may differ</strong> - demo accounts sometimes have different spreads and execution speeds than live accounts.</p>
+                      </div>
+                      <div className="flex items-start">
+                        <span className="mr-2">✅</span>
+                        <p><strong>Practice makes perfect</strong> - use demo accounts to test strategies, learn the platform, and build confidence before trading with real money.</p>
+                      </div>
+                    </div>
+                  </section>
+                </div>
+              </div>
+            )}
+
+            {/* Live Trading Tab */}
+            {activeTab === 'live' && (
+              <div className="space-y-6">
+                <div className="mb-6 bg-red-50 border-l-4 border-red-400 p-4 rounded-lg">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <span className="text-2xl">⚠️</span>
+                    </div>
+                    <div className="ml-3">
+                      <h3 className="text-sm font-medium text-red-800">Critical Security Notice</h3>
+                      <div className="mt-2 text-sm text-red-700">
+                        <p className="mb-2">
+                          <strong>This is a DEMO trading interface using paper trading only.</strong>
+                        </p>
+                        <p className="mb-2">
+                          • All trades are executed in demo/paper trading mode with virtual money
+                        </p>
+                        <p className="mb-2">
+                          • No real money can be deposited, traded, or withdrawn
+                        </p>
+                        <p className="mb-2">
+                          • ForexOrbit Academy does not provide brokerage services
+                        </p>
+                        <p>
+                          • This feature is for educational purposes only. Trading involves substantial risk.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <TradingInterface />
+              </div>
+            )}
+
+            {/* Tasks Tab */}
+            {activeTab === 'tasks' && (
+              <div className="space-y-6">
+                <div className="flex justify-between items-center">
+                  <h2 className="text-2xl font-bold text-gray-900">Demo Trading Tasks</h2>
+                  <button
+                    onClick={() => setShowTaskModal(true)}
+                    className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium"
+                  >
+                    View Task Details
+                  </button>
+                </div>
+
+                {loading ? (
+                  <LoadingSpinner message="Loading tasks..." size="sm" />
+                ) : (
+                  <>
+                    {/* Pending Tasks */}
+                    {pendingTasks.length > 0 && (
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-4">Pending Tasks</h3>
+                        <div className="space-y-4">
+                          {pendingTasks.map((task) => (
+                            <div key={task._id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                              <div className="flex justify-between items-start mb-2">
+                                <div className="flex-1">
+                                  <h4 className="font-semibold text-gray-900 mb-1">{task.title}</h4>
+                                  <p className="text-sm text-gray-600 mb-2">{task.description}</p>
+                                  {task.instructions && (
+                                    <div className="bg-blue-50 border-l-4 border-blue-400 p-3 rounded mb-2">
+                                      <p className="text-sm text-gray-700 whitespace-pre-line">{task.instructions}</p>
+                                    </div>
+                                  )}
+                                  <div className="flex items-center space-x-4 text-xs text-gray-500 mt-2">
+                                    <span>Assigned by: {task.assignedByName || 'Instructor'}</span>
+                                    {task.dueDate && (
+                                      <span>Due: {format(new Date(task.dueDate), 'MMM dd, yyyy')}</span>
+                                    )}
+                                    <span>Created: {format(new Date(task.createdAt), 'MMM dd, yyyy')}</span>
+                                  </div>
+                                </div>
+                                <div className="ml-4 flex space-x-2">
+                                  <button
+                                    onClick={() => handleOpenSubmissionModal(task)}
+                                    className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium"
+                                  >
+                                    Submit Task
+                                  </button>
+                                  <button
+                                    onClick={() => handleCompleteTask(task._id)}
+                                    className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg text-sm font-medium"
+                                  >
+                                    Mark Complete
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Completed Tasks */}
+                    {completedTasks.length > 0 && (
+                      <div className="mt-6">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-4">Completed Tasks</h3>
+                        <div className="space-y-4">
+                          {completedTasks.map((task) => (
+                            <div key={task._id} className="border border-gray-200 rounded-lg p-4 bg-gray-50 opacity-75">
+                              <div className="flex justify-between items-start">
+                                <div className="flex-1">
+                                  <div className="flex items-center space-x-2 mb-1">
+                                    <h4 className="font-semibold text-gray-900">{task.title}</h4>
+                                    <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">Completed</span>
+                                  </div>
+                                  <p className="text-sm text-gray-600">{task.description}</p>
+                                  {task.completedAt && (
+                                    <p className="text-xs text-gray-500 mt-2">
+                                      Completed on: {format(new Date(task.completedAt), 'MMM dd, yyyy HH:mm')}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {tasks.length === 0 && (
+                      <div className="text-center py-12">
+                        <p className="text-gray-500 mb-4">No tasks assigned yet.</p>
+                        <p className="text-sm text-gray-400">Your instructor will assign practice tasks here.</p>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Trade Journal Tab */}
+            {activeTab === 'journal' && (
+              <div className="space-y-6">
+                <div className="flex justify-between items-center">
+                  <h2 className="text-2xl font-bold text-gray-900">Trade Journal</h2>
+                  <button
+                    onClick={() => setShowJournalModal(true)}
+                    className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium"
+                  >
+                    + Add Trade
+                  </button>
+                </div>
+
+                {loading ? (
+                  <LoadingSpinner message="Loading journal entries..." size="sm" />
+                ) : (
+                  <>
+                    {/* Open Trades */}
+                    {openTrades.length > 0 && (
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-4">Open Trades</h3>
+                        <div className="overflow-x-auto">
+                          <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gray-50">
+                              <tr>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Pair</th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Direction</th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Entry</th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">SL</th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">TP</th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Lot Size</th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                              </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                              {openTrades.map((trade) => (
+                                <tr key={trade._id} className="hover:bg-gray-50">
+                                  <td className="px-4 py-3 text-sm font-medium text-gray-900">{trade.pair}</td>
+                                  <td className="px-4 py-3 text-sm">
+                                    <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                      trade.direction === 'buy' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                    }`}>
+                                      {trade.direction.toUpperCase()}
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-3 text-sm text-gray-900">{trade.entryPrice}</td>
+                                  <td className="px-4 py-3 text-sm text-gray-900">{trade.stopLoss}</td>
+                                  <td className="px-4 py-3 text-sm text-gray-900">{trade.takeProfit}</td>
+                                  <td className="px-4 py-3 text-sm text-gray-900">{trade.lotSize}</td>
+                                  <td className="px-4 py-3 text-sm text-gray-500">{format(new Date(trade.createdAt), 'MMM dd, yyyy')}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Closed Trades */}
+                    {closedTrades.length > 0 && (
+                      <div className={openTrades.length > 0 ? 'mt-6' : ''}>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-4">Closed Trades</h3>
+                        <div className="space-y-4">
+                          {closedTrades.map((trade) => (
+                            <div key={trade._id} className="border border-gray-200 rounded-lg p-4 bg-white hover:shadow-md transition-shadow">
+                              <div className="grid md:grid-cols-6 gap-4 items-center">
+                                <div>
+                                  <p className="text-xs text-gray-500 mb-1">Pair</p>
+                                  <p className="text-sm font-medium text-gray-900">{trade.pair}</p>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-gray-500 mb-1">Direction</p>
+                                  <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                    trade.direction === 'buy' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                  }`}>
+                                    {trade.direction.toUpperCase()}
+                                  </span>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-gray-500 mb-1">Entry</p>
+                                  <p className="text-sm text-gray-900">{trade.entryPrice}</p>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-gray-500 mb-1">Result</p>
+                                  <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                    trade.result === 'win' ? 'bg-green-100 text-green-800' :
+                                    trade.result === 'loss' ? 'bg-red-100 text-red-800' :
+                                    'bg-gray-100 text-gray-800'
+                                  }`}>
+                                    {trade.result.toUpperCase()}
+                                  </span>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-gray-500 mb-1">P/L</p>
+                                  <p className={`text-sm font-medium ${
+                                    trade.profitLoss && trade.profitLoss > 0 ? 'text-green-600' :
+                                    trade.profitLoss && trade.profitLoss < 0 ? 'text-red-600' : 'text-gray-900'
+                                  }`}>
+                                    {trade.profitLoss !== undefined ? `$${trade.profitLoss.toFixed(2)}` : '-'}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-gray-500 mb-1">Date</p>
+                                  <p className="text-sm text-gray-500">{format(new Date(trade.createdAt), 'MMM dd, yyyy')}</p>
+                                </div>
+                              </div>
+                              {(trade.notes || trade.screenshot) && (
+                                <div className="mt-4 pt-4 border-t border-gray-200">
+                                  {trade.notes && (
+                                    <div className="mb-3">
+                                      <p className="text-xs text-gray-500 mb-1">Notes</p>
+                                      <p className="text-sm text-gray-700 whitespace-pre-wrap">{trade.notes}</p>
+                                    </div>
+                                  )}
+                                  {trade.screenshot && (
+                                    <div>
+                                      <p className="text-xs text-gray-500 mb-2">Screenshot</p>
+                                      <a
+                                        href={trade.screenshot}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-block"
+                                      >
+                                        <img
+                                          src={trade.screenshot}
+                                          alt="Trade screenshot"
+                                          className="max-w-full h-auto max-h-64 rounded-lg border border-gray-300 hover:shadow-lg transition-shadow cursor-pointer"
+                                          onError={(e) => {
+                                            console.error('Failed to load trade screenshot:', trade.screenshot);
+                                            const img = e.target as HTMLImageElement;
+                                            img.style.display = 'none';
+                                            const errorDiv = document.createElement('div');
+                                            errorDiv.className = 'text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-2';
+                                            errorDiv.textContent = 'Failed to load screenshot';
+                                            img.parentElement?.appendChild(errorDiv);
+                                          }}
+                                        />
+                                      </a>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+
+                              {/* Instructor Feedback */}
+                              {(trade.grade || trade.feedback) && (
+                                <div className="mt-4 pt-4 border-t border-green-200 bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
+                                  <div className="flex items-center justify-between mb-2">
+                                    <p className="text-sm font-semibold text-green-800 dark:text-green-200">
+                                      Instructor Feedback
+                                    </p>
+                                    {trade.grade && (
+                                      <span className="px-3 py-1 bg-green-600 text-white rounded-lg text-sm font-bold">
+                                        Grade: {trade.grade}
+                                      </span>
+                                    )}
+                                  </div>
+                                  {trade.feedback && (
+                                    <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap mt-2">
+                                      {trade.feedback}
+                                    </p>
+                                  )}
+                                  {trade.reviewedAt && (
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                                      Reviewed: {format(new Date(trade.reviewedAt), 'MMM dd, yyyy HH:mm')}
+                                    </p>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {journalEntries.length === 0 && (
+                      <div className="text-center py-12">
+                        <p className="text-gray-500 mb-4">No trades logged yet.</p>
+                        <button
+                          onClick={() => setShowJournalModal(true)}
+                          className="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium"
+                        >
+                          Log Your First Trade
+                        </button>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        </main>
+      </div>
+
+      {/* Trade Journal Modal */}
+      {showJournalModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">Log Trade</h2>
+                <button
+                  onClick={() => {
+                    setShowJournalModal(false);
+                    setJournalForm({
+                      pair: '',
+                      direction: 'buy',
+                      entryPrice: '',
+                      stopLoss: '',
+                      takeProfit: '',
+                      lotSize: '',
+                      result: 'open',
+                      profitLoss: '',
+                      notes: '',
+                      taskId: '',
+                      screenshot: '',
+                    });
+                    setScreenshotPreview(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <form onSubmit={handleSubmitJournal} className="space-y-4">
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Currency Pair *</label>
+                    <input
+                      type="text"
+                      required
+                      value={journalForm.pair}
+                      onChange={(e) => setJournalForm({ ...journalForm, pair: e.target.value.toUpperCase() })}
+                      placeholder="EUR/USD"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Direction *</label>
+                    <select
+                      required
+                      value={journalForm.direction}
+                      onChange={(e) => setJournalForm({ ...journalForm, direction: e.target.value as 'buy' | 'sell' })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 bg-white"
+                    >
+                      <option value="buy">Buy (Long)</option>
+                      <option value="sell">Sell (Short)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Entry Price *</label>
+                    <input
+                      type="number"
+                      required
+                      step="0.00001"
+                      value={journalForm.entryPrice}
+                      onChange={(e) => setJournalForm({ ...journalForm, entryPrice: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Stop Loss *</label>
+                    <input
+                      type="number"
+                      required
+                      step="0.00001"
+                      value={journalForm.stopLoss}
+                      onChange={(e) => setJournalForm({ ...journalForm, stopLoss: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Take Profit *</label>
+                    <input
+                      type="number"
+                      required
+                      step="0.00001"
+                      value={journalForm.takeProfit}
+                      onChange={(e) => setJournalForm({ ...journalForm, takeProfit: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Lot Size *</label>
+                    <input
+                      type="number"
+                      required
+                      step="0.01"
+                      value={journalForm.lotSize}
+                      onChange={(e) => setJournalForm({ ...journalForm, lotSize: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Result *</label>
+                    <select
+                      required
+                      value={journalForm.result}
+                      onChange={(e) => setJournalForm({ ...journalForm, result: e.target.value as any })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 bg-white"
+                    >
+                      <option value="open">Open</option>
+                      <option value="win">Win</option>
+                      <option value="loss">Loss</option>
+                      <option value="breakeven">Breakeven</option>
+                    </select>
+                  </div>
+
+                  {journalForm.result !== 'open' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Profit/Loss ($)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={journalForm.profitLoss}
+                        onChange={(e) => setJournalForm({ ...journalForm, profitLoss: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 bg-white"
+                      />
+                    </div>
+                  )}
+
+                  {pendingTasks.length > 0 && (
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Related Task (Optional)</label>
+                      <select
+                        value={journalForm.taskId}
+                        onChange={(e) => setJournalForm({ ...journalForm, taskId: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 bg-white"
+                      >
+                        <option value="">None</option>
+                        {pendingTasks.map((task) => (
+                          <option key={task._id} value={task._id}>{task.title}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                  <textarea
+                    value={journalForm.notes}
+                    onChange={(e) => setJournalForm({ ...journalForm, notes: e.target.value })}
+                    rows={4}
+                    placeholder="What did you learn from this trade? Any observations?"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Screenshot (Optional)
+                  </label>
+                  <p className="text-xs text-gray-500 mb-2">
+                    Upload a screenshot of your demo trading activity to document this trade (JPG, JPEG, or PNG only, max 10MB)
+                  </p>
+                  <div className="space-y-2">
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/jpg,image/png"
+                      onChange={handleScreenshotUpload}
+                      disabled={uploadingScreenshot || isSubmitting}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 bg-white disabled:opacity-50 disabled:cursor-not-allowed"
+                    />
+                    {uploadingScreenshot && (
+                      <p className="text-sm text-blue-600 flex items-center">
+                        <span className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></span>
+                        Uploading screenshot...
+                      </p>
+                    )}
+                    {uploadError && (
+                      <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-2">
+                        {uploadError}
+                      </p>
+                    )}
+                    {screenshotPreview && !uploadError && (
+                      <div className="mt-2">
+                        <img
+                          src={screenshotPreview}
+                          alt="Screenshot preview"
+                          className="max-w-full h-auto max-h-48 rounded-lg border border-gray-300"
+                          onError={(e) => {
+                            console.error('Image load error:', screenshotPreview);
+                            (e.target as HTMLImageElement).style.display = 'none';
+                            setUploadError('Failed to load image preview. Please try uploading again.');
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setScreenshotPreview(null);
+                            setJournalForm({ ...journalForm, screenshot: '' });
+                            setUploadError(null);
+                          }}
+                          disabled={isSubmitting}
+                          className="mt-2 text-sm text-red-600 hover:text-red-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Remove screenshot
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex justify-end space-x-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowJournalModal(false);
+                      setJournalForm({
+                        pair: '',
+                        direction: 'buy',
+                        entryPrice: '',
+                        stopLoss: '',
+                        takeProfit: '',
+                        lotSize: '',
+                        result: 'open',
+                        profitLoss: '',
+                        notes: '',
+                        taskId: '',
+                        screenshot: '',
+                      });
+                      setScreenshotPreview(null);
+                      setUploadError(null);
+                    }}
+                    disabled={isSubmitting}
+                    className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <span className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></span>
+                        Saving...
+                      </>
+                    ) : (
+                      'Save Trade'
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Task Submission Modal */}
+      {showSubmissionModal && selectedTask && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">Submit Task</h2>
+                  <p className="text-sm text-gray-600 mt-1">{selectedTask.title}</p>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowSubmissionModal(false);
+                    setSubmissionForm({ reasoning: '', screenshot: '' });
+                    setSubmissionScreenshotPreview(null);
+                    setSubmissionUploadError(null);
+                    setSelectedTask(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <form onSubmit={handleSubmitTask} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Reasoning / Analysis *
+                  </label>
+                  <p className="text-xs text-gray-500 mb-2">
+                    Explain your approach, analysis, or reasoning for completing this task
+                  </p>
+                  <textarea
+                    required
+                    value={submissionForm.reasoning}
+                    onChange={(e) => setSubmissionForm({ ...submissionForm, reasoning: e.target.value })}
+                    rows={6}
+                    placeholder="Describe your approach, analysis, key observations, or reasoning for this task..."
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Screenshot (Optional)
+                  </label>
+                  <p className="text-xs text-gray-500 mb-2">
+                    Upload a screenshot of your demo trading activity related to this task (JPG, JPEG, or PNG only, max 10MB)
+                  </p>
+                  <div className="space-y-2">
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/jpg,image/png"
+                      onChange={handleSubmissionScreenshotUpload}
+                      disabled={uploadingSubmissionScreenshot || isSubmittingTask}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 bg-white disabled:opacity-50 disabled:cursor-not-allowed"
+                    />
+                    {uploadingSubmissionScreenshot && (
+                      <p className="text-sm text-blue-600 flex items-center">
+                        <span className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></span>
+                        Uploading screenshot...
+                      </p>
+                    )}
+                    {submissionUploadError && (
+                      <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-2">
+                        {submissionUploadError}
+                      </p>
+                    )}
+                    {submissionScreenshotPreview && !submissionUploadError && (
+                      <div className="mt-2">
+                        <img
+                          src={submissionScreenshotPreview}
+                          alt="Screenshot preview"
+                          className="max-w-full h-auto max-h-48 rounded-lg border border-gray-300"
+                          onError={(e) => {
+                            console.error('Image load error:', submissionScreenshotPreview);
+                            (e.target as HTMLImageElement).style.display = 'none';
+                            setSubmissionUploadError('Failed to load image preview. Please try uploading again.');
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSubmissionScreenshotPreview(null);
+                            setSubmissionForm({ ...submissionForm, screenshot: '' });
+                            setSubmissionUploadError(null);
+                          }}
+                          disabled={isSubmittingTask}
+                          className="mt-2 text-sm text-red-600 hover:text-red-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Remove screenshot
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex justify-end space-x-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowSubmissionModal(false);
+                      setSubmissionForm({ reasoning: '', screenshot: '' });
+                      setSubmissionScreenshotPreview(null);
+                      setSubmissionUploadError(null);
+                      setSelectedTask(null);
+                    }}
+                    disabled={isSubmittingTask}
+                    className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmittingTask}
+                    className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                  >
+                    {isSubmittingTask ? (
+                      <>
+                        <span className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></span>
+                        Submitting...
+                      </>
+                    ) : (
+                      'Submit Task'
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <Footer />
+    </div>
+  );
+}
+

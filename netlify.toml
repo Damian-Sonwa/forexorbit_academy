@@ -1,0 +1,35 @@
+# Netlify Configuration
+# ⚠️ IMPORTANT: Netlify does NOT support custom Node.js servers or Socket.io persistent connections.
+# This app uses a custom server.js with Socket.io, which requires a persistent server.
+# Real-time features (chat, progress updates, market signals) WILL NOT WORK on Netlify.
+# 
+# RECOMMENDED: Use Render instead (see render.yaml and DEPLOYMENT.md)
+# 
+# If you still want to deploy to Netlify (with limited functionality):
+# 1. You'll need to remove or disable Socket.io features
+# 2. Convert to Next.js static export or API routes only
+# 3. Use a separate service for Socket.io (e.g., separate Render service)
+
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "20"
+  NPM_FLAGS = "--legacy-peer-deps"
+
+# Headers for security
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-XSS-Protection = "1; mode=block"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+# Environment variables should be set in Netlify dashboard
+# Required variables:
+# - MONGO_URI
+# - JWT_SECRET
+# - NEXT_PUBLIC_SOCKET_URL (your Netlify URL or external Socket.io server)
+
