@@ -191,31 +191,31 @@ export default function InstructorCoursePage() {
     try {
       // Fetch the latest lesson from API to ensure lessonSummary is present
       const lessonDetails = await apiClient.get<any>(`/lessons/${lesson._id}`);
-      const summaryText = (lessonDetails as any).lessonSummary?.overview || lesson.summary || '';
+      const contentText = lessonDetails.content || (lessonDetails as any).lessonSummary?.overview || lesson.summary || '';
       setLessonForm({
         title: lessonDetails.title || lesson.title,
         description: lessonDetails.description || lesson.description,
-        summary: summaryText,
+        summary: contentText,
         videoUrl: lessonDetails.videoUrl || lesson.videoUrl || '',
         pdfUrl: lessonDetails.pdfUrl || lesson.pdfUrl || '',
         type: lessonDetails.type || lesson.type,
         order: lessonDetails.order || lesson.order,
-        content: lessonDetails.content || lesson.content || '',
+        content: contentText,
         resources: lessonDetails.resources || lesson.resources || [],
         visualAids: (lessonDetails as any).lessonSummary?.screenshots || (lesson as any).lessonSummary?.screenshots || [],
       });
     } catch (error) {
       // Fallback to provided lesson object
-      const summaryText = (lesson as any).lessonSummary?.overview || lesson.summary || '';
+      const contentText = lesson.content || (lesson as any).lessonSummary?.overview || lesson.summary || '';
       setLessonForm({
         title: lesson.title,
         description: lesson.description,
-        summary: summaryText,
+        summary: contentText,
         videoUrl: lesson.videoUrl || '',
         pdfUrl: lesson.pdfUrl || '',
         type: lesson.type,
         order: lesson.order,
-        content: lesson.content || '',
+        content: contentText,
         resources: lesson.resources || [],
         visualAids: (lesson as any).lessonSummary?.screenshots || [],
       });
@@ -267,7 +267,7 @@ export default function InstructorCoursePage() {
       
       updateData.lessonSummary = {
         ...existingLessonSummary,
-        overview: lessonForm.summary || existingLessonSummary.overview || '',
+        overview: lessonForm.content || existingLessonSummary.overview || '',
         screenshots: validVisualAids.length > 0 ? validVisualAids : existingLessonSummary.screenshots || [],
         updatedAt: new Date(),
       };
@@ -345,9 +345,9 @@ export default function InstructorCoursePage() {
         aids: validVisualAids
       });
       
-      if (lessonForm.summary || validVisualAids.length > 0) {
+      if (lessonForm.content || validVisualAids.length > 0) {
         lessonData.lessonSummary = {
-          overview: lessonForm.summary || '',
+          overview: lessonForm.content || '',
           screenshots: validVisualAids,
           updatedAt: new Date(),
         };
@@ -747,8 +747,8 @@ export default function InstructorCoursePage() {
                   <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Summary</label>
                   <RichTextEditor
                     key={`lesson-summary-${editingLesson || 'new'}`}
-                    value={lessonForm.summary || ''}
-                    onChange={(content) => setLessonForm({ ...lessonForm, summary: content })}
+                    value={lessonForm.content || ''}
+                    onChange={(content) => setLessonForm({ ...lessonForm, content: content })}
                     height={400}
                     placeholder="Short text overview for the topic..."
                   />
