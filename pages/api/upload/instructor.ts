@@ -113,5 +113,5 @@ async function uploadInstructorImage(req: AuthRequest, res: NextApiResponse) {
   }
 }
 
-export default withAuth(uploadInstructorImage, ['admin', 'superadmin']);
+export default withAuth(uploadInstructorImage, ['admin', 'superadmin', 'instructor']);
 

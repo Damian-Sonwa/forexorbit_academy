@@ -76,23 +76,46 @@ export default function RichTextEditor({
           automatic_uploads: true,
           file_picker_types: 'image',
           images_upload_handler: async (blobInfo: any) => {
-            const formData = new FormData();
-            formData.append('image', blobInfo.blob(), blobInfo.filename());
+            try {
+              const formData = new FormData();
+              formData.append('image', blobInfo.blob(), blobInfo.filename());
 
-            const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-            
-            const response = await fetch('/api/upload/instructor', {
-              method: 'POST',
-              body: formData,
-              headers: token ? { Authorization: `Bearer ${token}` } : {},
-            });
+              const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+              
+              if (!token) {
+                throw new Error('No authentication token found. Please log in again.');
+              }
 
-            if (!response.ok) {
-              throw new Error('Image upload failed');
+              console.log('Uploading image:', blobInfo.filename(), 'Size:', blobInfo.blob().size);
+              
+              const response = await fetch('/api/upload/instructor', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                },
+              });
+
+              if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ error: 'Upload failed' }));
+                console.error('Upload failed:', response.status, errorData);
+                throw new Error(errorData.error || `Upload failed with status ${response.status}`);
+              }
+
+              const data = await response.json();
+              console.log('Upload successful:', data);
+              
+              // TinyMCE expects the URL as a string
+              const imageUrl = data.url || data.imageUrl || data.secureUrl;
+              if (!imageUrl) {
+                throw new Error('No image URL returned from server');
+              }
+              
+              return imageUrl;
+            } catch (error: any) {
+              console.error('Image upload error:', error);
+              throw new Error(`Image upload failed: ${error.message}`);
             }
-
-            const data = await response.json();
-            return data.url || data.imageUrl || data.secureUrl;
           },
         }}
         initialValue="Welcome to TinyMCE!"
