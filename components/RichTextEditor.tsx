@@ -62,10 +62,10 @@ export default function RichTextEditor({
         init={{
           height,
           plugins: [
-            'anchor', 'autolink', 'charmap', 'codesample', 'emoticons', 'link', 'lists', 'media', 'searchreplace', 'table', 'visualblocks', 'wordcount',
+            'anchor', 'autolink', 'charmap', 'codesample', 'emoticons', 'image', 'link', 'lists', 'media', 'searchreplace', 'table', 'visualblocks', 'wordcount',
             'checklist', 'mediaembed', 'casechange', 'formatpainter', 'pageembed', 'a11ychecker', 'tinymcespellchecker', 'permanentpen', 'powerpaste', 'advtable', 'advcode', 'advtemplate', 'ai', 'uploadcare', 'mentions', 'tinycomments', 'tableofcontents', 'footnotes', 'mergetags', 'autocorrect', 'typography', 'inlinecss', 'markdown', 'importword', 'exportword', 'exportpdf'
           ],
-          toolbar: 'undo redo | blocks fontfamily fontsize | bold italic underline strikethrough | link media table mergetags | addcomment showcomments | spellcheckdialog a11ycheck typography uploadcare | align lineheight | checklist numlist bullist indent outdent | emoticons charmap | removeformat',
+          toolbar: 'undo redo | blocks fontfamily fontsize | bold italic underline strikethrough | link image media table mergetags | addcomment showcomments | spellcheckdialog a11ycheck typography uploadcare | align lineheight | checklist numlist bullist indent outdent | emoticons charmap | removeformat',
           tinycomments_mode: 'embedded',
           tinycomments_author: 'Author name',
           mergetags_list: [
@@ -74,6 +74,25 @@ export default function RichTextEditor({
           ],
           ai_request: (request: any, respondWith: any) => respondWith.string(() => Promise.reject('See docs to implement AI Assistant')),
           uploadcare_public_key: 'c95635c56a53e8832491',
+          images_upload_handler: async (blobInfo: any) => {
+            const formData = new FormData();
+            formData.append('image', blobInfo.blob(), blobInfo.filename());
+
+            const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+            
+            const response = await fetch('/api/upload/instructor', {
+              method: 'POST',
+              body: formData,
+              headers: token ? { Authorization: `Bearer ${token}` } : {},
+            });
+
+            if (!response.ok) {
+              throw new Error('Image upload failed');
+            }
+
+            const data = await response.json();
+            return data.url || data.imageUrl || data.secureUrl;
+          },
         }}
         initialValue="Welcome to TinyMCE!"
       />

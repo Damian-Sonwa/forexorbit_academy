@@ -108,11 +108,10 @@ async function updateLesson(req: AuthRequest, res: NextApiResponse) {
     };
 
     // Handle lessonSummary updates - preserve existing fields and merge new ones
-    if (req.body.lessonSummary || req.body.summary !== undefined) {
+    if (req.body.lessonSummary) {
       updateData.lessonSummary = {
         ...existingLessonSummary,
-        ...(req.body.lessonSummary || {}),
-        ...(req.body.summary !== undefined ? { overview: req.body.summary } : {}),
+        ...req.body.lessonSummary,
         updatedAt: new Date(),
       };
     }

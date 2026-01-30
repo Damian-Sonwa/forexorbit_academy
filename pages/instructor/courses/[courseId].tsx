@@ -214,7 +214,14 @@ export default function InstructorCoursePage() {
     try {
       setLoading(true);
       const updateData: any = {
-        ...lessonForm,
+        title: lessonForm.title,
+        description: lessonForm.description,
+        videoUrl: lessonForm.videoUrl,
+        pdfUrl: lessonForm.pdfUrl,
+        type: lessonForm.type,
+        order: lessonForm.order,
+        content: lessonForm.content,
+        resources: lessonForm.resources,
         courseId: courseId,
       };
       
