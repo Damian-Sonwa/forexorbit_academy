@@ -40,6 +40,16 @@ export default function InstructorLessonEditor({
   const lastSavedContentRef = useRef(initialContent);
 
   /**
+   * Update content when initialContent prop changes (when switching lessons)
+   */
+  useEffect(() => {
+    setContent(initialContent);
+    lastSavedContentRef.current = initialContent;
+    setSaveStatus('idle');
+    setErrorMessage('');
+  }, [initialContent]);
+
+  /**
    * Autosave handler - saves content every 30 seconds if changed
    */
   useEffect(() => {
@@ -62,7 +72,10 @@ export default function InstructorLessonEditor({
       setErrorMessage('');
 
       const updatedLesson = {
-        content,
+        lessonSummary: {
+          overview: content,
+          updatedAt: new Date(),
+        },
         lastModified: new Date().toISOString(),
       };
 
@@ -100,7 +113,10 @@ export default function InstructorLessonEditor({
       setErrorMessage('');
 
       const updatedLesson = {
-        content,
+        lessonSummary: {
+          overview: content,
+          updatedAt: new Date(),
+        },
         lastModified: new Date().toISOString(),
       };
 

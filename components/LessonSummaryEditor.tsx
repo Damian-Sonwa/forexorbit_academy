@@ -3,7 +3,7 @@
  * Allows instructors to edit lesson summary
  */
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { apiClient } from '@/lib/api-client';
 
 interface Lesson {
@@ -37,6 +37,19 @@ export default function LessonSummaryEditor({ lessonId, lesson, onSave }: Lesson
     resources: lesson.lessonSummary?.resources || [],
     screenshots: lesson.lessonSummary?.screenshots || [],
   });
+
+  /**
+   * Update form data when lesson prop changes (when switching between lessons)
+   */
+  useEffect(() => {
+    setFormData({
+      overview: lesson.lessonSummary?.overview || '',
+      keyPoints: lesson.lessonSummary?.keyPoints || [''],
+      tradingNotes: lesson.lessonSummary?.tradingNotes || '',
+      resources: lesson.lessonSummary?.resources || [],
+      screenshots: lesson.lessonSummary?.screenshots || [],
+    });
+  }, [lesson]);
 
   const handleKeyPointChange = (index: number, value: string) => {
     const newKeyPoints = [...formData.keyPoints];

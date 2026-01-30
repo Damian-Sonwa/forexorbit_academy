@@ -138,6 +138,16 @@ export default function LessonPage() {
             </div>
           )}
 
+          {/* Lesson Description */}
+          {displayLesson.description && (
+            <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 mb-4">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-3">Lesson Description</h2>
+              <div className="prose max-w-none">
+                <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(displayLesson.description) }} />
+              </div>
+            </div>
+          )}
+
           {/* Instructor/Admin Lesson Content Editor - ONLY visible to instructors/admins */}
           {user?.role === 'instructor' && (
             <div className="mb-4">
@@ -154,7 +164,7 @@ export default function LessonPage() {
                 <InstructorLessonEditor
                   lessonId={lessonId as string}
                   courseId={courseId as string}
-                  initialContent={displayLesson.content || ''}
+                  initialContent={(displayLesson as any).lessonSummary?.overview || (displayLesson as any).summary || ''}
                   onSave={() => {
                     setShowContentEditor(false);
                     // Refetch lesson data to show updated content
