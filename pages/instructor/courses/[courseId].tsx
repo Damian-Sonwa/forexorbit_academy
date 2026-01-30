@@ -55,6 +55,22 @@ interface Course {
   category: string;
   instructorId?: string;
   thumbnail?: string;
+  lessons?: Array<{
+    _id?: string;
+    title: string;
+    description: string;
+    summary?: string;
+    videoUrl?: string;
+    pdfUrl?: string;
+    type: 'video' | 'pdf' | 'interactive';
+    order: number;
+    content?: string;
+    resources?: Array<{
+      type: 'pdf' | 'link' | 'slide';
+      url: string;
+      title: string;
+    }>;
+  }>;
 }
 
 export default function InstructorCoursePage() {

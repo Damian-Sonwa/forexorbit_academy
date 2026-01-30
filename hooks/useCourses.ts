@@ -17,7 +17,22 @@ export interface Course {
   instructorId?: string;
   progress?: number;
   enrolled?: boolean;
-  lessons?: any[];
+  lessons?: Array<{
+    _id?: string;
+    title: string;
+    description: string;
+    summary?: string;
+    videoUrl?: string;
+    pdfUrl?: string;
+    type: 'video' | 'pdf' | 'interactive';
+    order: number;
+    content?: string;
+    resources?: Array<{
+      type: 'pdf' | 'link' | 'slide';
+      url: string;
+      title: string;
+    }>;
+  }>;
 }
 
 export function useCourses(filters?: { category?: string; difficulty?: string; search?: string }) {
