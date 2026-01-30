@@ -16,6 +16,12 @@ import { useState, useEffect } from 'react';
 import { apiClient } from '@/lib/api-client';
 import { sanitizeHtml } from '@/lib/html-sanitizer';
 
+// Function to strip HTML tags for checking content
+function stripHtml(html: string): string {
+  if (!html) return '';
+  return html.replace(/<[^>]*>/g, '').trim();
+}
+
 export default function CourseDetailPage() {
   const router = useRouter();
   const { id } = router.query;
@@ -119,9 +125,11 @@ export default function CourseDetailPage() {
                 </div>
               </div>
 
-              <div className="prose prose-lg max-w-none text-gray-700 mb-4">
-                <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(course.description) }} />
-              </div>
+              {course.description && stripHtml(course.description).trim() && (
+                <div className="prose prose-lg max-w-none text-gray-700 mb-4">
+                  <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(course.description) }} />
+                </div>
+              )}
 
               {/* Progress Bar */}
               {course.progress !== undefined && course.progress > 0 && (

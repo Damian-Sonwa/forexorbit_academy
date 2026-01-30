@@ -26,26 +26,34 @@ export default function RichTextEditor({
   onBlur,
 }: RichTextEditorProps) {
   const editorRef = React.useRef<TinyMCEEditor | null>(null); // ✅ Use TinyMCEEditor type
+  const [isInitialized, setIsInitialized] = React.useState(false);
 
-  // Update editor content when value prop changes
+  // Update editor content when value prop changes (for switching between topics)
   React.useEffect(() => {
-    if (editorRef.current && value !== undefined) {
-      // Use the correct method to update editor content
-      const editor = editorRef.current as any;
-      if (editor && editor.getContent) {
-        // Only update if the current content differs from the new value
-        const currentContent = editor.getContent();
-        if (currentContent !== value) {
-          editor.setContent(value);
-        }
+    if (!editorRef.current || !isInitialized) return;
+
+    const editor = editorRef.current as any;
+    // Always sync the editor content with the value prop to ensure consistency across topic switches
+    if (editor?.setContent) {
+      try {
+        editor.setContent(value || '');
+      } catch (err) {
+        console.warn('Failed to sync editor content:', err);
       }
     }
-  }, [value]);
+  }, [value, isInitialized]);
 
   return (
     <div className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden">
       <Editor
-        onInit={(evt: any, editor: TinyMCEEditor | any) => (editorRef.current = editor)}
+        onInit={(evt: any, editor: TinyMCEEditor | any) => {
+          editorRef.current = editor;
+          setIsInitialized(true);
+          // Set initial content on init
+          if (editor?.setContent && value) {
+            editor.setContent(value);
+          }
+        }}
         value={value}
         onEditorChange={onChange}
         onBlur={onBlur}

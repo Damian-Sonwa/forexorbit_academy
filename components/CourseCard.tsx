@@ -7,6 +7,12 @@ import Link from 'next/link';
 import { Course } from '@/hooks/useCourses';
 import { useAuth } from '@/hooks/useAuth';
 
+// Function to strip HTML tags for plain text preview
+function stripHtml(html: string): string {
+  if (!html) return '';
+  return html.replace(/<[^>]*>/g, '').trim();
+}
+
 interface CourseCardProps {
   course: Course;
   onEnroll?: (courseId: string) => void;
@@ -87,7 +93,7 @@ export default function CourseCard({ course, onEnroll, onUnenroll }: CourseCardP
           </span>
         </div>
 
-        <p className="text-gray-600 text-sm mb-4 line-clamp-3 flex-grow">{course.description}</p>
+        <p className="text-gray-600 text-sm mb-4 line-clamp-3 flex-grow">{stripHtml(course.description || '')}</p>
 
         <div className="flex items-center justify-between mb-4 text-xs text-gray-500">
           <span className="flex items-center">
