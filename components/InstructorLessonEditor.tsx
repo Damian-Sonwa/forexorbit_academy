@@ -66,8 +66,8 @@ export default function InstructorLessonEditor({
         lastModified: new Date().toISOString(),
       };
 
-      const response: any = await apiClient.post(
-        `/api/courses/${courseId}/lessons/${lessonId}`,
+      const response: any = await apiClient.put(
+        `/lessons/${lessonId}`,
         updatedLesson
       );
 
@@ -104,8 +104,8 @@ export default function InstructorLessonEditor({
         lastModified: new Date().toISOString(),
       };
 
-      const response: any = await apiClient.post(
-        `/api/courses/${courseId}/lessons/${lessonId}`,
+      const response: any = await apiClient.put(
+        `/lessons/${lessonId}`,
         updatedLesson
       );
 

@@ -125,7 +125,7 @@ export default function CourseDetailPage() {
                 </div>
               </div>
 
-              {course.description && stripHtml(course.description).trim() && (
+              {course.description && (
                 <div className="prose prose-lg max-w-none text-gray-700 mb-4">
                   <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(course.description) }} />
                 </div>
