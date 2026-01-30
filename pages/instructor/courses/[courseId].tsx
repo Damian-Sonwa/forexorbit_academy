@@ -15,7 +15,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { useSocket } from '@/hooks/useSocket';
 import { apiClient } from '@/lib/api-client';
 import { sanitizeHtml } from '@/lib/html-sanitizer';
-import axios from 'axios';
 
 interface Lesson {
   _id: string;
@@ -85,12 +84,11 @@ export default function InstructorCoursePage() {
   const [editingCourse, setEditingCourse] = useState(false);
   const [editingLesson, setEditingLesson] = useState<string | null>(null);
   const [editingQuiz, setEditingQuiz] = useState<string | null>(null);
-  const [lessonForm, setLessonForm] = useState<Partial<Lesson> & { visualAids?: Array<{ url: string; caption?: string }> }>({});
+  const [lessonForm, setLessonForm] = useState<Partial<Lesson>>({});
   const [quizForm, setQuizForm] = useState<Partial<Quiz>>({});
   const [courseForm, setCourseForm] = useState<Partial<Course>>({});
   const [showLessonForm, setShowLessonForm] = useState(false);
   const [showQuizForm, setShowQuizForm] = useState(false);
-  const [uploadingImageIndex, setUploadingImageIndex] = useState<number | null>(null);
 
   // Role enforcement
   useEffect(() => {
@@ -189,35 +187,31 @@ export default function InstructorCoursePage() {
   const handleEditLesson = async (lesson: Lesson) => {
     setEditingLesson(lesson._id);
     try {
-      // Fetch the latest lesson from API to ensure lessonSummary is present
+      // Fetch the latest lesson from API
       const lessonDetails = await apiClient.get<any>(`/lessons/${lesson._id}`);
-      const contentText = lessonDetails.content || (lessonDetails as any).lessonSummary?.overview || lesson.summary || '';
       setLessonForm({
         title: lessonDetails.title || lesson.title,
         description: lessonDetails.description || lesson.description,
-        summary: contentText,
+        summary: lessonDetails.content || '',
         videoUrl: lessonDetails.videoUrl || lesson.videoUrl || '',
         pdfUrl: lessonDetails.pdfUrl || lesson.pdfUrl || '',
         type: lessonDetails.type || lesson.type,
         order: lessonDetails.order || lesson.order,
-        content: contentText,
+        content: lessonDetails.content || '',
         resources: lessonDetails.resources || lesson.resources || [],
-        visualAids: (lessonDetails as any).lessonSummary?.screenshots || (lesson as any).lessonSummary?.screenshots || [],
       });
     } catch (error) {
       // Fallback to provided lesson object
-      const contentText = lesson.content || (lesson as any).lessonSummary?.overview || lesson.summary || '';
       setLessonForm({
         title: lesson.title,
         description: lesson.description,
-        summary: contentText,
+        summary: lesson.content || '',
         videoUrl: lesson.videoUrl || '',
         pdfUrl: lesson.pdfUrl || '',
         type: lesson.type,
         order: lesson.order,
-        content: contentText,
+        content: lesson.content || '',
         resources: lesson.resources || [],
-        visualAids: (lesson as any).lessonSummary?.screenshots || [],
       });
     }
     setShowLessonForm(true);
@@ -239,37 +233,6 @@ export default function InstructorCoursePage() {
         content: lessonForm.content,
         resources: lessonForm.resources,
         courseId: courseId,
-      };
-      
-      const existingLesson = await apiClient.get(`/lessons/${editingLesson}`);
-      const existingLessonSummary = (existingLesson as any).lessonSummary || {};
-      
-      // Save visual aids - URL is optional (can be uploaded file or URL, or both, or neither)
-      // Only save visual aids that have a valid URL (uploaded images get URLs automatically)
-      const allVisualAids = (lessonForm as any).visualAids || [];
-      const validVisualAids = allVisualAids
-        .filter((aid: any) => {
-          // Only include visual aids that have a valid URL
-          // If no URL is provided, the visual aid is simply not saved (no error)
-          const url = aid.url?.trim() || '';
-          return url !== '' && (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:image/'));
-        })
-        .map((aid: any) => ({
-          url: aid.url?.trim() || '',
-          caption: aid.caption?.trim() || '',
-        }));
-      
-      console.log('Saving lesson - Visual aids:', {
-        total: allVisualAids.length,
-        valid: validVisualAids.length,
-        aids: validVisualAids
-      });
-      
-      updateData.lessonSummary = {
-        ...existingLessonSummary,
-        overview: lessonForm.content || existingLessonSummary.overview || '',
-        screenshots: validVisualAids.length > 0 ? validVisualAids : existingLessonSummary.screenshots || [],
-        updatedAt: new Date(),
       };
 
       await apiClient.put(`/lessons/${editingLesson}`, updateData);
@@ -323,36 +286,7 @@ export default function InstructorCoursePage() {
         courseId: courseId,
         order: lessonForm.order || courseLessons.length + 1,
       };
-      
-      // Save visual aids - URL is optional (can be uploaded file or URL, or both, or neither)
-      // Only save visual aids that have a valid URL (uploaded images get URLs automatically)
-      const allVisualAids = (lessonForm as any).visualAids || [];
-      const validVisualAids = allVisualAids
-        .filter((aid: any) => {
-          // Only include visual aids that have a valid URL
-          // If no URL is provided, the visual aid is simply not saved (no error)
-          const url = aid.url?.trim() || '';
-          return url !== '' && (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:image/'));
-        })
-        .map((aid: any) => ({
-          url: aid.url?.trim() || '',
-          caption: aid.caption?.trim() || '',
-        }));
-      
-      console.log('Creating lesson - Visual aids:', {
-        total: allVisualAids.length,
-        valid: validVisualAids.length,
-        aids: validVisualAids
-      });
-      
-      if (lessonForm.content || validVisualAids.length > 0) {
-        lessonData.lessonSummary = {
-          overview: lessonForm.content || '',
-          screenshots: validVisualAids,
-          updatedAt: new Date(),
-        };
-      }
-      
+
       await apiClient.post('/lessons', lessonData);
       await loadCourseLessons();
       setShowLessonForm(false);
@@ -416,85 +350,6 @@ export default function InstructorCoursePage() {
     const resources = lessonForm.resources || [];
     resources[index] = { ...resources[index], [field]: value };
     setLessonForm({ ...lessonForm, resources });
-  };
-
-  const addVisualAid = () => {
-    const visualAids = lessonForm.visualAids || [];
-    setLessonForm({
-      ...lessonForm,
-      visualAids: [...visualAids, { url: '', caption: '' }],
-    });
-  };
-
-  const updateVisualAid = (index: number, field: string, value: string) => {
-    const visualAids = [...(lessonForm.visualAids || [])];
-    visualAids[index] = { ...visualAids[index], [field]: value };
-    setLessonForm({ ...lessonForm, visualAids });
-  };
-
-  const removeVisualAid = (index: number) => {
-    const visualAids = lessonForm.visualAids || [];
-    setLessonForm({
-      ...lessonForm,
-      visualAids: visualAids.filter((_, i) => i !== index),
-    });
-  };
-
-  const handleImageUpload = async (index: number, file: File) => {
-    if (!file.type.startsWith('image/')) {
-      alert('Please upload an image file');
-      return;
-    }
-
-    try {
-      setUploadingImageIndex(index);
-      const formData = new FormData();
-      formData.append('file', file);
-
-      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-      
-      if (!token) {
-        alert('Authentication required. Please log in again.');
-        setUploadingImageIndex(null);
-        return;
-      }
-
-      const response = await axios.post('/api/upload/visual-aid', formData, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      // Handle different response formats (url, imageUrl, secureUrl)
-      const imageUrl = response.data.url || response.data.imageUrl || response.data.secureUrl || response.data.secure_url;
-      
-      if (!imageUrl) {
-        console.error('Upload response missing URL:', response.data);
-        alert('Upload succeeded but no URL was returned. Please try again.');
-        setUploadingImageIndex(null);
-        return;
-      }
-
-      // Update the visual aid URL with the uploaded image URL
-      // Use a callback to ensure state is updated correctly
-      setLessonForm(prev => {
-        const visualAids = [...(prev.visualAids || [])];
-        if (visualAids[index]) {
-          visualAids[index] = { ...visualAids[index], url: imageUrl };
-        } else {
-          visualAids[index] = { url: imageUrl, caption: '' };
-        }
-        return { ...prev, visualAids };
-      });
-      
-      console.log('Image uploaded successfully, URL set:', imageUrl);
-    } catch (error: any) {
-      console.error('Image upload error:', error);
-      const errorMessage = error.response?.data?.error || error.message || 'Failed to upload image';
-      alert(errorMessage);
-    } finally {
-      setUploadingImageIndex(null);
-    }
   };
 
   const addQuizQuestion = () => {
@@ -833,145 +688,6 @@ export default function InstructorCoursePage() {
                       </button>
                     </div>
                   ))}
-                </div>
-
-                {/* Visual Aids Section */}
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300">Visual Aids (Charts & Screenshots)</label>
-                    <button
-                      type="button"
-                      onClick={addVisualAid}
-                      className="text-sm text-primary-600 dark:text-primary-400 hover:underline"
-                    >
-                      + Add Visual Aid
-                    </button>
-                  </div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
-                    Upload images from your computer or paste image URLs. Both methods work independently - you can use either one or both. URL is optional when uploading files. These will appear in the Visual Aids section for students.
-                  </p>
-                  <div className="space-y-3">
-                    {(lessonForm.visualAids || []).map((aid, index) => (
-                      <div 
-                        key={index} 
-                        className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 space-y-2"
-                        onPaste={async (e) => {
-                          e.preventDefault();
-                          const items = e.clipboardData.items;
-                          for (let i = 0; i < items.length; i++) {
-                            if (items[i].type.indexOf('image') !== -1) {
-                              const blob = items[i].getAsFile();
-                              if (blob) {
-                                const file = new File([blob], `pasted-image-${Date.now()}.png`, { type: 'image/png' });
-                                await handleImageUpload(index, file);
-                              }
-                              break;
-                            }
-                          }
-                        }}
-                      >
-                        <div className="flex gap-2">
-                          {/* Image Upload */}
-                          <div className="flex-shrink-0">
-                            <input
-                              type="file"
-                              accept="image/*"
-                              onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (file) handleImageUpload(index, file);
-                              }}
-                              className="hidden"
-                              id={`visual-aid-upload-${index}`}
-                            />
-                            <label
-                              htmlFor={`visual-aid-upload-${index}`}
-                              className={`inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm ${
-                                uploadingImageIndex === index ? 'opacity-50 cursor-not-allowed' : ''
-                              }`}
-                            >
-                              {uploadingImageIndex === index ? (
-                                <>
-                                  <svg className="animate-spin h-4 w-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                  </svg>
-                                  Uploading...
-                                </>
-                              ) : (
-                                <>
-                                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                  </svg>
-                                  Upload
-                                </>
-                              )}
-                            </label>
-                          </div>
-                          
-                          {/* URL Input - always available, works independently from file upload */}
-                          <input
-                            type="url"
-                            value={aid.url || ''}
-                            onChange={(e) => updateVisualAid(index, 'url', e.target.value)}
-                            onPaste={(e) => {
-                              // Allow pasting URLs, but also check for image data
-                              const pastedText = e.clipboardData.getData('text');
-                              if (pastedText.startsWith('http://') || pastedText.startsWith('https://') || pastedText.startsWith('data:image/')) {
-                                // If it's a URL or data URL, update the URL field
-                                updateVisualAid(index, 'url', pastedText);
-                              }
-                            }}
-                            placeholder="Optional: Paste or type image URL here (works independently from file upload)"
-                            className={`flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg text-sm focus:ring-2 focus:ring-primary-500 ${
-                              aid.url ? 'border-green-500 dark:border-green-500' : ''
-                            }`}
-                          />
-                          
-                          {/* Optional: Show indicator when URL is set */}
-                          {aid.url && (
-                            <div className="flex items-center text-xs text-green-600 dark:text-green-400">
-                              <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                              </svg>
-                              URL set
-                            </div>
-                          )}
-                          
-                          {/* Remove Button */}
-                          <button
-                            type="button"
-                            onClick={() => removeVisualAid(index)}
-                            className="px-3 py-2 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-lg text-sm hover:bg-red-200 dark:hover:bg-red-900/50"
-                          >
-                            Remove
-                          </button>
-                        </div>
-                        
-                        {/* Caption Input */}
-                        <input
-                          type="text"
-                          value={aid.caption || ''}
-                          onChange={(e) => updateVisualAid(index, 'caption', e.target.value)}
-                          placeholder="Caption (e.g., 'RSI Indicator showing overbought levels')"
-                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg text-sm focus:ring-2 focus:ring-primary-500"
-                        />
-                        
-                        {/* Preview */}
-                        {aid.url && (
-                          <div className="mt-2">
-                            <img
-                              src={aid.url}
-                              alt={aid.caption || 'Visual aid preview'}
-                              className="max-w-full max-h-96 w-auto h-auto object-contain rounded border border-gray-200 dark:border-gray-700"
-                              onError={(e) => {
-                                (e.target as HTMLImageElement).style.display = 'none';
-                              }}
-                            />
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
                 </div>
 
                 <div className="flex gap-2">
