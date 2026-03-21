@@ -11,7 +11,6 @@
     "seed": "node seed/seed.js"
   },
   "dependencies": {
-    "@tinymce/tinymce-react": "^6.3.0",
     "@types/formidable": "^3.4.6",
     "@types/nodemailer": "^7.0.4",
     "agora-access-token": "^2.0.4",
@@ -31,10 +30,10 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-player": "^2.13.0",
+    "react-quill": "^2.0.0",
     "recharts": "^2.10.0",
     "socket.io": "^4.6.0",
-    "socket.io-client": "^4.6.0",
-    "tinymce": "^8.3.2"
+    "socket.io-client": "^4.6.0"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",

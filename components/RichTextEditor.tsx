@@ -1,13 +1,31 @@
+'use client';
+
 import * as React from 'react';
 import dynamic from 'next/dynamic';
-import type { Editor as TinyMCEEditor } from '@tinymce/tinymce-react';
+import 'react-quill/dist/quill.snow.css';
 
-// Dynamically import TinyMCE to avoid SSR issues
-// Use `any` to avoid typing mismatches from the tinyMCE module during dynamic import
-const Editor = dynamic<any>(
-  () => import('@tinymce/tinymce-react').then((mod: any) => mod.Editor),
-  { ssr: false }
-);
+const ReactQuill = dynamic(
+  async () => {
+    const { default: RQ } = await import('react-quill');
+    return RQ;
+  },
+  {
+    ssr: false,
+    loading: () => (
+      <div className="min-h-[200px] bg-gray-100 dark:bg-gray-700 animate-pulse rounded-lg border border-gray-300 dark:border-gray-600" />
+    ),
+  }
+) as React.ComponentType<{
+  theme?: string;
+  value?: string;
+  onChange?: (content: string) => void;
+  onBlur?: () => void;
+  modules?: Record<string, unknown>;
+  formats?: string[];
+  readOnly?: boolean;
+  placeholder?: string;
+  className?: string;
+}>;
 
 interface RichTextEditorProps {
   value: string;
@@ -24,100 +42,104 @@ export default function RichTextEditor({
   height = 300,
   disabled = false,
   onBlur,
+  placeholder,
 }: RichTextEditorProps) {
-  const editorRef = React.useRef<TinyMCEEditor | null>(null); // ✅ Use TinyMCEEditor type
-  const [isInitialized, setIsInitialized] = React.useState(false);
+  const modules = React.useMemo(
+    () => ({
+      toolbar: {
+        container: [
+          [{ header: [1, 2, false] }],
+          ['bold', 'italic', 'underline', 'strike'],
+          [{ list: 'ordered' }, { list: 'bullet' }],
+          [{ indent: '-1' }, { indent: '+1' }],
+          ['link', 'image'],
+          ['clean'],
+        ],
+        handlers: {
+          image: function (this: { quill: { getSelection: (b: boolean) => { index: number } | null; getLength: () => number; insertEmbed: (i: number, type: string, value: string) => void } }) {
+            const quill = this.quill;
+            const input = document.createElement('input');
+            input.setAttribute('type', 'file');
+            input.setAttribute('accept', 'image/*');
+            input.click();
+            input.onchange = async () => {
+              const file = input.files?.[0];
+              if (!file) return;
+              try {
+                const formData = new FormData();
+                formData.append('image', file, file.name);
 
-  // Update editor content when value prop changes (for switching between topics)
-  React.useEffect(() => {
-    if (!editorRef.current || !isInitialized) return;
+                const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+                if (!token) {
+                  throw new Error('No authentication token found. Please log in again.');
+                }
 
-    const editor = editorRef.current as any;
-    // Always sync the editor content with the value prop to ensure consistency across topic switches
-    if (editor?.setContent) {
-      try {
-        editor.setContent(value || '');
-      } catch (err) {
-        console.warn('Failed to sync editor content:', err);
-      }
-    }
-  }, [value, isInitialized]);
+                const response = await fetch('/api/upload/instructor', {
+                  method: 'POST',
+                  body: formData,
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                  },
+                });
+
+                if (!response.ok) {
+                  const errorData = await response.json().catch(() => ({ error: 'Upload failed' }));
+                  throw new Error(errorData.error || `Upload failed with status ${response.status}`);
+                }
+
+                const data = await response.json();
+                const imageUrl = data.url || data.imageUrl || data.secureUrl;
+                if (!imageUrl) {
+                  throw new Error('No image URL returned from server');
+                }
+
+                const range = quill.getSelection(true);
+                const index = range ? range.index : Math.max(0, quill.getLength() - 1);
+                quill.insertEmbed(index, 'image', imageUrl);
+              } catch (error: unknown) {
+                const message = error instanceof Error ? error.message : 'Image upload failed';
+                console.error('Image upload error:', error);
+                alert(message);
+              }
+            };
+          },
+        },
+      },
+    }),
+    []
+  );
+
+  const formats = React.useMemo(
+    () => [
+      'header',
+      'bold',
+      'italic',
+      'underline',
+      'strike',
+      'list',
+      'bullet',
+      'indent',
+      'link',
+      'image',
+    ],
+    []
+  );
 
   return (
-    <div className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden">
-      <Editor
-        onInit={(evt: any, editor: TinyMCEEditor | any) => {
-          editorRef.current = editor;
-          setIsInitialized(true);
-          // Set initial content on init
-          if (editor?.setContent && value) {
-            editor.setContent(value);
-          }
-        }}
-        value={value}
-        onEditorChange={onChange}
+    <div
+      className="rich-text-editor-root w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden"
+      style={{ ['--rich-editor-min-height' as string]: `${height}px` }}
+    >
+      <ReactQuill
+        theme="snow"
+        value={value || ''}
+        onChange={onChange}
         onBlur={onBlur}
-        disabled={disabled}
-        apiKey='gaz94mfy7gknyb05b6a91k0d0eykt6kgebi4jf2q5kyzvj8p'
-        init={{
-          height,
-          plugins: [
-            'anchor', 'autolink', 'charmap', 'codesample', 'emoticons', 'image', 'link', 'lists', 'media', 'searchreplace', 'table', 'visualblocks', 'wordcount',
-            'checklist', 'mediaembed', 'casechange', 'formatpainter', 'pageembed', 'a11ychecker', 'tinymcespellchecker', 'permanentpen', 'powerpaste', 'advtable', 'advcode', 'advtemplate', 'ai', 'mentions', 'tinycomments', 'tableofcontents', 'footnotes', 'mergetags', 'autocorrect', 'typography', 'inlinecss', 'markdown', 'importword', 'exportword', 'exportpdf'
-          ],
-          toolbar: 'undo redo | blocks fontfamily fontsize | bold italic underline strikethrough | link image media table mergetags | addcomment showcomments | spellcheckdialog a11ycheck typography | align lineheight | checklist numlist bullist indent outdent | emoticons charmap | removeformat',
-          tinycomments_mode: 'embedded',
-          tinycomments_author: 'Author name',
-          mergetags_list: [
-            { value: 'First.Name', title: 'First Name' },
-            { value: 'Email', title: 'Email' },
-          ],
-          ai_request: (request: any, respondWith: any) => respondWith.string(() => Promise.reject('See docs to implement AI Assistant')),
-          automatic_uploads: true,
-          file_picker_types: 'image',
-          images_upload_handler: async (blobInfo: any) => {
-            try {
-              const formData = new FormData();
-              formData.append('image', blobInfo.blob(), blobInfo.filename());
-
-              const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-              
-              if (!token) {
-                throw new Error('No authentication token found. Please log in again.');
-              }
-
-              console.log('Uploading image:', blobInfo.filename(), 'Size:', blobInfo.blob().size);
-              
-              const response = await fetch('/api/upload/instructor', {
-                method: 'POST',
-                body: formData,
-                headers: {
-                  'Authorization': `Bearer ${token}`,
-                },
-              });
-
-              if (!response.ok) {
-                const errorData = await response.json().catch(() => ({ error: 'Upload failed' }));
-                console.error('Upload failed:', response.status, errorData);
-                throw new Error(errorData.error || `Upload failed with status ${response.status}`);
-              }
-
-              const data = await response.json();
-              console.log('Upload successful:', data);
-              
-              // TinyMCE expects the URL as a string
-              const imageUrl = data.url || data.imageUrl || data.secureUrl;
-              if (!imageUrl) {
-                throw new Error('No image URL returned from server');
-              }
-              
-              return imageUrl;
-            } catch (error: any) {
-              console.error('Image upload error:', error);
-              throw new Error(`Image upload failed: ${error.message}`);
-            }
-          },
-        }}
+        modules={modules}
+        formats={formats}
+        readOnly={disabled}
+        placeholder={placeholder}
+        className="rich-text-editor-quill"
       />
     </div>
   );

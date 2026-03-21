@@ -116,7 +116,7 @@ async function updateLesson(req: AuthRequest, res: NextApiResponse) {
       };
     }
 
-    // Keep lessonSummary.overview in sync with migrated `content` (TinyMCE body) for legacy readers
+    // Keep lessonSummary.overview in sync with migrated `content` (rich-text HTML) for legacy readers
     if (typeof req.body.content === 'string') {
       updateData.lessonSummary = {
         ...existingLessonSummary,

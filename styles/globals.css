@@ -114,5 +114,40 @@
   .animate-fade-in {
     animation: fadeIn 0.5s ease-out;
   }
+
+  /* React Quill (RichTextEditor) — dynamic min-height from --rich-editor-min-height */
+  .rich-text-editor-root .ql-container {
+    font-size: 1rem;
+  }
+
+  .rich-text-editor-root .ql-editor {
+    min-height: var(--rich-editor-min-height, 280px);
+  }
+
+  .dark .rich-text-editor-root .ql-toolbar.ql-snow,
+  .dark .rich-text-editor-root .ql-container.ql-snow {
+    border-color: rgb(75 85 99);
+    background: rgb(55 65 81);
+  }
+
+  .dark .rich-text-editor-root .ql-editor {
+    color: rgb(243 244 246);
+  }
+
+  .dark .rich-text-editor-root .ql-stroke {
+    stroke: rgb(209 213 219);
+  }
+
+  .dark .rich-text-editor-root .ql-fill {
+    fill: rgb(209 213 219);
+  }
+
+  .dark .rich-text-editor-root .ql-picker {
+    color: rgb(209 213 219);
+  }
+
+  .instructor-lesson-quill .ql-editor {
+    min-height: var(--instructor-lesson-editor-h, 500px);
+  }
 }
 

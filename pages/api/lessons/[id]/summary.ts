@@ -42,7 +42,7 @@ async function updateLessonSummary(req: AuthRequest, res: NextApiResponse) {
       updatedAt: new Date(),
     };
 
-    // Keep top-level `content` in sync with overview (TinyMCE / migration)
+    // Keep top-level `content` in sync with overview (HTML / migration)
     if (lessonSummary && typeof (lessonSummary as any).overview === 'string') {
       $set.content = (lessonSummary as any).overview;
     }

@@ -1,15 +1,29 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { apiClient } from '@/lib/api-client';
+import 'react-quill/dist/quill.snow.css';
 
-// Dynamically import TinyMCE to avoid SSR issues
-// Cast module to `any` to avoid strict typing issues from the package's propTypes
-const Editor = dynamic(
-  () => import('@tinymce/tinymce-react').then((mod: any) => mod.Editor),
-  { ssr: false }
-) as any;
+const ReactQuill = dynamic(
+  async () => {
+    const { default: RQ } = await import('react-quill');
+    return RQ;
+  },
+  {
+    ssr: false,
+    loading: () => (
+      <div className="min-h-[400px] bg-gray-100 animate-pulse rounded-lg border border-gray-300" />
+    ),
+  }
+) as React.ComponentType<{
+  theme?: string;
+  value?: string;
+  onChange?: (content: string) => void;
+  modules?: Record<string, unknown>;
+  formats?: string[];
+  className?: string;
+}>;
 
 interface InstructorLessonEditorProps {
   lessonId: string;
@@ -18,20 +32,11 @@ interface InstructorLessonEditorProps {
   onSave?: () => void;
 }
 
-interface Lesson {
-  _id?: string;
-  id?: string;
-  title?: string;
-  content?: string;
-}
-
 export default function InstructorLessonEditor({
   lessonId,
-  courseId,
   initialContent = '',
   onSave,
 }: InstructorLessonEditorProps) {
-  const editorRef = useRef<any>(null);
   const [content, setContent] = useState(initialContent);
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
@@ -39,9 +44,93 @@ export default function InstructorLessonEditor({
   const autosaveTimerRef = useRef<NodeJS.Timeout | null>(null);
   const lastSavedContentRef = useRef(initialContent);
 
-  /**
-   * Update content when initialContent prop changes (when switching lessons)
-   */
+  const modules = useMemo(
+    () => ({
+      toolbar: {
+        container: [
+          [{ header: [1, 2, false] }],
+          ['bold', 'italic', 'underline', 'strike'],
+          [{ list: 'ordered' }, { list: 'bullet' }],
+          [{ indent: '-1' }, { indent: '+1' }],
+          ['link', 'image'],
+          ['clean'],
+        ],
+        handlers: {
+          image: function (this: {
+            quill: {
+              getSelection: (b: boolean) => { index: number } | null;
+              getLength: () => number;
+              insertEmbed: (i: number, type: string, value: string) => void;
+            };
+          }) {
+            const quill = this.quill;
+            const input = document.createElement('input');
+            input.setAttribute('type', 'file');
+            input.setAttribute('accept', 'image/*');
+            input.click();
+            input.onchange = async () => {
+              const file = input.files?.[0];
+              if (!file) return;
+              try {
+                const formData = new FormData();
+                formData.append('image', file, file.name);
+
+                const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+                if (!token) {
+                  throw new Error('No authentication token found. Please log in again.');
+                }
+
+                const response = await fetch('/api/upload/instructor', {
+                  method: 'POST',
+                  body: formData,
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                  },
+                });
+
+                if (!response.ok) {
+                  const errorData = await response.json().catch(() => ({ error: 'Upload failed' }));
+                  throw new Error(errorData.error || `Upload failed with status ${response.status}`);
+                }
+
+                const data = await response.json();
+                const imageUrl = data.url || data.imageUrl || data.secureUrl;
+                if (!imageUrl) {
+                  throw new Error('No image URL returned from server');
+                }
+
+                const range = quill.getSelection(true);
+                const index = range ? range.index : Math.max(0, quill.getLength() - 1);
+                quill.insertEmbed(index, 'image', imageUrl);
+              } catch (error: unknown) {
+                const message = error instanceof Error ? error.message : 'Image upload failed';
+                console.error('Image upload error:', error);
+                alert(message);
+              }
+            };
+          },
+        },
+      },
+    }),
+    []
+  );
+
+  const formats = useMemo(
+    () => [
+      'header',
+      'bold',
+      'italic',
+      'underline',
+      'strike',
+      'list',
+      'bullet',
+      'indent',
+      'link',
+      'image',
+    ],
+    []
+  );
+
   useEffect(() => {
     setContent(initialContent);
     lastSavedContentRef.current = initialContent;
@@ -49,20 +138,7 @@ export default function InstructorLessonEditor({
     setErrorMessage('');
   }, [initialContent]);
 
-  /**
-   * Autosave handler - saves content every 30 seconds if changed
-   */
-  useEffect(() => {
-    autosaveTimerRef.current = setInterval(handleAutosave, 30000);
-    return () => {
-      if (autosaveTimerRef.current) clearInterval(autosaveTimerRef.current);
-    };
-  }, [content]);
-
-  /**
-   * Auto-save handler
-   */
-  const handleAutosave = async () => {
+  const handleAutosave = useCallback(async () => {
     if (content === lastSavedContentRef.current || !content.trim()) {
       return;
     }
@@ -76,28 +152,35 @@ export default function InstructorLessonEditor({
         lastModified: new Date().toISOString(),
       };
 
-      const response: any = await apiClient.put(
-        `/lessons/${lessonId}`,
-        updatedLesson
-      );
+      const response: unknown = await apiClient.put(`/lessons/${lessonId}`, updatedLesson);
 
-      if (response.success) {
+      if (response && typeof response === 'object' && 'success' in response && (response as { success: boolean }).success) {
         lastSavedContentRef.current = content;
         setSaveStatus('saved');
         setTimeout(() => setSaveStatus('idle'), 3000);
       } else {
         setSaveStatus('error');
-        setErrorMessage(response.message || 'Failed to autosave');
+        setErrorMessage(
+          response && typeof response === 'object' && 'message' in response
+            ? String((response as { message?: string }).message)
+            : 'Failed to autosave'
+        );
       }
-    } catch (error) {
+    } catch {
       setSaveStatus('error');
       setErrorMessage('Autosave failed. Please save manually.');
     }
-  };
+  }, [content, lessonId]);
 
-  /**
-   * Manual save handler
-   */
+  useEffect(() => {
+    autosaveTimerRef.current = setInterval(() => {
+      void handleAutosave();
+    }, 30000);
+    return () => {
+      if (autosaveTimerRef.current) clearInterval(autosaveTimerRef.current);
+    };
+  }, [handleAutosave]);
+
   const handleSave = async () => {
     if (!content.trim()) {
       setErrorMessage('Lesson content cannot be empty');
@@ -114,12 +197,9 @@ export default function InstructorLessonEditor({
         lastModified: new Date().toISOString(),
       };
 
-      const response: any = await apiClient.put(
-        `/lessons/${lessonId}`,
-        updatedLesson
-      );
+      const response: unknown = await apiClient.put(`/lessons/${lessonId}`, updatedLesson);
 
-      if (response.success) {
+      if (response && typeof response === 'object' && 'success' in response && (response as { success: boolean }).success) {
         lastSavedContentRef.current = content;
         setSaveStatus('saved');
         setErrorMessage('');
@@ -127,7 +207,11 @@ export default function InstructorLessonEditor({
         setTimeout(() => setSaveStatus('idle'), 3000);
       } else {
         setSaveStatus('error');
-        setErrorMessage(response.message || 'Failed to save lesson content');
+        setErrorMessage(
+          response && typeof response === 'object' && 'message' in response
+            ? String((response as { message?: string }).message)
+            : 'Failed to save lesson content'
+        );
       }
     } catch (error) {
       setSaveStatus('error');
@@ -136,13 +220,6 @@ export default function InstructorLessonEditor({
     } finally {
       setIsSaving(false);
     }
-  };
-
-  /**
-   * Handle editor content changes
-   */
-  const handleEditorChange = (content: string) => {
-    setContent(content);
   };
 
   return (
@@ -171,25 +248,18 @@ export default function InstructorLessonEditor({
         </div>
       )}
 
-      <div className="mb-4 border border-gray-300 rounded-lg overflow-hidden">
-        <Editor
+      <div
+        className="mb-4 border border-gray-300 rounded-lg overflow-hidden instructor-lesson-quill"
+        style={{ ['--instructor-lesson-editor-h' as string]: '500px' }}
+      >
+        <ReactQuill
           key={lessonId}
-          onInit={(evt: any, editor: any) => (editorRef.current = editor)}
+          theme="snow"
           value={content}
-          onEditorChange={handleEditorChange}
-          init={{
-            apiKey: process.env.NEXT_PUBLIC_TINYMCE_API_KEY || 'your-api-key',
-            height: 500,
-            menubar: true,
-            plugins: [
-              'advlist autolink lists link image charmap print preview anchor',
-              'searchreplace visualblocks code fullscreen',
-              'insertdatetime media table paste code help wordcount table',
-            ],
-            toolbar:
-              'undo redo | formatselect | bold italic backcolor | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | removeformat | help | table tableprops tabledelete | tableinsertrowbefore tableinsertrowafter tabledeleterow | tableinsertcolbefore tableinsertcolafter tabledeletecol | tablecellprops tablecellbackgroundcolor | tablerowprops',
-            content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }',
-          }}
+          onChange={setContent}
+          modules={modules}
+          formats={formats}
+          className="instructor-lesson-quill-inner"
         />
       </div>
 
@@ -245,9 +315,7 @@ export default function InstructorLessonEditor({
           onClick={handleSave}
           disabled={isSaving}
           className={`px-6 py-2 rounded-lg font-semibold text-white transition-colors ${
-            isSaving
-              ? 'bg-blue-400 cursor-not-allowed'
-              : 'bg-blue-600 hover:bg-blue-700'
+            isSaving ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
           }`}
         >
           {isSaving ? 'Saving...' : 'Save Manually'}
