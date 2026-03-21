@@ -7,7 +7,10 @@
 // DOMPurify-like sanitizer for server and client-side use
 // This is a simplified version - for production, consider using the full DOMPurify library
 
-import { stripVisualAidsPlaceholderHtml } from '@/lib/strip-visual-aids-html';
+import {
+  stripVisualAidsPlaceholderHtml,
+  stripVisualAidMediaFromHtml,
+} from '@/lib/strip-visual-aids-html';
 
 interface SanitizeOptions {
   allowedTags?: string[];
@@ -82,7 +85,7 @@ export function sanitizeHtml(
 }
 
 /**
- * Student-facing HTML: XSS sanitization plus removal of legacy "Visual aids" section labels.
+ * Student-facing HTML: XSS sanitization, legacy "Visual aids" labels, and visual-aids upload images removed.
  * Use for course/lesson display; keep `sanitizeHtml` for instructor previews and generic fields
  * so editor/source parity is unchanged outside student views.
  */
@@ -93,7 +96,10 @@ export function sanitizeForStudentView(
   if (!html || typeof html !== 'string') {
     return '';
   }
-  return sanitizeHtml(stripVisualAidsPlaceholderHtml(html), options);
+  const withoutVisualAidMedia = stripVisualAidMediaFromHtml(
+    stripVisualAidsPlaceholderHtml(html)
+  );
+  return sanitizeHtml(withoutVisualAidMedia, options);
 }
 
 /**

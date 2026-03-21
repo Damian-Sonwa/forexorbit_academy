@@ -1,9 +1,14 @@
 /**
- * Removes only the legacy "Visual aids" section label (heading/paragraph/div).
- * Does not remove images or figures — editor images must stay intact.
+ * Removes the legacy "Visual aids" section label (heading/paragraph/div).
+ * Student view also strips images uploaded via the visual-aids Cloudinary folder (see stripVisualAidMediaFromHtml).
  */
 
 const VISUAL_AIDS_LABEL = 'visual\\s*aid[s]?';
+
+/** Cloudinary folder is `forexorbit/visual-aids` — URLs always include `visual-aids` in the path. */
+function tagReferencesVisualAidUpload(tag: string): boolean {
+  return /visual[-_/]aids/i.test(tag) || /forexorbit%2Fvisual/i.test(tag);
+}
 
 export function stripVisualAidsPlaceholderHtml(html: string): string {
   if (!html || typeof html !== 'string') return '';
@@ -29,6 +34,33 @@ export function stripVisualAidsPlaceholderHtml(html: string): string {
   // Drop trailing empty paragraphs often left after removing the "Visual aids" heading (Quill markup).
   s = s.replace(
     /(?:<p[^>]*>\s*(?:<br\s*\/?>|&nbsp;|\u00a0|\s)*<\/p>\s*)+$/gi,
+    ''
+  );
+
+  return s.trim();
+}
+
+/**
+ * Removes `<img>` (and similar) whose URL points at the dedicated visual-aids upload folder.
+ * Used only for student-facing rendering — instructor React Quill still loads unsanitized lesson HTML from state/API.
+ */
+export function stripVisualAidMediaFromHtml(html: string): string {
+  if (!html || typeof html !== 'string') return '';
+
+  let s = html.replace(/<img\b[^>]*>/gi, (tag) => (tagReferencesVisualAidUpload(tag) ? '' : tag));
+
+  s = s.replace(/<picture[^>]*>[\s\S]*?<\/picture>/gi, (block) =>
+    tagReferencesVisualAidUpload(block) ? '' : block
+  );
+
+  for (let i = 0; i < 4; i++) {
+    const next = s.replace(/<figure[^>]*>\s*<\/figure>/gi, '');
+    if (next === s) break;
+    s = next;
+  }
+
+  s = s.replace(
+    /<a\b[^>]*href\s*=\s*["'][^"']*visual[-_/]aids[^"']*["'][^>]*>[\s\S]*?<\/a>/gi,
     ''
   );
 
