@@ -189,28 +189,37 @@ export default function InstructorCoursePage() {
     try {
       // Fetch the latest lesson from API
       const lessonDetails = await apiClient.get<any>(`/lessons/${lesson._id}`);
+      const bodyHtml =
+        lessonDetails.content ||
+        lessonDetails.lessonSummary?.overview ||
+        lessonDetails.lessonSummary?.summary ||
+        lessonDetails.summary ||
+        '';
       setLessonForm({
         title: lessonDetails.title || lesson.title,
         description: lessonDetails.description || lesson.description,
-        summary: lessonDetails.content || '',
         videoUrl: lessonDetails.videoUrl || lesson.videoUrl || '',
         pdfUrl: lessonDetails.pdfUrl || lesson.pdfUrl || '',
         type: lessonDetails.type || lesson.type,
         order: lessonDetails.order || lesson.order,
-        content: lessonDetails.content || '',
+        content: bodyHtml,
         resources: lessonDetails.resources || lesson.resources || [],
       });
     } catch (error) {
-      // Fallback to provided lesson object
+      const bodyHtml =
+        lesson.content ||
+        (lesson as any).lessonSummary?.overview ||
+        (lesson as any).lessonSummary?.summary ||
+        (lesson as any).summary ||
+        '';
       setLessonForm({
         title: lesson.title,
         description: lesson.description,
-        summary: lesson.content || '',
         videoUrl: lesson.videoUrl || '',
         pdfUrl: lesson.pdfUrl || '',
         type: lesson.type,
         order: lesson.order,
-        content: lesson.content || '',
+        content: bodyHtml,
         resources: lesson.resources || [],
       });
     }
@@ -632,16 +641,6 @@ export default function InstructorCoursePage() {
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Content (HTML)</label>
-                  <textarea
-                    value={lessonForm.content || ''}
-                    onChange={(e) => setLessonForm({ ...lessonForm, content: e.target.value })}
-                    rows={8}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500 font-mono text-sm"
-                  />
-                </div>
-
                 {/* Resources Section */}
                 <div>
                   <div className="flex items-center justify-between mb-2">
@@ -817,8 +816,8 @@ export default function InstructorCoursePage() {
                         <div className="flex items-start justify-between mb-2">
                           <div className="flex-1">
                             <h3 className="font-bold text-gray-900 dark:text-white mb-1" dangerouslySetInnerHTML={{ __html: sanitizeHtml(lesson.title) }} />
-                            {lesson.summary && (
-                              <div className="text-sm text-gray-600 dark:text-gray-400 mb-2 prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: sanitizeHtml(lesson.summary) }} />
+                            {((lesson as any).content || (lesson as any).lessonSummary?.overview || lesson.summary) && (
+                              <div className="text-sm text-gray-600 dark:text-gray-400 mb-2 prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: sanitizeHtml((lesson as any).content || (lesson as any).lessonSummary?.overview || lesson.summary || '') }} />
                             )}
                             <div className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: sanitizeHtml(lesson.description) }} />
                           </div>

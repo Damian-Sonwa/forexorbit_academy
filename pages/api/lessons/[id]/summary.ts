@@ -25,18 +25,29 @@ async function updateLessonSummary(req: AuthRequest, res: NextApiResponse) {
     const db = await getDb();
     const lessons = db.collection('lessons');
 
-    const result = await lessons.updateOne(
-      { _id: new ObjectId(id) },
-      {
-        $set: {
-          lessonSummary: {
-            ...lessonSummary,
-            updatedAt: new Date(),
-          },
-          updatedAt: new Date(),
-        },
-      }
-    );
+    const existing = await lessons.findOne({ _id: new ObjectId(id) });
+    if (!existing) {
+      return res.status(404).json({ error: 'Lesson not found' });
+    }
+
+    const existingSummary = (existing as any).lessonSummary || {};
+    const mergedSummary = {
+      ...existingSummary,
+      ...lessonSummary,
+      updatedAt: new Date(),
+    };
+
+    const $set: Record<string, unknown> = {
+      lessonSummary: mergedSummary,
+      updatedAt: new Date(),
+    };
+
+    // Keep top-level `content` in sync with overview (TinyMCE / migration)
+    if (lessonSummary && typeof (lessonSummary as any).overview === 'string') {
+      $set.content = (lessonSummary as any).overview;
+    }
+
+    const result = await lessons.updateOne({ _id: new ObjectId(id) }, { $set });
 
     if (result.matchedCount === 0) {
       return res.status(404).json({ error: 'Lesson not found' });

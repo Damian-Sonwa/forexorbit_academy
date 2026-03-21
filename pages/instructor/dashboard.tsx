@@ -16,6 +16,7 @@ import Link from 'next/link';
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
 import LoadingSpinner from '@/components/LoadingSpinner';
+import RichTextEditor from '@/components/RichTextEditor';
 import { useAuth } from '@/hooks/useAuth';
 import { useSocket } from '@/hooks/useSocket';
 import { apiClient } from '@/lib/api-client';
@@ -431,30 +432,38 @@ export default function InstructorDashboard() {
     setEditingLesson(lesson._id);
     try {
       const lessonDetails = await apiClient.get<any>(`/lessons/${lesson._id}`);
-      const summaryText = (lessonDetails as any).lessonSummary?.overview || lesson.summary || '';
+      const bodyHtml =
+        lessonDetails.content ||
+        lessonDetails.lessonSummary?.overview ||
+        lessonDetails.lessonSummary?.summary ||
+        lessonDetails.summary ||
+        '';
       setLessonForm({
         title: lessonDetails.title || lesson.title,
         description: lessonDetails.description || lesson.description,
-        summary: summaryText,
         videoUrl: lessonDetails.videoUrl || lesson.videoUrl || '',
         pdfUrl: lessonDetails.pdfUrl || lesson.pdfUrl || '',
         type: lessonDetails.type || lesson.type,
         order: lessonDetails.order || lesson.order,
-        content: lessonDetails.content || lesson.content || '',
+        content: bodyHtml,
         resources: lessonDetails.resources || lesson.resources || [],
         visualAids: (lessonDetails as any).lessonSummary?.screenshots || (lesson as any).lessonSummary?.screenshots || [],
       });
     } catch (error) {
-      const summaryText = (lesson as any).lessonSummary?.overview || lesson.summary || '';
+      const bodyHtml =
+        lesson.content ||
+        (lesson as any).lessonSummary?.overview ||
+        (lesson as any).lessonSummary?.summary ||
+        (lesson as any).summary ||
+        '';
       setLessonForm({
         title: lesson.title,
         description: lesson.description,
-        summary: summaryText,
         videoUrl: lesson.videoUrl || '',
         pdfUrl: lesson.pdfUrl || '',
         type: lesson.type,
         order: lesson.order,
-        content: lesson.content || '',
+        content: bodyHtml,
         resources: lesson.resources || [],
         visualAids: (lesson as any).lessonSummary?.screenshots || [],
       });
@@ -468,23 +477,12 @@ export default function InstructorDashboard() {
 
     try {
       setLoading(true);
-      // Convert summary to lessonSummary format for consistency
-      const updateData: any = {
-        ...lessonForm,
-        courseId: selectedCourse,
-      };
-      
-      // If summary exists, also update lessonSummary.overview
       const existingLesson = await apiClient.get(`/lessons/${editingLesson}`);
       const existingLessonSummary = (existingLesson as any).lessonSummary || {};
-      
-      // Save visual aids - URL is optional (can be uploaded file or URL, or both, or neither)
-      // Only save visual aids that have a valid URL (uploaded images get URLs automatically)
+
       const allVisualAids = (lessonForm as any).visualAids || [];
       const validVisualAids = allVisualAids
         .filter((aid: any) => {
-          // Only include visual aids that have a valid URL
-          // If no URL is provided, the visual aid is simply not saved (no error)
           const url = aid.url?.trim() || '';
           return url !== '' && (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:image/'));
         })
@@ -492,16 +490,26 @@ export default function InstructorDashboard() {
           url: aid.url?.trim() || '',
           caption: aid.caption?.trim() || '',
         }));
-      
-      // Always update lessonSummary to ensure visual aids are saved
-      updateData.lessonSummary = {
-        ...existingLessonSummary,
-        overview: lessonForm.summary || existingLessonSummary.overview || '',
-        screenshots: validVisualAids.length > 0 ? validVisualAids : existingLessonSummary.screenshots || [],
-        updatedAt: new Date(),
+
+      const payload: Record<string, unknown> = {
+        title: lessonForm.title,
+        description: lessonForm.description,
+        videoUrl: lessonForm.videoUrl,
+        pdfUrl: lessonForm.pdfUrl,
+        type: lessonForm.type,
+        order: lessonForm.order,
+        content: lessonForm.content,
+        resources: lessonForm.resources || [],
+        courseId: selectedCourse,
+        lessonSummary: {
+          ...existingLessonSummary,
+          overview: lessonForm.content ?? existingLessonSummary.overview ?? '',
+          screenshots: validVisualAids.length > 0 ? validVisualAids : existingLessonSummary.screenshots || [],
+          updatedAt: new Date(),
+        },
       };
 
-      await apiClient.put(`/lessons/${editingLesson}`, updateData);
+      await apiClient.put(`/lessons/${editingLesson}`, payload);
 
       // Emit real-time update
       if (socket && connected) {
@@ -549,14 +557,6 @@ export default function InstructorDashboard() {
 
     try {
       setLoading(true);
-      const lessonData: any = {
-        ...lessonForm,
-        courseId: selectedCourse,
-        order: lessonForm.order || courseLessons.length + 1,
-      };
-      
-      // Save visual aids - URL is optional (can be uploaded file or URL, or both, or neither)
-      // Only save visual aids that have a valid URL (uploaded images get URLs automatically)
       const allVisualAids = (lessonForm as any).visualAids || [];
       const validVisualAids = allVisualAids
         .filter((aid: any) => {
@@ -570,15 +570,26 @@ export default function InstructorDashboard() {
           caption: aid.caption?.trim() || '',
         }));
       
-      // Include lessonSummary with visual aids if provided
-      if (lessonForm.summary || validVisualAids.length > 0) {
+      const lessonData: Record<string, unknown> = {
+        title: lessonForm.title,
+        description: lessonForm.description,
+        videoUrl: lessonForm.videoUrl,
+        pdfUrl: lessonForm.pdfUrl,
+        type: lessonForm.type,
+        order: lessonForm.order || courseLessons.length + 1,
+        content: lessonForm.content,
+        resources: lessonForm.resources || [],
+        courseId: selectedCourse,
+      };
+
+      if (lessonForm.content || validVisualAids.length > 0) {
         lessonData.lessonSummary = {
-          overview: lessonForm.summary || '',
+          overview: lessonForm.content || '',
           screenshots: validVisualAids,
           updatedAt: new Date(),
         };
       }
-      
+
       await apiClient.post('/lessons', lessonData);
 
       await loadCourseLessons(selectedCourse);
@@ -1467,25 +1478,27 @@ export default function InstructorDashboard() {
 
                       <div>
                         <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Description *</label>
-                        <textarea
+                        <RichTextEditor
+                          key={`instructor-dash-desc-${editingLesson || 'new'}`}
                           value={lessonForm.description || ''}
-                          onChange={(e) => setLessonForm({ ...lessonForm, description: e.target.value })}
-                          required
-                          rows={3}
-                          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500"
+                          onChange={(html) => setLessonForm({ ...lessonForm, description: html })}
+                          height={220}
                         />
                       </div>
 
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Summary</label>
-                        <textarea
-                          value={lessonForm.summary || ''}
-                          onChange={(e) => setLessonForm({ ...lessonForm, summary: e.target.value })}
-                          placeholder="Short text overview for the topic..."
-                          rows={2}
-                          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500"
+                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                          Lesson summary / body
+                        </label>
+                        <RichTextEditor
+                          key={`instructor-dash-content-${editingLesson || 'new'}`}
+                          value={lessonForm.content || ''}
+                          onChange={(html) => setLessonForm({ ...lessonForm, content: html })}
+                          height={360}
                         />
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Brief summary that appears in lesson cards</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                          Stored in the lesson content field and kept in sync with older lesson summary views.
+                        </p>
                       </div>
 
                       <div className="grid grid-cols-2 gap-4">
@@ -1510,19 +1523,6 @@ export default function InstructorDashboard() {
                             className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500"
                           />
                         </div>
-                      </div>
-
-                      {/* Content Field */}
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Content (HTML)</label>
-                        <textarea
-                          value={lessonForm.content || ''}
-                          onChange={(e) => setLessonForm({ ...lessonForm, content: e.target.value })}
-                          placeholder="Enter lesson content in HTML format. You can include embedded videos, images, and formatted text."
-                          rows={8}
-                          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500 font-mono text-sm"
-                        />
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">HTML content that will be displayed in the lesson. Can include embedded videos, images, and formatted text.</p>
                       </div>
 
                       {/* Resources Section */}
@@ -1842,8 +1842,15 @@ export default function InstructorDashboard() {
                             <div className="flex items-start justify-between mb-2">
                               <div className="flex-1">
                                 <h3 className="font-bold text-gray-900 dark:text-white mb-1" dangerouslySetInnerHTML={{ __html: sanitizeHtml(lesson.title) }} />
-                                {lesson.summary && (
-                                  <div className="text-sm text-gray-600 dark:text-gray-400 mb-2 prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: sanitizeHtml(lesson.summary) }} />
+                                {((lesson as any).content || (lesson as any).lessonSummary?.overview || lesson.summary) && (
+                                  <div
+                                    className="text-sm text-gray-600 dark:text-gray-400 mb-2 prose prose-sm max-w-none"
+                                    dangerouslySetInnerHTML={{
+                                      __html: sanitizeHtml(
+                                        (lesson as any).content || (lesson as any).lessonSummary?.overview || lesson.summary || ''
+                                      ),
+                                    }}
+                                  />
                                 )}
                                 <div className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: sanitizeHtml(lesson.description) }} />
                               </div>

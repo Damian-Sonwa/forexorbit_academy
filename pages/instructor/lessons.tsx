@@ -8,6 +8,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
+import RichTextEditor from '@/components/RichTextEditor';
 import { useAuth } from '@/hooks/useAuth';
 import { useSocket } from '@/hooks/useSocket';
 import { apiClient } from '@/lib/api-client';
@@ -177,19 +178,26 @@ export default function InstructorLessons() {
 
   const handleEditLesson = async (lesson: Lesson) => {
     setEditingLesson(lesson._id);
-    const existingLesson = await apiClient.get(`/lessons/${lesson._id}`);
-    const summaryText = (existingLesson as any).lessonSummary?.overview || lesson.summary || '';
+    const existingLesson = await apiClient.get<any>(`/lessons/${lesson._id}`);
+    const bodyHtml =
+      existingLesson.content ||
+      existingLesson.lessonSummary?.overview ||
+      existingLesson.lessonSummary?.summary ||
+      existingLesson.summary ||
+      lesson.content ||
+      (lesson as any).lessonSummary?.overview ||
+      (lesson as any).summary ||
+      '';
     setLessonForm({
-      title: lesson.title,
-      description: lesson.description,
-      summary: summaryText,
-      videoUrl: lesson.videoUrl,
-      pdfUrl: lesson.pdfUrl,
-      type: lesson.type,
-      order: lesson.order,
-      content: lesson.content,
-      resources: lesson.resources || [],
-      visualAids: (existingLesson as any).lessonSummary?.screenshots || [],
+      title: existingLesson.title || lesson.title,
+      description: existingLesson.description || lesson.description,
+      videoUrl: existingLesson.videoUrl || lesson.videoUrl,
+      pdfUrl: existingLesson.pdfUrl || lesson.pdfUrl,
+      type: existingLesson.type || lesson.type,
+      order: existingLesson.order ?? lesson.order,
+      content: bodyHtml,
+      resources: existingLesson.resources || lesson.resources || [],
+      visualAids: existingLesson.lessonSummary?.screenshots || [],
     });
     setShowLessonForm(true);
   };
@@ -199,19 +207,38 @@ export default function InstructorLessons() {
     if (!editingLesson || !selectedCourse) return;
     try {
       setLoading(true);
-      const updateData: any = {
-        ...lessonForm,
-        courseId: selectedCourse,
-      };
       const existingLesson = await apiClient.get(`/lessons/${editingLesson}`);
       const existingLessonSummary = (existingLesson as any).lessonSummary || {};
-      updateData.lessonSummary = {
-        ...existingLessonSummary,
-        overview: lessonForm.summary || existingLessonSummary.overview || '',
-        screenshots: (lessonForm as any).visualAids || existingLessonSummary.screenshots || [],
-        updatedAt: new Date(),
+      const allVisualAids = (lessonForm as any).visualAids || [];
+      const validVisualAids = allVisualAids
+        .filter((aid: any) => {
+          const url = aid.url?.trim() || '';
+          return url !== '' && (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:image/'));
+        })
+        .map((aid: any) => ({
+          url: aid.url?.trim() || '',
+          caption: aid.caption?.trim() || '',
+        }));
+
+      const payload: Record<string, unknown> = {
+        title: lessonForm.title,
+        description: lessonForm.description,
+        videoUrl: lessonForm.videoUrl,
+        pdfUrl: lessonForm.pdfUrl,
+        type: lessonForm.type,
+        order: lessonForm.order,
+        content: lessonForm.content,
+        resources: lessonForm.resources || [],
+        courseId: selectedCourse,
+        lessonSummary: {
+          ...existingLessonSummary,
+          overview: lessonForm.content ?? existingLessonSummary.overview ?? '',
+          screenshots: validVisualAids.length > 0 ? validVisualAids : existingLessonSummary.screenshots || [],
+          updatedAt: new Date(),
+        },
       };
-      await apiClient.put(`/lessons/${editingLesson}`, updateData);
+
+      await apiClient.put(`/lessons/${editingLesson}`, payload);
       if (socket && connected) {
         socket.emit('lessonUpdated', { lessonId: editingLesson });
       }
@@ -231,18 +258,37 @@ export default function InstructorLessons() {
     if (!selectedCourse) return;
     try {
       setLoading(true);
-      const lessonData: any = {
-        ...lessonForm,
-        courseId: selectedCourse,
+      const allVisualAids = (lessonForm as any).visualAids || [];
+      const validVisualAids = allVisualAids
+        .filter((aid: any) => {
+          const url = aid.url?.trim() || '';
+          return url !== '' && (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:image/'));
+        })
+        .map((aid: any) => ({
+          url: aid.url?.trim() || '',
+          caption: aid.caption?.trim() || '',
+        }));
+
+      const lessonData: Record<string, unknown> = {
+        title: lessonForm.title,
+        description: lessonForm.description,
+        videoUrl: lessonForm.videoUrl,
+        pdfUrl: lessonForm.pdfUrl,
+        type: lessonForm.type,
         order: lessonForm.order || courseLessons.length + 1,
+        content: lessonForm.content,
+        resources: lessonForm.resources || [],
+        courseId: selectedCourse,
       };
-      if (lessonForm.summary || lessonForm.visualAids) {
+
+      if (lessonForm.content || validVisualAids.length > 0) {
         lessonData.lessonSummary = {
-          overview: lessonForm.summary || '',
-          screenshots: lessonForm.visualAids || [],
+          overview: lessonForm.content || '',
+          screenshots: validVisualAids,
           updatedAt: new Date(),
         };
       }
+
       await apiClient.post('/lessons', lessonData);
       await loadCourseLessons(selectedCourse);
       setShowLessonForm(false);
@@ -663,25 +709,24 @@ export default function InstructorLessons() {
 
                         <div>
                           <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Description *</label>
-                          <textarea
+                          <RichTextEditor
+                            key={`instructor-lessons-desc-${editingLesson || 'new'}`}
                             value={lessonForm.description || ''}
-                            onChange={(e) => setLessonForm({ ...lessonForm, description: e.target.value })}
-                            required
-                            rows={3}
-                            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500"
+                            onChange={(html) => setLessonForm({ ...lessonForm, description: html })}
+                            height={220}
                           />
                         </div>
 
                         <div>
-                          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Summary</label>
-                          <textarea
-                            value={lessonForm.summary || ''}
-                            onChange={(e) => setLessonForm({ ...lessonForm, summary: e.target.value })}
-                            placeholder="Short text overview for the topic..."
-                            rows={2}
-                            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500"
+                          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                            Lesson summary / body
+                          </label>
+                          <RichTextEditor
+                            key={`instructor-lessons-content-${editingLesson || 'new'}`}
+                            value={lessonForm.content || ''}
+                            onChange={(html) => setLessonForm({ ...lessonForm, content: html })}
+                            height={360}
                           />
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Brief summary that appears in lesson cards</p>
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
@@ -706,18 +751,6 @@ export default function InstructorLessons() {
                               className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500"
                             />
                           </div>
-                        </div>
-
-                        <div>
-                          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Content (HTML)</label>
-                          <textarea
-                            value={lessonForm.content || ''}
-                            onChange={(e) => setLessonForm({ ...lessonForm, content: e.target.value })}
-                            placeholder="Enter lesson content in HTML format. You can include embedded videos, images, and formatted text."
-                            rows={8}
-                            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500 font-mono text-sm"
-                          />
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">HTML content that will be displayed in the lesson. Can include embedded videos, images, and formatted text.</p>
                         </div>
 
                         {/* Resources Section */}
@@ -927,8 +960,15 @@ export default function InstructorLessons() {
                               <div className="flex items-start justify-between mb-2">
                                 <div className="flex-1">
                                   <h3 className="font-bold text-gray-900 dark:text-white mb-1" dangerouslySetInnerHTML={{ __html: sanitizeHtml(lesson.title) }} />
-                                  {lesson.summary && (
-                                    <div className="text-sm text-gray-600 dark:text-gray-400 mb-2 prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: sanitizeHtml(lesson.summary) }} />
+                                  {((lesson as any).content || (lesson as any).lessonSummary?.overview || lesson.summary) && (
+                                    <div
+                                      className="text-sm text-gray-600 dark:text-gray-400 mb-2 prose prose-sm max-w-none"
+                                      dangerouslySetInnerHTML={{
+                                        __html: sanitizeHtml(
+                                          (lesson as any).content || (lesson as any).lessonSummary?.overview || lesson.summary || ''
+                                        ),
+                                      }}
+                                    />
                                   )}
                                   <div className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: sanitizeHtml(lesson.description) }} />
                                 </div>

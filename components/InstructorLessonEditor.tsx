@@ -72,10 +72,7 @@ export default function InstructorLessonEditor({
       setErrorMessage('');
 
       const updatedLesson = {
-        lessonSummary: {
-          overview: content,
-          updatedAt: new Date(),
-        },
+        content,
         lastModified: new Date().toISOString(),
       };
 
@@ -113,10 +110,7 @@ export default function InstructorLessonEditor({
       setErrorMessage('');
 
       const updatedLesson = {
-        lessonSummary: {
-          overview: content,
-          updatedAt: new Date(),
-        },
+        content,
         lastModified: new Date().toISOString(),
       };
 
@@ -179,8 +173,9 @@ export default function InstructorLessonEditor({
 
       <div className="mb-4 border border-gray-300 rounded-lg overflow-hidden">
         <Editor
+          key={lessonId}
           onInit={(evt: any, editor: any) => (editorRef.current = editor)}
-          initialValue={initialContent}
+          value={content}
           onEditorChange={handleEditorChange}
           init={{
             apiKey: process.env.NEXT_PUBLIC_TINYMCE_API_KEY || 'your-api-key',

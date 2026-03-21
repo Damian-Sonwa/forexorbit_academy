@@ -116,6 +116,16 @@ async function updateLesson(req: AuthRequest, res: NextApiResponse) {
       };
     }
 
+    // Keep lessonSummary.overview in sync with migrated `content` (TinyMCE body) for legacy readers
+    if (typeof req.body.content === 'string') {
+      updateData.lessonSummary = {
+        ...existingLessonSummary,
+        ...(updateData.lessonSummary || {}),
+        overview: req.body.content,
+        updatedAt: new Date(),
+      };
+    }
+
     await lessons.updateOne(
       { _id: new ObjectId(id as string) },
       { $set: updateData }

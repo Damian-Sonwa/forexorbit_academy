@@ -118,7 +118,6 @@ export default function RichTextEditor({
             }
           },
         }}
-        initialValue="Welcome to TinyMCE!"
       />
     </div>
   );

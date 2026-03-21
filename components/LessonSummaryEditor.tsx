@@ -31,7 +31,11 @@ export default function LessonSummaryEditor({ lessonId, lesson, onSave }: Lesson
   const [error, setError] = useState('');
   const fileInputRefs = useRef<{ [key: number]: HTMLInputElement | null }>({});
   const [formData, setFormData] = useState({
-    overview: lesson.lessonSummary?.overview || '',
+    overview:
+      lesson.lessonSummary?.overview ||
+      (lesson as any).content ||
+      (lesson as any).summary ||
+      '',
     keyPoints: lesson.lessonSummary?.keyPoints || [''],
     tradingNotes: lesson.lessonSummary?.tradingNotes || '',
     resources: lesson.lessonSummary?.resources || [],
@@ -43,7 +47,11 @@ export default function LessonSummaryEditor({ lessonId, lesson, onSave }: Lesson
    */
   useEffect(() => {
     setFormData({
-      overview: lesson.lessonSummary?.overview || '',
+      overview:
+        lesson.lessonSummary?.overview ||
+        (lesson as any).content ||
+        (lesson as any).summary ||
+        '',
       keyPoints: lesson.lessonSummary?.keyPoints || [''],
       tradingNotes: lesson.lessonSummary?.tradingNotes || '',
       resources: lesson.lessonSummary?.resources || [],
