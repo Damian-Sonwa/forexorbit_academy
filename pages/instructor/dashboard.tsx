@@ -21,6 +21,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useSocket } from '@/hooks/useSocket';
 import { apiClient } from '@/lib/api-client';
 import { sanitizeHtml } from '@/lib/html-sanitizer';
+import { getLessonDescriptionHtml, hasVisibleHtml } from '@/lib/lesson-html';
 import axios from 'axios';
 import { useCourses } from '@/hooks/useCourses';
 import { formatDistanceToNow } from 'date-fns';
@@ -440,7 +441,12 @@ export default function InstructorDashboard() {
         '';
       setLessonForm({
         title: lessonDetails.title || lesson.title,
-        description: lessonDetails.description || lesson.description,
+        description:
+          lessonDetails.description ||
+          lessonDetails.summary ||
+          lesson.description ||
+          (lesson as any).summary ||
+          '',
         videoUrl: lessonDetails.videoUrl || lesson.videoUrl || '',
         pdfUrl: lessonDetails.pdfUrl || lesson.pdfUrl || '',
         type: lessonDetails.type || lesson.type,
@@ -458,7 +464,7 @@ export default function InstructorDashboard() {
         '';
       setLessonForm({
         title: lesson.title,
-        description: lesson.description,
+        description: lesson.description || (lesson as any).summary || '',
         videoUrl: lesson.videoUrl || '',
         pdfUrl: lesson.pdfUrl || '',
         type: lesson.type,
@@ -1852,7 +1858,14 @@ export default function InstructorDashboard() {
                                     }}
                                   />
                                 )}
-                                <div className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: sanitizeHtml(lesson.description) }} />
+                                {hasVisibleHtml(getLessonDescriptionHtml(lesson)) && (
+                                  <div
+                                    className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 prose prose-sm max-w-none"
+                                    dangerouslySetInnerHTML={{
+                                      __html: sanitizeHtml(getLessonDescriptionHtml(lesson)),
+                                    }}
+                                  />
+                                )}
                               </div>
                               <div className="flex gap-2 ml-4">
                                 <button

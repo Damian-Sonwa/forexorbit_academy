@@ -44,6 +44,12 @@ export default function RichTextEditor({
   onBlur,
   placeholder,
 }: RichTextEditorProps) {
+  // Keep in sync when parent loads content asynchronously (react-quill can miss prop updates)
+  const [innerValue, setInnerValue] = React.useState(value ?? '');
+  React.useEffect(() => {
+    setInnerValue(value ?? '');
+  }, [value]);
+
   const modules = React.useMemo(
     () => ({
       toolbar: {
@@ -132,8 +138,11 @@ export default function RichTextEditor({
     >
       <ReactQuill
         theme="snow"
-        value={value || ''}
-        onChange={onChange}
+        value={innerValue}
+        onChange={(html) => {
+          setInnerValue(html);
+          onChange(html);
+        }}
         onBlur={onBlur}
         modules={modules}
         formats={formats}

@@ -12,6 +12,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useSocket } from '@/hooks/useSocket';
 import { apiClient } from '@/lib/api-client';
 import { sanitizeHtml } from '@/lib/html-sanitizer';
+import { getLessonDescriptionHtml, hasVisibleHtml } from '@/lib/lesson-html';
 import { useCourses } from '@/hooks/useCourses';
 
 interface Lesson {
@@ -455,7 +456,14 @@ export default function InstructorQuizzes() {
                               {lesson.summary && (
                                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-2" dangerouslySetInnerHTML={{ __html: sanitizeHtml(lesson.summary) }} />
                               )}
-                              <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2" dangerouslySetInnerHTML={{ __html: sanitizeHtml(lesson.description) }} />
+                              {hasVisibleHtml(getLessonDescriptionHtml(lesson)) && (
+                                <p
+                                  className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2"
+                                  dangerouslySetInnerHTML={{
+                                    __html: sanitizeHtml(getLessonDescriptionHtml(lesson)),
+                                  }}
+                                />
+                              )}
                             </div>
                             <div className="flex gap-2 ml-4">
                               <button

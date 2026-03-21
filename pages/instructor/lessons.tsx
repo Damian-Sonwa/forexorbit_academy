@@ -13,6 +13,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useSocket } from '@/hooks/useSocket';
 import { apiClient } from '@/lib/api-client';
 import { sanitizeHtml } from '@/lib/html-sanitizer';
+import { getLessonDescriptionHtml, hasVisibleHtml } from '@/lib/lesson-html';
 import { useCourses } from '@/hooks/useCourses';
 
 interface Lesson {
@@ -190,7 +191,12 @@ export default function InstructorLessons() {
       '';
     setLessonForm({
       title: existingLesson.title || lesson.title,
-      description: existingLesson.description || lesson.description,
+      description:
+        existingLesson.description ||
+        existingLesson.summary ||
+        lesson.description ||
+        (lesson as any).summary ||
+        '',
       videoUrl: existingLesson.videoUrl || lesson.videoUrl,
       pdfUrl: existingLesson.pdfUrl || lesson.pdfUrl,
       type: existingLesson.type || lesson.type,
@@ -970,7 +976,14 @@ export default function InstructorLessons() {
                                       }}
                                     />
                                   )}
-                                  <div className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: sanitizeHtml(lesson.description) }} />
+                                  {hasVisibleHtml(getLessonDescriptionHtml(lesson)) && (
+                                    <div
+                                      className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 prose prose-sm max-w-none"
+                                      dangerouslySetInnerHTML={{
+                                        __html: sanitizeHtml(getLessonDescriptionHtml(lesson)),
+                                      }}
+                                    />
+                                  )}
                                 </div>
                                 <div className="flex gap-2 ml-4">
                                   <button

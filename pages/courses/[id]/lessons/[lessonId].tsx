@@ -21,6 +21,7 @@ import LessonSummaryView from '@/components/LessonSummaryView';
 import LessonSummaryEditor from '@/components/LessonSummaryEditor';
 import InstructorLessonEditor from '@/components/InstructorLessonEditor';
 import { sanitizeHtml } from '@/lib/html-sanitizer';
+import { getLessonDescriptionHtml, hasVisibleHtml } from '@/lib/lesson-html';
 import { useState, useEffect } from 'react';
 
 export default function LessonPage() {
@@ -102,6 +103,8 @@ export default function LessonPage() {
     );
   }
 
+  const lessonDescriptionHtml = getLessonDescriptionHtml(displayLesson as any);
+
   // Find current lesson index
   const currentIndex = lessons.findIndex((l) => (l._id || l.id) === (displayLesson._id || displayLesson.id));
   const prevLesson = currentIndex > 0 ? lessons[currentIndex - 1] : null;
@@ -138,12 +141,12 @@ export default function LessonPage() {
             </div>
           )}
 
-          {/* Lesson Description */}
-          {displayLesson.description && (
+          {/* Lesson Description (description field; legacy fallback: summary) */}
+          {hasVisibleHtml(lessonDescriptionHtml) && (
             <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 mb-4">
               <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-3">Lesson Description</h2>
               <div className="prose max-w-none">
-                <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(displayLesson.description) }} />
+                <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(lessonDescriptionHtml) }} />
               </div>
             </div>
           )}

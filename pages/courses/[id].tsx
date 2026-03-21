@@ -15,6 +15,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useState, useEffect } from 'react';
 import { apiClient } from '@/lib/api-client';
 import { sanitizeHtml } from '@/lib/html-sanitizer';
+import { getLessonDescriptionHtml, hasVisibleHtml } from '@/lib/lesson-html';
 
 // Function to strip HTML tags for checking content
 function stripHtml(html: string): string {
@@ -153,7 +154,9 @@ export default function CourseDetailPage() {
               <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-3">Course Lessons</h2>
               {course.lessons && course.lessons.length > 0 ? (
                 <div className="space-y-3">
-                  {course.lessons.map((lesson: any, index: number) => (
+                  {course.lessons.map((lesson: any, index: number) => {
+                    const lessonDesc = getLessonDescriptionHtml(lesson);
+                    return (
                     <Link
                       key={lesson._id || lesson.id}
                       href={`/courses/${id}/lessons/${lesson._id || lesson.id}`}
@@ -165,8 +168,13 @@ export default function CourseDetailPage() {
                         </div>
                         <div className="flex-1">
                           <h3 className="font-semibold text-gray-900 group-hover:text-primary-600 transition-colors" dangerouslySetInnerHTML={{ __html: sanitizeHtml(lesson.title) }} />
-                          {lesson.description && (
-                            <p className="text-sm text-gray-500 line-clamp-1 mt-1" dangerouslySetInnerHTML={{ __html: sanitizeHtml(lesson.description).substring(0, 100) }} />
+                          {hasVisibleHtml(lessonDesc) && (
+                            <p
+                              className="text-sm text-gray-500 line-clamp-1 mt-1"
+                              dangerouslySetInnerHTML={{
+                                __html: sanitizeHtml(lessonDesc).substring(0, 100),
+                              }}
+                            />
                           )}
                         </div>
                       </div>
@@ -174,7 +182,8 @@ export default function CourseDetailPage() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                       </svg>
                     </Link>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="text-center py-12">
