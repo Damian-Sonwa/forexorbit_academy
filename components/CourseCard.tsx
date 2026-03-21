@@ -29,51 +29,30 @@ export default function CourseCard({ course, onEnroll, onUnenroll }: CourseCardP
     advanced: 'bg-red-100 text-red-800',
   };
 
-  // Array of different forex-related images for variety
-  const forexImages = [
-    'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=400&h=200&fit=crop&crop=center', // Trading charts
-    'https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?w=400&h=200&fit=crop&crop=center', // Financial graphs
-    'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=400&h=200&fit=crop&crop=center', // Trading analysis
-    'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=400&h=200&fit=crop&crop=center', // Market data
-    'https://images.unsplash.com/photo-1559526324-4b87b5e36e44?w=400&h=200&fit=crop&crop=center', // Currency exchange
-    'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=400&h=200&fit=crop&crop=center', // Trading platform
-  ];
-
-  const iconImages = [
-    'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=80&h=80&fit=crop&crop=center', // Course icon 1
-    'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=80&h=80&fit=crop&crop=center', // Course icon 2
-    'https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?w=80&h=80&fit=crop&crop=center', // Course icon 3
-    'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=80&h=80&fit=crop&crop=center', // Course icon 4
-    'https://images.unsplash.com/photo-1559526324-4b87b5e36e44?w=80&h=80&fit=crop&crop=center', // Course icon 5
-    'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=80&h=80&fit=crop&crop=center', // Course icon 6
-  ];
-
-  // Use course ID or index to select different images
-  const courseIndex = typeof courseId === 'string' ? parseInt(courseId.slice(-1), 16) || 0 : 0;
-  const backgroundImage = forexImages[courseIndex % forexImages.length];
-  const iconImage = iconImages[courseIndex % iconImages.length];
+  const thumbnail = course.thumbnail?.trim() || '';
 
   return (
     <div className="group bg-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden border border-gray-200 flex flex-col h-full">
-      {/* Course Thumbnail */}
+      {/* Course image: instructor thumbnail only — no stock photos */}
       <div className="relative w-full h-48 bg-gradient-to-br from-primary-500 via-primary-600 to-secondary-600 overflow-hidden flex-shrink-0">
-        <div className="absolute inset-0 bg-black/10 group-hover:bg-black/5 transition-colors" />
-        <img 
-          src={backgroundImage}
-          alt={course.title}
-          className="w-full h-full object-cover opacity-80"
-        />
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="w-20 h-20 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center border-2 border-white/30">
-            <img 
-              src={iconImage}
-              alt="Forex course"
-              className="w-16 h-16 object-cover rounded-xl"
-            />
+        <div className="absolute inset-0 bg-black/10 group-hover:bg-black/5 transition-colors z-[1]" />
+        {thumbnail ? (
+          <img
+            src={thumbnail}
+            alt={course.title}
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center z-[1]" aria-hidden>
+            <div className="w-20 h-20 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center border-2 border-white/30">
+              <svg className="w-10 h-10 text-white/90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+              </svg>
+            </div>
           </div>
-        </div>
+        )}
         {course.progress !== undefined && course.progress > 0 && (
-          <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/20">
+          <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/20 z-10">
             <div
               className="h-full bg-white transition-all duration-500"
               style={{ width: `${course.progress}%` }}
