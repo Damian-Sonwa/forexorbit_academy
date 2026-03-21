@@ -31,6 +31,48 @@ export function stripVisualAidsSectionFromHtml(html: string): string {
   return s.trim();
 }
 
+/** Legacy DB copy for empty visual-aids UI (stored inside lesson HTML). */
+const VISUAL_AIDS_DB_PLACEHOLDER_PHRASES: RegExp[] = [
+  /charts,?\s*screenshots,?\s*resources,?\s*and\s*visual\s*materials\s*for\s*this\s*lesson/i,
+  /no\s*visual\s*aids\s*available\s*yet/i,
+  /the\s*instructor\s*will\s*add\s*charts,?\s*graphs,?\s*and\s*resources\s*soon/i,
+];
+
+function blockContainsVisualAidsPlaceholder(block: string): boolean {
+  return VISUAL_AIDS_DB_PLACEHOLDER_PHRASES.some((re) => re.test(block));
+}
+
+/**
+ * Removes paragraphs/list items (and similar) that only contain legacy "empty visual aids"
+ * placeholder text often saved from MongoDB / old templates.
+ */
+export function stripVisualAidsDatabasePlaceholders(html: string): string {
+  if (!html || typeof html !== 'string') return '';
+
+  let s = html;
+  const tagPatterns = [/<p[^>]*>[\s\S]*?<\/p>/gi, /<li[^>]*>[\s\S]*?<\/li>/gi, /<blockquote[^>]*>[\s\S]*?<\/blockquote>/gi];
+
+  for (const tagRe of tagPatterns) {
+    for (let i = 0; i < 24; i++) {
+      const next = s.replace(tagRe, (block) =>
+        blockContainsVisualAidsPlaceholder(block) ? '' : block
+      );
+      if (next === s) break;
+      s = next;
+    }
+  }
+
+  for (let i = 0; i < 6; i++) {
+    const next = s
+      .replace(/<div[^>]*>\s*<\/div>/gi, '')
+      .replace(/<section[^>]*>\s*<\/section>/gi, '');
+    if (next === s) break;
+    s = next;
+  }
+
+  return s.trim();
+}
+
 /** Cloudinary folder is `forexorbit/visual-aids` — URLs always include `visual-aids` in the path. */
 function tagReferencesVisualAidUpload(tag: string): boolean {
   return /visual[-_/]aids/i.test(tag) || /forexorbit%2Fvisual/i.test(tag);
@@ -75,7 +117,7 @@ export function stripVisualAidLegacyContainers(html: string): string {
 
   let s = html;
   const re =
-    /<(div|section)\b[^>]*\b(?:class|id)\s*=\s*["'][^"']*(?:visual[\w-]*aid|visualaid|mce-visual|lesson-visual)[^"']*["'][^>]*>[\s\S]*?<\/\1>/gi;
+    /<(div|section)\b[^>]*\b(?:class|id)\s*=\s*["'][^"']*(?:visual[\w-]*aid|visualaid|mce-visual|lesson-visual|visual-aids-placeholder|visualaid-empty|lesson-visual-aid)[^"']*["'][^>]*>[\s\S]*?<\/\1>/gi;
 
   for (let i = 0; i < 12; i++) {
     const next = s.replace(re, '');

@@ -10,6 +10,7 @@
 import {
   stripVisualAidsPlaceholderHtml,
   stripVisualAidsSectionFromHtml,
+  stripVisualAidsDatabasePlaceholders,
   stripVisualAidLegacyContainers,
   stripVisualAidMediaFromHtml,
 } from '@/lib/strip-visual-aids-html';
@@ -100,7 +101,9 @@ export function sanitizeForStudentView(
   }
   const withoutVisualAidMedia = stripVisualAidMediaFromHtml(
     stripVisualAidLegacyContainers(
-      stripVisualAidsPlaceholderHtml(stripVisualAidsSectionFromHtml(html))
+      stripVisualAidsPlaceholderHtml(
+        stripVisualAidsDatabasePlaceholders(stripVisualAidsSectionFromHtml(html))
+      )
     )
   );
   return sanitizeHtml(withoutVisualAidMedia, options);
@@ -226,7 +229,9 @@ export function stripHtml(html: string): string {
   if (!html) return '';
   const cleaned = stripVisualAidMediaFromHtml(
     stripVisualAidLegacyContainers(
-      stripVisualAidsPlaceholderHtml(stripVisualAidsSectionFromHtml(html))
+      stripVisualAidsPlaceholderHtml(
+        stripVisualAidsDatabasePlaceholders(stripVisualAidsSectionFromHtml(html))
+      )
     )
   );
   return cleaned.replace(/<[^>]*>/g, '').trim();
