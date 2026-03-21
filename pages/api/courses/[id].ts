@@ -18,6 +18,7 @@ export const config = {
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
+import { stripCourseVisualAidsFields, stripLessonVisualAidsFields } from '@/lib/strip-visual-aids-html';
 
 async function getCourse(req: AuthRequest, res: NextApiResponse) {
   try {
@@ -38,7 +39,10 @@ async function getCourse(req: AuthRequest, res: NextApiResponse) {
       .sort({ order: 1 })
       .toArray();
 
-    course.lessons = courseLessons;
+    const coursePayload = {
+      ...stripCourseVisualAidsFields(course as Record<string, unknown>),
+      lessons: courseLessons.map((l) => stripLessonVisualAidsFields(l as Record<string, unknown>)),
+    };
 
     // Get progress if authenticated
     if (req.user) {
@@ -46,11 +50,11 @@ async function getCourse(req: AuthRequest, res: NextApiResponse) {
         userId: req.user.userId,
         courseId: id,
       });
-      course.progress = userProgress?.progress || 0;
-      course.enrolled = !!userProgress;
+      (coursePayload as Record<string, unknown>).progress = userProgress?.progress || 0;
+      (coursePayload as Record<string, unknown>).enrolled = !!userProgress;
     }
 
-    res.json(course);
+    res.json(coursePayload);
   } catch (error: any) {
     console.error('Get course error:', error);
     res.status(500).json({ error: 'Internal server error' });

@@ -7,6 +7,8 @@
 // DOMPurify-like sanitizer for server and client-side use
 // This is a simplified version - for production, consider using the full DOMPurify library
 
+import { stripVisualAidsPlaceholderHtml } from '@/lib/strip-visual-aids-html';
+
 interface SanitizeOptions {
   allowedTags?: string[];
   allowedAttributes?: string[];
@@ -50,6 +52,8 @@ export function sanitizeHtml(
   if (!html || typeof html !== 'string') {
     return '';
   }
+
+  html = stripVisualAidsPlaceholderHtml(html);
 
   const allowedTags = options.allowedTags || DEFAULT_ALLOWED_TAGS;
   const allowedAttributes = options.allowedAttributes || DEFAULT_ALLOWED_ATTRIBUTES;
@@ -197,8 +201,8 @@ function escapeHtml(text: string): string {
  */
 export function stripHtml(html: string): string {
   if (!html) return '';
-  // Simple regex-based tag removal
-  return html.replace(/<[^>]*>/g, '').trim();
+  const cleaned = stripVisualAidsPlaceholderHtml(html);
+  return cleaned.replace(/<[^>]*>/g, '').trim();
 }
 
 export default sanitizeHtml;

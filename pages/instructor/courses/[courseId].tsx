@@ -14,7 +14,7 @@ import RichTextEditor from '@/components/RichTextEditor';
 import { useAuth } from '@/hooks/useAuth';
 import { useSocket } from '@/hooks/useSocket';
 import { apiClient } from '@/lib/api-client';
-import { sanitizeHtml } from '@/lib/html-sanitizer';
+import { sanitizeHtml, stripHtml } from '@/lib/html-sanitizer';
 import { getLessonDescriptionHtml, hasVisibleHtml } from '@/lib/lesson-html';
 
 interface Lesson {
@@ -822,17 +822,23 @@ export default function InstructorCoursePage() {
                         <div className="flex items-start justify-between mb-2">
                           <div className="flex-1">
                             <h3 className="font-bold text-gray-900 dark:text-white mb-1" dangerouslySetInnerHTML={{ __html: sanitizeHtml(lesson.title) }} />
-                            {((lesson as any).content || (lesson as any).lessonSummary?.overview || lesson.summary) && (
-                              <div className="text-sm text-gray-600 dark:text-gray-400 mb-2 prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: sanitizeHtml((lesson as any).content || (lesson as any).lessonSummary?.overview || lesson.summary || '') }} />
-                            )}
-                            {hasVisibleHtml(getLessonDescriptionHtml(lesson)) && (
-                              <div
-                                className="rich-html-readable text-xs leading-snug line-clamp-2 mt-1"
-                                dangerouslySetInnerHTML={{
-                                  __html: sanitizeHtml(getLessonDescriptionHtml(lesson)),
-                                }}
-                              />
-                            )}
+                            {(() => {
+                              const bodyRaw = (lesson as any).content || (lesson as any).lessonSummary?.overview || lesson.summary || '';
+                              const bodyPlain = stripHtml(sanitizeHtml(bodyRaw)).replace(/\s+/g, ' ').trim();
+                              if (!bodyPlain) return null;
+                              return (
+                                <p className="text-sm text-gray-600 dark:text-gray-400 mb-2 line-clamp-3">{bodyPlain}</p>
+                              );
+                            })()}
+                            {(() => {
+                              const descRaw = getLessonDescriptionHtml(lesson);
+                              if (!hasVisibleHtml(descRaw)) return null;
+                              const descPlain = stripHtml(sanitizeHtml(descRaw)).replace(/\s+/g, ' ').trim();
+                              if (!descPlain) return null;
+                              return (
+                                <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 mt-1">{descPlain}</p>
+                              );
+                            })()}
                           </div>
                           <div className="flex gap-2 ml-4">
                             <button

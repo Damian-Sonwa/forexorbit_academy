@@ -14,14 +14,8 @@ import { useSocket } from '@/hooks/useSocket';
 import { useAuth } from '@/hooks/useAuth';
 import { useState, useEffect } from 'react';
 import { apiClient } from '@/lib/api-client';
-import { sanitizeHtml } from '@/lib/html-sanitizer';
+import { sanitizeHtml, stripHtml } from '@/lib/html-sanitizer';
 import { getLessonDescriptionHtml, hasVisibleHtml } from '@/lib/lesson-html';
-
-// Function to strip HTML tags for checking content
-function stripHtml(html: string): string {
-  if (!html) return '';
-  return html.replace(/<[^>]*>/g, '').trim();
-}
 
 export default function CourseDetailPage() {
   const router = useRouter();
@@ -156,6 +150,7 @@ export default function CourseDetailPage() {
                 <div className="space-y-3">
                   {course.lessons.map((lesson: any, index: number) => {
                     const lessonDesc = getLessonDescriptionHtml(lesson);
+                    const previewPlain = stripHtml(sanitizeHtml(lessonDesc)).replace(/\s+/g, ' ').trim();
                     return (
                     <Link
                       key={lesson._id || lesson.id}
@@ -168,13 +163,10 @@ export default function CourseDetailPage() {
                         </div>
                         <div className="flex-1">
                           <h3 className="font-semibold text-gray-900 group-hover:text-primary-600 transition-colors" dangerouslySetInnerHTML={{ __html: sanitizeHtml(lesson.title) }} />
-                          {hasVisibleHtml(lessonDesc) && (
-                            <p
-                              className="text-sm text-gray-800 dark:text-gray-200 line-clamp-2 mt-1"
-                              dangerouslySetInnerHTML={{
-                                __html: sanitizeHtml(lessonDesc).substring(0, 100),
-                              }}
-                            />
+                          {hasVisibleHtml(lessonDesc) && previewPlain && (
+                            <p className="text-sm text-gray-800 dark:text-gray-200 line-clamp-2 mt-1">
+                              {previewPlain.length > 200 ? `${previewPlain.slice(0, 200)}…` : previewPlain}
+                            </p>
                           )}
                         </div>
                       </div>

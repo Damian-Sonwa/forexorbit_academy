@@ -6,12 +6,7 @@
 import Link from 'next/link';
 import { Course } from '@/hooks/useCourses';
 import { useAuth } from '@/hooks/useAuth';
-
-// Function to strip HTML tags for plain text preview
-function stripHtml(html: string): string {
-  if (!html) return '';
-  return html.replace(/<[^>]*>/g, '').trim();
-}
+import { stripHtml } from '@/lib/html-sanitizer';
 
 interface CourseCardProps {
   course: Course;

@@ -17,6 +17,7 @@ export const config = {
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
+import { stripLessonVisualAidsFields } from '@/lib/strip-visual-aids-html';
 
 async function getLesson(req: AuthRequest, res: NextApiResponse) {
   try {
@@ -79,12 +80,8 @@ async function getLesson(req: AuthRequest, res: NextApiResponse) {
       lesson.completed = userProgress?.completedLessons?.includes(id as string) || false;
     }
 
-    // Visual aids (lessonSummary.screenshots) removed — never expose stored screenshots
-    if (lesson.lessonSummary && typeof lesson.lessonSummary === 'object') {
-      (lesson.lessonSummary as Record<string, unknown>).screenshots = [];
-    }
-
-    res.json(lesson);
+    const lessonOut = stripLessonVisualAidsFields(lesson as Record<string, unknown>);
+    res.json(lessonOut);
   } catch (error: any) {
     console.error('Get lesson error:', error);
     res.status(500).json({ error: 'Internal server error' });

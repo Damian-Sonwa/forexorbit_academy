@@ -15,6 +15,7 @@ export const config = {
 };
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
+import { stripLessonVisualAidsFields } from '@/lib/strip-visual-aids-html';
 
 async function getLessons(req: AuthRequest, res: NextApiResponse) {
   try {
@@ -32,16 +33,6 @@ async function getLessons(req: AuthRequest, res: NextApiResponse) {
       .sort({ order: 1 })
       .toArray();
 
-    const stripVisualAidScreenshots = (lesson: Record<string, unknown>) => {
-      if (lesson.lessonSummary && typeof lesson.lessonSummary === 'object') {
-        return {
-          ...lesson,
-          lessonSummary: { ...(lesson.lessonSummary as object), screenshots: [] },
-        };
-      }
-      return lesson;
-    };
-
     // For students, filter lessons based on level access and mark accessible ones
     if (req.user && req.user.role === 'student') {
       const userProgress = await progress.findOne({
@@ -56,17 +47,17 @@ async function getLessons(req: AuthRequest, res: NextApiResponse) {
           // For now, allow if user is enrolled (can be enhanced with prerequisite checking)
           accessible = !!userProgress;
         }
-        return stripVisualAidScreenshots({
+        return stripLessonVisualAidsFields({
           ...lesson,
           accessible,
           locked: !accessible,
-        });
+        } as Record<string, unknown>);
       });
 
       return res.json(enrichedLessons);
     }
 
-    res.json(lessonsList.map((l) => stripVisualAidScreenshots(l as Record<string, unknown>)));
+    res.json(lessonsList.map((l) => stripLessonVisualAidsFields(l as Record<string, unknown>)));
   } catch (error: any) {
     console.error('Get lessons error:', error);
     res.status(500).json({ error: 'Internal server error' });

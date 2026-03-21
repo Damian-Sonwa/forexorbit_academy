@@ -7,6 +7,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
+import { stripCourseVisualAidsFields } from '@/lib/strip-visual-aids-html';
 // import { ObjectId } from 'mongodb'; // Reserved for future use
 
 export const config = {
@@ -53,7 +54,9 @@ async function getCourses(req: AuthRequest, res: NextApiResponse) {
         }
       }
 
-    res.json(coursesList);
+    res.json(
+      coursesList.map((c) => stripCourseVisualAidsFields(c as Record<string, unknown>))
+    );
   } catch (error: any) {
     console.error('Get courses error:', error);
     res.status(500).json({ error: 'Internal server error' });
