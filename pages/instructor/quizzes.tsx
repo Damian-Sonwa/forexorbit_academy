@@ -458,7 +458,7 @@ export default function InstructorQuizzes() {
                               )}
                               {hasVisibleHtml(getLessonDescriptionHtml(lesson)) && (
                                 <p
-                                  className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2"
+                                  className="text-xs text-gray-800 dark:text-gray-200 line-clamp-2 mt-1"
                                   dangerouslySetInnerHTML={{
                                     __html: sanitizeHtml(getLessonDescriptionHtml(lesson)),
                                   }}

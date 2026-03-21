@@ -6,6 +6,15 @@
  */
 
 import type { NextApiResponse } from 'next';
+
+/** Rich HTML descriptions can exceed the default 1MB body limit (413 Payload Too Large). */
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '16mb',
+    },
+  },
+};
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';

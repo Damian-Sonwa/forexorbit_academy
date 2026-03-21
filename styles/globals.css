@@ -21,6 +21,22 @@
 }
 
 @layer components {
+  /**
+   * Sanitized HTML from lessons/courses: body uses dark:text-gray-100 but cards stay bg-white,
+   * so text inherited as light gray on white. Force readable contrast on both themes.
+   */
+  .rich-html-readable {
+    @apply max-w-none text-gray-900 dark:text-gray-100;
+  }
+
+  .rich-html-readable :where(p, li, ul, ol, span, strong, em, h1, h2, h3, h4, td, th, blockquote, div) {
+    @apply text-gray-900 dark:text-gray-100;
+  }
+
+  .rich-html-readable :where(a) {
+    @apply text-primary-600 dark:text-primary-400 underline;
+  }
+
   .btn {
     @apply px-4 py-2 rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800;
   }

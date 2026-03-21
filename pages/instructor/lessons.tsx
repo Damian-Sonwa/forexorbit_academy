@@ -978,7 +978,7 @@ export default function InstructorLessons() {
                                   )}
                                   {hasVisibleHtml(getLessonDescriptionHtml(lesson)) && (
                                     <div
-                                      className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 prose prose-sm max-w-none"
+                                      className="rich-html-readable text-xs leading-snug line-clamp-2 mt-1"
                                       dangerouslySetInnerHTML={{
                                         __html: sanitizeHtml(getLessonDescriptionHtml(lesson)),
                                       }}

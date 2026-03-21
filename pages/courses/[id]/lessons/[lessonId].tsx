@@ -143,9 +143,9 @@ export default function LessonPage() {
 
           {/* Lesson Description (description field; legacy fallback: summary) */}
           {hasVisibleHtml(lessonDescriptionHtml) && (
-            <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 mb-4">
-              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-3">Lesson Description</h2>
-              <div className="prose max-w-none">
+            <div className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-4 sm:p-6 mb-4">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-3">Lesson Description</h2>
+              <div className="rich-html-readable text-base leading-relaxed">
                 <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(lessonDescriptionHtml) }} />
               </div>
             </div>
@@ -189,9 +189,9 @@ export default function LessonPage() {
             (displayLesson as any).lessonSummary?.overview ||
             (displayLesson as any).summary ||
             (currentLesson as any)?.lessonSummary?.overview) && (
-            <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 mb-4">
-              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-3">Lesson Content</h2>
-              <div className="prose prose-lg max-w-none text-gray-700">
+            <div className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-4 sm:p-6 mb-4">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-3">Lesson Content</h2>
+              <div className="rich-html-readable text-base leading-relaxed">
                 <div
                   dangerouslySetInnerHTML={{
                     __html: sanitizeHtml(

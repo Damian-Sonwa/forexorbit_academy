@@ -6,6 +6,14 @@
  */
 
 import type { NextApiResponse } from 'next';
+
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '16mb',
+    },
+  },
+};
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';

@@ -127,7 +127,7 @@ export default function CourseDetailPage() {
               </div>
 
               {course.description && (
-                <div className="prose prose-lg max-w-none text-gray-700 mb-4">
+                <div className="rich-html-readable text-base leading-relaxed mb-4">
                   <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(course.description) }} />
                 </div>
               )}
@@ -170,7 +170,7 @@ export default function CourseDetailPage() {
                           <h3 className="font-semibold text-gray-900 group-hover:text-primary-600 transition-colors" dangerouslySetInnerHTML={{ __html: sanitizeHtml(lesson.title) }} />
                           {hasVisibleHtml(lessonDesc) && (
                             <p
-                              className="text-sm text-gray-500 line-clamp-1 mt-1"
+                              className="text-sm text-gray-800 dark:text-gray-200 line-clamp-2 mt-1"
                               dangerouslySetInnerHTML={{
                                 __html: sanitizeHtml(lessonDesc).substring(0, 100),
                               }}

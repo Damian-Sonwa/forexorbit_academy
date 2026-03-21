@@ -9,6 +9,14 @@ import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
 // import { ObjectId } from 'mongodb'; // Reserved for future use
 
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '16mb',
+    },
+  },
+};
+
 // GET all courses
 async function getCourses(req: AuthRequest, res: NextApiResponse) {
   try {
