@@ -1,5 +1,6 @@
 /**
- * One-time: persist visual-aids removal in MongoDB (empty screenshots + strip img/figure from overview/summary/content).
+ * Optional: persist placeholder cleanup in MongoDB (empty screenshots + remove "Visual aids" heading/paragraph only).
+ * Does not strip images — re-run after changing strip rules if needed.
  * Usage: MONGO_URI="..." node scripts/purge-visual-aids-from-db.js
  */
 const { MongoClient } = require('mongodb');
@@ -9,13 +10,6 @@ const VISUAL_AIDS_LABEL = 'visual\\s*aid[s]?';
 function stripVisualAidsPlaceholderHtml(html) {
   if (!html || typeof html !== 'string') return '';
   let s = html;
-  s = s.replace(
-    new RegExp(
-      `<h([1-6])[^>]*>\\s*${VISUAL_AIDS_LABEL}\\s*</h\\1>\\s*(?:<figure[^>]*>[\\s\\S]*?</figure>|<img\\b[^>]*>(?:\\s*<img\\b[^>]*>)*)`,
-      'gi'
-    ),
-    ''
-  );
   s = s.replace(new RegExp(`<h([1-6])[^>]*>\\s*${VISUAL_AIDS_LABEL}\\s*</h\\1>`, 'gi'), '');
   s = s.replace(
     new RegExp(
@@ -28,14 +22,6 @@ function stripVisualAidsPlaceholderHtml(html) {
   return s;
 }
 
-function stripLegacyVisualAidMediaFromHtml(html) {
-  if (!html || typeof html !== 'string') return '';
-  let s = stripVisualAidsPlaceholderHtml(html);
-  s = s.replace(/<figure[^>]*>[\s\S]*?<\/figure>/gi, '');
-  s = s.replace(/<img\b[^>]*\/?>/gi, '');
-  return s;
-}
-
 function transformLesson(doc) {
   const out = { ...doc };
   if (typeof out.description === 'string') {
@@ -45,15 +31,15 @@ function transformLesson(doc) {
     out.summary = stripVisualAidsPlaceholderHtml(out.summary);
   }
   if (typeof out.content === 'string') {
-    out.content = stripLegacyVisualAidMediaFromHtml(out.content);
+    out.content = stripVisualAidsPlaceholderHtml(out.content);
   }
   if (out.lessonSummary && typeof out.lessonSummary === 'object') {
     const ls = { ...out.lessonSummary };
     if (typeof ls.overview === 'string') {
-      ls.overview = stripLegacyVisualAidMediaFromHtml(ls.overview);
+      ls.overview = stripVisualAidsPlaceholderHtml(ls.overview);
     }
     if (typeof ls.summary === 'string') {
-      ls.summary = stripLegacyVisualAidMediaFromHtml(ls.summary);
+      ls.summary = stripVisualAidsPlaceholderHtml(ls.summary);
     }
     ls.screenshots = [];
     out.lessonSummary = ls;
