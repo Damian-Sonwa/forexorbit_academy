@@ -24,6 +24,8 @@ export default function CourseCard({ course, onEnroll, onUnenroll }: CourseCardP
     advanced: 'bg-red-100 text-red-800',
   };
 
+  const descriptionPlain = stripHtml(sanitizeForStudentView(course.description || ''));
+
   return (
     <div className="group bg-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden border border-gray-200 flex flex-col h-full">
       {/* No course hero image — avoids empty placeholder; details stay below */}
