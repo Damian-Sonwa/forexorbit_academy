@@ -56,7 +56,7 @@ export default function InstructorLessons() {
   const [courseLessons, setCourseLessons] = useState<Lesson[]>([]);
   const [editingLesson, setEditingLesson] = useState<string | null>(null);
   const [editingCourse, setEditingCourse] = useState<string | null>(null);
-  const [lessonForm, setLessonForm] = useState<Partial<Lesson> & { visualAids?: Array<{ url: string; caption?: string }> }>({});
+  const [lessonForm, setLessonForm] = useState<Partial<Lesson>>({});
   const [courseForm, setCourseForm] = useState<Partial<Course>>({});
   const [showLessonForm, setShowLessonForm] = useState(false);
   const [showCourseForm, setShowCourseForm] = useState(false);
@@ -203,7 +203,6 @@ export default function InstructorLessons() {
       order: existingLesson.order ?? lesson.order,
       content: bodyHtml,
       resources: existingLesson.resources || lesson.resources || [],
-      visualAids: existingLesson.lessonSummary?.screenshots || [],
     });
     setShowLessonForm(true);
   };
@@ -215,16 +214,6 @@ export default function InstructorLessons() {
       setLoading(true);
       const existingLesson = await apiClient.get(`/lessons/${editingLesson}`);
       const existingLessonSummary = (existingLesson as any).lessonSummary || {};
-      const allVisualAids = (lessonForm as any).visualAids || [];
-      const validVisualAids = allVisualAids
-        .filter((aid: any) => {
-          const url = aid.url?.trim() || '';
-          return url !== '' && (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:image/'));
-        })
-        .map((aid: any) => ({
-          url: aid.url?.trim() || '',
-          caption: aid.caption?.trim() || '',
-        }));
 
       const payload: Record<string, unknown> = {
         title: lessonForm.title,
@@ -239,7 +228,7 @@ export default function InstructorLessons() {
         lessonSummary: {
           ...existingLessonSummary,
           overview: lessonForm.content ?? existingLessonSummary.overview ?? '',
-          screenshots: validVisualAids.length > 0 ? validVisualAids : existingLessonSummary.screenshots || [],
+          screenshots: [],
           updatedAt: new Date(),
         },
       };
@@ -264,16 +253,6 @@ export default function InstructorLessons() {
     if (!selectedCourse) return;
     try {
       setLoading(true);
-      const allVisualAids = (lessonForm as any).visualAids || [];
-      const validVisualAids = allVisualAids
-        .filter((aid: any) => {
-          const url = aid.url?.trim() || '';
-          return url !== '' && (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:image/'));
-        })
-        .map((aid: any) => ({
-          url: aid.url?.trim() || '',
-          caption: aid.caption?.trim() || '',
-        }));
 
       const lessonData: Record<string, unknown> = {
         title: lessonForm.title,
@@ -287,10 +266,10 @@ export default function InstructorLessons() {
         courseId: selectedCourse,
       };
 
-      if (lessonForm.content || validVisualAids.length > 0) {
+      if (lessonForm.content) {
         lessonData.lessonSummary = {
           overview: lessonForm.content || '',
-          screenshots: validVisualAids,
+          screenshots: [],
           updatedAt: new Date(),
         };
       }
@@ -340,41 +319,6 @@ export default function InstructorLessons() {
     const updated = [...resources];
     (updated[index] as any)[field] = value;
     setLessonForm({ ...lessonForm, resources: updated });
-  };
-
-  const addVisualAid = () => {
-    const visualAids = lessonForm.visualAids || [];
-    setLessonForm({
-      ...lessonForm,
-      visualAids: [...visualAids, { url: '', caption: '' }],
-    });
-  };
-
-  const removeVisualAid = (index: number) => {
-    const visualAids = lessonForm.visualAids || [];
-    setLessonForm({
-      ...lessonForm,
-      visualAids: visualAids.filter((_, i) => i !== index),
-    });
-  };
-
-  const updateVisualAid = (index: number, field: string, value: string) => {
-    const visualAids = lessonForm.visualAids || [];
-    const updated = [...visualAids];
-    (updated[index] as any)[field] = value;
-    setLessonForm({ ...lessonForm, visualAids: updated });
-  };
-
-  const handleImageUpload = async (index: number, file: File) => {
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('type', 'visual-aid');
-      const response = await apiClient.post<{ url: string }>('/upload/visual-aid', formData);
-      updateVisualAid(index, 'url', response.url);
-    } catch (error: any) {
-      alert(error.message || 'Failed to upload image');
-    }
   };
 
   if (authLoading) {
@@ -807,123 +751,6 @@ export default function InstructorLessons() {
                           ))}
                         </div>
 
-                        {/* Visual Aids Section */}
-                        <div>
-                          <div className="flex items-center justify-between mb-2">
-                            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300">Visual Aids (Charts & Screenshots)</label>
-                            <button
-                              type="button"
-                              onClick={addVisualAid}
-                              className="text-sm text-primary-600 dark:text-primary-400 hover:underline"
-                            >
-                              + Add Visual Aid
-                            </button>
-                          </div>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
-                            Upload images, paste image URLs, or paste images directly from clipboard (Ctrl+V / Cmd+V). These will appear in the Visual Aids section for students.
-                          </p>
-                          <div className="space-y-3">
-                            {(lessonForm.visualAids || []).map((aid, index) => (
-                              <div 
-                                key={index} 
-                                className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 space-y-2"
-                                onPaste={async (e) => {
-                                  e.preventDefault();
-                                  const items = e.clipboardData.items;
-                                  for (let i = 0; i < items.length; i++) {
-                                    if (items[i].type.indexOf('image') !== -1) {
-                                      const blob = items[i].getAsFile();
-                                      if (blob) {
-                                        const file = new File([blob], `pasted-image-${Date.now()}.png`, { type: 'image/png' });
-                                        await handleImageUpload(index, file);
-                                      }
-                                      break;
-                                    }
-                                  }
-                                }}
-                              >
-                                <div className="flex gap-2">
-                                  <div className="flex-shrink-0">
-                                    <input
-                                      type="file"
-                                      accept="image/*"
-                                      onChange={(e) => {
-                                        const file = e.target.files?.[0];
-                                        if (file) handleImageUpload(index, file);
-                                      }}
-                                      className="hidden"
-                                      id={`visual-aid-upload-${index}`}
-                                    />
-                                    <label
-                                      htmlFor={`visual-aid-upload-${index}`}
-                                      className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm"
-                                    >
-                                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                      </svg>
-                                      Upload
-                                    </label>
-                                  </div>
-                                  
-                                  {!aid.url && (
-                                    <input
-                                      type="url"
-                                      value={aid.url || ''}
-                                      onChange={(e) => updateVisualAid(index, 'url', e.target.value)}
-                                      onPaste={(e) => {
-                                        const pastedText = e.clipboardData.getData('text');
-                                        if (pastedText.startsWith('http://') || pastedText.startsWith('https://') || pastedText.startsWith('data:image/')) {
-                                          updateVisualAid(index, 'url', pastedText);
-                                        }
-                                      }}
-                                      placeholder="Paste image URL here or click in this area and paste an image (Ctrl+V / Cmd+V)"
-                                      className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg text-sm focus:ring-2 focus:ring-primary-500"
-                                    />
-                                  )}
-                                  
-                                  {aid.url && (
-                                    <div className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-lg text-sm flex items-center">
-                                      <svg className="w-4 h-4 mr-2 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                      </svg>
-                                      <span className="truncate" title={aid.url}>Image uploaded</span>
-                                      <button
-                                        type="button"
-                                        onClick={() => updateVisualAid(index, 'url', '')}
-                                        className="ml-2 text-gray-400 hover:text-red-600 dark:hover:text-red-400"
-                                        title="Remove image"
-                                      >
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                        </svg>
-                                      </button>
-                                    </div>
-                                  )}
-                                  
-                                  <button
-                                    type="button"
-                                    onClick={() => removeVisualAid(index)}
-                                    className="px-3 py-2 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-lg text-sm hover:bg-red-200 dark:hover:bg-red-900/50"
-                                  >
-                                    Remove
-                                  </button>
-                                </div>
-                                
-                                {aid.url && (
-                                  <div className="mt-2">
-                                    <img
-                                      src={aid.url}
-                                      alt={`Visual aid ${index + 1}`}
-                                      className="max-w-full h-auto rounded-lg border border-gray-200 dark:border-gray-700"
-                                      style={{ maxHeight: '200px' }}
-                                    />
-                                  </div>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-
                         <div className="flex gap-2">
                           <button
                             type="submit"
@@ -991,15 +818,6 @@ export default function InstructorLessons() {
                                     className="px-3 py-1 bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-400 rounded text-sm font-semibold hover:bg-primary-200 dark:hover:bg-primary-900/50"
                                   >
                                     Edit
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      window.open(`/courses/${selectedCourse}/lessons/${lesson._id}`, '_blank');
-                                    }}
-                                    className="px-3 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 rounded text-sm font-semibold hover:bg-purple-200 dark:hover:bg-purple-900/50"
-                                    title="Edit Visual Aids"
-                                  >
-                                    Visual Aids
                                   </button>
                                   <button
                                     onClick={() => handleDeleteLesson(lesson._id)}

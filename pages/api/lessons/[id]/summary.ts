@@ -34,6 +34,7 @@ async function updateLessonSummary(req: AuthRequest, res: NextApiResponse) {
     const mergedSummary = {
       ...existingSummary,
       ...lessonSummary,
+      screenshots: [],
       updatedAt: new Date(),
     };
 

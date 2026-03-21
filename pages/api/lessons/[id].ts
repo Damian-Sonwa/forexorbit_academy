@@ -79,6 +79,11 @@ async function getLesson(req: AuthRequest, res: NextApiResponse) {
       lesson.completed = userProgress?.completedLessons?.includes(id as string) || false;
     }
 
+    // Visual aids (lessonSummary.screenshots) removed — never expose stored screenshots
+    if (lesson.lessonSummary && typeof lesson.lessonSummary === 'object') {
+      (lesson.lessonSummary as Record<string, unknown>).screenshots = [];
+    }
+
     res.json(lesson);
   } catch (error: any) {
     console.error('Get lesson error:', error);
@@ -120,6 +125,7 @@ async function updateLesson(req: AuthRequest, res: NextApiResponse) {
       updateData.lessonSummary = {
         ...existingLessonSummary,
         ...req.body.lessonSummary,
+        screenshots: [],
         updatedAt: new Date(),
       };
     }
@@ -130,6 +136,7 @@ async function updateLesson(req: AuthRequest, res: NextApiResponse) {
         ...existingLessonSummary,
         ...(updateData.lessonSummary || {}),
         overview: req.body.content,
+        screenshots: [],
         updatedAt: new Date(),
       };
     }
