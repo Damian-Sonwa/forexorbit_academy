@@ -17,7 +17,7 @@ import { apiClient } from '@/lib/api-client';
 // import { useCourse } from '@/hooks/useCourses'; // Reserved for future use
 import { useSocket } from '@/hooks/useSocket';
 import { useAuth } from '@/hooks/useAuth';
-import LessonSummaryView from '@/components/LessonSummaryView';
+import LessonSummaryView, { hasLessonVisualAids } from '@/components/LessonSummaryView';
 import LessonSummaryEditor from '@/components/LessonSummaryEditor';
 import InstructorLessonEditor from '@/components/InstructorLessonEditor';
 import { sanitizeHtml } from '@/lib/html-sanitizer';
@@ -207,33 +207,34 @@ export default function LessonPage() {
             </div>
           )}
 
-          {/* Visual Aids */}
-          <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 mb-4">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-3 gap-3">
-              <div className="flex-1">
-                <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1">Visual Aids</h2>
-                <p className="text-gray-600 text-xs sm:text-sm">Charts, screenshots, resources, and visual materials for this lesson</p>
+          {/* Visual Aids — shown to students only when content exists; instructors always see the block to edit */}
+          {(user?.role === 'instructor' || hasLessonVisualAids(displayLesson as any)) && (
+            <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 mb-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-3 gap-3">
+                <div className="flex-1">
+                  <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1">Visual Aids</h2>
+                  <p className="text-gray-600 text-xs sm:text-sm">Charts, screenshots, resources, and visual materials for this lesson</p>
+                </div>
+                {user?.role === 'instructor' && (
+                  <button
+                    onClick={() => setShowSummaryEditor(!showSummaryEditor)}
+                    className="w-full sm:w-auto px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold text-sm transition-colors"
+                  >
+                    {showSummaryEditor ? 'Cancel' : 'Edit Visual Aids'}
+                  </button>
+                )}
               </div>
-              {user?.role === 'instructor' && (
-                <button
-                  onClick={() => setShowSummaryEditor(!showSummaryEditor)}
-                  className="w-full sm:w-auto px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold text-sm transition-colors"
-                >
-                  {showSummaryEditor ? 'Cancel' : 'Edit Visual Aids'}
-                </button>
-              )}
+
+              {user?.role === 'instructor' && showSummaryEditor && (currentLesson || lesson) ? (
+                <LessonSummaryEditor lessonId={lessonId as string} lesson={currentLesson || lesson!} onSave={() => {
+                  setShowSummaryEditor(false);
+                  router.replace(router.asPath);
+                }} />
+              ) : (currentLesson || lesson) ? (
+                <LessonSummaryView lesson={currentLesson || lesson!} />
+              ) : null}
             </div>
-            
-            {user?.role === 'instructor' && showSummaryEditor && (currentLesson || lesson) ? (
-              <LessonSummaryEditor lessonId={lessonId as string} lesson={currentLesson || lesson!} onSave={() => {
-                setShowSummaryEditor(false);
-                // Refetch lesson data to show updated summary
-                router.replace(router.asPath);
-              }} />
-            ) : (currentLesson || lesson) ? (
-              <LessonSummaryView lesson={currentLesson || lesson!} />
-            ) : null}
-          </div>
+          )}
 
           {/* Lesson Resources */}
           {((displayLesson as any).resources && (displayLesson as any).resources.length > 0) && (

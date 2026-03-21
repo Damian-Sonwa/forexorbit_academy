@@ -23,20 +23,16 @@ interface LessonSummaryViewProps {
   lesson: Lesson;
 }
 
-export default function LessonSummaryView({ lesson }: LessonSummaryViewProps) {
-  // Check both lessonSummary and summary fields for backward compatibility
-  // Priority: lessonSummary.overview > summary field > lessonSummary object
-  const summary = lesson.lessonSummary?.overview 
-    ? lesson.lessonSummary 
-    : (lesson as any).summary 
-    ? { overview: (lesson as any).summary, updatedAt: lesson.lessonSummary?.updatedAt } 
-    : lesson.lessonSummary;
+function computeLessonVisualSummary(lesson: Lesson) {
+  const summary = lesson.lessonSummary?.overview
+    ? lesson.lessonSummary
+    : (lesson as any).summary
+      ? { overview: (lesson as any).summary, updatedAt: lesson.lessonSummary?.updatedAt }
+      : lesson.lessonSummary;
 
-  // Also check for resources directly on lesson object (from instructor dashboard)
   const lessonResources = (lesson as any).resources || [];
-  const summaryResources = (summary && 'resources' in summary) ? (summary.resources || []) : [];
-  
-  // Combine resources from both locations, converting format if needed
+  const summaryResources = summary && 'resources' in summary ? summary.resources || [] : [];
+
   const allResources = [
     ...summaryResources.map((r: any) => ({
       name: r.name || r.title || 'Resource',
@@ -50,32 +46,37 @@ export default function LessonSummaryView({ lesson }: LessonSummaryViewProps) {
     })),
   ];
 
-  // Get screenshots from lessonSummary or directly from lesson - prioritize lesson.lessonSummary.screenshots
-  const screenshots = (lesson.lessonSummary?.screenshots || (summary && 'screenshots' in summary ? summary.screenshots : undefined) || []) as Array<{ url: string; caption?: string }>;
+  const screenshots = (lesson.lessonSummary?.screenshots ||
+    (summary && 'screenshots' in summary ? summary.screenshots : undefined) ||
+    []) as Array<{ url: string; caption?: string }>;
 
-  // Update summary to include combined resources and screenshots
-  const enrichedSummary = summary ? {
-    ...summary,
-    resources: allResources.length > 0 ? allResources : ('resources' in summary ? summary.resources : []),
-    screenshots: screenshots.length > 0 ? screenshots : ('screenshots' in summary ? summary.screenshots : []),
-  } : null;
+  const enrichedSummary = summary
+    ? {
+        ...summary,
+        resources: allResources.length > 0 ? allResources : 'resources' in summary ? summary.resources : [],
+        screenshots: screenshots.length > 0 ? screenshots : 'screenshots' in summary ? summary.screenshots : [],
+      }
+    : null;
 
-  // Check if there's any visual content (excluding overview which is now in content section and resources which are in Lesson Resources section)
-  const hasVisualContent = (enrichedSummary && 'keyPoints' in enrichedSummary && enrichedSummary.keyPoints && enrichedSummary.keyPoints.length > 0) ||
-    (enrichedSummary && 'tradingNotes' in enrichedSummary && enrichedSummary.tradingNotes) ||
-    (screenshots && screenshots.length > 0);
+  const hasVisualContent = Boolean(
+    (enrichedSummary && 'keyPoints' in enrichedSummary && enrichedSummary.keyPoints && enrichedSummary.keyPoints.length > 0) ||
+      (enrichedSummary && 'tradingNotes' in enrichedSummary && enrichedSummary.tradingNotes) ||
+      (screenshots && screenshots.length > 0)
+  );
 
-  // Show component if there's visual content OR if there are screenshots
-  if (!hasVisualContent && screenshots.length === 0) {
-    return (
-      <div className="text-center py-12 text-gray-500">
-        <svg className="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-        </svg>
-        <p className="text-lg font-medium">No visual aids available yet</p>
-        <p className="text-sm mt-1">The instructor will add charts, graphs, and resources soon</p>
-      </div>
-    );
+  return { enrichedSummary, screenshots, hasVisualContent };
+}
+
+/** True when the lesson has key points, trading notes, or screenshot visual aids (used to hide empty sections). */
+export function hasLessonVisualAids(lesson: Lesson): boolean {
+  return computeLessonVisualSummary(lesson).hasVisualContent;
+}
+
+export default function LessonSummaryView({ lesson }: LessonSummaryViewProps) {
+  const { enrichedSummary, screenshots, hasVisualContent } = computeLessonVisualSummary(lesson);
+
+  if (!hasVisualContent) {
+    return null;
   }
 
   return (
