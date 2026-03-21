@@ -26,7 +26,13 @@ export function stripVisualAidsPlaceholderHtml(html: string): string {
     ''
   );
 
-  return s;
+  // Drop trailing empty paragraphs often left after removing the "Visual aids" heading (Quill markup).
+  s = s.replace(
+    /(?:<p[^>]*>\s*(?:<br\s*\/?>|&nbsp;|\u00a0|\s)*<\/p>\s*)+$/gi,
+    ''
+  );
+
+  return s.trim();
 }
 
 /** Strip legacy visual-aids HTML from lesson-shaped API objects before JSON response. */

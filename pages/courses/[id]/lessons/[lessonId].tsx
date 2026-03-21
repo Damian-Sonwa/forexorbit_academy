@@ -18,7 +18,7 @@ import { apiClient } from '@/lib/api-client';
 import { useSocket } from '@/hooks/useSocket';
 import { useAuth } from '@/hooks/useAuth';
 import InstructorLessonEditor from '@/components/InstructorLessonEditor';
-import { sanitizeHtml } from '@/lib/html-sanitizer';
+import { sanitizeForStudentView } from '@/lib/html-sanitizer';
 import { getLessonDescriptionHtml, hasVisibleHtml } from '@/lib/lesson-html';
 import { useState, useEffect } from 'react';
 
@@ -32,7 +32,6 @@ export default function LessonPage() {
   const { updateProgress, joinLesson, leaveLesson, socket, connected } = useSocket();
   const { user } = useAuth();
   const [showQuiz, setShowQuiz] = useState(false);
-  const [showSummaryEditor, setShowSummaryEditor] = useState(false);
   const [showContentEditor, setShowContentEditor] = useState(false);
   const [currentLesson, setCurrentLesson] = useState(lesson);
 
@@ -102,6 +101,18 @@ export default function LessonPage() {
   }
 
   const lessonDescriptionHtml = getLessonDescriptionHtml(displayLesson as any);
+  const lessonDescStudent = sanitizeForStudentView(lessonDescriptionHtml);
+
+  const lessonBodyRaw =
+    String(
+      (currentLesson as any)?.content ||
+        (displayLesson as any).content ||
+        (currentLesson as any)?.lessonSummary?.overview ||
+        (displayLesson as any).lessonSummary?.overview ||
+        (displayLesson as any).summary ||
+        ''
+    ) || '';
+  const lessonBodyStudent = sanitizeForStudentView(lessonBodyRaw);
 
   // Find current lesson index
   const currentIndex = lessons.findIndex((l) => (l._id || l.id) === (displayLesson._id || displayLesson.id));
@@ -129,7 +140,7 @@ export default function LessonPage() {
             <div className="mb-2">
               <BackButton href={`/courses/${courseId}`} label="Back to Course" />
             </div>
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-display font-bold text-gray-900 mb-2 break-words" dangerouslySetInnerHTML={{ __html: sanitizeHtml(displayLesson.title) }} />
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-display font-bold text-gray-900 mb-2 break-words" dangerouslySetInnerHTML={{ __html: sanitizeForStudentView(displayLesson.title) }} />
           </div>
 
           {/* Video Player - Display YouTube videos and other video URLs */}
@@ -140,11 +151,11 @@ export default function LessonPage() {
           )}
 
           {/* Lesson Description (description field; legacy fallback: summary) */}
-          {hasVisibleHtml(lessonDescriptionHtml) && (
+          {hasVisibleHtml(lessonDescStudent) && (
             <div className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-4 sm:p-6 mb-4">
               <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-3">Lesson Description</h2>
               <div className="rich-html-readable text-base leading-relaxed">
-                <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(lessonDescriptionHtml) }} />
+                <div dangerouslySetInnerHTML={{ __html: lessonDescStudent }} />
               </div>
             </div>
           )}
@@ -183,24 +194,11 @@ export default function LessonPage() {
           )}
 
           {/* Lesson Content - Summary (stored in `content`; legacy: lessonSummary.overview / summary) */}
-          {((displayLesson as any).content ||
-            (displayLesson as any).lessonSummary?.overview ||
-            (displayLesson as any).summary ||
-            (currentLesson as any)?.lessonSummary?.overview) && (
+          {hasVisibleHtml(lessonBodyStudent) && (
             <div className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-4 sm:p-6 mb-4">
               <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-3">Lesson Content</h2>
               <div className="rich-html-readable text-base leading-relaxed">
-                <div
-                  dangerouslySetInnerHTML={{
-                    __html: sanitizeHtml(
-                      (currentLesson as any)?.content ||
-                        (displayLesson as any).content ||
-                        (currentLesson as any)?.lessonSummary?.overview ||
-                        (displayLesson as any).lessonSummary?.overview ||
-                        (displayLesson as any).summary
-                    ),
-                  }}
-                />
+                <div dangerouslySetInnerHTML={{ __html: lessonBodyStudent }} />
               </div>
             </div>
           )}

@@ -14,7 +14,7 @@ import { useSocket } from '@/hooks/useSocket';
 import { useAuth } from '@/hooks/useAuth';
 import { useState, useEffect } from 'react';
 import { apiClient } from '@/lib/api-client';
-import { sanitizeHtml, stripHtml } from '@/lib/html-sanitizer';
+import { sanitizeForStudentView, stripHtml } from '@/lib/html-sanitizer';
 import { getLessonDescriptionHtml, hasVisibleHtml } from '@/lib/lesson-html';
 
 export default function CourseDetailPage() {
@@ -120,9 +120,9 @@ export default function CourseDetailPage() {
                 </div>
               </div>
 
-              {course.description && (
+              {course.description && hasVisibleHtml(sanitizeForStudentView(course.description)) && (
                 <div className="rich-html-readable text-base leading-relaxed mb-4">
-                  <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(course.description) }} />
+                  <div dangerouslySetInnerHTML={{ __html: sanitizeForStudentView(course.description) }} />
                 </div>
               )}
 
@@ -150,7 +150,8 @@ export default function CourseDetailPage() {
                 <div className="space-y-3">
                   {course.lessons.map((lesson: any, index: number) => {
                     const lessonDesc = getLessonDescriptionHtml(lesson);
-                    const previewPlain = stripHtml(sanitizeHtml(lessonDesc)).replace(/\s+/g, ' ').trim();
+                    const lessonDescStudent = sanitizeForStudentView(lessonDesc);
+                    const previewPlain = stripHtml(lessonDescStudent).replace(/\s+/g, ' ').trim();
                     return (
                     <Link
                       key={lesson._id || lesson.id}
@@ -162,8 +163,8 @@ export default function CourseDetailPage() {
                           {index + 1}
                         </div>
                         <div className="flex-1">
-                          <h3 className="font-semibold text-gray-900 group-hover:text-primary-600 transition-colors" dangerouslySetInnerHTML={{ __html: sanitizeHtml(lesson.title) }} />
-                          {hasVisibleHtml(lessonDesc) && previewPlain && (
+                          <h3 className="font-semibold text-gray-900 group-hover:text-primary-600 transition-colors" dangerouslySetInnerHTML={{ __html: sanitizeForStudentView(lesson.title) }} />
+                          {hasVisibleHtml(lessonDescStudent) && previewPlain && (
                             <p className="text-sm text-gray-800 dark:text-gray-200 line-clamp-2 mt-1">
                               {previewPlain.length > 200 ? `${previewPlain.slice(0, 200)}…` : previewPlain}
                             </p>

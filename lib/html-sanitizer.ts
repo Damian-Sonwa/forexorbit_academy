@@ -53,8 +53,6 @@ export function sanitizeHtml(
     return '';
   }
 
-  html = stripVisualAidsPlaceholderHtml(html);
-
   const allowedTags = options.allowedTags || DEFAULT_ALLOWED_TAGS;
   const allowedAttributes = options.allowedAttributes || DEFAULT_ALLOWED_ATTRIBUTES;
 
@@ -81,6 +79,21 @@ export function sanitizeHtml(
     allowedTags,
     allowedAttributes as Record<string, string[]>
   );
+}
+
+/**
+ * Student-facing HTML: XSS sanitization plus removal of legacy "Visual aids" section labels.
+ * Use for course/lesson display; keep `sanitizeHtml` for instructor previews and generic fields
+ * so editor/source parity is unchanged outside student views.
+ */
+export function sanitizeForStudentView(
+  html: string,
+  options: SanitizeOptions = {}
+): string {
+  if (!html || typeof html !== 'string') {
+    return '';
+  }
+  return sanitizeHtml(stripVisualAidsPlaceholderHtml(html), options);
 }
 
 /**

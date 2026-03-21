@@ -17,7 +17,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useProgress } from '@/hooks/useProgress';
 import { useCourses } from '@/hooks/useCourses';
 import { apiClient } from '@/lib/api-client';
-import { sanitizeHtml } from '@/lib/html-sanitizer';
+import { sanitizeForStudentView, stripHtml } from '@/lib/html-sanitizer';
 
 
 interface UpcomingLesson {
@@ -328,7 +328,7 @@ export default function Dashboard() {
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
-                        <h3 className="font-semibold text-gray-900 mb-1" dangerouslySetInnerHTML={{ __html: sanitizeHtml(lesson.lessonTitle) }} />
+                        <h3 className="font-semibold text-gray-900 mb-1" dangerouslySetInnerHTML={{ __html: sanitizeForStudentView(lesson.lessonTitle) }} />
                         <p className="text-sm text-gray-600 mb-2">{lesson.courseTitle}</p>
                         <div className="w-full bg-gray-200 rounded-full h-2">
                           <div
@@ -366,8 +366,10 @@ export default function Dashboard() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                 {recommendedCourses.map((course) => (
                   <div key={course._id || course.id} className="bg-gray-50 rounded-xl p-6 border border-gray-200 hover:shadow-lg transition-shadow flex flex-col h-full">
-                    <h3 className="font-bold text-gray-900 mb-2" dangerouslySetInnerHTML={{ __html: sanitizeHtml(course.title) }} />
-                    <p className="text-sm text-gray-600 mb-4 line-clamp-2 flex-grow">{course.description}</p>
+                    <h3 className="font-bold text-gray-900 mb-2" dangerouslySetInnerHTML={{ __html: sanitizeForStudentView(course.title) }} />
+                    <p className="text-sm text-gray-600 mb-4 line-clamp-2 flex-grow">
+                      {stripHtml(sanitizeForStudentView(course.description || ''))}
+                    </p>
                     <Link
                       href={`/courses/${course._id || course.id}`}
                       className="inline-block px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold text-sm transition-colors self-start"
