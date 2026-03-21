@@ -9,6 +9,8 @@
 
 import {
   stripVisualAidsPlaceholderHtml,
+  stripVisualAidsSectionFromHtml,
+  stripVisualAidLegacyContainers,
   stripVisualAidMediaFromHtml,
 } from '@/lib/strip-visual-aids-html';
 
@@ -97,7 +99,9 @@ export function sanitizeForStudentView(
     return '';
   }
   const withoutVisualAidMedia = stripVisualAidMediaFromHtml(
-    stripVisualAidsPlaceholderHtml(html)
+    stripVisualAidLegacyContainers(
+      stripVisualAidsPlaceholderHtml(stripVisualAidsSectionFromHtml(html))
+    )
   );
   return sanitizeHtml(withoutVisualAidMedia, options);
 }
@@ -220,7 +224,11 @@ function escapeHtml(text: string): string {
  */
 export function stripHtml(html: string): string {
   if (!html) return '';
-  const cleaned = stripVisualAidsPlaceholderHtml(html);
+  const cleaned = stripVisualAidMediaFromHtml(
+    stripVisualAidLegacyContainers(
+      stripVisualAidsPlaceholderHtml(stripVisualAidsSectionFromHtml(html))
+    )
+  );
   return cleaned.replace(/<[^>]*>/g, '').trim();
 }
 

@@ -5,6 +5,32 @@
 
 const VISUAL_AIDS_LABEL = 'visual\\s*aid[s]?';
 
+/**
+ * Removes the full "Visual aids" subsection: any heading whose text includes that phrase,
+ * plus everything after it until the next heading (or end of HTML). Handles Quill markup
+ * like <h2><strong>Visual aids</strong></h2> followed by images/paragraphs.
+ */
+export function stripVisualAidsSectionFromHtml(html: string): string {
+  if (!html || typeof html !== 'string') return '';
+
+  let s = html;
+  const blockUntilNextHeading =
+    /<h([1-6])[^>]*>[\s\S]*?visual\s*aid[s]?[\s\S]*?<\/h\1>[\s\S]*?(?=<h[1-6]\b)/gi;
+
+  for (let i = 0; i < 24; i++) {
+    const next = s.replace(blockUntilNextHeading, '');
+    if (next === s) break;
+    s = next;
+  }
+
+  s = s.replace(
+    /<h([1-6])[^>]*>[\s\S]*?visual\s*aid[s]?[\s\S]*?<\/h\1>[\s\S]*$/gi,
+    ''
+  );
+
+  return s.trim();
+}
+
 /** Cloudinary folder is `forexorbit/visual-aids` — URLs always include `visual-aids` in the path. */
 function tagReferencesVisualAidUpload(tag: string): boolean {
   return /visual[-_/]aids/i.test(tag) || /forexorbit%2Fvisual/i.test(tag);
@@ -36,6 +62,26 @@ export function stripVisualAidsPlaceholderHtml(html: string): string {
     /(?:<p[^>]*>\s*(?:<br\s*\/?>|&nbsp;|\u00a0|\s)*<\/p>\s*)+$/gi,
     ''
   );
+
+  return s.trim();
+}
+
+/**
+ * Removes wrapper blocks (legacy TinyMCE / custom) whose class/id marks a "visual aids" region.
+ * Prevents bordered/card-like HTML from rendering on student dashboard and course views.
+ */
+export function stripVisualAidLegacyContainers(html: string): string {
+  if (!html || typeof html !== 'string') return '';
+
+  let s = html;
+  const re =
+    /<(div|section)\b[^>]*\b(?:class|id)\s*=\s*["'][^"']*(?:visual[\w-]*aid|visualaid|mce-visual|lesson-visual)[^"']*["'][^>]*>[\s\S]*?<\/\1>/gi;
+
+  for (let i = 0; i < 12; i++) {
+    const next = s.replace(re, '');
+    if (next === s) break;
+    s = next;
+  }
 
   return s.trim();
 }

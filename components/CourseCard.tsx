@@ -6,7 +6,7 @@
 import Link from 'next/link';
 import { Course } from '@/hooks/useCourses';
 import { useAuth } from '@/hooks/useAuth';
-import { stripHtml } from '@/lib/html-sanitizer';
+import { sanitizeForStudentView, stripHtml } from '@/lib/html-sanitizer';
 
 interface CourseCardProps {
   course: Course;
@@ -37,7 +37,9 @@ export default function CourseCard({ course, onEnroll, onUnenroll }: CourseCardP
           </span>
         </div>
 
-        <p className="text-gray-600 text-sm mb-4 line-clamp-3 flex-grow">{stripHtml(course.description || '')}</p>
+        {descriptionPlain ? (
+          <p className="text-gray-600 text-sm mb-4 line-clamp-3 flex-grow">{descriptionPlain}</p>
+        ) : null}
 
         <div className="flex items-center justify-between mb-4 text-xs text-gray-500">
           <span className="flex items-center">
