@@ -7,13 +7,7 @@
 // DOMPurify-like sanitizer for server and client-side use
 // This is a simplified version - for production, consider using the full DOMPurify library
 
-import {
-  stripVisualAidsPlaceholderHtml,
-  stripVisualAidsSectionFromHtml,
-  stripVisualAidsDatabasePlaceholders,
-  stripVisualAidLegacyContainers,
-  stripVisualAidMediaFromHtml,
-} from '@/lib/strip-visual-aids-html';
+import { stripVisualAidsForStudentHtml } from '@/lib/strip-visual-aids-html';
 
 interface SanitizeOptions {
   allowedTags?: string[];
@@ -99,14 +93,7 @@ export function sanitizeForStudentView(
   if (!html || typeof html !== 'string') {
     return '';
   }
-  const withoutVisualAidMedia = stripVisualAidMediaFromHtml(
-    stripVisualAidLegacyContainers(
-      stripVisualAidsPlaceholderHtml(
-        stripVisualAidsDatabasePlaceholders(stripVisualAidsSectionFromHtml(html))
-      )
-    )
-  );
-  return sanitizeHtml(withoutVisualAidMedia, options);
+  return sanitizeHtml(stripVisualAidsForStudentHtml(html), options);
 }
 
 /**
@@ -227,14 +214,7 @@ function escapeHtml(text: string): string {
  */
 export function stripHtml(html: string): string {
   if (!html) return '';
-  const cleaned = stripVisualAidMediaFromHtml(
-    stripVisualAidLegacyContainers(
-      stripVisualAidsPlaceholderHtml(
-        stripVisualAidsDatabasePlaceholders(stripVisualAidsSectionFromHtml(html))
-      )
-    )
-  );
-  return cleaned.replace(/<[^>]*>/g, '').trim();
+  return stripVisualAidsForStudentHtml(html).replace(/<[^>]*>/g, '').trim();
 }
 
 export default sanitizeHtml;

@@ -155,19 +155,35 @@ export function stripVisualAidMediaFromHtml(html: string): string {
   return s.trim();
 }
 
+/**
+ * Full visual-aids removal pipeline (everything except XSS sanitization).
+ * Used by API responses so production always returns cleaned HTML even if the browser
+ * caches an older JS bundle; mirrors what `sanitizeForStudentView` applies before `sanitizeHtml`.
+ */
+export function stripVisualAidsForStudentHtml(html: string): string {
+  if (!html || typeof html !== 'string') return '';
+  return stripVisualAidMediaFromHtml(
+    stripVisualAidLegacyContainers(
+      stripVisualAidsPlaceholderHtml(
+        stripVisualAidsDatabasePlaceholders(stripVisualAidsSectionFromHtml(html))
+      )
+    )
+  );
+}
+
 /** Strip legacy visual-aids HTML from lesson-shaped API objects before JSON response. */
 export function stripLessonVisualAidsFields(lesson: Record<string, unknown>): Record<string, unknown> {
   const out = { ...lesson };
   for (const key of ['content', 'description', 'summary'] as const) {
     if (typeof out[key] === 'string') {
-      out[key] = stripVisualAidsPlaceholderHtml(out[key] as string);
+      out[key] = stripVisualAidsForStudentHtml(out[key] as string);
     }
   }
   if (out.lessonSummary && typeof out.lessonSummary === 'object') {
     const ls = { ...(out.lessonSummary as Record<string, unknown>) };
     for (const k of ['overview', 'summary'] as const) {
       if (typeof ls[k] === 'string') {
-        ls[k] = stripVisualAidsPlaceholderHtml(ls[k] as string);
+        ls[k] = stripVisualAidsForStudentHtml(ls[k] as string);
       }
     }
     ls.screenshots = [];
@@ -180,7 +196,7 @@ export function stripLessonVisualAidsFields(lesson: Record<string, unknown>): Re
 export function stripCourseVisualAidsFields(course: Record<string, unknown>): Record<string, unknown> {
   const out = { ...course };
   if (typeof out.description === 'string') {
-    out.description = stripVisualAidsPlaceholderHtml(out.description);
+    out.description = stripVisualAidsForStudentHtml(out.description);
   }
   return out;
 }
