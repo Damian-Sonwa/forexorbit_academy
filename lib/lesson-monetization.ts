@@ -89,7 +89,9 @@ export function getPaystackCurrency(): string {
   return (process.env.PAYSTACK_CURRENCY || 'NGN').toUpperCase();
 }
 
-export function sortLessonsByOrder<T extends { _id: ObjectId; order?: number; isDemo?: boolean }>(lessons: T[]): T[] {
+export function sortLessonsByOrder<
+  T extends { _id: ObjectId; order?: number; isDemo?: boolean; isFirstLesson?: boolean },
+>(lessons: T[]): T[] {
   return [...lessons].sort((a, b) => {
     const oa = typeof a.order === 'number' ? a.order : 0;
     const ob = typeof b.order === 'number' ? b.order : 0;
@@ -105,9 +107,14 @@ export async function getPurchasedLessonIdSet(
 ): Promise<Set<string>> {
   if (lessonIdStrings.length === 0) return new Set();
   const q = { userId, lessonId: { $in: lessonIdStrings } };
+  const accessQ = {
+    userId,
+    lessonId: { $in: lessonIdStrings },
+    $or: [{ paid: true }, { paid: { $exists: false } }],
+  };
   const [legacy, access] = await Promise.all([
     db.collection(LESSON_PURCHASES_COLLECTION).find(q).project({ lessonId: 1 }).toArray(),
-    db.collection(USER_ACCESS_COLLECTION).find(q).project({ lessonId: 1 }).toArray(),
+    db.collection(USER_ACCESS_COLLECTION).find(accessQ).project({ lessonId: 1 }).toArray(),
   ]);
   const ids = new Set<string>();
   for (const r of [...legacy, ...access]) {
@@ -118,9 +125,14 @@ export async function getPurchasedLessonIdSet(
 
 export async function hasLessonPurchase(db: Db, userId: string, lessonId: string): Promise<boolean> {
   const q = { userId, lessonId };
+  const accessQ = {
+    userId,
+    lessonId,
+    $or: [{ paid: true }, { paid: { $exists: false } }],
+  };
   const [a, b] = await Promise.all([
     db.collection(LESSON_PURCHASES_COLLECTION).countDocuments(q, { limit: 1 }),
-    db.collection(USER_ACCESS_COLLECTION).countDocuments(q, { limit: 1 }),
+    db.collection(USER_ACCESS_COLLECTION).countDocuments(accessQ, { limit: 1 }),
   ]);
   return a > 0 || b > 0;
 }
@@ -130,7 +142,7 @@ export async function hasLessonPurchase(db: Db, userId: string, lessonId: string
  */
 export function computeMonetizationFlags(
   lessonIdStr: string,
-  sortedCourseLessons: { _id: ObjectId; isDemo?: boolean }[],
+  sortedCourseLessons: { _id: ObjectId; isDemo?: boolean; isFirstLesson?: boolean }[],
   purchasedIds: Set<string>,
   userRole: string,
   adsEnabled: boolean
@@ -140,6 +152,8 @@ export function computeMonetizationFlags(
   const currency = getPaystackCurrency();
   const self = sortedCourseLessons.find((l) => l._id.toString() === lessonIdStr);
   const isDemoLesson = Boolean(self?.isDemo);
+  /** Explicit flag on lesson doc, or first lesson by order in course */
+  const isFirstLessonMarked = Boolean(self?.isFirstLesson);
 
   if (isStaffRole(userRole)) {
     return {
@@ -156,7 +170,7 @@ export function computeMonetizationFlags(
 
   if (!paymentsConfigured) {
     const first = sortedCourseLessons[0]?._id.toString();
-    const isFreeTier = Boolean(first && lessonIdStr === first);
+    const isFreeTier = isFirstLessonMarked || Boolean(first && lessonIdStr === first);
     return {
       unlocked: true,
       isFreeTier,
@@ -170,7 +184,7 @@ export function computeMonetizationFlags(
   }
 
   const first = sortedCourseLessons[0]?._id.toString();
-  const isFreeTier = Boolean(first && lessonIdStr === first);
+  const isFreeTier = isFirstLessonMarked || Boolean(first && lessonIdStr === first);
 
   if (isFreeTier) {
     return {
@@ -242,10 +256,16 @@ export async function getMonetizationForLessonDoc(
   db: Db,
   user: { userId: string; role: string },
   lesson: { _id: ObjectId; courseId: string }
-): Promise<{ flags: MonetizationFlags; sortedLessons: { _id: ObjectId; isDemo?: boolean }[]; purchasedIds: Set<string> }> {
+): Promise<{
+  flags: MonetizationFlags;
+  sortedLessons: { _id: ObjectId; isDemo?: boolean; isFirstLesson?: boolean }[];
+  purchasedIds: Set<string>;
+}> {
   const lessonsCol = db.collection('lessons');
   const raw = await lessonsCol.find({ courseId: lesson.courseId }).toArray();
-  const sorted = sortLessonsByOrder(raw as { _id: ObjectId; order?: number; isDemo?: boolean }[]);
+  const sorted = sortLessonsByOrder(
+    raw as { _id: ObjectId; order?: number; isDemo?: boolean; isFirstLesson?: boolean }[]
+  );
   const lessonIdStr = lesson._id.toString();
   const ids = sorted.map((l) => l._id.toString());
   const purchasedIds = isStaffRole(user.role)

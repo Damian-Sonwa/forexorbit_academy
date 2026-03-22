@@ -36,6 +36,8 @@ export interface Lesson {
   order: number;
   quiz?: any;
   completed?: boolean;
+  /** Present on successful GET /api/lessons/:id when content is allowed */
+  access?: boolean;
   monetization?: LessonMonetization;
   accessible?: boolean;
   locked?: boolean;

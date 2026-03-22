@@ -15,7 +15,6 @@ import {
   PAYSTACK_INTENTS_COLLECTION,
   PAYSTACK_PAYMENTS_COLLECTION,
   sortLessonsByOrder,
-  hasLessonPurchase,
 } from '@/lib/lesson-monetization';
 
 async function handler(req: AuthRequest, res: NextApiResponse) {
@@ -101,28 +100,35 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
     }
 
     const courseLessons = await lessons.find({ courseId }).toArray();
-    const sorted = sortLessonsByOrder(courseLessons as { _id: ObjectId; order?: number }[]);
-    if (sorted[0]?._id.toString() === lessonId) {
+    const sorted = sortLessonsByOrder(courseLessons as { _id: ObjectId; order?: number; isFirstLesson?: boolean }[]);
+    const isComputedFirst = sorted[0]?._id.toString() === lessonId;
+    if (isComputedFirst || lesson.isFirstLesson === true) {
       return res.status(400).json({ message: 'Cannot purchase free first lesson' });
     }
     if (lesson.isDemo === true) {
       return res.status(400).json({ message: 'Demo lessons are free' });
     }
 
-    const already = await hasLessonPurchase(db, req.user!.userId, lessonId);
-    if (!already) {
-      await db.collection(USER_ACCESS_COLLECTION).insertOne({
-        userId: req.user!.userId,
-        lessonId,
-        courseId,
-        paystackReference: reference,
-        amountKobo: d.amount,
-        currency: d.currency || (intent.currency as string) || 'NGN',
-        verifiedAt: new Date(),
-        createdAt: new Date(),
-        source: 'paystack',
-      });
-    }
+    const now = new Date();
+    await db.collection(USER_ACCESS_COLLECTION).updateOne(
+      { userId: req.user!.userId, lessonId },
+      {
+        $set: {
+          userId: req.user!.userId,
+          lessonId,
+          courseId,
+          paid: true,
+          unlockedAt: now,
+          paystackReference: reference,
+          amountKobo: d.amount,
+          currency: d.currency || (intent.currency as string) || 'NGN',
+          verifiedAt: now,
+          source: 'paystack',
+        },
+        $setOnInsert: { createdAt: now },
+      },
+      { upsert: true }
+    );
 
     await db.collection(PAYSTACK_PAYMENTS_COLLECTION).insertOne({
       userId: req.user!.userId,

@@ -31,7 +31,7 @@ async function getLesson(req: AuthRequest, res: NextApiResponse) {
 
     const lesson = await lessons.findOne({ _id: new ObjectId(id as string) });
     if (!lesson) {
-      return res.status(404).json({ message: 'Lesson not found' });
+      return res.status(404).json({ access: false, message: 'Lesson not found' });
     }
 
     // Level-based access control: Check if user has required level
@@ -104,6 +104,7 @@ async function getLesson(req: AuthRequest, res: NextApiResponse) {
     if (monetization) {
       lessonOut.monetization = monetization;
     }
+    lessonOut.access = true;
     res.json(lessonOut);
   } catch (error: any) {
     console.error('Get lesson error:', error);

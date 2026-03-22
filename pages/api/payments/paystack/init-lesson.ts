@@ -53,9 +53,9 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 
     const courseId = String(lesson.courseId);
     const courseLessons = await lessons.find({ courseId }).toArray();
-    const sorted = sortLessonsByOrder(courseLessons as { _id: ObjectId; order?: number }[]);
+    const sorted = sortLessonsByOrder(courseLessons as { _id: ObjectId; order?: number; isFirstLesson?: boolean }[]);
     const firstId = sorted[0]?._id.toString();
-    if (firstId === lessonId) {
+    if (firstId === lessonId || lesson.isFirstLesson === true) {
       return res.status(400).json({ message: 'The first lesson in each course is free' });
     }
     if (lesson.isDemo === true) {
