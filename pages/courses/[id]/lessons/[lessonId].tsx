@@ -24,7 +24,7 @@ import { ContentAdBanner } from '@/components/ads/ContentAdBanner';
 import { ContentAdInterstitial } from '@/components/ads/ContentAdInterstitial';
 import { PaystackLessonUnlock } from '@/components/monetization/PaystackLessonUnlock';
 import type { LessonAccessDeniedPayload, LessonMonetization } from '@/hooks/useLesson';
-import { writeCoursePaidClient } from '@/lib/forexorbit-course-paid';
+import { readCoursePaidClient, writeCoursePaidClient } from '@/lib/forexorbit-course-paid';
 
 export default function LessonPage() {
   const router = useRouter();
@@ -87,6 +87,25 @@ export default function LessonPage() {
     await refetchLessons();
   }, [courseId, refetchLesson, refetchLessons]);
 
+  // Compute these before early returns so useEffect can run unconditionally
+  const displayLesson = currentLesson || lesson;
+  const lockedPayload = accessDenied as LessonAccessDeniedPayload | null;
+  const monetization = (displayLesson?.monetization ?? lockedPayload?.monetization) as LessonMonetization | undefined;
+  const payBlocked =
+    user?.role === 'student' &&
+    Boolean(
+      monetization?.paymentsConfigured &&
+        monetization.unlocked === false &&
+        (lockedPayload?.access === false || lockedPayload?.locked === true || displayLesson?.locked === true)
+    );
+  const isLockedAccessDenied = accessDenied?.access === false || accessDenied?.locked === true;
+
+  useEffect(() => {
+    if (isLockedAccessDenied && !payBlocked && courseId && typeof courseId === 'string') {
+      router.replace(`/courses/${courseId}`);
+    }
+  }, [isLockedAccessDenied, payBlocked, courseId, router]);
+
   if (lessonLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -102,17 +121,6 @@ export default function LessonPage() {
       </div>
     );
   }
-
-  const displayLesson = currentLesson || lesson;
-  const lockedPayload = accessDenied as LessonAccessDeniedPayload | null;
-  const monetization = (displayLesson?.monetization ?? lockedPayload?.monetization) as LessonMonetization | undefined;
-  const payBlocked =
-    user?.role === 'student' &&
-    Boolean(
-      monetization?.paymentsConfigured &&
-        monetization.unlocked === false &&
-        (lockedPayload?.access === false || lockedPayload?.locked === true || displayLesson?.locked === true)
-    );
 
   /** Free tier + demo: ads only when full lesson payload is loaded and backend marks showAds. */
   const freeContentAds = Boolean(displayLesson && monetization?.unlocked && monetization?.showAds === true);
@@ -141,6 +149,14 @@ export default function LessonPage() {
   const currentIndex = lessons.findIndex((l) => (l._id || l.id) === currentLessonKey);
   const prevLesson = currentIndex > 0 ? lessons[currentIndex - 1] : null;
   const nextLesson = currentIndex < lessons.length - 1 ? lessons[currentIndex + 1] : null;
+  const nextLessonIndex = currentIndex >= 0 && currentIndex < lessons.length - 1 ? currentIndex + 1 : -1;
+  const isNextFirstLesson = nextLessonIndex === 0;
+  const coursePaid = typeof courseId === 'string' ? readCoursePaidClient(courseId) : false;
+  const isNextLocked =
+    nextLesson != null &&
+    !isNextFirstLesson &&
+    !coursePaid &&
+    (nextLesson.locked === true || (nextLesson.monetization as any)?.unlocked === false);
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
@@ -199,7 +215,7 @@ export default function LessonPage() {
             </div>
           )}
 
-          {!displayLesson && !payBlocked && (
+          {!displayLesson && !payBlocked && !isLockedAccessDenied && (
             <div className="min-h-[200px] rounded-xl border border-gray-200 bg-white p-8 text-center text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300">
               <p>Lesson not found</p>
             </div>
@@ -381,16 +397,30 @@ export default function LessonPage() {
               <div />
             )}
             {nextLesson ? (
-              <Link
-                href={`/courses/${courseId}/lessons/${nextLesson._id || nextLesson.id}`}
-                className="flex items-center justify-center px-4 sm:px-6 py-2 sm:py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-semibold transition-colors shadow-sm sm:ml-auto text-sm sm:text-base"
-              >
-                <span className="hidden sm:inline">Next Lesson</span>
-                <span className="sm:hidden">Next</span>
-                <svg className="w-4 h-4 sm:w-5 sm:h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </Link>
+              isNextLocked ? (
+                <button
+                  type="button"
+                  onClick={() => router.push(`/courses/${courseId}`)}
+                  className="flex items-center justify-center px-4 sm:px-6 py-2 sm:py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-semibold transition-colors shadow-sm sm:ml-auto text-sm sm:text-base"
+                >
+                  <span className="hidden sm:inline">Unlock full course – ₦5,000</span>
+                  <span className="sm:hidden">Unlock course</span>
+                  <svg className="w-4 h-4 sm:w-5 sm:h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              ) : (
+                <Link
+                  href={`/courses/${courseId}/lessons/${nextLesson._id || nextLesson.id}`}
+                  className="flex items-center justify-center px-4 sm:px-6 py-2 sm:py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-semibold transition-colors shadow-sm sm:ml-auto text-sm sm:text-base"
+                >
+                  <span className="hidden sm:inline">Next Lesson</span>
+                  <span className="sm:hidden">Next</span>
+                  <svg className="w-4 h-4 sm:w-5 sm:h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </Link>
+              )
             ) : (
               <div />
             )}

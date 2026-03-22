@@ -148,7 +148,7 @@ export function PaystackLessonUnlock({
   const buttonLabel = busy
     ? 'Opening checkout…'
     : isCourse
-      ? `Pay to continue – ${priceLabel}`
+      ? `Unlock full course – ${priceLabel}`
       : `Unlock Lesson – ${priceLabel}`;
 
   const onFormSubmit = (e: FormEvent) => {
