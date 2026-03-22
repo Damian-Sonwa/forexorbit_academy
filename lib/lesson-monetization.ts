@@ -1,5 +1,6 @@
 /**
- * Per-lesson monetization: first lesson free (+ ads), rest paid via Paystack after purchase record.
+ * Course monetization: first lesson (by order or isFirstLesson) + demo lessons free; rest require course payment.
+ * Legacy per-lesson userLessonAccess rows still grant access to the whole course.
  */
 
 import type { Db } from 'mongodb';
@@ -7,8 +8,10 @@ import { ObjectId } from 'mongodb';
 
 /** Legacy name — kept for reads so existing purchase rows still grant access */
 export const LESSON_PURCHASES_COLLECTION = 'lessonPurchases';
-/** Canonical per-user lesson unlocks after verified Paystack payment */
+/** Canonical per-user lesson unlocks after verified Paystack payment (legacy per-lesson; rows include courseId) */
 export const USER_ACCESS_COLLECTION = 'userLessonAccess';
+/** Per-user course unlock after Paystack course checkout */
+export const USER_COURSE_ACCESS_COLLECTION = 'userCourseAccess';
 export const PAYSTACK_PAYMENTS_COLLECTION = 'paystackPayments';
 export const PAYSTACK_INTENTS_COLLECTION = 'paystackPaymentIntents';
 
@@ -58,9 +61,16 @@ export function flagsToMonetizationPayload(flags: MonetizationFlags): LessonMone
 export function buildLessonLockedBody(
   flags: MonetizationFlags,
   lesson: { _id: ObjectId; title?: string; courseId: string }
-): { access: false; message: string; monetization: LessonMonetizationPayload; lessonMeta: Record<string, string> } {
+): {
+  access: false;
+  locked: true;
+  message: string;
+  monetization: LessonMonetizationPayload;
+  lessonMeta: Record<string, string>;
+} {
   return {
     access: false as const,
+    locked: true as const,
     message: LESSON_LOCKED_MESSAGE,
     monetization: flagsToMonetizationPayload(flags),
     lessonMeta: {
@@ -69,6 +79,16 @@ export function buildLessonLockedBody(
       title: typeof lesson.title === 'string' && lesson.title.trim() ? lesson.title : 'Lesson',
     },
   };
+}
+
+/** UI + API `locked`: false for staff; otherwise blocked if level gate fails or monetization keeps content locked. */
+export function isLessonLockedForStudent(
+  flags: MonetizationFlags,
+  levelOk: boolean,
+  role: string
+): boolean {
+  if (isStaffRole(role)) return false;
+  return !(levelOk && flags.unlocked);
 }
 
 export function isStaffRole(role: string): boolean {
@@ -83,6 +103,16 @@ export function isPaystackConfigured(): boolean {
 export function getLessonPriceKobo(): number {
   const n = parseInt(process.env.PAYSTACK_LESSON_PRICE_KOBO || '300000', 10);
   return Number.isFinite(n) && n > 0 ? n : 300000;
+}
+
+/** One-time course unlock (defaults to lesson price if PAYSTACK_COURSE_PRICE_KOBO unset). */
+export function getCoursePriceKobo(): number {
+  const raw = process.env.PAYSTACK_COURSE_PRICE_KOBO?.trim();
+  if (raw) {
+    const n = parseInt(raw, 10);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  return getLessonPriceKobo();
 }
 
 export function getPaystackCurrency(): string {
@@ -137,23 +167,50 @@ export async function hasLessonPurchase(db: Db, userId: string, lessonId: string
   return a > 0 || b > 0;
 }
 
+/** True if the user has paid for full course access (course doc or any lesson unlock row for this course). */
+export async function hasPaidForCourse(db: Db, userId: string, courseId: string): Promise<boolean> {
+  const courseQ = {
+    userId,
+    courseId,
+    $or: [{ paid: true }, { paid: { $exists: false } }],
+  };
+  const [courseRow, lessonRow] = await Promise.all([
+    db.collection(USER_COURSE_ACCESS_COLLECTION).countDocuments(courseQ, { limit: 1 }),
+    db.collection(USER_ACCESS_COLLECTION).countDocuments(courseQ, { limit: 1 }),
+  ]);
+  if (courseRow > 0 || lessonRow > 0) return true;
+  const lessonsCol = db.collection('lessons');
+  const inCourse = await lessonsCol.find({ courseId }).project({ _id: 1 }).toArray();
+  const ids = inCourse.map((l) => l._id.toString());
+  if (ids.length === 0) return false;
+  const legacy = await db
+    .collection(LESSON_PURCHASES_COLLECTION)
+    .find({ userId, lessonId: { $in: ids } })
+    .limit(1)
+    .toArray();
+  return legacy.length > 0;
+}
+
 /**
  * Compute flags for one lesson. `sortedCourseLessons` must be all lessons for the course sorted by order.
+ * `courseUnlocked` = user paid for the course (or legacy per-lesson row / purchase in this course).
  */
 export function computeMonetizationFlags(
   lessonIdStr: string,
   sortedCourseLessons: { _id: ObjectId; isDemo?: boolean; isFirstLesson?: boolean }[],
-  purchasedIds: Set<string>,
+  courseUnlocked: boolean,
   userRole: string,
   adsEnabled: boolean
 ): MonetizationFlags {
   const paymentsConfigured = isPaystackConfigured();
-  const amountKobo = getLessonPriceKobo();
+  const amountKobo = getCoursePriceKobo();
   const currency = getPaystackCurrency();
   const self = sortedCourseLessons.find((l) => l._id.toString() === lessonIdStr);
   const isDemoLesson = Boolean(self?.isDemo);
-  /** Explicit flag on lesson doc, or first lesson by order in course */
+  /** Explicit isFirstLesson on doc, or first lesson by order */
   const isFirstLessonMarked = Boolean(self?.isFirstLesson);
+  const first = sortedCourseLessons[0]?._id.toString();
+  const isFreeIntro = isFirstLessonMarked || Boolean(first && lessonIdStr === first);
 
   if (isStaffRole(userRole)) {
     return {
@@ -168,25 +225,57 @@ export function computeMonetizationFlags(
     };
   }
 
+  /** Missing Paystack secret must NOT unlock paid lessons — only free intro, demo, or course purchase rows. */
   if (!paymentsConfigured) {
-    const first = sortedCourseLessons[0]?._id.toString();
-    const isFreeTier = isFirstLessonMarked || Boolean(first && lessonIdStr === first);
+    if (isFreeIntro) {
+      return {
+        unlocked: true,
+        isFreeTier: true,
+        isDemo: false,
+        requiresPayment: false,
+        showAds: Boolean(adsEnabled),
+        amountKobo,
+        currency,
+        paymentsConfigured: false,
+      };
+    }
+    if (isDemoLesson) {
+      return {
+        unlocked: true,
+        isFreeTier: false,
+        isDemo: true,
+        requiresPayment: false,
+        showAds: Boolean(adsEnabled),
+        amountKobo,
+        currency,
+        paymentsConfigured: false,
+      };
+    }
+    if (courseUnlocked) {
+      return {
+        unlocked: true,
+        isFreeTier: false,
+        isDemo: false,
+        requiresPayment: false,
+        showAds: false,
+        amountKobo,
+        currency,
+        paymentsConfigured: false,
+      };
+    }
     return {
-      unlocked: true,
-      isFreeTier,
-      isDemo: isDemoLesson,
-      requiresPayment: false,
-      showAds: Boolean((isFreeTier || isDemoLesson) && adsEnabled),
+      unlocked: false,
+      isFreeTier: false,
+      isDemo: false,
+      requiresPayment: true,
+      showAds: false,
       amountKobo,
       currency,
       paymentsConfigured: false,
     };
   }
 
-  const first = sortedCourseLessons[0]?._id.toString();
-  const isFreeTier = isFirstLessonMarked || Boolean(first && lessonIdStr === first);
-
-  if (isFreeTier) {
+  if (isFreeIntro) {
     return {
       unlocked: true,
       isFreeTier: true,
@@ -212,7 +301,7 @@ export function computeMonetizationFlags(
     };
   }
 
-  if (purchasedIds.has(lessonIdStr)) {
+  if (courseUnlocked) {
     return {
       unlocked: true,
       isFreeTier: false,
@@ -259,7 +348,6 @@ export async function getMonetizationForLessonDoc(
 ): Promise<{
   flags: MonetizationFlags;
   sortedLessons: { _id: ObjectId; isDemo?: boolean; isFirstLesson?: boolean }[];
-  purchasedIds: Set<string>;
 }> {
   const lessonsCol = db.collection('lessons');
   const raw = await lessonsCol.find({ courseId: lesson.courseId }).toArray();
@@ -267,15 +355,13 @@ export async function getMonetizationForLessonDoc(
     raw as { _id: ObjectId; order?: number; isDemo?: boolean; isFirstLesson?: boolean }[]
   );
   const lessonIdStr = lesson._id.toString();
-  const ids = sorted.map((l) => l._id.toString());
-  const purchasedIds = isStaffRole(user.role)
-    ? new Set<string>()
-    : await getPurchasedLessonIdSet(db, user.userId, ids);
+  const courseUnlocked =
+    isStaffRole(user.role) || (await hasPaidForCourse(db, user.userId, String(lesson.courseId)));
 
   const adsEnabled = process.env.NEXT_PUBLIC_ADS_ENABLED !== 'false';
-  const flags = computeMonetizationFlags(lessonIdStr, sorted, purchasedIds, user.role, adsEnabled);
+  const flags = computeMonetizationFlags(lessonIdStr, sorted, courseUnlocked, user.role, adsEnabled);
 
-  return { flags, sortedLessons: sorted, purchasedIds };
+  return { flags, sortedLessons: sorted };
 }
 
 export type LessonAccessGateResult =

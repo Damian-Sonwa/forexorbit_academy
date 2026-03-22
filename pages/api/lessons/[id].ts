@@ -18,7 +18,12 @@ import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 import { stripLessonVisualAidsFields } from '@/lib/strip-visual-aids-html';
-import { buildLessonLockedBody, getMonetizationForLessonDoc, isStaffRole } from '@/lib/lesson-monetization';
+import {
+  buildLessonLockedBody,
+  getMonetizationForLessonDoc,
+  isLessonLockedForStudent,
+  isStaffRole,
+} from '@/lib/lesson-monetization';
 
 async function getLesson(req: AuthRequest, res: NextApiResponse) {
   try {
@@ -60,8 +65,18 @@ async function getLesson(req: AuthRequest, res: NextApiResponse) {
     }
 
     let monetization: Record<string, unknown> | null = null;
+    let locked = false;
     if (req.user) {
       const { flags } = await getMonetizationForLessonDoc(db, req.user, lesson as { _id: ObjectId; courseId: string });
+      let levelOk = true;
+      if (req.user.role === 'student' && (lesson as { requiredLevel?: string }).requiredLevel) {
+        const enrollProgress = await progress.findOne({
+          userId: req.user.userId,
+          courseId: lesson.courseId,
+        });
+        levelOk = !!enrollProgress;
+      }
+      locked = isLessonLockedForStudent(flags, levelOk, req.user.role);
       monetization = {
         unlocked: flags.unlocked,
         isFreeTier: flags.isFreeTier,
@@ -105,10 +120,15 @@ async function getLesson(req: AuthRequest, res: NextApiResponse) {
       lessonOut.monetization = monetization;
     }
     lessonOut.access = true;
-    res.json(lessonOut);
+    lessonOut.isFirstLesson = (lesson as { isFirstLesson?: boolean }).isFirstLesson === true;
+    lessonOut.isDemo = (lesson as { isDemo?: boolean }).isDemo === true;
+    if (req.user) {
+      lessonOut.locked = locked;
+    }
+    return res.json(lessonOut);
   } catch (error: any) {
     console.error('Get lesson error:', error);
-    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+    return res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 

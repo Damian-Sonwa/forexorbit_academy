@@ -24,6 +24,7 @@ import { ContentAdBanner } from '@/components/ads/ContentAdBanner';
 import { ContentAdInterstitial } from '@/components/ads/ContentAdInterstitial';
 import { PaystackLessonUnlock } from '@/components/monetization/PaystackLessonUnlock';
 import type { LessonAccessDeniedPayload, LessonMonetization } from '@/hooks/useLesson';
+import { writeCoursePaidClient } from '@/lib/forexorbit-course-paid';
 
 export default function LessonPage() {
   const router = useRouter();
@@ -47,13 +48,13 @@ export default function LessonPage() {
   }, [lesson, lessonLoading]);
 
   useEffect(() => {
-    if (lessonId && isAuthenticated) {
-      joinLesson(lessonId as string);
-      return () => {
-        leaveLesson(lessonId as string);
-      };
-    }
-  }, [lessonId, isAuthenticated]);
+    if (!lessonId || !isAuthenticated) return;
+    const id = lessonId as string;
+    joinLesson(id);
+    return () => {
+      leaveLesson(id);
+    };
+  }, [lessonId, isAuthenticated, joinLesson, leaveLesson]);
 
   // Listen for lesson updates via Socket.io
   useEffect(() => {
@@ -79,9 +80,12 @@ export default function LessonPage() {
   };
 
   const handleLessonUnlocked = useCallback(async () => {
+    if (typeof courseId === 'string') {
+      writeCoursePaidClient(courseId);
+    }
     await refetchLesson();
     await refetchLessons();
-  }, [refetchLesson, refetchLessons]);
+  }, [courseId, refetchLesson, refetchLessons]);
 
   if (lessonLoading) {
     return (
@@ -104,8 +108,11 @@ export default function LessonPage() {
   const monetization = (displayLesson?.monetization ?? lockedPayload?.monetization) as LessonMonetization | undefined;
   const payBlocked =
     user?.role === 'student' &&
-    (lockedPayload?.access === false ||
-      Boolean(displayLesson && monetization && !monetization.unlocked && monetization.requiresPayment));
+    Boolean(
+      monetization?.paymentsConfigured &&
+        monetization.unlocked === false &&
+        (lockedPayload?.access === false || lockedPayload?.locked === true || displayLesson?.locked === true)
+    );
 
   /** Free tier + demo: ads only when full lesson payload is loaded and backend marks showAds. */
   const freeContentAds = Boolean(displayLesson && monetization?.unlocked && monetization?.showAds === true);
@@ -174,43 +181,20 @@ export default function LessonPage() {
           )}
 
           {payBlocked && monetization && lessonId && courseId && (
-            <div className="relative mb-8 min-h-[280px] overflow-hidden rounded-2xl border border-amber-300/80 bg-gradient-to-b from-amber-50/95 to-amber-100/40 shadow-inner dark:border-amber-700/60 dark:from-amber-950/50 dark:to-amber-950/20">
-              <div
-                className="pointer-events-none absolute inset-0 z-0 bg-gray-900/5 dark:bg-black/20"
-                aria-hidden
-              />
-              <div
-                className="pointer-events-none absolute inset-0 z-[1] opacity-[0.12] dark:opacity-[0.08]"
-                style={{
-                  backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23000000' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-                }}
-              />
-              <div className="pointer-events-none absolute inset-0 z-[2] flex items-center justify-center bg-white/40 backdrop-blur-[2px] dark:bg-gray-950/50">
-                <div className="flex h-20 w-20 items-center justify-center rounded-full bg-amber-100/90 text-amber-900 shadow-lg ring-4 ring-amber-300/60 dark:bg-amber-900/80 dark:text-amber-50 dark:ring-amber-600/40">
-                  <svg className="h-10 w-10" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                    />
-                  </svg>
-                </div>
-              </div>
-              <div className="relative z-10 flex flex-col items-center px-4 pb-10 pt-24 sm:pb-12 sm:pt-28">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white">This lesson is locked</h2>
-                <p className="mt-2 max-w-md text-center text-sm text-gray-700 dark:text-gray-300">
-                  {lockedPayload?.message ||
-                    'Pay once to unlock the full video, lesson content, resources, and quiz. The first lesson in this course remains free.'}
-                </p>
-                <div className="mt-6 w-full max-w-md">
-                  <PaystackLessonUnlock
-                    courseId={courseId as string}
-                    lessonId={lessonId as string}
-                    monetization={monetization}
-                    onUnlocked={handleLessonUnlocked}
-                  />
-                </div>
+            <div className="mb-8 rounded-xl border-2 border-amber-200 bg-amber-50/80 p-6 dark:border-amber-800/50 dark:bg-amber-950/40">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white">This lesson is locked</h2>
+              <p className="mt-2 text-sm text-gray-700 dark:text-gray-300">
+                {lockedPayload?.message ||
+                  'Pay once to unlock this course. The first lesson and demo lessons stay free.'}
+              </p>
+              <div className="mt-4 max-w-md">
+                <PaystackLessonUnlock
+                  courseId={courseId as string}
+                  unlockScope="course"
+                  monetization={monetization}
+                  variant="compact"
+                  onUnlocked={handleLessonUnlocked}
+                />
               </div>
             </div>
           )}

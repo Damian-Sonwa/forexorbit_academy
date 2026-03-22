@@ -12,18 +12,85 @@ import LoadingSpinner from '@/components/LoadingSpinner';
 import { useCourse } from '@/hooks/useCourses';
 import { useSocket } from '@/hooks/useSocket';
 import { useAuth } from '@/hooks/useAuth';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { apiClient } from '@/lib/api-client';
 import { sanitizeForStudentView, stripHtml } from '@/lib/html-sanitizer';
 import { getLessonDescriptionHtml, hasVisibleHtml } from '@/lib/lesson-html';
+import { useLessons } from '@/hooks/useLesson';
+import { readCoursePaidClient, writeCoursePaidClient } from '@/lib/forexorbit-course-paid';
+import { loadPaystackInline } from '@/lib/paystack-inline-script';
 
 export default function CourseDetailPage() {
   const router = useRouter();
   const { id } = router.query;
   const { course, loading, refetch: refetchCourse } = useCourse(id) as any;
+  const { lessons, loading: lessonsLoading, refetch: refetchLessons } = useLessons(id);
   const { socket, connected } = useSocket();
   const { isAuthenticated, user } = useAuth();
   const [enrolling, setEnrolling] = useState(false);
+  const [paid, setPaid] = useState(false);
+
+  useEffect(() => {
+    if (typeof id === 'string' && readCoursePaidClient(id)) {
+      setPaid(true);
+    }
+  }, [id]);
+
+  const openLesson = useCallback(
+    (href: string) => {
+      void router.push(href);
+    },
+    [router]
+  );
+
+  /**
+   * Paystack: callback MUST be function(response) { ... } to avoid "Attribute callback must be a valid function".
+   * IMPORTANT: Never use onClick={handlePay(courseId)} — it runs on render and breaks everything.
+   * Always use: onClick={() => handlePay(courseId)}
+   */
+  const handlePay = useCallback(async (courseId: string) => {
+    if (!courseId?.trim()) return;
+
+    const publicKey = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY?.trim();
+    if (!publicKey) {
+      alert('Missing NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY in environment.');
+      return;
+    }
+
+    try {
+      await loadPaystackInline();
+      const PaystackPop = window.PaystackPop;
+      if (!PaystackPop) {
+        alert('Paystack script failed to load.');
+        return;
+      }
+
+      const ref = `fo_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+      const handler = PaystackPop.setup({
+        key: publicKey,
+        email: 'test@example.com',
+        amount: 5000 * 100, // ₦5,000
+        currency: 'NGN',
+        ref,
+        metadata: { courseId, unlockCourse: 'true' },
+        callback: function (response: { reference?: string }) {
+          console.log('Payment success:', response);
+          setPaid(true);
+          writeCoursePaidClient(courseId);
+        },
+        onClose: function () {
+          console.log('Payment closed');
+        },
+      });
+
+      if (typeof handler.openIframe === 'function') {
+        handler.openIframe();
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Could not start payment. Check console.');
+    }
+  }, []);
 
   // Redirect instructors to instructor course management page
   useEffect(() => {
@@ -143,71 +210,72 @@ export default function CourseDetailPage() {
               )}
             </div>
 
-            {/* Lessons */}
+            {/* Lessons — source: GET /api/courses/:id/lessons { lessons } */}
             <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6">
               <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-3">Course Lessons</h2>
-              {course.lessons && course.lessons.length > 0 ? (
+              {lessonsLoading ? (
+                <p className="py-10 text-center text-gray-500">Loading lessons…</p>
+              ) : lessons.length > 0 ? (
                 <div className="space-y-3">
-                  {course.lessons.map((lesson: any, index: number) => {
-                    const lessonDesc = getLessonDescriptionHtml(lesson);
+                  {(paid ? lessons : lessons.slice(0, 1)).map((lesson, index) => {
+                    const href = `/courses/${id}/lessons/${lesson._id || lesson.id}`;
+                    const key = String(lesson._id || lesson.id || index);
+                    const lessonDesc = getLessonDescriptionHtml(lesson as any);
                     const lessonDescStudent = sanitizeForStudentView(lessonDesc);
                     const previewPlain = stripHtml(lessonDescStudent).replace(/\s+/g, ' ').trim();
-                    const isLocked = Boolean(lesson.locked);
                     return (
-                    <Link
-                      key={lesson._id || lesson.id}
-                      href={`/courses/${id}/lessons/${lesson._id || lesson.id}`}
-                      className={`relative flex items-center justify-between p-5 border-2 rounded-xl transition-all group overflow-hidden ${
-                        isLocked
-                          ? 'border-amber-200 bg-amber-50/40 hover:border-amber-300'
-                          : 'border-gray-200 hover:border-primary-300 hover:bg-primary-50'
-                      }`}
-                    >
-                      {isLocked && (
-                        <div
-                          className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-r from-amber-100/50 via-white/20 to-amber-100/40 dark:from-amber-950/30 dark:via-gray-900/10 dark:to-amber-950/30"
-                          aria-hidden
-                        />
-                      )}
-                      {isLocked && (
-                        <div className="pointer-events-none absolute right-4 top-1/2 z-[2] -translate-y-1/2 opacity-25 sm:opacity-40">
-                          <svg className="h-14 w-14 text-amber-800 dark:text-amber-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                          </svg>
-                        </div>
-                      )}
-                      <div className="relative z-[3] flex items-center space-x-4 flex-1 min-w-0">
-                        <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-primary-600 text-white rounded-xl flex items-center justify-center font-bold shadow-md group-hover:scale-110 transition-transform shrink-0">
-                          {index + 1}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <h3 className="font-semibold text-gray-900 group-hover:text-primary-600 transition-colors" dangerouslySetInnerHTML={{ __html: sanitizeForStudentView(lesson.title) }} />
-                            {isLocked && (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-amber-900">
-                                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                                </svg>
-                                Locked — pay on lesson page
-                              </span>
-                            )}
+                      <div key={key}>
+                        <button
+                          type="button"
+                          className="relative flex w-full items-center justify-between gap-3 rounded-xl border-2 border-gray-200 p-5 text-left transition-all hover:border-primary-300 hover:bg-primary-50 group"
+                          onClick={() => openLesson(href)}
+                        >
+                          <div className="flex min-w-0 flex-1 items-center space-x-4">
+                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 text-base font-bold text-white shadow-md transition-transform group-hover:scale-110">
+                              {index + 1}
+                            </div>
+                            <div className="min-w-0 flex-1 text-left">
+                              <h3
+                                className="font-semibold text-gray-900 group-hover:text-primary-600 dark:text-gray-100"
+                                dangerouslySetInnerHTML={{ __html: sanitizeForStudentView(lesson.title) }}
+                              />
+                              {hasVisibleHtml(lessonDescStudent) && previewPlain && (
+                                <p className="mt-1 line-clamp-2 text-sm text-gray-600 dark:text-gray-300">
+                                  {previewPlain.length > 200 ? `${previewPlain.slice(0, 200)}…` : previewPlain}
+                                </p>
+                              )}
+                            </div>
                           </div>
-                          {hasVisibleHtml(lessonDescStudent) && previewPlain && (
-                            <p className="text-sm text-gray-800 dark:text-gray-200 line-clamp-2 mt-1">
-                              {previewPlain.length > 200 ? `${previewPlain.slice(0, 200)}…` : previewPlain}
-                            </p>
-                          )}
-                        </div>
+                          <svg
+                            className="h-6 w-6 shrink-0 text-gray-400 transition-all group-hover:translate-x-1 group-hover:text-primary-600"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                            aria-hidden
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </button>
                       </div>
-                      <svg className="relative z-[3] w-6 h-6 shrink-0 text-gray-400 group-hover:text-primary-600 group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                    </Link>
                     );
                   })}
+                  {!paid && lessons.length > 1 && (
+                    <div className="rounded-xl border-2 border-amber-200 bg-amber-50/60 p-5 dark:border-amber-800/50 dark:bg-amber-950/30">
+                      <p className="mb-1 text-sm text-gray-700 dark:text-gray-300">
+                        {lessons.length - 1} more lesson{lessons.length > 2 ? 's' : ''} in this course
+                      </p>
+                      <button
+                        type="button"
+                        className="w-full rounded-xl bg-primary-600 px-4 py-3 text-center text-base font-bold text-white shadow-md hover:bg-primary-700"
+                        onClick={() => handlePay(typeof id === 'string' ? id : '')}
+                      >
+                        Unlock full course – ₦5,000
+                      </button>
+                    </div>
+                  )}
                 </div>
               ) : (
-                <div className="text-center py-12">
+                <div className="py-12 text-center">
                   <p className="text-gray-500">No lessons available yet.</p>
                 </div>
               )}
@@ -226,17 +294,18 @@ export default function CourseDetailPage() {
                   <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Difficulty</span>
                   <p className="font-bold text-gray-900 mt-1 capitalize">{course.difficulty}</p>
                 </div>
-                {course.lessons && (
-                  <div>
-                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Lessons</span>
-                    <p className="font-bold text-gray-900 mt-1">{course.lessons.length} lessons</p>
-                  </div>
-                )}
+                <div>
+                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Lessons</span>
+                  <p className="font-bold text-gray-900 mt-1">
+                    {lessonsLoading ? '…' : lessons.length} lessons
+                  </p>
+                </div>
 
                 <div className="pt-3 border-t border-gray-200">
                   {isAuthenticated ? (
                     <button
-                      onClick={handleEnroll}
+                      type="button"
+                      onClick={() => void handleEnroll()}
                       disabled={enrolling}
                       className={`w-full px-6 py-4 rounded-xl font-bold text-lg transition-all shadow-lg ${
                         course.enrolled

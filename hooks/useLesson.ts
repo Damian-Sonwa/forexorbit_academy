@@ -20,6 +20,8 @@ export interface LessonMonetization {
 
 export type LessonAccessDeniedPayload = {
   access: false;
+  /** Paywall / access denial from GET /api/lessons/:id */
+  locked?: boolean;
   message: string;
   monetization?: LessonMonetization;
   lessonMeta?: { _id: string; courseId: string; title: string };
@@ -41,6 +43,8 @@ export interface Lesson {
   monetization?: LessonMonetization;
   accessible?: boolean;
   locked?: boolean;
+  isFirstLesson?: boolean;
+  isDemo?: boolean;
 }
 
 export function useLesson(lessonId: string | string[] | undefined) {
@@ -66,6 +70,7 @@ export function useLesson(lessonId: string | string[] | undefined) {
           setLesson(null);
           setAccessDenied({
             access: false,
+            locked: body.locked === true,
             message: body.message,
             monetization: body.monetization as LessonMonetization | undefined,
             lessonMeta: body.lessonMeta as LessonAccessDeniedPayload['lessonMeta'],
@@ -113,8 +118,10 @@ export function useLessons(courseId: string | string[] | undefined) {
     if (!courseId || Array.isArray(courseId)) return;
     try {
       setLoading(true);
-      const data = await apiClient.get<Lesson[]>(`/lessons?courseId=${courseId}`);
-      setLessons(data);
+      const data = await apiClient.get<{ lessons: Lesson[] }>(`/courses/${courseId}/lessons`);
+      const list = Array.isArray(data.lessons) ? data.lessons : [];
+      console.log('LESSONS:', list);
+      setLessons(list);
       setError(null);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to fetch lessons';

@@ -18,33 +18,20 @@ export const config = {
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
-import { stripCourseVisualAidsFields, stripLessonVisualAidsFields } from '@/lib/strip-visual-aids-html';
-import {
-  sortLessonsByOrder,
-  getPurchasedLessonIdSet,
-  computeMonetizationFlags,
-} from '@/lib/lesson-monetization';
+import { stripCourseVisualAidsFields } from '@/lib/strip-visual-aids-html';
+import { buildLessonsListForCourse } from '@/lib/build-course-lessons-list';
 
 async function getCourse(req: AuthRequest, res: NextApiResponse) {
   try {
     const { id } = req.query;
     const db = await getDb();
     const courses = db.collection('courses');
-    const lessons = db.collection('lessons');
     const progress = db.collection('progress');
 
     const course = await courses.findOne({ _id: new ObjectId(id as string) });
     if (!course) {
       return res.status(404).json({ message: 'Course not found' });
     }
-
-    // Get lessons
-    const courseLessons = await lessons
-      .find({ courseId: id })
-      .sort({ order: 1 })
-      .toArray();
-
-    const sortedLessons = sortLessonsByOrder(courseLessons as { _id: ObjectId; order?: number; isDemo?: boolean }[]);
 
     let userProgress: { progress?: number } | null = null;
     if (req.user) {
@@ -54,45 +41,7 @@ async function getCourse(req: AuthRequest, res: NextApiResponse) {
       })) as { progress?: number } | null;
     }
 
-    let lessonsOut: Record<string, unknown>[] = sortedLessons.map((l) =>
-      stripLessonVisualAidsFields(l as Record<string, unknown>) as Record<string, unknown>
-    );
-
-    if (req.user?.role === 'student') {
-      const lessonIdStrings = sortedLessons.map((l) => l._id.toString());
-      const purchasedIds = await getPurchasedLessonIdSet(db, req.user.userId, lessonIdStrings);
-      const adsEnabled = process.env.NEXT_PUBLIC_ADS_ENABLED !== 'false';
-
-      lessonsOut = sortedLessons.map((lesson) => {
-        let levelOk = true;
-        if ((lesson as { requiredLevel?: string }).requiredLevel) {
-          levelOk = !!userProgress;
-        }
-        const flags = computeMonetizationFlags(
-          lesson._id.toString(),
-          sortedLessons as { _id: ObjectId; isDemo?: boolean }[],
-          purchasedIds,
-          req.user!.role,
-          adsEnabled
-        );
-        const canOpen = levelOk && flags.unlocked;
-        return stripLessonVisualAidsFields({
-          ...lesson,
-          accessible: canOpen,
-          locked: !canOpen,
-          monetization: {
-            unlocked: flags.unlocked,
-            isFreeTier: flags.isFreeTier,
-            isDemo: flags.isDemo,
-            requiresPayment: flags.requiresPayment,
-            showAds: flags.showAds,
-            amountKobo: flags.amountKobo,
-            currency: flags.currency,
-            paymentsConfigured: flags.paymentsConfigured,
-          },
-        } as Record<string, unknown>) as Record<string, unknown>;
-      });
-    }
+    const lessonsOut = await buildLessonsListForCourse(db, id as string, req.user);
 
     const coursePayload = {
       ...stripCourseVisualAidsFields(course as Record<string, unknown>),

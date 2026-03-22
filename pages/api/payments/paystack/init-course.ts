@@ -1,6 +1,6 @@
 /**
- * POST /api/payments/paystack/init-lesson
- * Creates a Paystack payment intent (reference) for unlocking a paid lesson.
+ * POST /api/payments/paystack/init-course
+ * Creates a Paystack intent to unlock all paid lessons in a course (one-time course payment).
  */
 
 import type { NextApiResponse } from 'next';
@@ -9,12 +9,11 @@ import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 import {
-  getLessonPriceKobo,
+  getCoursePriceKobo,
   getPaystackCurrency,
   isPaystackConfigured,
   isStaffRole,
   PAYSTACK_INTENTS_COLLECTION,
-  sortLessonsByOrder,
   hasPaidForCourse,
 } from '@/lib/lesson-monetization';
 
@@ -28,65 +27,52 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
   }
 
   if (isStaffRole(req.user!.role)) {
-    return res.status(400).json({ message: 'Staff accounts do not need to purchase lessons' });
+    return res.status(400).json({ message: 'Staff accounts do not need to purchase courses' });
   }
 
   try {
-    const { lessonId } = req.body as { lessonId?: string };
-    if (!lessonId || typeof lessonId !== 'string') {
-      return res.status(400).json({ message: 'lessonId is required' });
+    const { courseId } = req.body as { courseId?: string };
+    if (!courseId || typeof courseId !== 'string') {
+      return res.status(400).json({ message: 'courseId is required' });
     }
 
     let oid: ObjectId;
     try {
-      oid = new ObjectId(lessonId);
+      oid = new ObjectId(courseId);
     } catch {
-      return res.status(400).json({ message: 'Invalid lessonId' });
+      return res.status(400).json({ message: 'Invalid courseId' });
     }
 
     const db = await getDb();
-    const lessons = db.collection('lessons');
-    const lesson = await lessons.findOne({ _id: oid });
-    if (!lesson) {
-      return res.status(404).json({ message: 'Lesson not found' });
+    const courses = db.collection('courses');
+    const course = await courses.findOne({ _id: oid });
+    if (!course) {
+      return res.status(404).json({ message: 'Course not found' });
     }
 
-    const courseId = String(lesson.courseId);
-    const courseLessons = await lessons.find({ courseId }).toArray();
-    const sorted = sortLessonsByOrder(courseLessons as { _id: ObjectId; order?: number; isFirstLesson?: boolean }[]);
-    const firstId = sorted[0]?._id.toString();
-    if (firstId === lessonId || lesson.isFirstLesson === true) {
-      return res.status(400).json({ message: 'The first lesson in each course is free' });
-    }
-    if (lesson.isDemo === true) {
-      return res.status(400).json({ message: 'Demo lessons are free' });
-    }
-
-    const coursePaid = await hasPaidForCourse(db, req.user!.userId, courseId);
-    if (coursePaid) {
+    const paid = await hasPaidForCourse(db, req.user!.userId, courseId);
+    if (paid) {
       return res.status(200).json({
         message: 'You already have full access to this course.',
         alreadyOwned: true,
         reference: null,
-        amountKobo: getLessonPriceKobo(),
+        amountKobo: getCoursePriceKobo(),
         currency: getPaystackCurrency(),
         email: req.user!.email,
-        lessonId,
         courseId,
       });
     }
 
-    const reference = `fo_${Date.now()}_${crypto.randomBytes(6).toString('hex')}`;
-    const amountKobo = getLessonPriceKobo();
+    const reference = `fo_c_${Date.now()}_${crypto.randomBytes(6).toString('hex')}`;
+    const amountKobo = getCoursePriceKobo();
     const currency = getPaystackCurrency();
 
     await db.collection(PAYSTACK_INTENTS_COLLECTION).insertOne({
       reference,
       userId: req.user!.userId,
       email: req.user!.email,
-      lessonId,
       courseId,
-      kind: 'lesson',
+      kind: 'course',
       amountKobo,
       currency,
       createdAt: new Date(),
@@ -99,11 +85,10 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
       amountKobo,
       currency,
       email: req.user!.email,
-      lessonId,
       courseId,
     });
   } catch (e) {
-    console.error('[init-lesson]', e);
+    console.error('[init-course]', e);
     return res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }

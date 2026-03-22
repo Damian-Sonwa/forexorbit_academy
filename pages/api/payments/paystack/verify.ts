@@ -1,6 +1,6 @@
 /**
  * POST /api/payments/paystack/verify
- * Verifies Paystack transaction and records lesson access + payment history.
+ * Verifies Paystack transaction — course unlock (userCourseAccess) or legacy per-lesson unlock (userLessonAccess).
  */
 
 import type { NextApiResponse } from 'next';
@@ -16,6 +16,7 @@ import {
   PAYSTACK_PAYMENTS_COLLECTION,
   sortLessonsByOrder,
 } from '@/lib/lesson-monetization';
+import { verifyCoursePaymentAndUnlock } from '@/lib/verify-course-paystack-payment';
 
 async function handler(req: AuthRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
@@ -27,17 +28,19 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
   }
 
   try {
-    const { reference, lessonId, courseId } = req.body as {
+    const body = req.body as {
       reference?: string;
       lessonId?: string;
       courseId?: string;
+      unlockCourse?: boolean;
     };
+    const { reference, lessonId, courseId } = body;
 
     if (!reference || typeof reference !== 'string') {
       return res.status(400).json({ message: 'reference is required' });
     }
-    if (!lessonId || !courseId) {
-      return res.status(400).json({ message: 'lessonId and courseId are required' });
+    if (!courseId || typeof courseId !== 'string') {
+      return res.status(400).json({ message: 'courseId is required' });
     }
 
     const db = await getDb();
@@ -46,8 +49,6 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
     const intent = await intents.findOne({
       reference,
       userId: req.user!.userId,
-      lessonId,
-      courseId,
     });
 
     if (!intent) {
@@ -59,6 +60,37 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
       return res.status(400).json({ message: 'Payment session expired. Try again.' });
     }
 
+    const isCourseIntent = intent.kind === 'course';
+
+    if (isCourseIntent) {
+      const courseResult = await verifyCoursePaymentAndUnlock(db, {
+        userId: req.user!.userId,
+        courseId,
+        reference,
+      });
+      if (!courseResult.ok) {
+        return res.status(courseResult.status).json({ message: courseResult.message });
+      }
+      return res.status(200).json({
+        success: true,
+        access: true,
+        message: courseResult.message,
+        unlocked: true,
+        unlockCourse: true,
+        reference: courseResult.reference,
+        courseId: courseResult.courseId,
+      });
+    }
+
+    // --- Legacy per-lesson intent ---
+    if (!lessonId || typeof lessonId !== 'string') {
+      return res.status(400).json({ message: 'lessonId is required for this payment session' });
+    }
+
+    if (String(intent.lessonId) !== lessonId || String(intent.courseId) !== courseId) {
+      return res.status(400).json({ message: 'Session does not match lesson or course' });
+    }
+
     const expectedKobo = getLessonPriceKobo();
     if (Number(intent.amountKobo) !== expectedKobo) {
       return res.status(400).json({ message: 'Amount mismatch' });
@@ -67,7 +99,9 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
     const verify = await paystackVerifyTransaction(reference);
     if (!verify.status || !verify.data) {
       console.error('[paystack verify] Paystack API error:', verify);
-      return res.status(400).json({ message: 'Payment could not be verified. Try again or contact support with your reference.' });
+      return res.status(400).json({
+        message: 'Payment could not be verified. Try again or contact support with your reference.',
+      });
     }
 
     const d = verify.data;
@@ -135,6 +169,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
       lessonId,
       courseId,
       reference,
+      kind: 'lesson',
       status: d.status,
       amountKobo: d.amount,
       currency: d.currency,

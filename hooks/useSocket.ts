@@ -3,13 +3,15 @@
  * Manages Socket.io connection and real-time events
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 
-// Get socket URL - ALWAYS use Render backend explicitly
-// NO localhost, NO origin-based fallbacks, NO environment variable fallbacks
 const getSocketUrl = (): string => {
-  // ALWAYS connect to Render backend - no exceptions
+  const fromEnv = process.env.NEXT_PUBLIC_SOCKET_URL?.trim();
+  if (fromEnv) return fromEnv;
+  if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'production') {
+    return window.location.origin;
+  }
   return 'https://forexorbit-academy.onrender.com';
 };
 
@@ -126,29 +128,29 @@ export function useSocket() {
     };
   }, []);
 
-  const joinLesson = (lessonId: string) => {
+  const joinLesson = useCallback((lessonId: string) => {
     if (socket) {
       socket.emit('joinLesson', lessonId);
     }
-  };
+  }, [socket]);
 
-  const leaveLesson = (lessonId: string) => {
+  const leaveLesson = useCallback((lessonId: string) => {
     if (socket) {
       socket.emit('leaveLesson', lessonId);
     }
-  };
+  }, [socket]);
 
-  const sendChatMessage = (lessonId: string, text: string) => {
+  const sendChatMessage = useCallback((lessonId: string, text: string) => {
     if (socket) {
       socket.emit('chatMessage', { lessonId, text });
     }
-  };
+  }, [socket]);
 
-  const updateProgress = (courseId: string, lessonId: string) => {
+  const updateProgress = useCallback((courseId: string, lessonId: string) => {
     if (socket) {
       socket.emit('progressUpdate', { courseId, lessonId });
     }
-  };
+  }, [socket]);
 
   const onChatMessage = (callback: (message: any) => void) => {
     if (socket) {

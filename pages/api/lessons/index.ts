@@ -15,13 +15,7 @@ export const config = {
 };
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
-import { stripLessonVisualAidsFields } from '@/lib/strip-visual-aids-html';
-import type { ObjectId } from 'mongodb';
-import {
-  sortLessonsByOrder,
-  getPurchasedLessonIdSet,
-  computeMonetizationFlags,
-} from '@/lib/lesson-monetization';
+import { buildLessonsListForCourse } from '@/lib/build-course-lessons-list';
 
 async function getLessons(req: AuthRequest, res: NextApiResponse) {
   try {
@@ -31,62 +25,8 @@ async function getLessons(req: AuthRequest, res: NextApiResponse) {
     }
 
     const db = await getDb();
-    const lessons = db.collection('lessons');
-    const progress = db.collection('progress');
-
-    const lessonsList = await lessons
-      .find({ courseId })
-      .sort({ order: 1 })
-      .toArray();
-
-    const sortedList = sortLessonsByOrder(lessonsList as { _id: ObjectId; order?: number }[]);
-
-    // For students, level access + per-lesson monetization (first free, rest paid)
-    if (req.user && req.user.role === 'student') {
-      const userProgress = await progress.findOne({
-        userId: req.user.userId,
-        courseId,
-      });
-
-      const lessonIdStrings = sortedList.map((l) => l._id.toString());
-      const purchasedIds = await getPurchasedLessonIdSet(db, req.user.userId, lessonIdStrings);
-      const adsEnabled = process.env.NEXT_PUBLIC_ADS_ENABLED !== 'false';
-
-      const enrichedLessons = sortedList.map((lesson) => {
-        const doc = lesson as { _id: ObjectId; order?: number; requiredLevel?: string };
-        let levelOk = true;
-        if (doc.requiredLevel) {
-          levelOk = !!userProgress;
-        }
-        const flags = computeMonetizationFlags(
-          doc._id.toString(),
-          sortedList as { _id: ObjectId; isDemo?: boolean }[],
-          purchasedIds,
-          req.user!.role,
-          adsEnabled
-        );
-        const canOpen = levelOk && flags.unlocked;
-        return stripLessonVisualAidsFields({
-          ...doc,
-          accessible: canOpen,
-          locked: !canOpen,
-          monetization: {
-            unlocked: flags.unlocked,
-            isFreeTier: flags.isFreeTier,
-            isDemo: flags.isDemo,
-            requiresPayment: flags.requiresPayment,
-            showAds: flags.showAds,
-            amountKobo: flags.amountKobo,
-            currency: flags.currency,
-            paymentsConfigured: flags.paymentsConfigured,
-          },
-        } as Record<string, unknown>);
-      });
-
-      return res.json(enrichedLessons);
-    }
-
-    res.json(sortedList.map((l) => stripLessonVisualAidsFields(l as Record<string, unknown>)));
+    const list = await buildLessonsListForCourse(db, courseId as string, req.user);
+    return res.json(list);
   } catch (error: any) {
     console.error('Get lessons error:', error);
     res.status(500).json({ message: 'Something went wrong. Please try again later.' });
