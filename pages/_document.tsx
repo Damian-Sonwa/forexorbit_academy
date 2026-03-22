@@ -12,7 +12,12 @@ export default function Document() {
         <meta charSet="utf-8" />
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
         <link rel="alternate icon" href="/favicon.ico" />
-        <meta name="theme-color" content="#283D3B" />
+        <link rel="manifest" href="/manifest.json" />
+        <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+        <meta name="theme-color" content="#0a74da" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
       </Head>
       <body>
         <Main />

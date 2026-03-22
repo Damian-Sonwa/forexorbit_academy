@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0a74da" />
+    <title>ForexOrbit — Offline</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+        background: linear-gradient(160deg, #f0f7ff 0%, #ffffff 45%, #e8f0fe 100%);
+        color: #1a1a2e;
+        padding: 24px;
+      }
+      .card {
+        max-width: 420px;
+        text-align: center;
+        background: #fff;
+        border-radius: 16px;
+        padding: 2rem 1.75rem;
+        box-shadow: 0 12px 40px rgba(10, 116, 218, 0.12);
+        border: 1px solid rgba(10, 116, 218, 0.15);
+      }
+      h1 {
+        margin: 0 0 0.5rem;
+        font-size: 1.5rem;
+        color: #0a74da;
+      }
+      p {
+        margin: 0 0 1.25rem;
+        line-height: 1.55;
+        color: #444;
+      }
+      button {
+        background: #0a74da;
+        color: #fff;
+        border: none;
+        padding: 0.65rem 1.25rem;
+        border-radius: 8px;
+        font-size: 1rem;
+        cursor: pointer;
+        font-weight: 600;
+      }
+      button:hover {
+        filter: brightness(1.05);
+      }
+      .hint {
+        font-size: 0.875rem;
+        color: #666;
+        margin-top: 1rem;
+        margin-bottom: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>You’re offline</h1>
+      <p>
+        ForexOrbit can’t reach the network right now. Check your connection, then try again.
+        Cached lessons and pages may still open once you’re back online.
+      </p>
+      <button type="button" onclick="location.reload()">Retry</button>
+      <p class="hint">If you’re on a plane or subway, this screen is normal — we’ll reconnect when you are.</p>
+    </div>
+  </body>
+</html>

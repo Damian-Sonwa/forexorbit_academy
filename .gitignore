@@ -10,6 +10,9 @@
 /.next/
 /out/
 
+# Copied from src/service-worker.js when Next loads next.config.js
+/public/service-worker.js
+
 # production
 /build
 

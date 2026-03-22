@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<!--
+  ForexOrbit — static-host reference only.
+
+  This Next.js app does not use this file for routing. The live app uses:
+  - pages/_document.tsx  → manifest, theme-color, apple-touch-icon
+  - pages/_app.tsx       → <RegisterPwa /> (service worker registration)
+  - public/manifest.json, public/offline.html, public/service-worker.js
+
+  Use this HTML as a template if you deploy a static export or non-Next host;
+  keep paths aligned with your CDN or root URL.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ForexOrbit</title>
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+    <meta name="theme-color" content="#0a74da" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+  </head>
+  <body>
+    <p>
+      This file is not served as the Next.js home page. Open <code>/</code> via
+      <code>next dev</code> or your production URL. See <code>PWA-SETUP.md</code> for PWA testing
+      and HTTPS deployment.
+    </p>
+    <script>
+      (function () {
+        if (!('serviceWorker' in navigator)) return;
+        var secure =
+          window.isSecureContext ||
+          window.location.hostname === 'localhost' ||
+          window.location.hostname === '127.0.0.1';
+        if (!secure) return;
+        window.addEventListener('load', function () {
+          navigator.serviceWorker.register('/service-worker.js', { scope: '/' }).catch(function (e) {
+            console.warn('SW registration failed', e);
+          });
+        });
+      })();
+    </script>
+  </body>
+</html>

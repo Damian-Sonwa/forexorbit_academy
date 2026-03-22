@@ -1,3 +1,16 @@
+const fs = require('fs');
+const path = require('path');
+
+const swSrc = path.join(__dirname, 'src', 'service-worker.js');
+const swDest = path.join(__dirname, 'public', 'service-worker.js');
+try {
+  if (fs.existsSync(swSrc)) {
+    fs.copyFileSync(swSrc, swDest);
+  }
+} catch (e) {
+  console.warn('[ForexOrbit PWA] Could not copy service-worker.js to public:', e.message);
+}
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
@@ -19,6 +32,19 @@ const nextConfig = {
     // Frontend determines readiness solely by token API response
     // CRITICAL: AI_API_KEY is NEVER exposed to frontend - only used on Render backend
   },
-}
+  async headers() {
+    return [
+      {
+        source: '/service-worker.js',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=0, must-revalidate',
+          },
+        ],
+      },
+    ];
+  },
+};
 
-module.exports = nextConfig
+module.exports = nextConfig;
