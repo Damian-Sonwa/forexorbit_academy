@@ -19,7 +19,7 @@ async function getInstructors(req: AuthRequest, res: NextApiResponse) {
     res.json(instructorsList);
   } catch (error: any) {
     console.error('Get instructors error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -29,7 +29,7 @@ async function createInstructor(req: AuthRequest, res: NextApiResponse) {
     const { name, title, description, imageUrl } = req.body;
 
     if (!name || !title || !description) {
-      return res.status(400).json({ error: 'Missing required fields' });
+      return res.status(400).json({ message: 'Missing required fields' });
     }
 
     const db = await getDb();
@@ -53,7 +53,7 @@ async function createInstructor(req: AuthRequest, res: NextApiResponse) {
     });
   } catch (error: any) {
     console.error('Create instructor error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -63,7 +63,7 @@ export default async function(req: NextApiRequest, res: NextApiResponse) {
   } else if (req.method === 'POST') {
     return withAuth(createInstructor, ['admin', 'superadmin'])(req as AuthRequest, res);
   } else {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ message: 'Method not allowed' });
   }
 }
 

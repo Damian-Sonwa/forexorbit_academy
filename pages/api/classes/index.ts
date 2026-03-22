@@ -39,9 +39,8 @@ async function getClasses(req: AuthRequest, res: NextApiResponse) {
       updatedAt: cls.updatedAt,
     })));
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
-    console.error('Get classes error:', errorMessage);
-    res.status(500).json({ error: errorMessage });
+    console.error('Get classes error:', error);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -49,13 +48,13 @@ async function createClass(req: AuthRequest, res: NextApiResponse) {
   try {
     // Only instructors and admins can create classes
     if (req.user!.role !== 'instructor' && req.user!.role !== 'admin') {
-      return res.status(403).json({ error: 'Only instructors and admins can create classes' });
+      return res.status(403).json({ message: 'Only instructors and admins can create classes' });
     }
 
     const { title, description, date, time, meetingLink } = req.body;
 
     if (!title || !description || !date || !time) {
-      return res.status(400).json({ error: 'Title, description, date, and time are required' });
+      return res.status(400).json({ message: 'Title, description, date, and time are required' });
     }
 
     const db = await getDb();
@@ -79,9 +78,8 @@ async function createClass(req: AuthRequest, res: NextApiResponse) {
       ...newClass,
     });
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
-    console.error('Create class error:', errorMessage);
-    res.status(500).json({ error: errorMessage });
+    console.error('Create class error:', error);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -89,14 +87,14 @@ async function updateClass(req: AuthRequest, res: NextApiResponse) {
   try {
     // Only instructors and admins can update classes
     if (req.user!.role !== 'instructor' && req.user!.role !== 'admin') {
-      return res.status(403).json({ error: 'Only instructors and admins can update classes' });
+      return res.status(403).json({ message: 'Only instructors and admins can update classes' });
     }
 
     const { id } = req.query;
     const { title, description, date, time, meetingLink } = req.body;
 
     if (!id || typeof id !== 'string') {
-      return res.status(400).json({ error: 'Class ID is required' });
+      return res.status(400).json({ message: 'Class ID is required' });
     }
 
     const db = await getDb();
@@ -105,11 +103,11 @@ async function updateClass(req: AuthRequest, res: NextApiResponse) {
     // Check if class exists and was created by this user (or user is admin)
     const existingClass = await classes.findOne({ _id: new ObjectId(id) });
     if (!existingClass) {
-      return res.status(404).json({ error: 'Class not found' });
+      return res.status(404).json({ message: 'Class not found' });
     }
 
     if (req.user!.role !== 'admin' && existingClass.createdBy !== req.user!.userId) {
-      return res.status(403).json({ error: 'You can only update your own classes' });
+      return res.status(403).json({ message: 'You can only update your own classes' });
     }
 
     const updateData: any = {
@@ -129,9 +127,8 @@ async function updateClass(req: AuthRequest, res: NextApiResponse) {
 
     res.json({ success: true, message: 'Class updated successfully' });
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
-    console.error('Update class error:', errorMessage);
-    res.status(500).json({ error: errorMessage });
+    console.error('Update class error:', error);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -139,13 +136,13 @@ async function deleteClass(req: AuthRequest, res: NextApiResponse) {
   try {
     // Only instructors and admins can delete classes
     if (req.user!.role !== 'instructor' && req.user!.role !== 'admin') {
-      return res.status(403).json({ error: 'Only instructors and admins can delete classes' });
+      return res.status(403).json({ message: 'Only instructors and admins can delete classes' });
     }
 
     const { id } = req.query;
 
     if (!id || typeof id !== 'string') {
-      return res.status(400).json({ error: 'Class ID is required' });
+      return res.status(400).json({ message: 'Class ID is required' });
     }
 
     const db = await getDb();
@@ -154,20 +151,19 @@ async function deleteClass(req: AuthRequest, res: NextApiResponse) {
     // Check if class exists and was created by this user (or user is admin)
     const existingClass = await classes.findOne({ _id: new ObjectId(id) });
     if (!existingClass) {
-      return res.status(404).json({ error: 'Class not found' });
+      return res.status(404).json({ message: 'Class not found' });
     }
 
     if (req.user!.role !== 'admin' && existingClass.createdBy !== req.user!.userId) {
-      return res.status(403).json({ error: 'You can only delete your own classes' });
+      return res.status(403).json({ message: 'You can only delete your own classes' });
     }
 
     await classes.deleteOne({ _id: new ObjectId(id) });
 
     res.json({ success: true, message: 'Class deleted successfully' });
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
-    console.error('Delete class error:', errorMessage);
-    res.status(500).json({ error: errorMessage });
+    console.error('Delete class error:', error);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -181,7 +177,7 @@ export default withAuth(async (req: AuthRequest, res: NextApiResponse) => {
   } else if (req.method === 'DELETE') {
     return deleteClass(req, res);
   } else {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ message: 'Method not allowed' });
   }
 });
 

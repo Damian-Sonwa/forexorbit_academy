@@ -88,8 +88,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Extract error message from API response
       let errorMessage = 'Login failed. Please check your credentials.';
       if (error && typeof error === 'object' && 'response' in error) {
-        const apiError = error as { response?: { data?: { error?: string } }; message?: string };
-        errorMessage = apiError.response?.data?.error || apiError.message || errorMessage;
+        const apiError = error as { response?: { data?: { message?: string; error?: string } }; message?: string };
+        errorMessage = apiError.response?.data?.message || apiError.response?.data?.error || apiError.message || errorMessage;
       } else if (error instanceof Error) {
         errorMessage = error.message || errorMessage;
       }
@@ -138,8 +138,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error: unknown) {
       let errorMessage = 'Signup failed. Please try again.';
       if (error && typeof error === 'object' && 'response' in error) {
-        const apiError = error as { response?: { data?: { error?: string } }; message?: string };
-        errorMessage = apiError.response?.data?.error || apiError.message || errorMessage;
+        const apiError = error as { response?: { data?: { message?: string; error?: string } }; message?: string };
+        errorMessage = apiError.response?.data?.message || apiError.response?.data?.error || apiError.message || errorMessage;
       } else if (error instanceof Error) {
         errorMessage = error.message || errorMessage;
       }

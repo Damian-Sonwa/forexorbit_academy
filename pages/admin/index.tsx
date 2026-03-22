@@ -221,7 +221,7 @@ export default function AdminPanel() {
       alert(action === 'accept' ? 'Request accepted! Consultation session created.' : 'Request cancelled.');
       await loadConsultationRequests();
     } catch (error: any) {
-      const errorMessage = error.response?.data?.error || error.message || `Failed to ${action} request`;
+      const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message || `Failed to ${action} request`;
       alert(errorMessage);
     } finally {
       setLoadingConsultations(false);
@@ -309,8 +309,8 @@ export default function AdminPanel() {
     } catch (error: unknown) {
       let errorMessage = 'Failed to update user role';
       if (error && typeof error === 'object' && 'response' in error) {
-        const apiError = error as { response?: { data?: { error?: string } }; message?: string };
-        errorMessage = apiError.response?.data?.error || apiError.message || errorMessage;
+        const apiError = error as { response?: { data?: { message?: string; error?: string } }; message?: string };
+        errorMessage = apiError.response?.data?.message || apiError.response?.data?.error || apiError.message || errorMessage;
       } else if (error instanceof Error) {
         errorMessage = error.message || errorMessage;
       }
@@ -336,7 +336,7 @@ export default function AdminPanel() {
       await loadUsers();
       alert(response?.message || 'User deleted successfully');
     } catch (error: any) {
-      const errorMessage = error.response?.data?.error || error.message || 'Failed to delete user';
+      const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message || 'Failed to delete user';
       alert(errorMessage);
       console.error('Delete user error:', error);
     }
@@ -373,7 +373,7 @@ export default function AdminPanel() {
       await loadUpcomingClasses();
       alert('Class created successfully!');
     } catch (error: any) {
-      alert(error.response?.data?.error || error.message || 'Failed to create class');
+      alert(error.response?.data?.message || error.response?.data?.error || error.message || 'Failed to create class');
     } finally {
       setSubmittingClass(false);
     }
@@ -403,7 +403,7 @@ export default function AdminPanel() {
       await loadUpcomingClasses();
       alert('Class updated successfully!');
     } catch (error: any) {
-      alert(error.response?.data?.error || error.message || 'Failed to update class');
+      alert(error.response?.data?.message || error.response?.data?.error || error.message || 'Failed to update class');
     } finally {
       setSubmittingClass(false);
     }
@@ -417,7 +417,7 @@ export default function AdminPanel() {
       await loadUpcomingClasses();
       alert('Class deleted successfully!');
     } catch (error: any) {
-      alert(error.response?.data?.error || error.message || 'Failed to delete class');
+      alert(error.response?.data?.message || error.response?.data?.error || error.message || 'Failed to delete class');
     }
   };
 
@@ -486,7 +486,7 @@ export default function AdminPanel() {
         sendEmail: false,
       });
     } catch (error: any) {
-      alert(error.response?.data?.error || error.message || 'Failed to send certificate');
+      alert(error.response?.data?.message || error.response?.data?.error || error.message || 'Failed to send certificate');
     } finally {
       setSendingCertificate(false);
     }
@@ -575,7 +575,7 @@ export default function AdminPanel() {
       return imageUrl;
     } catch (error: any) {
       console.error('Upload error:', error);
-      const errorMessage = error.response?.data?.error || error.message || 'Failed to upload image';
+      const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message || 'Failed to upload image';
       throw new Error(errorMessage);
     } finally {
       setUploadingImage(false);
@@ -2044,7 +2044,7 @@ export default function AdminPanel() {
                                 setShowNewsModal(false);
                                 alert('News deleted successfully');
                               } catch (error: any) {
-                                alert(error.response?.data?.error || error.message || 'Failed to delete news');
+                                alert(error.response?.data?.message || error.response?.data?.error || error.message || 'Failed to delete news');
                               }
                             }}
                             className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded-md text-xs font-semibold transition-colors flex items-center space-x-1 shadow-sm"
@@ -2120,7 +2120,7 @@ export default function AdminPanel() {
                   setNewsEditForm({ title: '', description: '', category: 'market', content: '', link: '' });
                   await loadNews();
                 } catch (error: any) {
-                  alert(error.response?.data?.error || error.message || `Failed to ${editingNews._id ? 'update' : 'post'} news`);
+                  alert(error.response?.data?.message || error.response?.data?.error || error.message || `Failed to ${editingNews._id ? 'update' : 'post'} news`);
                 } finally {
                   setSubmittingNews(false);
                 }

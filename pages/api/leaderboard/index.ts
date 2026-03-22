@@ -125,7 +125,7 @@ async function getLeaderboard(req: AuthRequest, res: NextApiResponse) {
     res.json(rankings);
   } catch (error: any) {
     console.error('Get leaderboard error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 

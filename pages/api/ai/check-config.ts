@@ -61,7 +61,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
 
   if (req.method !== 'GET') {
     setCorsHeaders(res, origin);
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ message: 'Method not allowed' });
   }
 
   // Set CORS headers for all actual requests (GET) - must be set before any response

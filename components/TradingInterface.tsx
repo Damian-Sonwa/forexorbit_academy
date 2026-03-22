@@ -153,9 +153,11 @@ export default function TradingInterface() {
       });
       await loadData();
     } catch (error) {
-      const errorMessage = error && typeof error === 'object' && 'response' in error
-        ? (error as { response?: { data?: { error?: string } } }).response?.data?.error || 'Failed to place order'
-        : 'Failed to place order';
+      const data =
+        error && typeof error === 'object' && 'response' in error
+          ? (error as { response?: { data?: { message?: string; error?: string } } }).response?.data
+          : undefined;
+      const errorMessage = data?.message || data?.error || 'Failed to place order';
       alert(errorMessage);
     } finally {
       setSubmitting(false);
@@ -171,9 +173,11 @@ export default function TradingInterface() {
       await apiClient.post(`/demo-trading/positions/${positionId}/close`);
       await loadData();
     } catch (error) {
-      const errorMessage = error && typeof error === 'object' && 'response' in error
-        ? (error as { response?: { data?: { error?: string } } }).response?.data?.error || 'Failed to close position'
-        : 'Failed to close position';
+      const data =
+        error && typeof error === 'object' && 'response' in error
+          ? (error as { response?: { data?: { message?: string; error?: string } } }).response?.data
+          : undefined;
+      const errorMessage = data?.message || data?.error || 'Failed to close position';
       alert(errorMessage);
     }
   };
@@ -246,9 +250,11 @@ export default function TradingInterface() {
                   await apiClient.post('/demo-trading/account', { initialBalance: 10000 });
                   await loadData();
                 } catch (error) {
-                  const errorMessage = error && typeof error === 'object' && 'response' in error
-                    ? (error as { response?: { data?: { error?: string } } }).response?.data?.error || 'Failed to create account'
-                    : 'Failed to create account';
+                  const data =
+                    error && typeof error === 'object' && 'response' in error
+                      ? (error as { response?: { data?: { message?: string; error?: string } } }).response?.data
+                      : undefined;
+                  const errorMessage = data?.message || data?.error || 'Failed to create account';
                   alert(errorMessage);
                 }
               }}

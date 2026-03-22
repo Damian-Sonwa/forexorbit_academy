@@ -59,7 +59,7 @@ async function getCourses(req: AuthRequest, res: NextApiResponse) {
     );
   } catch (error: any) {
     console.error('Get courses error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -69,7 +69,7 @@ async function createCourse(req: AuthRequest, res: NextApiResponse) {
     const { title, description, category, difficulty, instructorId, thumbnail } = req.body;
 
     if (!title || !description || !category || !difficulty) {
-      return res.status(400).json({ error: 'Missing required fields' });
+      return res.status(400).json({ message: 'Missing required fields' });
     }
 
     const db = await getDb();
@@ -92,7 +92,7 @@ async function createCourse(req: AuthRequest, res: NextApiResponse) {
     });
   } catch (error: any) {
     console.error('Create course error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -124,7 +124,7 @@ export default async function(req: NextApiRequest, res: NextApiResponse) {
   } else if (req.method === 'POST') {
     return withAuth(postHandler, ['admin', 'instructor'])(req as AuthRequest, res);
   } else {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ message: 'Method not allowed' });
   }
 }
 

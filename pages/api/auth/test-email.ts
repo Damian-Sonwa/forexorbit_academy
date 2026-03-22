@@ -10,25 +10,25 @@ import { sendPasswordResetOtpSms, isSmsConfigured } from '@/lib/sms';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ message: 'Method not allowed' });
   }
 
   try {
     const { phone } = req.body;
     if (!phone || typeof phone !== 'string') {
-      return res.status(400).json({ error: 'Phone number is required' });
+      return res.status(400).json({ message: 'Phone number is required' });
     }
 
     if (!isSmsConfigured()) {
       return res.status(400).json({
-        error: 'SMS not configured',
-        message: 'Set Twilio or Termii environment variables (see check-email-config / .env.example).',
+        message:
+          'SMS not configured. Set Twilio or Termii environment variables (see check-email-config / .env.example).',
       });
     }
 
     const parsed = parseToE164(phone);
     if (!parsed) {
-      return res.status(400).json({ error: 'Invalid phone number' });
+      return res.status(400).json({ message: 'Invalid phone number' });
     }
 
     const testOtp = crypto.randomInt(0, 1_000_000).toString().padStart(6, '0');
@@ -41,7 +41,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
   } catch (error: unknown) {
     console.error('Test SMS error:', error);
-    const msg = error instanceof Error ? error.message : 'Failed to send';
-    return res.status(500).json({ error: 'Failed to send test SMS', message: msg });
+    return res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }

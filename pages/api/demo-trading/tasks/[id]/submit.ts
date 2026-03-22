@@ -14,12 +14,12 @@ async function submitTask(req: AuthRequest, res: NextApiResponse) {
   try {
     // Only students can submit tasks
     if (req.user!.role !== 'student') {
-      return res.status(403).json({ error: 'Only students can submit tasks' });
+      return res.status(403).json({ message: 'Only students can submit tasks' });
     }
 
     const { id } = req.query;
     if (!id || typeof id !== 'string') {
-      return res.status(400).json({ error: 'Task ID is required' });
+      return res.status(400).json({ message: 'Task ID is required' });
     }
 
     const { reasoning, screenshotUrls } = req.body;
@@ -27,7 +27,7 @@ async function submitTask(req: AuthRequest, res: NextApiResponse) {
 
     // Validate required fields
     if (!reasoning || typeof reasoning !== 'string' || reasoning.trim().length === 0) {
-      return res.status(400).json({ error: 'Reasoning/analysis is required' });
+      return res.status(400).json({ message: 'Reasoning/analysis is required' });
     }
 
     const db = await getDb();
@@ -37,7 +37,7 @@ async function submitTask(req: AuthRequest, res: NextApiResponse) {
     // Verify task exists
     const task = await tasks.findOne({ _id: new ObjectId(id) });
     if (!task) {
-      return res.status(404).json({ error: 'Task not found' });
+      return res.status(404).json({ message: 'Task not found' });
     }
 
     // Check if student already submitted this task
@@ -131,9 +131,8 @@ async function submitTask(req: AuthRequest, res: NextApiResponse) {
       });
     }
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
-    console.error('Submit task error:', errorMessage);
-    res.status(500).json({ error: errorMessage });
+    console.error('Submit task error:', error);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 

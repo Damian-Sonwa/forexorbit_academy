@@ -7,6 +7,7 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { verifyToken, extractToken } from './jwt';
 import { getSocketServer } from './socket-server';
 import { Server } from 'socket.io';
+import { apiForbidden, apiUnauthorized } from './api-response';
 
 export interface AuthRequest extends NextApiRequest {
   user?: {
@@ -41,7 +42,7 @@ export function withAuth(
           res.setHeader('Access-Control-Allow-Origin', existingCorsOrigin);
           res.setHeader('Access-Control-Allow-Credentials', 'true');
         }
-        res.status(401).json({ error: 'Authentication required' });
+        apiUnauthorized(res);
         return;
       }
 
@@ -58,7 +59,7 @@ export function withAuth(
           res.setHeader('Access-Control-Allow-Origin', existingCorsOrigin);
           res.setHeader('Access-Control-Allow-Credentials', 'true');
         }
-        res.status(403).json({ error: 'Insufficient permissions' });
+        apiForbidden(res);
         return;
       }
 
@@ -70,14 +71,13 @@ export function withAuth(
       }
       return handler(req, res);
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Invalid token';
-      console.error('Auth middleware error:', errorMessage);
+      console.error('Auth middleware error:', error);
       // Preserve CORS headers if they were set
       if (existingCorsOrigin) {
         res.setHeader('Access-Control-Allow-Origin', existingCorsOrigin);
         res.setHeader('Access-Control-Allow-Credentials', 'true');
       }
-      res.status(401).json({ error: errorMessage });
+      apiUnauthorized(res);
     }
   };
 }

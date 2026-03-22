@@ -119,11 +119,11 @@ async function getRequests(req: AuthRequest, res: NextApiResponse) {
 
       res.json(requestsWithDetails);
     } else {
-      res.status(403).json({ error: 'Access denied' });
+      res.status(403).json({ message: 'Access denied' });
     }
   } catch (error: any) {
     console.error('Get consultation requests error:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -131,13 +131,13 @@ async function createRequest(req: AuthRequest, res: NextApiResponse) {
   try {
     // Only students can create requests
     if (req.user!.role !== 'student') {
-      return res.status(403).json({ error: 'Only students can create consultation requests' });
+      return res.status(403).json({ message: 'Only students can create consultation requests' });
     }
 
     const { expertId, topic, description, consultationType } = req.body;
 
     if (!expertId || !topic || !description) {
-      return res.status(400).json({ error: 'Expert ID, topic, and description are required' });
+      return res.status(400).json({ message: 'Expert ID, topic, and description are required' });
     }
 
     const db = await getDb();
@@ -151,15 +151,15 @@ async function createRequest(req: AuthRequest, res: NextApiResponse) {
     );
 
     if (!expert) {
-      return res.status(404).json({ error: 'Expert not found' });
+      return res.status(404).json({ message: 'Expert not found' });
     }
 
     if (!expert.isExpert) {
-      return res.status(400).json({ error: 'Selected user is not an expert' });
+      return res.status(400).json({ message: 'Selected user is not an expert' });
     }
 
     if (expert.expertAvailable === false) {
-      return res.status(400).json({ error: 'Expert is currently unavailable for consultations' });
+      return res.status(400).json({ message: 'Expert is currently unavailable for consultations' });
     }
 
     // Check if consultation feature is enabled (check super admin settings)
@@ -169,7 +169,7 @@ async function createRequest(req: AuthRequest, res: NextApiResponse) {
     );
 
     if (superAdmin?.consultationEnabled === false) {
-      return res.status(400).json({ error: 'Consultation feature is currently disabled' });
+      return res.status(400).json({ message: 'Consultation feature is currently disabled' });
     }
 
     const request = {
@@ -194,7 +194,7 @@ async function createRequest(req: AuthRequest, res: NextApiResponse) {
     });
   } catch (error: any) {
     console.error('Create consultation request error:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -205,7 +205,7 @@ export default withAuth(async (req: AuthRequest, res: NextApiResponse) => {
     return createRequest(req, res);
   } else {
     res.setHeader('Allow', ['GET', 'POST']);
-    res.status(405).json({ error: `Method ${req.method} not allowed` });
+    res.status(405).json({ message: `Method ${req.method} not allowed` });
   }
 });
 

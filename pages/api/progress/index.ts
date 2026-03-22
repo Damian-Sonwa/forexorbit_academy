@@ -86,7 +86,7 @@ async function getProgress(req: AuthRequest, res: NextApiResponse) {
     res.json(enrichedProgress);
   } catch (error: any) {
     console.error('Get progress error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -96,7 +96,7 @@ async function updateProgress(req: AuthRequest, res: NextApiResponse) {
     const userId = req.user!.userId;
 
     if (!courseId || !lessonId) {
-      return res.status(400).json({ error: 'Missing required fields' });
+      return res.status(400).json({ message: 'Missing required fields' });
     }
 
     const db = await getDb();
@@ -148,7 +148,7 @@ async function updateProgress(req: AuthRequest, res: NextApiResponse) {
     res.json({ success: true, progress: progressPercent });
   } catch (error: any) {
     console.error('Update progress error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -158,7 +158,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
   } else if (req.method === 'POST') {
     return updateProgress(req, res);
   } else {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ message: 'Method not allowed' });
   }
 }
 

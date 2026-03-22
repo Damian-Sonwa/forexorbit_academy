@@ -22,7 +22,7 @@ async function uploadVisualAid(req: AuthRequest, res: NextApiResponse) {
   // Verify user is authenticated (should already be verified by withAuth middleware)
   if (!req.user) {
     console.error('No user found in request - Auth middleware may have failed');
-    return res.status(401).json({ error: 'Authentication required' });
+    return res.status(401).json({ message: 'Authentication required' });
   }
   
   // Role check is already done by withAuth middleware, so we can trust req.user.role
@@ -44,12 +44,12 @@ async function uploadVisualAid(req: AuthRequest, res: NextApiResponse) {
     const fileArray = Array.isArray(files.file) ? files.file : files.file ? [files.file] : [];
 
     if (fileArray.length === 0) {
-      return res.status(400).json({ error: 'No image file provided' });
+      return res.status(400).json({ message: 'No image file provided' });
     }
 
     const file = fileArray[0];
     if (!file) {
-      return res.status(400).json({ error: 'No file uploaded' });
+      return res.status(400).json({ message: 'No file uploaded' });
     }
 
     // Check if Cloudinary is configured
@@ -67,8 +67,7 @@ async function uploadVisualAid(req: AuthRequest, res: NextApiResponse) {
       if (!process.env.CLOUDINARY_API_KEY) missing.push('CLOUDINARY_API_KEY');
       if (!process.env.CLOUDINARY_API_SECRET) missing.push('CLOUDINARY_API_SECRET');
       console.error('Cloudinary not configured - missing environment variables:', missing.join(', '));
-      return res.status(500).json({ 
-        error: 'Image upload service is not configured. Please contact support.',
+      return res.status(500).json({ message: 'Image upload service is not configured. Please contact support.',
         details: `Missing: ${missing.join(', ')}`
       });
     }
@@ -89,7 +88,7 @@ async function uploadVisualAid(req: AuthRequest, res: NextApiResponse) {
           // Ignore cleanup errors
         }
       }
-      return res.status(400).json({ error: validation.error });
+      return res.status(400).json({ message: validation.error });
     }
 
     // Upload to Cloudinary directly from file path (more efficient)
@@ -116,12 +115,12 @@ async function uploadVisualAid(req: AuthRequest, res: NextApiResponse) {
   } catch (error: any) {
     console.error('Visual aid upload error:', error);
     if (error.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json({ error: 'File size exceeds 10MB limit' });
+      return res.status(400).json({ message: 'File size exceeds 10MB limit' });
     }
     if (error.message?.includes('Cloudinary configuration is missing')) {
-      return res.status(500).json({ error: 'Image upload service is not configured. Please contact support.' });
+      return res.status(500).json({ message: 'Image upload service is not configured. Please contact support.' });
     }
-    res.status(500).json({ error: error.message || 'Failed to upload image' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 

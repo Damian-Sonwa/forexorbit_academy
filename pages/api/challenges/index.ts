@@ -54,21 +54,21 @@ async function getChallenges(req: AuthRequest, res: NextApiResponse) {
     res.json(challengesList);
   } catch (error: any) {
     console.error('Get challenges error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
 async function completeChallenge(req: AuthRequest, res: NextApiResponse) {
   try {
     if (req.user!.role !== 'student') {
-      return res.status(403).json({ error: 'Students only' });
+      return res.status(403).json({ message: 'Students only' });
     }
 
     const { challengeId, answer } = req.body;
     const userId = req.user!.userId;
 
     if (!challengeId) {
-      return res.status(400).json({ error: 'Challenge ID required' });
+      return res.status(400).json({ message: 'Challenge ID required' });
     }
 
     const db = await getDb();
@@ -79,7 +79,7 @@ async function completeChallenge(req: AuthRequest, res: NextApiResponse) {
     // Get challenge
     const challenge = await challenges.findOne({ _id: new ObjectId(challengeId) });
     if (!challenge) {
-      return res.status(404).json({ error: 'Challenge not found' });
+      return res.status(404).json({ message: 'Challenge not found' });
     }
 
     // Check if already completed
@@ -89,7 +89,7 @@ async function completeChallenge(req: AuthRequest, res: NextApiResponse) {
     });
 
     if (existing) {
-      return res.status(400).json({ error: 'Challenge already completed' });
+      return res.status(400).json({ message: 'Challenge already completed' });
     }
 
     // Verify answer if provided
@@ -123,7 +123,7 @@ async function completeChallenge(req: AuthRequest, res: NextApiResponse) {
     });
   } catch (error: any) {
     console.error('Complete challenge error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -133,7 +133,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
   } else if (req.method === 'POST') {
     return completeChallenge(req, res);
   } else {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ message: 'Method not allowed' });
   }
 }
 

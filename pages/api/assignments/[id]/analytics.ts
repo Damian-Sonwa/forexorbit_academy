@@ -12,12 +12,12 @@ async function getAssignmentAnalytics(req: AuthRequest, res: NextApiResponse) {
   try {
     // Only instructors and admins can access analytics
     if (req.user!.role !== 'instructor' && req.user!.role !== 'admin' && req.user!.role !== 'superadmin') {
-      return res.status(403).json({ error: 'Instructor/Admin only' });
+      return res.status(403).json({ message: 'Instructor/Admin only' });
     }
 
     const { id } = req.query;
     if (!id || typeof id !== 'string') {
-      return res.status(400).json({ error: 'Assignment ID is required' });
+      return res.status(400).json({ message: 'Assignment ID is required' });
     }
 
     const db = await getDb();
@@ -29,7 +29,7 @@ async function getAssignmentAnalytics(req: AuthRequest, res: NextApiResponse) {
     // Get assignment details
     const assignment = await assignments.findOne({ _id: new ObjectId(id) });
     if (!assignment) {
-      return res.status(404).json({ error: 'Assignment not found' });
+      return res.status(404).json({ message: 'Assignment not found' });
     }
 
     // Get all submissions for this assignment
@@ -160,7 +160,7 @@ async function getAssignmentAnalytics(req: AuthRequest, res: NextApiResponse) {
     });
   } catch (error: any) {
     console.error('Get assignment analytics error:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 

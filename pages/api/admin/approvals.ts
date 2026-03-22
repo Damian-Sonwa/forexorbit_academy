@@ -20,7 +20,7 @@ async function getPendingUsers(req: AuthRequest, res: NextApiResponse) {
     // Allow all admins to view pending users (for notifications)
     // Only Super Admin can approve/reject (checked in handleApproval)
     if (req.user!.role !== 'admin' && req.user!.role !== 'superadmin') {
-      return res.status(403).json({ error: 'Admin access required' });
+      return res.status(403).json({ message: 'Admin access required' });
     }
 
     const db = await getDb();
@@ -47,7 +47,7 @@ async function getPendingUsers(req: AuthRequest, res: NextApiResponse) {
     );
   } catch (error: unknown) {
     console.error('Get pending users error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -60,13 +60,13 @@ async function handleApproval(req: AuthRequest, res: NextApiResponse) {
   try {
     // Allow all admins to approve/reject (not just Super Admin)
     if (req.user!.role !== 'admin' && req.user!.role !== 'superadmin') {
-      return res.status(403).json({ error: 'Admin access required' });
+      return res.status(403).json({ message: 'Admin access required' });
     }
 
     const { userId, action } = req.body;
 
     if (!userId || !action || !['approve', 'reject'].includes(action)) {
-      return res.status(400).json({ error: 'Invalid request. userId and action (approve/reject) required.' });
+      return res.status(400).json({ message: 'Invalid request. userId and action (approve/reject) required.' });
     }
 
     const db = await getDb();
@@ -75,7 +75,7 @@ async function handleApproval(req: AuthRequest, res: NextApiResponse) {
     // Find the user
     const user = await users.findOne({ _id: new ObjectId(userId) });
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ message: 'User not found' });
     }
 
     // Update user status
@@ -105,7 +105,7 @@ async function handleApproval(req: AuthRequest, res: NextApiResponse) {
     });
   } catch (error: unknown) {
     console.error('Approval action error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -115,7 +115,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
   } else if (req.method === 'POST') {
     return handleApproval(req, res);
   } else {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ message: 'Method not allowed' });
   }
 }
 

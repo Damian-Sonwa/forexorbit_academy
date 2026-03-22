@@ -10,7 +10,7 @@ import { ObjectId } from 'mongodb';
 
 async function markAllAsRead(req: AuthRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ message: 'Method not allowed' });
   }
 
   try {
@@ -24,7 +24,7 @@ async function markAllAsRead(req: AuthRequest, res: NextApiResponse) {
     );
 
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ message: 'User not found' });
     }
 
     // Build query based on role (same as getNotifications)
@@ -69,8 +69,7 @@ async function markAllAsRead(req: AuthRequest, res: NextApiResponse) {
     });
   } catch (error: unknown) {
     console.error('Mark all as read error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
-    res.status(500).json({ error: 'Failed to mark all as read', message: errorMessage });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 

@@ -9,12 +9,12 @@ import { isAIConfigured } from '@/lib/ai';
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ message: 'Method not allowed' });
   }
 
   // CRITICAL: Only allow on server-side
   if (typeof window !== 'undefined') {
-    return res.status(403).json({ error: 'This endpoint is only available on the backend' });
+    return res.status(403).json({ message: 'This endpoint is only available on the backend' });
   }
 
   try {
@@ -38,10 +38,8 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
       timestamp: new Date().toISOString(),
     });
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('[AI Health] Error:', errorMessage);
-    res.status(500).json({ 
-      error: 'Failed to check AI configuration',
+    console.error('[AI Health] Error:', error);
+    res.status(500).json({ message: 'Failed to check AI configuration',
       configured: false,
     });
   }

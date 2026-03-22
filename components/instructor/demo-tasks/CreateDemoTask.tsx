@@ -54,7 +54,7 @@ export default function CreateDemoTask({ students, onTaskCreated }: CreateDemoTa
 
       onTaskCreated();
     } catch (error: any) {
-      setError(error.response?.data?.error || 'Failed to create task');
+      setError(error.response?.data?.message || error.response?.data?.error || 'Failed to create task');
     } finally {
       setSubmitting(false);
     }

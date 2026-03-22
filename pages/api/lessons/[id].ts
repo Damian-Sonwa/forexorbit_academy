@@ -31,7 +31,7 @@ async function getLesson(req: AuthRequest, res: NextApiResponse) {
 
     const lesson = await lessons.findOne({ _id: new ObjectId(id as string) });
     if (!lesson) {
-      return res.status(404).json({ error: 'Lesson not found' });
+      return res.status(404).json({ message: 'Lesson not found' });
     }
 
     // Level-based access control: Check if user has required level
@@ -51,8 +51,7 @@ async function getLesson(req: AuthRequest, res: NextApiResponse) {
           });
 
           if (!prerequisiteProgress && req.user.role === 'student') {
-            return res.status(403).json({ 
-              error: 'This lesson requires completing prerequisite courses',
+            return res.status(403).json({ message: 'This lesson requires completing prerequisite courses',
               requiredLevel: lesson.requiredLevel,
             });
           }
@@ -106,7 +105,7 @@ async function getLesson(req: AuthRequest, res: NextApiResponse) {
     res.json(lessonOut);
   } catch (error: any) {
     console.error('Get lesson error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -119,7 +118,7 @@ async function updateLesson(req: AuthRequest, res: NextApiResponse) {
     // Check if lesson exists
     const lesson = await lessons.findOne({ _id: new ObjectId(id as string) });
     if (!lesson) {
-      return res.status(404).json({ error: 'Lesson not found' });
+      return res.status(404).json({ message: 'Lesson not found' });
     }
 
     // Instructors, admins, and superadmins can edit any lesson (full access)
@@ -127,7 +126,7 @@ async function updateLesson(req: AuthRequest, res: NextApiResponse) {
     console.log('Update lesson - User role:', userRole, 'User:', req.user!.email);
     if (userRole !== 'admin' && userRole !== 'instructor' && userRole !== 'superadmin') {
       console.log('Access denied - Role not authorized:', userRole);
-      return res.status(403).json({ error: 'Not authorized', role: userRole });
+      return res.status(403).json({ message: 'Not authorized', role: userRole });
     }
 
     // Get existing lesson to preserve lessonSummary fields
@@ -168,7 +167,7 @@ async function updateLesson(req: AuthRequest, res: NextApiResponse) {
     res.json({ success: true });
   } catch (error: any) {
     console.error('Update lesson error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -182,12 +181,12 @@ async function deleteLesson(req: AuthRequest, res: NextApiResponse) {
     // Check if lesson exists
     const lesson = await lessons.findOne({ _id: new ObjectId(id as string) });
     if (!lesson) {
-      return res.status(404).json({ error: 'Lesson not found' });
+      return res.status(404).json({ message: 'Lesson not found' });
     }
 
     // Instructors, admins, and superadmins can delete any lesson (full access)
     if (req.user!.role !== 'admin' && req.user!.role !== 'instructor' && req.user!.role !== 'superadmin') {
-      return res.status(403).json({ error: 'Not authorized' });
+      return res.status(403).json({ message: 'Not authorized' });
     }
 
     // Delete lesson and associated quiz
@@ -197,7 +196,7 @@ async function deleteLesson(req: AuthRequest, res: NextApiResponse) {
     res.json({ success: true });
   } catch (error: any) {
     console.error('Delete lesson error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -208,17 +207,17 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
   } else if (req.method === 'PUT') {
     // PUT is restricted to instructors, admins, and superadmins
     if (req.user!.role !== 'instructor' && req.user!.role !== 'admin' && req.user!.role !== 'superadmin') {
-      return res.status(403).json({ error: 'Not authorized' });
+      return res.status(403).json({ message: 'Not authorized' });
     }
     return updateLesson(req, res);
   } else if (req.method === 'DELETE') {
     // DELETE is restricted to instructors, admins, and superadmins
     if (req.user!.role !== 'instructor' && req.user!.role !== 'admin' && req.user!.role !== 'superadmin') {
-      return res.status(403).json({ error: 'Not authorized' });
+      return res.status(403).json({ message: 'Not authorized' });
     }
     return deleteLesson(req, res);
   } else {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ message: 'Method not allowed' });
   }
 }
 

@@ -13,7 +13,7 @@ async function getMessages(req: AuthRequest, res: NextApiResponse) {
   try {
     const { lessonId } = req.query;
     if (!lessonId) {
-      return res.status(400).json({ error: 'lessonId required' });
+      return res.status(400).json({ message: 'lessonId required' });
     }
 
     const db = await getDb();
@@ -28,7 +28,7 @@ async function getMessages(req: AuthRequest, res: NextApiResponse) {
     res.json(messagesList);
   } catch (error: unknown) {
     console.error('Get messages error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -38,7 +38,7 @@ async function sendMessage(req: AuthRequest, res: NextApiResponse) {
     const userId = req.user!.userId;
 
     if (!lessonId || !text) {
-      return res.status(400).json({ error: 'Missing required fields' });
+      return res.status(400).json({ message: 'Missing required fields' });
     }
 
     const db = await getDb();
@@ -69,7 +69,7 @@ async function sendMessage(req: AuthRequest, res: NextApiResponse) {
     });
   } catch (error: unknown) {
     console.error('Send message error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -79,7 +79,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
   } else if (req.method === 'POST') {
     return sendMessage(req, res);
   } else {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ message: 'Method not allowed' });
   }
 }
 

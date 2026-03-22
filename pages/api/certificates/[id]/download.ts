@@ -19,19 +19,19 @@ async function downloadCertificate(req: AuthRequest, res: NextApiResponse) {
     const certificate = await certificates.findOne({ _id: new ObjectId(id as string) });
 
     if (!certificate) {
-      return res.status(404).json({ error: 'Certificate not found' });
+      return res.status(404).json({ message: 'Certificate not found' });
     }
 
     // Check permissions
     if (req.user!.role === 'student' && certificate.userId !== req.user!.userId) {
-      return res.status(403).json({ error: 'Not authorized' });
+      return res.status(403).json({ message: 'Not authorized' });
     }
 
     const course = await courses.findOne({ _id: new ObjectId(certificate.courseId) });
     const user = await users.findOne({ _id: new ObjectId(certificate.userId) });
 
     if (!course || !user) {
-      return res.status(404).json({ error: 'Course or user not found' });
+      return res.status(404).json({ message: 'Course or user not found' });
     }
 
     // Generate certificate HTML (for now, return JSON - can be extended to generate PDF)
@@ -54,7 +54,7 @@ async function downloadCertificate(req: AuthRequest, res: NextApiResponse) {
     res.json(certificateData);
   } catch (error: any) {
     console.error('Download certificate error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 

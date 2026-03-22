@@ -20,12 +20,12 @@ async function getCertificate(req: AuthRequest, res: NextApiResponse) {
     const certificate = await certificates.findOne({ _id: new ObjectId(id as string) });
 
     if (!certificate) {
-      return res.status(404).json({ error: 'Certificate not found' });
+      return res.status(404).json({ message: 'Certificate not found' });
     }
 
     // Check permissions
     if (req.user!.role === 'student' && certificate.userId !== req.user!.userId) {
-      return res.status(403).json({ error: 'Not authorized' });
+      return res.status(403).json({ message: 'Not authorized' });
     }
 
     // Enrich with course and user details
@@ -48,14 +48,14 @@ async function getCertificate(req: AuthRequest, res: NextApiResponse) {
     });
   } catch (error: any) {
     console.error('Get certificate error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
 async function deleteCertificate(req: AuthRequest, res: NextApiResponse) {
   try {
     if (req.user!.role !== 'admin') {
-      return res.status(403).json({ error: 'Admin only' });
+      return res.status(403).json({ message: 'Admin only' });
     }
 
     const { id } = req.query;
@@ -65,13 +65,13 @@ async function deleteCertificate(req: AuthRequest, res: NextApiResponse) {
     const result = await certificates.deleteOne({ _id: new ObjectId(id as string) });
 
     if (result.deletedCount === 0) {
-      return res.status(404).json({ error: 'Certificate not found' });
+      return res.status(404).json({ message: 'Certificate not found' });
     }
 
     res.json({ success: true, message: 'Certificate deleted' });
   } catch (error: any) {
     console.error('Delete certificate error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -81,7 +81,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
   } else if (req.method === 'DELETE') {
     return deleteCertificate(req, res);
   } else {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ message: 'Method not allowed' });
   }
 }
 

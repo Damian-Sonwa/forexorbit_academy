@@ -11,14 +11,14 @@ import { ObjectId } from 'mongodb';
 async function gradeAssignment(req: AuthRequest, res: NextApiResponse) {
   try {
     if (req.user!.role !== 'instructor' && req.user!.role !== 'admin') {
-      return res.status(403).json({ error: 'Instructor/Admin only' });
+      return res.status(403).json({ message: 'Instructor/Admin only' });
     }
 
     const { id } = req.query;
     const { submissionId, grade, feedback } = req.body;
 
     if (!submissionId || grade === undefined) {
-      return res.status(400).json({ error: 'Missing required fields' });
+      return res.status(400).json({ message: 'Missing required fields' });
     }
 
     const db = await getDb();
@@ -29,7 +29,7 @@ async function gradeAssignment(req: AuthRequest, res: NextApiResponse) {
     // Get submission
     const submission = await submissions.findOne({ _id: new ObjectId(submissionId) });
     if (!submission) {
-      return res.status(404).json({ error: 'Submission not found' });
+      return res.status(404).json({ message: 'Submission not found' });
     }
 
     // Update submission with grade and feedback
@@ -60,7 +60,7 @@ async function gradeAssignment(req: AuthRequest, res: NextApiResponse) {
     res.json({ success: true, message: 'Assignment graded successfully' });
   } catch (error: any) {
     console.error('Grade assignment error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 

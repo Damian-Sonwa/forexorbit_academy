@@ -69,8 +69,7 @@ async function getReminders(req: AuthRequest, res: NextApiResponse) {
     res.json({ reminders: result });
   } catch (error: unknown) {
     console.error('Get reminders error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
-    res.status(500).json({ error: 'Failed to fetch reminders', message: errorMessage });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -89,12 +88,12 @@ async function createReminder(req: AuthRequest, res: NextApiResponse) {
     } = req.body;
 
     if (!type || !title || !scheduledAt) {
-      return res.status(400).json({ error: 'Missing required fields: type, title, scheduledAt' });
+      return res.status(400).json({ message: 'Missing required fields: type, title, scheduledAt' });
     }
 
     const scheduledDate = new Date(scheduledAt);
     if (isNaN(scheduledDate.getTime())) {
-      return res.status(400).json({ error: 'Invalid scheduledAt date' });
+      return res.status(400).json({ message: 'Invalid scheduledAt date' });
     }
 
     const reminder: Omit<Reminder, '_id'> = {
@@ -140,8 +139,7 @@ async function createReminder(req: AuthRequest, res: NextApiResponse) {
     });
   } catch (error: unknown) {
     console.error('Create reminder error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
-    res.status(500).json({ error: 'Failed to create reminder', message: errorMessage });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -151,7 +149,7 @@ async function updateReminder(req: AuthRequest, res: NextApiResponse) {
     const updates = req.body;
 
     if (!reminderId || typeof reminderId !== 'string') {
-      return res.status(400).json({ error: 'Reminder ID is required' });
+      return res.status(400).json({ message: 'Reminder ID is required' });
     }
 
     const db = await getDb();
@@ -164,7 +162,7 @@ async function updateReminder(req: AuthRequest, res: NextApiResponse) {
     });
 
     if (!reminder) {
-      return res.status(404).json({ error: 'Reminder not found or unauthorized' });
+      return res.status(404).json({ message: 'Reminder not found or unauthorized' });
     }
 
     // Build update object
@@ -174,7 +172,7 @@ async function updateReminder(req: AuthRequest, res: NextApiResponse) {
     if (updates.scheduledAt !== undefined) {
       const scheduledDate = new Date(updates.scheduledAt);
       if (isNaN(scheduledDate.getTime())) {
-        return res.status(400).json({ error: 'Invalid scheduledAt date' });
+        return res.status(400).json({ message: 'Invalid scheduledAt date' });
       }
       updateData.scheduledAt = scheduledDate;
     }
@@ -189,8 +187,7 @@ async function updateReminder(req: AuthRequest, res: NextApiResponse) {
     res.json({ success: true });
   } catch (error: unknown) {
     console.error('Update reminder error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
-    res.status(500).json({ error: 'Failed to update reminder', message: errorMessage });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -199,7 +196,7 @@ async function deleteReminder(req: AuthRequest, res: NextApiResponse) {
     const { reminderId } = req.query;
 
     if (!reminderId || typeof reminderId !== 'string') {
-      return res.status(400).json({ error: 'Reminder ID is required' });
+      return res.status(400).json({ message: 'Reminder ID is required' });
     }
 
     const db = await getDb();
@@ -212,7 +209,7 @@ async function deleteReminder(req: AuthRequest, res: NextApiResponse) {
     });
 
     if (!reminder) {
-      return res.status(404).json({ error: 'Reminder not found or unauthorized' });
+      return res.status(404).json({ message: 'Reminder not found or unauthorized' });
     }
 
     await reminders.deleteOne({ _id: new ObjectId(reminderId) });
@@ -220,8 +217,7 @@ async function deleteReminder(req: AuthRequest, res: NextApiResponse) {
     res.json({ success: true });
   } catch (error: unknown) {
     console.error('Delete reminder error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
-    res.status(500).json({ error: 'Failed to delete reminder', message: errorMessage });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -236,7 +232,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
     case 'DELETE':
       return deleteReminder(req, res);
     default:
-      return res.status(405).json({ error: 'Method not allowed' });
+      return res.status(405).json({ message: 'Method not allowed' });
   }
 }
 

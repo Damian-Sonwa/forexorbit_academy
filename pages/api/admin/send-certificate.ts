@@ -17,14 +17,13 @@ async function sendCertificate(req: AuthRequest, res: NextApiResponse) {
   try {
     // Verify user is admin or superadmin
     if (req.user!.role !== 'admin' && req.user!.role !== 'superadmin') {
-      return res.status(403).json({ error: 'Admin access required' });
+      return res.status(403).json({ message: 'Admin access required' });
     }
 
     const { studentIdentifier, courseId, sendEmail = false } = req.body;
 
     if (!studentIdentifier || !courseId) {
-      return res.status(400).json({ 
-        error: 'Student identifier (ID or email) and course ID are required' 
+      return res.status(400).json({ message: 'Student identifier (ID or email) and course ID are required' 
       });
     }
 
@@ -62,8 +61,7 @@ async function sendCertificate(req: AuthRequest, res: NextApiResponse) {
     }
 
     if (!student) {
-      return res.status(404).json({ 
-        error: 'Student not found. Please check the student ID or email address.' 
+      return res.status(404).json({ message: 'Student not found. Please check the student ID or email address.' 
       });
     }
 
@@ -72,11 +70,11 @@ async function sendCertificate(req: AuthRequest, res: NextApiResponse) {
     try {
       course = await courses.findOne({ _id: new ObjectId(courseId) });
     } catch {
-      return res.status(400).json({ error: 'Invalid course ID format' });
+      return res.status(400).json({ message: 'Invalid course ID format' });
     }
 
     if (!course) {
-      return res.status(404).json({ error: 'Course not found' });
+      return res.status(404).json({ message: 'Course not found' });
     }
 
     const userId = student._id.toString();
@@ -89,8 +87,7 @@ async function sendCertificate(req: AuthRequest, res: NextApiResponse) {
     });
 
     if (existingCert) {
-      return res.status(400).json({ 
-        error: 'Certificate already issued to this student for this course',
+      return res.status(400).json({ message: 'Certificate already issued to this student for this course',
         certificate: {
           id: existingCert._id.toString(),
           certificateId: existingCert.certificateId,
@@ -161,7 +158,7 @@ async function sendCertificate(req: AuthRequest, res: NextApiResponse) {
     });
   } catch (error: unknown) {
     console.error('Send certificate error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -169,7 +166,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
   if (req.method === 'POST') {
     return sendCertificate(req, res);
   } else {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ message: 'Method not allowed' });
   }
 }
 

@@ -13,7 +13,7 @@ async function getSubmissions(req: AuthRequest, res: NextApiResponse) {
   try {
     // Only instructors and admins can view submissions
     if (req.user!.role !== 'instructor' && req.user!.role !== 'admin') {
-      return res.status(403).json({ error: 'Only instructors and admins can view submissions' });
+      return res.status(403).json({ message: 'Only instructors and admins can view submissions' });
     }
 
     const db = await getDb();
@@ -72,9 +72,8 @@ async function getSubmissions(req: AuthRequest, res: NextApiResponse) {
 
     res.json(submissionsWithDetails);
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
-    console.error('Get submissions error:', errorMessage);
-    res.status(500).json({ error: errorMessage });
+    console.error('Get submissions error:', error);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 

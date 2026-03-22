@@ -14,12 +14,12 @@ async function updateJournalEntry(req: AuthRequest, res: NextApiResponse) {
   try {
     // Only students can update their own journal entries
     if (req.user!.role !== 'student') {
-      return res.status(403).json({ error: 'Only students can update journal entries' });
+      return res.status(403).json({ message: 'Only students can update journal entries' });
     }
 
     const { id } = req.query;
     if (!id || typeof id !== 'string') {
-      return res.status(400).json({ error: 'Entry ID is required' });
+      return res.status(400).json({ message: 'Entry ID is required' });
     }
 
     const {
@@ -41,29 +41,29 @@ async function updateJournalEntry(req: AuthRequest, res: NextApiResponse) {
     // Verify entry exists and belongs to the student
     const entry = await journal.findOne({ _id: new ObjectId(id) });
     if (!entry) {
-      return res.status(404).json({ error: 'Journal entry not found' });
+      return res.status(404).json({ message: 'Journal entry not found' });
     }
 
     if (entry.studentId !== req.user!.userId) {
-      return res.status(403).json({ error: 'You can only update your own journal entries' });
+      return res.status(403).json({ message: 'You can only update your own journal entries' });
     }
 
     // Validation
     if (!pair || !direction || !entryPrice || !stopLoss || !takeProfit || !lotSize || !result) {
-      return res.status(400).json({ error: 'Missing required fields' });
+      return res.status(400).json({ message: 'Missing required fields' });
     }
 
     if (!['buy', 'sell'].includes(direction)) {
-      return res.status(400).json({ error: 'Invalid direction. Must be "buy" or "sell"' });
+      return res.status(400).json({ message: 'Invalid direction. Must be "buy" or "sell"' });
     }
 
     if (!['win', 'loss', 'breakeven', 'open'].includes(result)) {
-      return res.status(400).json({ error: 'Invalid result. Must be "win", "loss", "breakeven", or "open"' });
+      return res.status(400).json({ message: 'Invalid result. Must be "win", "loss", "breakeven", or "open"' });
     }
 
     // If result is not "open", profitLoss should be provided
     if (result !== 'open' && profitLoss === undefined) {
-      return res.status(400).json({ error: 'Profit/Loss is required for closed trades' });
+      return res.status(400).json({ message: 'Profit/Loss is required for closed trades' });
     }
 
     const updateData = {
@@ -94,9 +94,8 @@ async function updateJournalEntry(req: AuthRequest, res: NextApiResponse) {
       updatedAt: updatedEntry!.updatedAt.toISOString(),
     });
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
-    console.error('Update journal entry error:', errorMessage);
-    res.status(500).json({ error: errorMessage });
+    console.error('Update journal entry error:', error);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -104,12 +103,12 @@ async function deleteJournalEntry(req: AuthRequest, res: NextApiResponse) {
   try {
     // Only students can delete their own journal entries
     if (req.user!.role !== 'student') {
-      return res.status(403).json({ error: 'Only students can delete journal entries' });
+      return res.status(403).json({ message: 'Only students can delete journal entries' });
     }
 
     const { id } = req.query;
     if (!id || typeof id !== 'string') {
-      return res.status(400).json({ error: 'Entry ID is required' });
+      return res.status(400).json({ message: 'Entry ID is required' });
     }
 
     const db = await getDb();
@@ -118,20 +117,19 @@ async function deleteJournalEntry(req: AuthRequest, res: NextApiResponse) {
     // Verify entry exists and belongs to the student
     const entry = await journal.findOne({ _id: new ObjectId(id) });
     if (!entry) {
-      return res.status(404).json({ error: 'Journal entry not found' });
+      return res.status(404).json({ message: 'Journal entry not found' });
     }
 
     if (entry.studentId !== req.user!.userId) {
-      return res.status(403).json({ error: 'You can only delete your own journal entries' });
+      return res.status(403).json({ message: 'You can only delete your own journal entries' });
     }
 
     await journal.deleteOne({ _id: new ObjectId(id) });
 
     res.json({ success: true, message: 'Journal entry deleted successfully' });
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
-    console.error('Delete journal entry error:', errorMessage);
-    res.status(500).json({ error: errorMessage });
+    console.error('Delete journal entry error:', error);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -142,7 +140,7 @@ export default withAuth(async (req: AuthRequest, res: NextApiResponse) => {
     return deleteJournalEntry(req, res);
   } else {
     res.setHeader('Allow', ['PUT', 'DELETE']);
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ message: 'Method not allowed' });
   }
 }, ['student']);
 

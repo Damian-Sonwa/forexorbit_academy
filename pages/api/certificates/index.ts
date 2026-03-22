@@ -104,7 +104,7 @@ async function getCertificates(req: AuthRequest, res: NextApiResponse) {
     res.json(enrichedCertificates);
   } catch (error: any) {
     console.error('Get certificates error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -115,7 +115,7 @@ async function generateCertificate(req: AuthRequest, res: NextApiResponse) {
     const userId = req.user!.userId;
 
     if (!courseId) {
-      return res.status(400).json({ error: 'Course ID required' });
+      return res.status(400).json({ message: 'Course ID required' });
     }
 
     const db = await getDb();
@@ -127,19 +127,19 @@ async function generateCertificate(req: AuthRequest, res: NextApiResponse) {
     // Check if course exists
     const course = await courses.findOne({ _id: new ObjectId(courseId) });
     if (!course) {
-      return res.status(404).json({ error: 'Course not found' });
+      return res.status(404).json({ message: 'Course not found' });
     }
 
     // Check if user has completed the course (100% progress)
     const userProgress = await progress.findOne({ userId, courseId });
     if (!userProgress || userProgress.progress < 100) {
-      return res.status(400).json({ error: 'Course not completed. Complete all lessons to earn a certificate.' });
+      return res.status(400).json({ message: 'Course not completed. Complete all lessons to earn a certificate.' });
     }
 
     // Check if certificate already exists
     const existingCert = await certificates.findOne({ userId, courseId });
     if (existingCert) {
-      return res.status(400).json({ error: 'Certificate already issued' });
+      return res.status(400).json({ message: 'Certificate already issued' });
     }
 
     // Get total lessons count
@@ -165,7 +165,7 @@ async function generateCertificate(req: AuthRequest, res: NextApiResponse) {
     });
   } catch (error: any) {
     console.error('Generate certificate error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -175,7 +175,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
   } else if (req.method === 'POST') {
     return generateCertificate(req, res);
   } else {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ message: 'Method not allowed' });
   }
 }
 

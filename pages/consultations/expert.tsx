@@ -130,7 +130,7 @@ export default function ExpertConsultation() {
       await loadRequests();
       await loadSessions();
     } catch (error: any) {
-      const errorMessage = error.response?.data?.error || error.message || `Failed to ${action} request`;
+      const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message || `Failed to ${action} request`;
       alert(errorMessage);
     } finally {
       setLoadingConsultations(false);
@@ -151,8 +151,8 @@ export default function ExpertConsultation() {
     } catch (error: unknown) {
       let errorMessage = 'Failed to update availability';
       if (error && typeof error === 'object' && 'response' in error) {
-        const apiError = error as { response?: { data?: { error?: string } }; message?: string };
-        errorMessage = apiError.response?.data?.error || apiError.message || errorMessage;
+        const apiError = error as { response?: { data?: { message?: string; error?: string } }; message?: string };
+        errorMessage = apiError.response?.data?.message || apiError.response?.data?.error || apiError.message || errorMessage;
       } else if (error instanceof Error) {
         errorMessage = error.message || errorMessage;
       }

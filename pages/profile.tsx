@@ -164,7 +164,7 @@ export default function Profile() {
       setSuccess('Profile photo uploaded successfully!');
       setTimeout(() => setSuccess(''), 3000);
     } catch (error: any) {
-      setError(error.response?.data?.error || error.message || 'Failed to upload photo');
+      setError(error.response?.data?.message || error.response?.data?.error || error.message || 'Failed to upload photo');
     } finally {
       setUploadingPhoto(false);
     }
@@ -187,7 +187,7 @@ export default function Profile() {
       setSuccess('Profile updated successfully!');
       setTimeout(() => setSuccess(''), 3000);
     } catch (error: any) {
-      setError(error.response?.data?.error || error.message || 'Failed to save profile');
+      setError(error.response?.data?.message || error.response?.data?.error || error.message || 'Failed to save profile');
     } finally {
       setLoading(false);
     }

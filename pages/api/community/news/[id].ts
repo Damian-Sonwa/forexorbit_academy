@@ -13,18 +13,18 @@ async function updateNews(req: AuthRequest, res: NextApiResponse) {
   try {
     // Only admin, superadmin, and instructors can update news
     if (req.user!.role !== 'admin' && req.user!.role !== 'superadmin' && req.user!.role !== 'instructor') {
-      return res.status(403).json({ error: 'Only admins and instructors can update news' });
+      return res.status(403).json({ message: 'Only admins and instructors can update news' });
     }
 
     const { id } = req.query;
     if (!id || typeof id !== 'string') {
-      return res.status(400).json({ error: 'News ID is required' });
+      return res.status(400).json({ message: 'News ID is required' });
     }
 
     const { title, description, category, content, link } = req.body;
 
     if (!title || !description || !category) {
-      return res.status(400).json({ error: 'Title, description, and category are required' });
+      return res.status(400).json({ message: 'Title, description, and category are required' });
     }
 
     const db = await getDb();
@@ -33,12 +33,12 @@ async function updateNews(req: AuthRequest, res: NextApiResponse) {
     // Check if news exists and user has permission (instructors can only edit their own)
     const existingNews = await news.findOne({ _id: new ObjectId(id) });
     if (!existingNews) {
-      return res.status(404).json({ error: 'News not found' });
+      return res.status(404).json({ message: 'News not found' });
     }
 
     // Instructors can only edit their own news, but admins can edit any news
     if (req.user!.role === 'instructor' && existingNews.createdBy !== req.user!.userId) {
-      return res.status(403).json({ error: 'You can only edit your own news updates' });
+      return res.status(403).json({ message: 'You can only edit your own news updates' });
     }
     // Admins and super admins can edit any news (no restriction)
 
@@ -62,7 +62,7 @@ async function updateNews(req: AuthRequest, res: NextApiResponse) {
     });
   } catch (error: any) {
     console.error('Update news error:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -70,12 +70,12 @@ async function deleteNews(req: AuthRequest, res: NextApiResponse) {
   try {
     // Only admin, superadmin, and instructors can delete news
     if (req.user!.role !== 'admin' && req.user!.role !== 'superadmin' && req.user!.role !== 'instructor') {
-      return res.status(403).json({ error: 'Only admins and instructors can delete news' });
+      return res.status(403).json({ message: 'Only admins and instructors can delete news' });
     }
 
     const { id } = req.query;
     if (!id || typeof id !== 'string') {
-      return res.status(400).json({ error: 'News ID is required' });
+      return res.status(400).json({ message: 'News ID is required' });
     }
 
     const db = await getDb();
@@ -84,12 +84,12 @@ async function deleteNews(req: AuthRequest, res: NextApiResponse) {
     // Check if news exists and user has permission (instructors can only delete their own)
     const existingNews = await news.findOne({ _id: new ObjectId(id) });
     if (!existingNews) {
-      return res.status(404).json({ error: 'News not found' });
+      return res.status(404).json({ message: 'News not found' });
     }
 
     // Instructors can only delete their own news, but admins can delete any news
     if (req.user!.role === 'instructor' && existingNews.createdBy !== req.user!.userId) {
-      return res.status(403).json({ error: 'You can only delete your own news updates' });
+      return res.status(403).json({ message: 'You can only delete your own news updates' });
     }
     // Admins and super admins can delete any news (no restriction)
 
@@ -101,7 +101,7 @@ async function deleteNews(req: AuthRequest, res: NextApiResponse) {
     });
   } catch (error: any) {
     console.error('Delete news error:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -112,7 +112,7 @@ export default withAuth(async (req: AuthRequest, res: NextApiResponse) => {
     return deleteNews(req, res);
   } else {
     res.setHeader('Allow', ['PUT', 'DELETE']);
-    res.status(405).json({ error: `Method ${req.method} not allowed` });
+    res.status(405).json({ message: `Method ${req.method} not allowed` });
   }
 });
 

@@ -78,8 +78,8 @@ export default function ResetPassword() {
         router.push('/login');
       }, 2500);
     } catch (err: unknown) {
-      const ax = err as { response?: { data?: { error?: string } } };
-      setError(ax.response?.data?.error || 'Failed to reset password');
+      const ax = err as { response?: { data?: { message?: string; error?: string } } };
+      setError(ax.response?.data?.message || ax.response?.data?.error || 'Failed to reset password');
     } finally {
       setLoading(false);
     }

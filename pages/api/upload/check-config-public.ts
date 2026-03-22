@@ -10,7 +10,7 @@ import { isCloudinaryConfigured } from '@/lib/cloudinary';
 export default function checkConfigPublic(req: NextApiRequest, res: NextApiResponse) {
   // Only allow GET requests
   if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ message: 'Method not allowed' });
   }
 
   const hasCloudName = !!process.env.CLOUDINARY_CLOUD_NAME;

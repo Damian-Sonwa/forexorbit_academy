@@ -157,22 +157,38 @@ export default function CourseDetailPage() {
                     <Link
                       key={lesson._id || lesson.id}
                       href={`/courses/${id}/lessons/${lesson._id || lesson.id}`}
-                      className={`flex items-center justify-between p-5 border-2 rounded-xl transition-all group ${
+                      className={`relative flex items-center justify-between p-5 border-2 rounded-xl transition-all group overflow-hidden ${
                         isLocked
                           ? 'border-amber-200 bg-amber-50/40 hover:border-amber-300'
                           : 'border-gray-200 hover:border-primary-300 hover:bg-primary-50'
                       }`}
                     >
-                      <div className="flex items-center space-x-4 flex-1">
-                        <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-primary-600 text-white rounded-xl flex items-center justify-center font-bold shadow-md group-hover:scale-110 transition-transform">
+                      {isLocked && (
+                        <div
+                          className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-r from-amber-100/50 via-white/20 to-amber-100/40 dark:from-amber-950/30 dark:via-gray-900/10 dark:to-amber-950/30"
+                          aria-hidden
+                        />
+                      )}
+                      {isLocked && (
+                        <div className="pointer-events-none absolute right-4 top-1/2 z-[2] -translate-y-1/2 opacity-25 sm:opacity-40">
+                          <svg className="h-14 w-14 text-amber-800 dark:text-amber-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                          </svg>
+                        </div>
+                      )}
+                      <div className="relative z-[3] flex items-center space-x-4 flex-1 min-w-0">
+                        <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-primary-600 text-white rounded-xl flex items-center justify-center font-bold shadow-md group-hover:scale-110 transition-transform shrink-0">
                           {index + 1}
                         </div>
-                        <div className="flex-1">
+                        <div className="flex-1 min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
                             <h3 className="font-semibold text-gray-900 group-hover:text-primary-600 transition-colors" dangerouslySetInnerHTML={{ __html: sanitizeForStudentView(lesson.title) }} />
                             {isLocked && (
-                              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-amber-900">
-                                Unlock
+                              <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-amber-900">
+                                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                </svg>
+                                Locked — pay on lesson page
                               </span>
                             )}
                           </div>
@@ -183,7 +199,7 @@ export default function CourseDetailPage() {
                           )}
                         </div>
                       </div>
-                      <svg className="w-6 h-6 text-gray-400 group-hover:text-primary-600 group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="relative z-[3] w-6 h-6 shrink-0 text-gray-400 group-hover:text-primary-600 group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                       </svg>
                     </Link>

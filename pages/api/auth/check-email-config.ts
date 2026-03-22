@@ -8,7 +8,7 @@ import { getSmsProvider, isSmsConfigured } from '@/lib/sms';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ message: 'Method not allowed' });
   }
 
   try {
@@ -39,6 +39,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
   } catch (error: unknown) {
     console.error('Check SMS config error:', error);
-    res.status(500).json({ error: 'Failed to check SMS configuration' });
+    res.status(500).json({ message: 'Failed to check SMS configuration' });
   }
 }

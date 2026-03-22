@@ -48,7 +48,7 @@ async function handler(req: AuthRequest, res: NextApiResponse): Promise<void> {
   setCorsHeaders(res, origin);
 
   if (!isAIConfigured()) {
-    res.status(503).json({ error: 'AI service is not configured' });
+    res.status(503).json({ message: 'AI service is not configured' });
     return;
   }
 
@@ -56,7 +56,7 @@ async function handler(req: AuthRequest, res: NextApiResponse): Promise<void> {
     const { question, userLevel } = req.body;
 
     if (!question || typeof question !== 'string' || question.trim().length === 0) {
-      res.status(400).json({ error: 'question is required' });
+      res.status(400).json({ message: 'question is required' });
       return;
     }
 
@@ -65,8 +65,7 @@ async function handler(req: AuthRequest, res: NextApiResponse): Promise<void> {
     res.json({ answer });
   } catch (error: unknown) {
     console.error('AI answer question error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Failed to get AI response';
-    res.status(500).json({ error: errorMessage });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -83,7 +82,7 @@ export default async function(req: NextApiRequest, res: NextApiResponse) {
 
   if (req.method !== 'POST') {
     setCorsHeaders(res, origin);
-    res.status(405).json({ error: 'Method not allowed' });
+    res.status(405).json({ message: 'Method not allowed' });
     return;
   }
 

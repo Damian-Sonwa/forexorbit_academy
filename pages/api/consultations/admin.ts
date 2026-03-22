@@ -13,7 +13,7 @@ async function getSettings(req: AuthRequest, res: NextApiResponse) {
   try {
     // Only super admin can access
     if (req.user!.email !== 'madudamian25@gmail.com' || req.user!.role !== 'superadmin') {
-      return res.status(403).json({ error: 'Only super admin can access these settings' });
+      return res.status(403).json({ message: 'Only super admin can access these settings' });
     }
 
     const db = await getDb();
@@ -58,7 +58,7 @@ async function getSettings(req: AuthRequest, res: NextApiResponse) {
     });
   } catch (error: any) {
     console.error('Get consultation settings error:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -66,7 +66,7 @@ async function updateSettings(req: AuthRequest, res: NextApiResponse) {
   try {
     // Only super admin can update
     if (req.user!.email !== 'madudamian25@gmail.com' || req.user!.role !== 'superadmin') {
-      return res.status(403).json({ error: 'Only super admin can update these settings' });
+      return res.status(403).json({ message: 'Only super admin can update these settings' });
     }
 
     const { action, data } = req.body;
@@ -99,11 +99,11 @@ async function updateSettings(req: AuthRequest, res: NextApiResponse) {
       );
       res.json({ success: true, message: `User ${suspended ? 'suspended' : 'unsuspended'} from consultations` });
     } else {
-      res.status(400).json({ error: 'Invalid action' });
+      res.status(400).json({ message: 'Invalid action' });
     }
   } catch (error: any) {
     console.error('Update consultation settings error:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -111,7 +111,7 @@ async function getLogs(req: AuthRequest, res: NextApiResponse) {
   try {
     // Only super admin can access
     if (req.user!.email !== 'madudamian25@gmail.com' || req.user!.role !== 'superadmin') {
-      return res.status(403).json({ error: 'Only super admin can access logs' });
+      return res.status(403).json({ message: 'Only super admin can access logs' });
     }
 
     const db = await getDb();
@@ -189,7 +189,7 @@ async function getLogs(req: AuthRequest, res: NextApiResponse) {
     });
   } catch (error: any) {
     console.error('Get consultation logs error:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -204,7 +204,7 @@ export default withAuth(async (req: AuthRequest, res: NextApiResponse) => {
     return updateSettings(req, res);
   } else {
     res.setHeader('Allow', ['GET', 'PUT']);
-    res.status(405).json({ error: `Method ${req.method} not allowed` });
+    res.status(405).json({ message: `Method ${req.method} not allowed` });
   }
 });
 

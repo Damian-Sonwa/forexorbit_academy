@@ -20,7 +20,7 @@ export const config = {
 async function uploadJournalScreenshot(req: AuthRequest, res: NextApiResponse) {
   // Only students can upload journal screenshots
   if (req.user!.role !== 'student') {
-    return res.status(403).json({ error: 'Only students can upload journal screenshots' });
+    return res.status(403).json({ message: 'Only students can upload journal screenshots' });
   }
 
   try {
@@ -44,7 +44,7 @@ async function uploadJournalScreenshot(req: AuthRequest, res: NextApiResponse) {
     const file = Array.isArray(files.file) ? files.file[0] : files.file;
 
     if (!file) {
-      return res.status(400).json({ error: 'No file uploaded' });
+      return res.status(400).json({ message: 'No file uploaded' });
     }
 
     // Check if Cloudinary is configured
@@ -68,8 +68,7 @@ async function uploadJournalScreenshot(req: AuthRequest, res: NextApiResponse) {
         hasApiKey: !!process.env.CLOUDINARY_API_KEY,
         hasApiSecret: !!process.env.CLOUDINARY_API_SECRET,
       });
-      return res.status(500).json({ 
-        error: 'Image upload service is not configured. Please contact support.',
+      return res.status(500).json({ message: 'Image upload service is not configured. Please contact support.',
         details: `Missing: ${missing.join(', ')}`
       });
     }
@@ -90,7 +89,7 @@ async function uploadJournalScreenshot(req: AuthRequest, res: NextApiResponse) {
           // Ignore cleanup errors
         }
       }
-      return res.status(400).json({ error: validation.error });
+      return res.status(400).json({ message: validation.error });
     }
 
     // Upload to Cloudinary directly from file path (more efficient)
@@ -137,12 +136,12 @@ async function uploadJournalScreenshot(req: AuthRequest, res: NextApiResponse) {
   } catch (error: any) {
     console.error('Journal screenshot upload error:', error);
     if (error.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json({ error: 'File size exceeds 10MB limit' });
+      return res.status(400).json({ message: 'File size exceeds 10MB limit' });
     }
     if (error.message?.includes('Cloudinary configuration is missing')) {
-      return res.status(500).json({ error: 'Image upload service is not configured. Please contact support.' });
+      return res.status(500).json({ message: 'Image upload service is not configured. Please contact support.' });
     }
-    res.status(500).json({ error: error.message || 'Failed to upload screenshot' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 

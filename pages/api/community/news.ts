@@ -41,7 +41,7 @@ async function getNews(req: AuthRequest, res: NextApiResponse) {
     );
   } catch (error: any) {
     console.error('Get news error:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -49,13 +49,13 @@ async function createNews(req: AuthRequest, res: NextApiResponse) {
   try {
     // Only admin, superadmin, and instructors can create news
     if (req.user!.role !== 'admin' && req.user!.role !== 'superadmin' && req.user!.role !== 'instructor') {
-      return res.status(403).json({ error: 'Only admins and instructors can create news' });
+      return res.status(403).json({ message: 'Only admins and instructors can create news' });
     }
 
     const { title, description, category, content, link } = req.body;
 
     if (!title || !description || !category) {
-      return res.status(400).json({ error: 'Title, description, and category are required' });
+      return res.status(400).json({ message: 'Title, description, and category are required' });
     }
 
     const db = await getDb();
@@ -82,7 +82,7 @@ async function createNews(req: AuthRequest, res: NextApiResponse) {
     });
   } catch (error: any) {
     console.error('Create news error:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -93,7 +93,7 @@ export default withAuth(async (req: AuthRequest, res: NextApiResponse) => {
     return createNews(req, res);
   } else {
     res.setHeader('Allow', ['GET', 'POST']);
-    res.status(405).json({ error: `Method ${req.method} not allowed` });
+    res.status(405).json({ message: `Method ${req.method} not allowed` });
   }
 });
 

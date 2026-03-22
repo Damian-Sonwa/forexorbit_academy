@@ -77,11 +77,11 @@ async function getTasks(req: AuthRequest, res: NextApiResponse) {
 
       return res.json(tasksWithNames);
     } else {
-      return res.status(403).json({ error: 'Access denied' });
+      return res.status(403).json({ message: 'Access denied' });
     }
   } catch (error: any) {
     console.error('Get tasks error:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -89,13 +89,13 @@ async function createTask(req: AuthRequest, res: NextApiResponse) {
   try {
     // Only instructors and admins can create tasks
     if (req.user!.role !== 'instructor' && req.user!.role !== 'admin') {
-      return res.status(403).json({ error: 'Only instructors and admins can create tasks' });
+      return res.status(403).json({ message: 'Only instructors and admins can create tasks' });
     }
 
     const { title, description, instructions, assignedTo, dueDate } = req.body;
 
     if (!title || !description) {
-      return res.status(400).json({ error: 'Title and description are required' });
+      return res.status(400).json({ message: 'Title and description are required' });
     }
 
     const db = await getDb();
@@ -184,7 +184,7 @@ async function createTask(req: AuthRequest, res: NextApiResponse) {
     });
   } catch (error: any) {
     console.error('Create task error:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -194,7 +194,7 @@ export default withAuth(async (req: AuthRequest, res: NextApiResponse) => {
   } else if (req.method === 'POST') {
     return createTask(req, res);
   } else {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ message: 'Method not allowed' });
   }
 });
 

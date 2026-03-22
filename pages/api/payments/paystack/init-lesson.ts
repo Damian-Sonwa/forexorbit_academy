@@ -20,35 +20,35 @@ import {
 
 async function handler(req: AuthRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ message: 'Method not allowed' });
   }
 
   if (!isPaystackConfigured()) {
-    return res.status(503).json({ error: 'Payments are not configured' });
+    return res.status(503).json({ message: 'Payments are not configured' });
   }
 
   if (isStaffRole(req.user!.role)) {
-    return res.status(400).json({ error: 'Staff accounts do not need to purchase lessons' });
+    return res.status(400).json({ message: 'Staff accounts do not need to purchase lessons' });
   }
 
   try {
     const { lessonId } = req.body as { lessonId?: string };
     if (!lessonId || typeof lessonId !== 'string') {
-      return res.status(400).json({ error: 'lessonId is required' });
+      return res.status(400).json({ message: 'lessonId is required' });
     }
 
     let oid: ObjectId;
     try {
       oid = new ObjectId(lessonId);
     } catch {
-      return res.status(400).json({ error: 'Invalid lessonId' });
+      return res.status(400).json({ message: 'Invalid lessonId' });
     }
 
     const db = await getDb();
     const lessons = db.collection('lessons');
     const lesson = await lessons.findOne({ _id: oid });
     if (!lesson) {
-      return res.status(404).json({ error: 'Lesson not found' });
+      return res.status(404).json({ message: 'Lesson not found' });
     }
 
     const courseId = String(lesson.courseId);
@@ -56,16 +56,20 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
     const sorted = sortLessonsByOrder(courseLessons as { _id: ObjectId; order?: number }[]);
     const firstId = sorted[0]?._id.toString();
     if (firstId === lessonId) {
-      return res.status(400).json({ error: 'The first lesson in each course is free' });
+      return res.status(400).json({ message: 'The first lesson in each course is free' });
     }
 
     const owned = await hasLessonPurchase(db, req.user!.userId, lessonId);
     if (owned) {
       return res.status(200).json({
+        message: 'You already have access to this lesson.',
         alreadyOwned: true,
         reference: null,
         amountKobo: getLessonPriceKobo(),
         currency: getPaystackCurrency(),
+        email: req.user!.email,
+        lessonId,
+        courseId,
       });
     }
 
@@ -86,6 +90,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
     });
 
     return res.status(200).json({
+      message: 'Checkout ready. Complete payment in the Paystack window.',
       reference,
       amountKobo,
       currency,
@@ -95,7 +100,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
     });
   } catch (e) {
     console.error('[init-lesson]', e);
-    return res.status(500).json({ error: 'Failed to start payment' });
+    return res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 

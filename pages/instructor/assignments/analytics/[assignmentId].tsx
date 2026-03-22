@@ -106,7 +106,7 @@ export default function AssignmentAnalytics() {
       setAnalytics(data as AnalyticsData);
     } catch (err: any) {
       console.error('Failed to load analytics:', err);
-      setError(err.response?.data?.error || 'Failed to load analytics');
+      setError(err.response?.data?.message || err.response?.data?.error || 'Failed to load analytics');
     } finally {
       setLoading(false);
     }

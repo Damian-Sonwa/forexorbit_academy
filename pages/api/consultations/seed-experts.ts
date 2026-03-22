@@ -15,7 +15,7 @@ async function seedExperts(req: AuthRequest, res: NextApiResponse) {
   try {
     // Only admins can trigger seeding
     if (req.user!.role !== 'admin' && req.user!.email !== 'madudamian25@gmail.com') {
-      return res.status(403).json({ error: 'Admin access required' });
+      return res.status(403).json({ message: 'Admin access required' });
     }
 
     const db = await getDb();
@@ -95,7 +95,7 @@ async function seedExperts(req: AuthRequest, res: NextApiResponse) {
     });
   } catch (error: any) {
     console.error('Seed experts error:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 

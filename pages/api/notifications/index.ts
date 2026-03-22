@@ -50,7 +50,7 @@ async function getNotifications(req: AuthRequest, res: NextApiResponse) {
     );
 
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ message: 'User not found' });
     }
 
     // Build query based on user role
@@ -169,8 +169,7 @@ async function getNotifications(req: AuthRequest, res: NextApiResponse) {
     });
   } catch (error: unknown) {
     console.error('Get notifications error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
-    res.status(500).json({ error: 'Failed to fetch notifications', message: errorMessage });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -178,7 +177,7 @@ async function createNotification(req: AuthRequest, res: NextApiResponse) {
   try {
     // Only admin, instructor, and superadmin can create notifications
     if (!['admin', 'instructor', 'superadmin'].includes(req.user!.role)) {
-      return res.status(403).json({ error: 'Unauthorized' });
+      return res.status(403).json({ message: 'You are not authorized to perform this action' });
     }
 
     const db = await getDb();
@@ -197,7 +196,7 @@ async function createNotification(req: AuthRequest, res: NextApiResponse) {
     } = req.body;
 
     if (!type || !title || !message) {
-      return res.status(400).json({ error: 'Missing required fields: type, title, message' });
+      return res.status(400).json({ message: 'Missing required fields: type, title, message' });
     }
 
     const notification: Omit<Notification, '_id'> = {
@@ -258,8 +257,7 @@ async function createNotification(req: AuthRequest, res: NextApiResponse) {
     });
   } catch (error: unknown) {
     console.error('Create notification error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
-    res.status(500).json({ error: 'Failed to create notification', message: errorMessage });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -268,7 +266,7 @@ async function markAsRead(req: AuthRequest, res: NextApiResponse) {
     const { notificationId } = req.body;
 
     if (!notificationId) {
-      return res.status(400).json({ error: 'Notification ID is required' });
+      return res.status(400).json({ message: 'Notification ID is required' });
     }
 
     const db = await getDb();
@@ -280,7 +278,7 @@ async function markAsRead(req: AuthRequest, res: NextApiResponse) {
     });
 
     if (!notification) {
-      return res.status(404).json({ error: 'Notification not found' });
+      return res.status(404).json({ message: 'Notification not found' });
     }
 
     // Update notification
@@ -292,8 +290,7 @@ async function markAsRead(req: AuthRequest, res: NextApiResponse) {
     res.json({ success: true });
   } catch (error: unknown) {
     console.error('Mark as read error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
-    res.status(500).json({ error: 'Failed to mark notification as read', message: errorMessage });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -309,7 +306,7 @@ async function markAllAsRead(req: AuthRequest, res: NextApiResponse) {
     );
 
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ message: 'User not found' });
     }
 
     // Build query based on role (same as getNotifications)
@@ -351,8 +348,7 @@ async function markAllAsRead(req: AuthRequest, res: NextApiResponse) {
     res.json({ success: true });
   } catch (error: unknown) {
     console.error('Mark all as read error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
-    res.status(500).json({ error: 'Failed to mark all as read', message: errorMessage });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -361,7 +357,7 @@ async function deleteNotification(req: AuthRequest, res: NextApiResponse) {
     const { notificationId } = req.body;
 
     if (!notificationId) {
-      return res.status(400).json({ error: 'Notification ID is required' });
+      return res.status(400).json({ message: 'Notification ID is required' });
     }
 
     const db = await getDb();
@@ -374,7 +370,7 @@ async function deleteNotification(req: AuthRequest, res: NextApiResponse) {
     });
 
     if (!notification) {
-      return res.status(404).json({ error: 'Notification not found or unauthorized' });
+      return res.status(404).json({ message: 'Notification not found or unauthorized' });
     }
 
     await notifications.deleteOne({ _id: new ObjectId(notificationId) });
@@ -382,8 +378,7 @@ async function deleteNotification(req: AuthRequest, res: NextApiResponse) {
     res.json({ success: true });
   } catch (error: unknown) {
     console.error('Delete notification error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
-    res.status(500).json({ error: 'Failed to delete notification', message: errorMessage });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -398,7 +393,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
     case 'DELETE':
       return deleteNotification(req, res);
     default:
-      return res.status(405).json({ error: 'Method not allowed' });
+      return res.status(405).json({ message: 'Method not allowed' });
   }
 }
 

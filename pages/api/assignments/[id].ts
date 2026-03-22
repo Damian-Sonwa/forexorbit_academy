@@ -19,7 +19,7 @@ async function getAssignment(req: AuthRequest, res: NextApiResponse) {
 
     const assignment = await assignments.findOne({ _id: new ObjectId(id as string) });
     if (!assignment) {
-      return res.status(404).json({ error: 'Assignment not found' });
+      return res.status(404).json({ message: 'Assignment not found' });
     }
 
     // For students, include their submission
@@ -40,14 +40,14 @@ async function getAssignment(req: AuthRequest, res: NextApiResponse) {
     res.json(assignment);
   } catch (error: any) {
     console.error('Get assignment error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
 async function updateAssignment(req: AuthRequest, res: NextApiResponse) {
   try {
     if (req.user!.role !== 'instructor' && req.user!.role !== 'admin') {
-      return res.status(403).json({ error: 'Instructor/Admin only' });
+      return res.status(403).json({ message: 'Instructor/Admin only' });
     }
 
     const { id } = req.query;
@@ -72,14 +72,14 @@ async function updateAssignment(req: AuthRequest, res: NextApiResponse) {
     res.json({ success: true });
   } catch (error: any) {
     console.error('Update assignment error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
 async function deleteAssignment(req: AuthRequest, res: NextApiResponse) {
   try {
     if (req.user!.role !== 'instructor' && req.user!.role !== 'admin') {
-      return res.status(403).json({ error: 'Instructor/Admin only' });
+      return res.status(403).json({ message: 'Instructor/Admin only' });
     }
 
     const { id } = req.query;
@@ -94,7 +94,7 @@ async function deleteAssignment(req: AuthRequest, res: NextApiResponse) {
     res.json({ success: true });
   } catch (error: any) {
     console.error('Delete assignment error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -106,7 +106,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
   } else if (req.method === 'DELETE') {
     return deleteAssignment(req, res);
   } else {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ message: 'Method not allowed' });
   }
 }
 

@@ -91,12 +91,9 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
       completedTasks,
       totalEnrollments: enrollments.length,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Instructor Analytics] Error:', error);
-    res.status(500).json({ 
-      error: 'Internal server error',
-      details: error.message 
-    });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 

@@ -72,14 +72,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // AGORA_APP_CERTIFICATE should NEVER be set in Vercel environment
   if (!AGORA_APP_CERTIFICATE) {
     console.error('AGORA_APP_CERTIFICATE not configured. This endpoint must run on Render backend.');
-    return res.status(500).json({ 
-      error: 'Agora token service unavailable. Please contact support.',
+    return res.status(500).json({ message: 'Agora token service unavailable. Please contact support.',
     });
   }
 
   // Support both GET and POST for compatibility
   if (req.method !== 'GET' && req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ message: 'Method not allowed' });
   }
 
   try {
@@ -87,22 +86,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const channel = req.method === 'GET' ? req.query.channel : req.body.sessionId;
     
     if (!channel || typeof channel !== 'string') {
-      return res.status(400).json({ error: 'Channel is required' });
+      return res.status(400).json({ message: 'Channel is required' });
     }
 
     // Validate Agora credentials
     if (!AGORA_APP_ID) {
       console.error('Agora App ID not configured. Set NEXT_PUBLIC_AGORA_APP_ID or AGORA_APP_ID environment variable.');
-      return res.status(500).json({ 
-        error: 'Agora token service unavailable. Please contact support.',
+      return res.status(500).json({ message: 'Agora token service unavailable. Please contact support.',
       });
     }
 
     // AGORA_APP_CERTIFICATE check is already done above, but double-check for safety
     if (!AGORA_APP_CERTIFICATE) {
       console.error('Agora App Certificate not configured. This endpoint must run on Render backend with AGORA_APP_CERTIFICATE set.');
-      return res.status(503).json({ 
-        error: 'Agora token service is only available on Render backend. Please contact support.',
+      return res.status(503).json({ message: 'Agora token service is only available on Render backend. Please contact support.',
       });
     }
 
@@ -149,8 +146,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   } catch (error: any) {
     console.error('Error generating Agora token:', error);
     // Don't expose internal errors to frontend - show generic message
-    return res.status(500).json({ 
-      error: 'Agora token service unavailable. Please contact support.',
+    return res.status(500).json({ message: 'Agora token service unavailable. Please contact support.',
     });
   }
 }

@@ -18,7 +18,7 @@ async function getUsers(req: AuthRequest, res: NextApiResponse) {
     res.json(usersList);
   } catch (error: unknown) {
     console.error('Get users error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -26,7 +26,7 @@ export default async function(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'GET') {
     return withAuth(getUsers, ['admin', 'superadmin'])(req as AuthRequest, res);
   } else {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ message: 'Method not allowed' });
   }
 }
 

@@ -50,6 +50,8 @@ interface TradeJournalEntry {
   createdAt: string;
 }
 
+const demoTasksAdsEnabled = process.env.NEXT_PUBLIC_ADS_ENABLED !== 'false';
+
 export default function DemoTrading() {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const router = useRouter();
@@ -129,7 +131,7 @@ export default function DemoTrading() {
       await apiClient.post(`/demo-trading/tasks/${taskId}/complete`);
       await loadData();
     } catch (error: any) {
-      alert(error.response?.data?.error || 'Failed to mark task as complete');
+      alert(error.response?.data?.message || error.response?.data?.error || 'Failed to mark task as complete');
     }
   };
 
@@ -176,7 +178,7 @@ export default function DemoTrading() {
       setSubmissionForm({ ...submissionForm, screenshot: imageUrl });
       setSubmissionScreenshotPreview(imageUrl);
     } catch (error: any) {
-      const errorMessage = error.response?.data?.error || error.message || 'Failed to upload screenshot';
+      const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message || 'Failed to upload screenshot';
       setSubmissionUploadError(errorMessage);
       console.error('Screenshot upload error:', error);
     } finally {
@@ -213,7 +215,7 @@ export default function DemoTrading() {
       
       alert('Task submitted successfully!');
     } catch (error: any) {
-      const errorMessage = error.response?.data?.error || 'Failed to submit task';
+      const errorMessage = error.response?.data?.message || error.response?.data?.error || 'Failed to submit task';
       alert(errorMessage);
       console.error('Task submission error:', error);
     } finally {
@@ -260,7 +262,7 @@ export default function DemoTrading() {
       setJournalForm({ ...journalForm, screenshot: imageUrl });
       setScreenshotPreview(imageUrl);
     } catch (error: any) {
-      const errorMessage = error.response?.data?.error || error.message || 'Failed to upload screenshot';
+      const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message || 'Failed to upload screenshot';
       setUploadError(errorMessage);
       console.error('Screenshot upload error:', error);
     } finally {
@@ -313,7 +315,7 @@ export default function DemoTrading() {
       // Reload data to show the new entry
       await loadData();
     } catch (error: any) {
-      const errorMessage = error.response?.data?.error || 'Failed to save trade journal entry';
+      const errorMessage = error.response?.data?.message || error.response?.data?.error || 'Failed to save trade journal entry';
       alert(errorMessage);
       console.error('Journal submission error:', error);
     } finally {
@@ -736,10 +738,12 @@ export default function DemoTrading() {
             {/* Tasks Tab */}
             {activeTab === 'tasks' && (
               <div className="space-y-6">
-                <ContentAdInterstitial storageKey="fo-demo-tasks-int" enabled />
-                <div className="mb-2">
-                  <ContentAdBanner propellerPlacement="demoTasksBanner" />
-                </div>
+                <ContentAdInterstitial storageKey="fo-demo-tasks-int" enabled={demoTasksAdsEnabled} />
+                {demoTasksAdsEnabled && (
+                  <div className="mb-2">
+                    <ContentAdBanner propellerPlacement="demoTasksBanner" />
+                  </div>
+                )}
                 <div className="flex justify-between items-center">
                   <h2 className="text-2xl font-bold text-gray-900">Demo Trading Tasks</h2>
                   <button

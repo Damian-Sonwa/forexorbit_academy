@@ -5,7 +5,7 @@ import type { LessonMonetization } from '@/hooks/useLesson';
 declare global {
   interface Window {
     PaystackPop?: {
-      setup: (opts: Record<string, unknown>) => void;
+      setup: (opts: Record<string, unknown>) => { openIframe: () => void };
     };
   }
 }
@@ -34,14 +34,21 @@ type Props = {
   courseId: string;
   lessonId: string;
   monetization: LessonMonetization;
-  onUnlocked: () => void;
+  onUnlocked: () => void | Promise<void>;
+  /** compact = inline on course cards; default = full card */
+  variant?: 'default' | 'compact';
 };
 
-export function PaystackLessonUnlock({ courseId, lessonId, monetization, onUnlocked }: Props) {
+export function PaystackLessonUnlock({ courseId, lessonId, monetization, onUnlocked, variant = 'default' }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const publicKey = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY?.trim();
+
+  const priceLabel =
+    monetization.currency === 'NGN'
+      ? `₦${(monetization.amountKobo / 100).toLocaleString()}`
+      : `${(monetization.amountKobo / 100).toFixed(2)} ${monetization.currency}`;
 
   const startPay = useCallback(async () => {
     setError(null);
@@ -63,25 +70,28 @@ export function PaystackLessonUnlock({ courseId, lessonId, monetization, onUnloc
         amountKobo: number;
         currency: string;
         email: string;
+        message?: string;
       }>('/payments/paystack/init-lesson', { lessonId });
 
       if (init.alreadyOwned) {
         setBusy(false);
-        onUnlocked();
+        await Promise.resolve(onUnlocked());
         return;
       }
       if (!init.reference) {
+        setBusy(false);
         setError('Could not start payment. Try again.');
         return;
       }
 
-      const paystack = window.PaystackPop;
-      if (!paystack) {
+      const PaystackPop = window.PaystackPop;
+      if (!PaystackPop) {
+        setBusy(false);
         setError('Paystack failed to load. Check your network or ad blockers.');
         return;
       }
 
-      paystack.setup({
+      const handler = PaystackPop.setup({
         key: publicKey,
         email: init.email,
         amount: init.amountKobo,
@@ -94,41 +104,71 @@ export function PaystackLessonUnlock({ courseId, lessonId, monetization, onUnloc
         callback: async (response: { reference: string }) => {
           setBusy(true);
           try {
-            await apiClient.post('/payments/paystack/verify', {
+            await apiClient.post<{
+              success?: boolean;
+              message?: string;
+              unlocked?: boolean;
+              reference?: string;
+            }>('/payments/paystack/verify', {
               reference: response.reference,
               lessonId,
               courseId,
             });
-            if (typeof console !== 'undefined' && console.info) {
-              console.info('[ForexOrbit] Paystack lesson payment verified:', response.reference);
-            }
-            onUnlocked();
+            await Promise.resolve(onUnlocked());
           } catch (e: unknown) {
-            const ax = e as { response?: { data?: { error?: string } } };
-            setError(ax.response?.data?.error || 'Payment verification failed. Contact support with your reference.');
+            const ax = e as { response?: { data?: { message?: string; error?: string } } };
+            setError(
+              ax.response?.data?.message ||
+                ax.response?.data?.error ||
+                'Payment verification failed. Contact support with your reference.'
+            );
           } finally {
             setBusy(false);
           }
         },
         onClose: () => setBusy(false),
       });
+
+      if (typeof handler.openIframe === 'function') {
+        handler.openIframe();
+      } else {
+        setBusy(false);
+        setError('Could not open the payment window. Try again or use another browser.');
+      }
     } catch (e: unknown) {
-      const ax = e as { response?: { data?: { error?: string } }; message?: string };
-      setError(ax.response?.data?.error || ax.message || 'Could not start checkout.');
       setBusy(false);
+      const ax = e as { response?: { data?: { message?: string; error?: string } }; message?: string };
+      setError(ax.response?.data?.message || ax.response?.data?.error || ax.message || 'Could not start checkout.');
     }
   }, [courseId, lessonId, monetization.paymentsConfigured, onUnlocked, publicKey]);
 
-  const priceLabel =
-    monetization.currency === 'NGN'
-      ? `₦${(monetization.amountKobo / 100).toLocaleString()}`
-      : `${(monetization.amountKobo / 100).toFixed(2)} ${monetization.currency}`;
+  const buttonLabel = busy ? 'Opening checkout…' : `Unlock Lesson – ${priceLabel}`;
+
+  if (variant === 'compact') {
+    return (
+      <div className="flex flex-col items-stretch gap-2">
+        {error && (
+          <p className="rounded-lg bg-red-50 px-2 py-1.5 text-xs text-red-800 dark:bg-red-950/50 dark:text-red-200">
+            {error}
+          </p>
+        )}
+        <button
+          type="button"
+          onClick={() => void startPay()}
+          disabled={busy}
+          className="inline-flex items-center justify-center rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {buttonLabel}
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="rounded-2xl border-2 border-amber-200 bg-amber-50/90 p-6 text-center shadow-sm dark:border-amber-700 dark:bg-amber-950/40">
       <h2 className="text-lg font-bold text-gray-900 dark:text-white">Unlock this lesson</h2>
       <p className="mt-2 text-sm text-gray-700 dark:text-gray-300">
-        The first lesson in every course is free. This lesson is included with a one-time purchase.
+        The first lesson in every course is free (with ads). This lesson unlocks permanently after a one-time payment.
       </p>
       <p className="mt-3 text-2xl font-bold text-primary-700 dark:text-primary-300">{priceLabel}</p>
       {error && (
@@ -142,9 +182,11 @@ export function PaystackLessonUnlock({ courseId, lessonId, monetization, onUnloc
         disabled={busy}
         className="mt-5 w-full max-w-sm rounded-xl bg-primary-600 px-6 py-3 text-base font-semibold text-white shadow-md hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
       >
-        {busy ? 'Opening checkout…' : 'Unlock lesson'}
+        {buttonLabel}
       </button>
-      <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">Secured by Paystack. You’ll get instant access after payment.</p>
+      <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
+        Secured by Paystack. Access is applied immediately after successful payment.
+      </p>
     </div>
   );
 }

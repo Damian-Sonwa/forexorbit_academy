@@ -172,8 +172,8 @@ export default function Consultations() {
     } catch (error: unknown) {
       let errorMessage = 'Failed to submit request';
       if (error && typeof error === 'object' && 'response' in error) {
-        const apiError = error as { response?: { data?: { error?: string } }; message?: string };
-        errorMessage = apiError.response?.data?.error || apiError.message || errorMessage;
+        const apiError = error as { response?: { data?: { message?: string; error?: string } }; message?: string };
+        errorMessage = apiError.response?.data?.message || apiError.response?.data?.error || apiError.message || errorMessage;
       } else if (error instanceof Error) {
         errorMessage = error.message || errorMessage;
       }

@@ -14,7 +14,7 @@ async function getTrades(req: AuthRequest, res: NextApiResponse) {
   try {
     // Only students can access their trades
     if (req.user!.role !== 'student') {
-      return res.status(403).json({ error: 'Only students can access trades' });
+      return res.status(403).json({ message: 'Only students can access trades' });
     }
 
     const db = await getDb();
@@ -23,12 +23,12 @@ async function getTrades(req: AuthRequest, res: NextApiResponse) {
     // Get student's demo account
     const account = await accounts.findOne({ studentId: req.user!.userId });
     if (!account) {
-      return res.status(404).json({ error: 'Demo account not found. Please create one first.' });
+      return res.status(404).json({ message: 'Demo account not found. Please create one first.' });
     }
 
     // CRITICAL: Verify this is a demo account
     if (!account.isDemo) {
-      return res.status(403).json({ error: 'Only demo accounts are allowed' });
+      return res.status(403).json({ message: 'Only demo accounts are allowed' });
     }
 
     const broker = BrokerFactory.createBroker(
@@ -48,7 +48,7 @@ async function getTrades(req: AuthRequest, res: NextApiResponse) {
     });
   } catch (error: any) {
     console.error('Get trades error:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -56,26 +56,26 @@ async function placeOrder(req: AuthRequest, res: NextApiResponse) {
   try {
     // Only students can place orders
     if (req.user!.role !== 'student') {
-      return res.status(403).json({ error: 'Only students can place orders' });
+      return res.status(403).json({ message: 'Only students can place orders' });
     }
 
     const { orderType, instrument, units, side, price, stopLoss, takeProfit } = req.body;
 
     // Validation
     if (!orderType || !instrument || !units || !side) {
-      return res.status(400).json({ error: 'Missing required fields: orderType, instrument, units, side' });
+      return res.status(400).json({ message: 'Missing required fields: orderType, instrument, units, side' });
     }
 
     if (!['market', 'limit', 'stop'].includes(orderType)) {
-      return res.status(400).json({ error: 'Invalid order type. Must be market, limit, or stop' });
+      return res.status(400).json({ message: 'Invalid order type. Must be market, limit, or stop' });
     }
 
     if (!['buy', 'sell'].includes(side)) {
-      return res.status(400).json({ error: 'Invalid side. Must be buy or sell' });
+      return res.status(400).json({ message: 'Invalid side. Must be buy or sell' });
     }
 
     if (orderType !== 'market' && !price) {
-      return res.status(400).json({ error: 'Price is required for limit and stop orders' });
+      return res.status(400).json({ message: 'Price is required for limit and stop orders' });
     }
 
     const db = await getDb();
@@ -85,12 +85,12 @@ async function placeOrder(req: AuthRequest, res: NextApiResponse) {
     // Get student's demo account
     const account = await accounts.findOne({ studentId: req.user!.userId });
     if (!account) {
-      return res.status(404).json({ error: 'Demo account not found. Please create one first.' });
+      return res.status(404).json({ message: 'Demo account not found. Please create one first.' });
     }
 
     // CRITICAL: Verify this is a demo account
     if (!account.isDemo) {
-      return res.status(403).json({ error: 'Only demo accounts are allowed' });
+      return res.status(403).json({ message: 'Only demo accounts are allowed' });
     }
 
     const broker = BrokerFactory.createBroker(
@@ -172,9 +172,7 @@ async function placeOrder(req: AuthRequest, res: NextApiResponse) {
     res.status(201).json(brokerOrder);
   } catch (error: any) {
     console.error('Place order error:', error);
-    res.status(500).json({ 
-      error: error.message || 'Failed to place order. Please check your order parameters.' 
-    });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -184,7 +182,7 @@ export default withAuth(async (req: AuthRequest, res: NextApiResponse) => {
   } else if (req.method === 'POST') {
     return placeOrder(req, res);
   } else {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ message: 'Method not allowed' });
   }
 }, ['student']);
 

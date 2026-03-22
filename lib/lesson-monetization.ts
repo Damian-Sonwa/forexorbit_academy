@@ -5,7 +5,10 @@
 import type { Db } from 'mongodb';
 import { ObjectId } from 'mongodb';
 
+/** Legacy name — kept for reads so existing purchase rows still grant access */
 export const LESSON_PURCHASES_COLLECTION = 'lessonPurchases';
+/** Canonical per-user lesson unlocks after verified Paystack payment */
+export const USER_ACCESS_COLLECTION = 'userLessonAccess';
 export const PAYSTACK_PAYMENTS_COLLECTION = 'paystackPayments';
 export const PAYSTACK_INTENTS_COLLECTION = 'paystackPaymentIntents';
 
@@ -32,8 +35,8 @@ export function isPaystackConfigured(): boolean {
 }
 
 export function getLessonPriceKobo(): number {
-  const n = parseInt(process.env.PAYSTACK_LESSON_PRICE_KOBO || '200000', 10);
-  return Number.isFinite(n) && n > 0 ? n : 200000;
+  const n = parseInt(process.env.PAYSTACK_LESSON_PRICE_KOBO || '300000', 10);
+  return Number.isFinite(n) && n > 0 ? n : 300000;
 }
 
 export function getPaystackCurrency(): string {
@@ -55,15 +58,25 @@ export async function getPurchasedLessonIdSet(
   lessonIdStrings: string[]
 ): Promise<Set<string>> {
   if (lessonIdStrings.length === 0) return new Set();
-  const col = db.collection(LESSON_PURCHASES_COLLECTION);
-  const rows = await col.find({ userId, lessonId: { $in: lessonIdStrings } }).project({ lessonId: 1 }).toArray();
-  return new Set(rows.map((r) => String(r.lessonId)));
+  const q = { userId, lessonId: { $in: lessonIdStrings } };
+  const [legacy, access] = await Promise.all([
+    db.collection(LESSON_PURCHASES_COLLECTION).find(q).project({ lessonId: 1 }).toArray(),
+    db.collection(USER_ACCESS_COLLECTION).find(q).project({ lessonId: 1 }).toArray(),
+  ]);
+  const ids = new Set<string>();
+  for (const r of [...legacy, ...access]) {
+    ids.add(String(r.lessonId));
+  }
+  return ids;
 }
 
 export async function hasLessonPurchase(db: Db, userId: string, lessonId: string): Promise<boolean> {
-  const col = db.collection(LESSON_PURCHASES_COLLECTION);
-  const n = await col.countDocuments({ userId, lessonId }, { limit: 1 });
-  return n > 0;
+  const q = { userId, lessonId };
+  const [a, b] = await Promise.all([
+    db.collection(LESSON_PURCHASES_COLLECTION).countDocuments(q, { limit: 1 }),
+    db.collection(USER_ACCESS_COLLECTION).countDocuments(q, { limit: 1 }),
+  ]);
+  return a > 0 || b > 0;
 }
 
 /**
@@ -183,23 +196,27 @@ export async function assertStudentCanAccessLessonContent(
   db: Db,
   user: { userId: string; role: string },
   lessonId: string
-): Promise<{ ok: true } | { ok: false; status: number; error: string }> {
+): Promise<{ ok: true } | { ok: false; status: number; message: string }> {
   if (isStaffRole(user.role)) return { ok: true };
 
   let oid: ObjectId;
   try {
     oid = new ObjectId(lessonId);
   } catch {
-    return { ok: false, status: 400, error: 'Invalid lesson' };
+    return { ok: false, status: 400, message: 'Invalid lesson' };
   }
 
   const lessonsCol = db.collection('lessons');
   const lesson = await lessonsCol.findOne({ _id: oid });
-  if (!lesson) return { ok: false, status: 404, error: 'Lesson not found' };
+  if (!lesson) return { ok: false, status: 404, message: 'Lesson not found' };
 
   const { flags } = await getMonetizationForLessonDoc(db, user, lesson as { _id: ObjectId; courseId: string });
   if (!flags.unlocked) {
-    return { ok: false, status: 403, error: 'Purchase this lesson to access the quiz' };
+    return {
+      ok: false,
+      status: 403,
+      message: 'This lesson is locked. Complete payment on the lesson page to unlock content and the quiz.',
+    };
   }
   return { ok: true };
 }

@@ -15,7 +15,7 @@ async function addReaction(req: AuthRequest, res: NextApiResponse) {
     const { emoji } = req.body as { emoji?: string };
 
     if (!id || typeof id !== 'string' || !emoji || typeof emoji !== 'string') {
-      return res.status(400).json({ error: 'Message ID and emoji are required' });
+      return res.status(400).json({ message: 'Message ID and emoji are required' });
     }
 
     const db = await getDb();
@@ -31,14 +31,14 @@ async function addReaction(req: AuthRequest, res: NextApiResponse) {
     // Check if user already reacted with this emoji
     const message = await messages.findOne({ _id: new ObjectId(id) });
     if (!message) {
-      return res.status(404).json({ error: 'Message not found' });
+      return res.status(404).json({ message: 'Message not found' });
     }
 
     // Get room info to check access
     const rooms = db.collection('communityRooms');
     const room = await rooms.findOne({ _id: new ObjectId(message.roomId) });
     if (!room) {
-      return res.status(404).json({ error: 'Room not found' });
+      return res.status(404).json({ message: 'Room not found' });
     }
 
     // Get user's learning level
@@ -61,15 +61,14 @@ async function addReaction(req: AuthRequest, res: NextApiResponse) {
     // Check access for global rooms - students can ONLY access their exact level room
     if (room.type === 'global' && ['Beginner', 'Intermediate', 'Advanced'].includes(room.name)) {
       if (!canAccessRoom(userLevel, room.name, userDoc?.role)) {
-        return res.status(403).json({ 
-          error: 'Access denied. You can only access the community room for your current level.' 
+        return res.status(403).json({ message: 'Access denied. You can only access the community room for your current level.' 
         });
       }
     }
 
     // Check access for direct messages
     if (room.type === 'direct' && !room.participants.includes(req.user!.userId)) {
-      return res.status(403).json({ error: 'Access denied' });
+      return res.status(403).json({ message: 'Access denied' });
     }
 
     const existingReaction = (message.reactions as Array<{ userId: string; emoji: string }> | undefined)?.find(
@@ -105,8 +104,7 @@ async function addReaction(req: AuthRequest, res: NextApiResponse) {
     res.json({ success: true });
   } catch (error: unknown) {
     console.error('Add reaction error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
-    res.status(500).json({ error: errorMessage });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 

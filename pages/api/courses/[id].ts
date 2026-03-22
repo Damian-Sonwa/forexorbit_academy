@@ -35,7 +35,7 @@ async function getCourse(req: AuthRequest, res: NextApiResponse) {
 
     const course = await courses.findOne({ _id: new ObjectId(id as string) });
     if (!course) {
-      return res.status(404).json({ error: 'Course not found' });
+      return res.status(404).json({ message: 'Course not found' });
     }
 
     // Get lessons
@@ -106,7 +106,7 @@ async function getCourse(req: AuthRequest, res: NextApiResponse) {
     res.json(coursePayload);
   } catch (error: any) {
     console.error('Get course error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -119,7 +119,7 @@ async function updateCourse(req: AuthRequest, res: NextApiResponse) {
     // Check if course exists
     const course = await courses.findOne({ _id: new ObjectId(id as string) });
     if (!course) {
-      return res.status(404).json({ error: 'Course not found' });
+      return res.status(404).json({ message: 'Course not found' });
     }
 
     // Instructors, admins, and superadmins can edit any course
@@ -127,7 +127,7 @@ async function updateCourse(req: AuthRequest, res: NextApiResponse) {
     console.log('Update course - User role:', userRole, 'User:', req.user!.email);
     if (userRole !== 'admin' && userRole !== 'instructor' && userRole !== 'superadmin') {
       console.log('Access denied - Role not authorized:', userRole);
-      return res.status(403).json({ error: 'Not authorized', role: userRole });
+      return res.status(403).json({ message: 'Not authorized', role: userRole });
     }
 
     const updateData = {
@@ -143,7 +143,7 @@ async function updateCourse(req: AuthRequest, res: NextApiResponse) {
     res.json({ success: true });
   } catch (error: any) {
     console.error('Update course error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -151,7 +151,7 @@ async function deleteCourse(req: AuthRequest, res: NextApiResponse) {
   try {
     // Allow both admin and superadmin to delete courses
     if (req.user!.role !== 'admin' && req.user!.role !== 'superadmin') {
-      return res.status(403).json({ error: 'Admin or Super Admin only' });
+      return res.status(403).json({ message: 'Admin or Super Admin only' });
     }
 
     const { id } = req.query;
@@ -163,7 +163,7 @@ async function deleteCourse(req: AuthRequest, res: NextApiResponse) {
     res.json({ success: true });
   } catch (error: any) {
     console.error('Delete course error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -175,7 +175,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
   } else if (req.method === 'DELETE') {
     return deleteCourse(req, res);
   } else {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ message: 'Method not allowed' });
   }
 }
 

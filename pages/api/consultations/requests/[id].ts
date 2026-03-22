@@ -12,18 +12,18 @@ async function updateRequest(req: AuthRequest, res: NextApiResponse) {
   try {
     // Only experts (instructors/admins) can accept/reject
     if (req.user!.role !== 'instructor' && req.user!.role !== 'admin' && req.user!.role !== 'superadmin') {
-      return res.status(403).json({ error: 'Only experts can accept or reject requests' });
+      return res.status(403).json({ message: 'Only experts can accept or reject requests' });
     }
 
     const { id } = req.query;
     const { action } = req.body; // 'accept' or 'reject'
 
     if (!id || typeof id !== 'string') {
-      return res.status(400).json({ error: 'Request ID is required' });
+      return res.status(400).json({ message: 'Request ID is required' });
     }
 
     if (!action || !['accept', 'reject', 'cancel'].includes(action)) {
-      return res.status(400).json({ error: 'Action must be "accept", "reject", or "cancel"' });
+      return res.status(400).json({ message: 'Action must be "accept", "reject", or "cancel"' });
     }
 
     const db = await getDb();
@@ -34,19 +34,19 @@ async function updateRequest(req: AuthRequest, res: NextApiResponse) {
     const request = await requests.findOne({ _id: new ObjectId(id) });
 
     if (!request) {
-      return res.status(404).json({ error: 'Request not found' });
+      return res.status(404).json({ message: 'Request not found' });
     }
 
     // Verify permissions:
     // - Instructors can only accept/reject their own requests
     // - Admins can accept/reject any request
     if (req.user!.role === 'instructor' && request.expertId !== req.user!.userId) {
-      return res.status(403).json({ error: 'You can only accept/reject requests assigned to you' });
+      return res.status(403).json({ message: 'You can only accept/reject requests assigned to you' });
     }
 
     // Only allow accept/reject on pending requests (unless admin is canceling)
     if (action !== 'cancel' && request.status !== 'pending') {
-      return res.status(400).json({ error: 'Request is not pending' });
+      return res.status(400).json({ message: 'Request is not pending' });
     }
 
     if (action === 'accept') {
@@ -109,7 +109,7 @@ async function updateRequest(req: AuthRequest, res: NextApiResponse) {
     } else if (action === 'cancel') {
       // Cancel request (admin only, can cancel any status)
       if (req.user!.role !== 'admin' && req.user!.role !== 'superadmin') {
-        return res.status(403).json({ error: 'Only admins can cancel requests' });
+        return res.status(403).json({ message: 'Only admins can cancel requests' });
       }
 
       await requests.updateOne(
@@ -132,7 +132,7 @@ async function updateRequest(req: AuthRequest, res: NextApiResponse) {
     }
   } catch (error: any) {
     console.error('Update consultation request error:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -141,7 +141,7 @@ export default withAuth(async (req: AuthRequest, res: NextApiResponse) => {
     return updateRequest(req, res);
   } else {
     res.setHeader('Allow', ['PUT']);
-    res.status(405).json({ error: `Method ${req.method} not allowed` });
+    res.status(405).json({ message: `Method ${req.method} not allowed` });
   }
 });
 

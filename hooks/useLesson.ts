@@ -3,7 +3,7 @@
  * Manages lesson data and navigation
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { apiClient } from '@/lib/api-client';
 
 export interface LessonMonetization {
@@ -37,26 +37,26 @@ export function useLesson(lessonId: string | string[] | undefined) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const refetchLesson = useCallback(async () => {
     if (!lessonId || Array.isArray(lessonId)) return;
-
-    const fetchLesson = async () => {
-      try {
-        setLoading(true);
-        const data = await apiClient.get<Lesson>(`/lessons/${lessonId}`);
-        setLesson(data);
-        setError(null);
-      } catch (err: any) {
-        setError(err.message || 'Failed to fetch lesson');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchLesson();
+    try {
+      setLoading(true);
+      const data = await apiClient.get<Lesson>(`/lessons/${lessonId}`);
+      setLesson(data);
+      setError(null);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to fetch lesson';
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
   }, [lessonId]);
 
-  return { lesson, loading, error };
+  useEffect(() => {
+    void refetchLesson();
+  }, [refetchLesson]);
+
+  return { lesson, loading, error, refetch: refetchLesson };
 }
 
 export function useLessons(courseId: string | string[] | undefined) {
@@ -64,26 +64,26 @@ export function useLessons(courseId: string | string[] | undefined) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const refetchLessons = useCallback(async () => {
     if (!courseId || Array.isArray(courseId)) return;
-
-    const fetchLessons = async () => {
-      try {
-        setLoading(true);
-        const data = await apiClient.get<Lesson[]>(`/lessons?courseId=${courseId}`);
-        setLessons(data);
-        setError(null);
-      } catch (err: any) {
-        setError(err.message || 'Failed to fetch lessons');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchLessons();
+    try {
+      setLoading(true);
+      const data = await apiClient.get<Lesson[]>(`/lessons?courseId=${courseId}`);
+      setLessons(data);
+      setError(null);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to fetch lessons';
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
   }, [courseId]);
 
-  return { lessons, loading, error };
+  useEffect(() => {
+    void refetchLessons();
+  }, [refetchLessons]);
+
+  return { lessons, loading, error, refetch: refetchLessons };
 }
 
 

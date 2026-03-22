@@ -12,7 +12,7 @@ import { ObjectId } from 'mongodb';
 async function submitAssignment(req: AuthRequest, res: NextApiResponse) {
   try {
     if (req.user!.role !== 'student') {
-      return res.status(403).json({ error: 'Students only' });
+      return res.status(403).json({ message: 'Students only' });
     }
 
     const { id } = req.query;
@@ -20,7 +20,7 @@ async function submitAssignment(req: AuthRequest, res: NextApiResponse) {
     const userId = req.user!.userId;
 
     if (!submissionText && !submissionFile) {
-      return res.status(400).json({ error: 'Submission text or file required' });
+      return res.status(400).json({ message: 'Submission text or file required' });
     }
 
     const db = await getDb();
@@ -31,7 +31,7 @@ async function submitAssignment(req: AuthRequest, res: NextApiResponse) {
     // Check if assignment exists
     const assignment = await assignments.findOne({ _id: new ObjectId(id as string) });
     if (!assignment) {
-      return res.status(404).json({ error: 'Assignment not found' });
+      return res.status(404).json({ message: 'Assignment not found' });
     }
 
     // Check if already submitted
@@ -81,7 +81,7 @@ async function submitAssignment(req: AuthRequest, res: NextApiResponse) {
     res.json({ success: true, message: 'Assignment submitted successfully' });
   } catch (error: any) {
     console.error('Submit assignment error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -98,13 +98,13 @@ async function getSubmission(req: AuthRequest, res: NextApiResponse) {
     });
 
     if (!submission) {
-      return res.status(404).json({ error: 'Submission not found' });
+      return res.status(404).json({ message: 'Submission not found' });
     }
 
     res.json(submission);
   } catch (error: any) {
     console.error('Get submission error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -114,7 +114,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
   } else if (req.method === 'GET') {
     return getSubmission(req, res);
   } else {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ message: 'Method not allowed' });
   }
 }
 

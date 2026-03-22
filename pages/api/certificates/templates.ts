@@ -24,7 +24,7 @@ async function getTemplates(req: AuthRequest, res: NextApiResponse) {
     res.json(templates);
   } catch (error: any) {
     console.error('Get templates error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 

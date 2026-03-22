@@ -14,7 +14,7 @@ async function markAsRead(req: AuthRequest, res: NextApiResponse) {
     const { roomId } = req.body;
 
     if (!roomId) {
-      return res.status(400).json({ error: 'Room ID is required' });
+      return res.status(400).json({ message: 'Room ID is required' });
     }
 
     const db = await getDb();
@@ -25,7 +25,7 @@ async function markAsRead(req: AuthRequest, res: NextApiResponse) {
     // Get room info to check access
     const room = await rooms.findOne({ _id: new ObjectId(roomId) });
     if (!room) {
-      return res.status(404).json({ error: 'Room not found' });
+      return res.status(404).json({ message: 'Room not found' });
     }
 
     // Get user's learning level
@@ -48,15 +48,14 @@ async function markAsRead(req: AuthRequest, res: NextApiResponse) {
     // Check access for global rooms - students can ONLY access their exact level room
     if (room.type === 'global' && ['Beginner', 'Intermediate', 'Advanced'].includes(room.name)) {
       if (!canAccessRoom(userLevel, room.name, user?.role)) {
-        return res.status(403).json({ 
-          error: 'Access denied. You can only access the community room for your current level.' 
+        return res.status(403).json({ message: 'Access denied. You can only access the community room for your current level.' 
         });
       }
     }
 
     // Check access for direct messages
     if (room.type === 'direct' && !room.participants.includes(req.user!.userId)) {
-      return res.status(403).json({ error: 'Access denied' });
+      return res.status(403).json({ message: 'Access denied' });
     }
 
     // Mark all unread messages in the room as read
@@ -74,7 +73,7 @@ async function markAsRead(req: AuthRequest, res: NextApiResponse) {
     res.json({ success: true });
   } catch (error: any) {
     console.error('Mark as read error:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 

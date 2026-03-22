@@ -15,13 +15,13 @@ async function getMessages(req: AuthRequest, res: NextApiResponse) {
     const { roomId } = req.query;
 
     if (!roomId || typeof roomId !== 'string') {
-      return res.status(400).json({ error: 'Room ID is required' });
+      return res.status(400).json({ message: 'Room ID is required' });
     }
 
     // Check if roomId is a valid ObjectId (not a placeholder)
     if (!ObjectId.isValid(roomId)) {
       console.warn('Invalid roomId format:', roomId);
-      return res.status(400).json({ error: 'Invalid room ID format' });
+      return res.status(400).json({ message: 'Invalid room ID format' });
     }
 
     const db = await getDb();
@@ -33,7 +33,7 @@ async function getMessages(req: AuthRequest, res: NextApiResponse) {
     const roomIdObj = new ObjectId(roomId);
     const room = await rooms.findOne({ _id: roomIdObj });
     if (!room) {
-      return res.status(404).json({ error: 'Room not found' });
+      return res.status(404).json({ message: 'Room not found' });
     }
 
     // Get user's learning level and onboarding status
@@ -48,8 +48,7 @@ async function getMessages(req: AuthRequest, res: NextApiResponse) {
 
     // Students must complete onboarding before accessing rooms
     if (user?.role === 'student' && !hasCompletedOnboarding) {
-      return res.status(403).json({ 
-        error: 'Access denied. Please complete the onboarding form to access community rooms.' 
+      return res.status(403).json({ message: 'Access denied. Please complete the onboarding form to access community rooms.' 
       });
     }
 
@@ -67,15 +66,14 @@ async function getMessages(req: AuthRequest, res: NextApiResponse) {
     // Check access for global rooms - students can ONLY access their exact level room
     if (room.type === 'global' && ['Beginner', 'Intermediate', 'Advanced'].includes(room.name)) {
       if (!canAccessRoom(userLevel, room.name, user?.role)) {
-        return res.status(403).json({ 
-          error: 'Access denied. You can only access the community room for your current level.' 
+        return res.status(403).json({ message: 'Access denied. You can only access the community room for your current level.' 
         });
       }
     }
 
     // Check access for direct messages
     if (room.type === 'direct' && !room.participants.includes(req.user!.userId)) {
-      return res.status(403).json({ error: 'Access denied' });
+      return res.status(403).json({ message: 'Access denied' });
     }
 
     const pageNum = parseInt((req.query.page as string) || '1', 10);
@@ -127,7 +125,7 @@ async function getMessages(req: AuthRequest, res: NextApiResponse) {
     res.json(enrichedMessages.reverse());
   } catch (error: any) {
     console.error('Get messages error:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -136,13 +134,13 @@ async function sendMessage(req: AuthRequest, res: NextApiResponse) {
     const { roomId, type, content } = req.body;
 
     if (!roomId || !type || !content) {
-      return res.status(400).json({ error: 'Room ID, type, and content are required' });
+      return res.status(400).json({ message: 'Room ID, type, and content are required' });
     }
 
     // Check if roomId is a valid ObjectId (not a placeholder)
     if (!ObjectId.isValid(roomId)) {
       console.warn('Invalid roomId format:', roomId);
-      return res.status(400).json({ error: 'Invalid room ID format. Please select a valid room.' });
+      return res.status(400).json({ message: 'Invalid room ID format. Please select a valid room.' });
     }
 
     const db = await getDb();
@@ -154,7 +152,7 @@ async function sendMessage(req: AuthRequest, res: NextApiResponse) {
     const roomIdObj = new ObjectId(roomId);
     const room = await rooms.findOne({ _id: roomIdObj });
     if (!room) {
-      return res.status(404).json({ error: 'Room not found' });
+      return res.status(404).json({ message: 'Room not found' });
     }
 
     // Get user's learning level and onboarding status
@@ -169,8 +167,7 @@ async function sendMessage(req: AuthRequest, res: NextApiResponse) {
 
     // Students must complete onboarding before accessing rooms
     if (user?.role === 'student' && !hasCompletedOnboarding) {
-      return res.status(403).json({ 
-        error: 'Access denied. Please complete the onboarding form to access community rooms.' 
+      return res.status(403).json({ message: 'Access denied. Please complete the onboarding form to access community rooms.' 
       });
     }
 
@@ -188,15 +185,14 @@ async function sendMessage(req: AuthRequest, res: NextApiResponse) {
     // Check access for global rooms - students can ONLY access their exact level room
     if (room.type === 'global' && ['Beginner', 'Intermediate', 'Advanced'].includes(room.name)) {
       if (!canAccessRoom(userLevel, room.name, user?.role)) {
-        return res.status(403).json({ 
-          error: 'Access denied. You can only access the community room for your current level.' 
+        return res.status(403).json({ message: 'Access denied. You can only access the community room for your current level.' 
         });
       }
     }
 
     // Check access for direct messages
     if (room.type === 'direct' && !room.participants?.includes(req.user!.userId)) {
-      return res.status(403).json({ error: 'Access denied' });
+      return res.status(403).json({ message: 'Access denied' });
     }
 
     // Get sender info
@@ -313,7 +309,7 @@ async function sendMessage(req: AuthRequest, res: NextApiResponse) {
     });
   } catch (error: any) {
     console.error('Send message error:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -324,7 +320,7 @@ export default withAuth(async (req: AuthRequest, res: NextApiResponse) => {
     return sendMessage(req, res);
   } else {
     res.setHeader('Allow', ['GET', 'POST']);
-    res.status(405).json({ error: `Method ${req.method} not allowed` });
+    res.status(405).json({ message: `Method ${req.method} not allowed` });
   }
 });
 

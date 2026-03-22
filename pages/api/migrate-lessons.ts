@@ -25,7 +25,7 @@ interface Lesson {
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ message: 'Method not allowed' });
   }
 
   let client;
@@ -143,9 +143,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   } catch (error) {
     console.error('❌ Migration failed:', error);
     res.status(500).json({
-      success: false,
-      error: 'Migration failed',
-      details: error instanceof Error ? error.message : 'Unknown error'
+      message: 'Something went wrong. Please try again later.',
     });
   } finally {
     if (client) {

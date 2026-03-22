@@ -13,7 +13,7 @@ async function deleteMessage(req: AuthRequest, res: NextApiResponse) {
     const { id } = req.query;
 
     if (!id || typeof id !== 'string') {
-      return res.status(400).json({ error: 'Message ID is required' });
+      return res.status(400).json({ message: 'Message ID is required' });
     }
 
     const db = await getDb();
@@ -22,12 +22,12 @@ async function deleteMessage(req: AuthRequest, res: NextApiResponse) {
     // Find the message
     const message = await messages.findOne({ _id: new ObjectId(id) });
     if (!message) {
-      return res.status(404).json({ error: 'Message not found' });
+      return res.status(404).json({ message: 'Message not found' });
     }
 
     // Verify the user is the sender
     if (message.senderId !== req.user!.userId) {
-      return res.status(403).json({ error: 'You can only delete your own messages' });
+      return res.status(403).json({ message: 'You can only delete your own messages' });
     }
 
     // Delete the message
@@ -52,7 +52,7 @@ async function deleteMessage(req: AuthRequest, res: NextApiResponse) {
     res.json({ success: true, messageId: id });
   } catch (error: any) {
     console.error('Delete message error:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -61,7 +61,7 @@ export default withAuth(async (req: AuthRequest, res: NextApiResponse) => {
     return deleteMessage(req, res);
   } else {
     res.setHeader('Allow', ['DELETE']);
-    res.status(405).json({ error: `Method ${req.method} not allowed` });
+    res.status(405).json({ message: `Method ${req.method} not allowed` });
   }
 });
 

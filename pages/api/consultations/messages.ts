@@ -14,7 +14,7 @@ async function getMessages(req: AuthRequest, res: NextApiResponse) {
     const { sessionId } = req.query;
 
     if (!sessionId || typeof sessionId !== 'string') {
-      return res.status(400).json({ error: 'Session ID is required' });
+      return res.status(400).json({ message: 'Session ID is required' });
     }
 
     const db = await getDb();
@@ -26,16 +26,16 @@ async function getMessages(req: AuthRequest, res: NextApiResponse) {
     const session = await sessions.findOne({ _id: new ObjectId(sessionId) });
 
     if (!session) {
-      return res.status(404).json({ error: 'Session not found' });
+      return res.status(404).json({ message: 'Session not found' });
     }
 
     if (req.user!.role === 'student' && session.studentId !== req.user!.userId) {
-      return res.status(403).json({ error: 'Access denied' });
+      return res.status(403).json({ message: 'Access denied' });
     }
 
     if ((req.user!.role === 'instructor' || req.user!.role === 'admin' || req.user!.role === 'superadmin') 
         && session.expertId !== req.user!.userId) {
-      return res.status(403).json({ error: 'Access denied' });
+      return res.status(403).json({ message: 'Access denied' });
     }
 
     // Get messages
@@ -63,7 +63,7 @@ async function getMessages(req: AuthRequest, res: NextApiResponse) {
     res.json(messagesWithSenders);
   } catch (error: any) {
     console.error('Get consultation messages error:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -72,7 +72,7 @@ async function sendMessage(req: AuthRequest, res: NextApiResponse) {
     const { sessionId, type, content } = req.body;
 
     if (!sessionId || !type || !content) {
-      return res.status(400).json({ error: 'Session ID, type, and content are required' });
+      return res.status(400).json({ message: 'Session ID, type, and content are required' });
     }
 
     const db = await getDb();
@@ -84,20 +84,20 @@ async function sendMessage(req: AuthRequest, res: NextApiResponse) {
     const session = await sessions.findOne({ _id: new ObjectId(sessionId) });
 
     if (!session) {
-      return res.status(404).json({ error: 'Session not found' });
+      return res.status(404).json({ message: 'Session not found' });
     }
 
     if (req.user!.role === 'student' && session.studentId !== req.user!.userId) {
-      return res.status(403).json({ error: 'Access denied' });
+      return res.status(403).json({ message: 'Access denied' });
     }
 
     if ((req.user!.role === 'instructor' || req.user!.role === 'admin' || req.user!.role === 'superadmin') 
         && session.expertId !== req.user!.userId) {
-      return res.status(403).json({ error: 'Access denied' });
+      return res.status(403).json({ message: 'Access denied' });
     }
 
     if (session.status !== 'active') {
-      return res.status(400).json({ error: 'Session is not active' });
+      return res.status(400).json({ message: 'Session is not active' });
     }
 
     // Get sender info
@@ -153,7 +153,7 @@ async function sendMessage(req: AuthRequest, res: NextApiResponse) {
     });
   } catch (error: any) {
     console.error('Send consultation message error:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -164,7 +164,7 @@ export default withAuth(async (req: AuthRequest, res: NextApiResponse) => {
     return sendMessage(req, res);
   } else {
     res.setHeader('Allow', ['GET', 'POST']);
-    res.status(405).json({ error: `Method ${req.method} not allowed` });
+    res.status(405).json({ message: `Method ${req.method} not allowed` });
   }
 });
 

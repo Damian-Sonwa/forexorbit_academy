@@ -29,8 +29,8 @@ import type { LessonMonetization } from '@/hooks/useLesson';
 export default function LessonPage() {
   const router = useRouter();
   const { id: courseId, lessonId } = router.query;
-  const { lesson, loading: lessonLoading } = useLesson(lessonId);
-  const { lessons } = useLessons(courseId);
+  const { lesson, loading: lessonLoading, refetch: refetchLesson } = useLesson(lessonId);
+  const { lessons, refetch: refetchLessons } = useLessons(courseId);
   // const { course } = useCourse(courseId); // Reserved for future use
   const { isAuthenticated, user } = useAuth();
   const { updateProgress, joinLesson, leaveLesson, socket, connected } = useSocket();
@@ -86,9 +86,10 @@ export default function LessonPage() {
     }
   };
 
-  const refreshLesson = useCallback(() => {
-    router.replace(router.asPath);
-  }, [router]);
+  const handleLessonUnlocked = useCallback(async () => {
+    await refetchLesson();
+    await refetchLessons();
+  }, [refetchLesson, refetchLessons]);
 
   if (lessonLoading) {
     return (
@@ -174,13 +175,38 @@ export default function LessonPage() {
           )}
 
           {payBlocked && monetization && lessonId && courseId && (
-            <div className="mb-6">
-              <PaystackLessonUnlock
-                courseId={courseId as string}
-                lessonId={lessonId as string}
-                monetization={monetization}
-                onUnlocked={refreshLesson}
+            <div className="relative mb-8 overflow-hidden rounded-2xl border border-amber-300/80 bg-gradient-to-b from-amber-50/95 to-amber-100/40 shadow-inner dark:border-amber-700/60 dark:from-amber-950/50 dark:to-amber-950/20">
+              <div
+                className="pointer-events-none absolute inset-0 opacity-[0.12] dark:opacity-[0.08]"
+                style={{
+                  backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23000000' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+                }}
               />
+              <div className="relative z-10 flex flex-col items-center px-4 py-10 sm:py-12">
+                <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-200/80 text-amber-900 shadow-inner ring-2 ring-amber-400/50 dark:bg-amber-900/60 dark:text-amber-100 dark:ring-amber-700/50">
+                  <svg className="h-9 w-9" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                    />
+                  </svg>
+                </div>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">This lesson is locked</h2>
+                <p className="mt-2 max-w-md text-center text-sm text-gray-700 dark:text-gray-300">
+                  Pay once to unlock the full video, lesson content, resources, and quiz. The first lesson in this course
+                  remains free.
+                </p>
+                <div className="mt-6 w-full max-w-md">
+                  <PaystackLessonUnlock
+                    courseId={courseId as string}
+                    lessonId={lessonId as string}
+                    monetization={monetization}
+                    onUnlocked={handleLessonUnlocked}
+                  />
+                </div>
+              </div>
             </div>
           )}
 

@@ -23,7 +23,7 @@ async function enroll(req: AuthRequest, res: NextApiResponse) {
     });
 
     if (existing) {
-      return res.status(400).json({ error: 'Already enrolled' });
+      return res.status(400).json({ message: 'Already enrolled' });
     }
 
     // Create progress entry
@@ -39,7 +39,7 @@ async function enroll(req: AuthRequest, res: NextApiResponse) {
     res.json({ success: true, enrolled: true });
   } catch (error: any) {
     console.error('Enroll error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -58,7 +58,7 @@ async function unenroll(req: AuthRequest, res: NextApiResponse) {
     res.json({ success: true, enrolled: false });
   } catch (error: any) {
     console.error('Unenroll error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -68,7 +68,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
   } else if (req.method === 'DELETE') {
     return unenroll(req, res);
   } else {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ message: 'Method not allowed' });
   }
 }
 

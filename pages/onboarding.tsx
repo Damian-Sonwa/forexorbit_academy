@@ -141,7 +141,7 @@ export default function Onboarding() {
       setFormData((prev) => ({ ...prev, profilePhoto: (response as any).imageUrl }));
       setSelectedPhoto(null);
     } catch (error: any) {
-      setError(error.response?.data?.error || error.message || 'Failed to upload photo');
+      setError(error.response?.data?.message || error.response?.data?.error || error.message || 'Failed to upload photo');
     } finally {
       setUploadingPhoto(false);
     }
@@ -237,7 +237,7 @@ export default function Onboarding() {
       localStorage.setItem('user', JSON.stringify(updatedUser));
       router.push('/dashboard');
     } catch (error: any) {
-      setError(error.response?.data?.error || error.message || 'Failed to save onboarding data');
+      setError(error.response?.data?.message || error.response?.data?.error || error.message || 'Failed to save onboarding data');
       setLoading(false);
     }
   };

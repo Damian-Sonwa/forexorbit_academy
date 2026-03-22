@@ -14,7 +14,7 @@ export default async function handler(
   res: NextApiResponse
 ) {
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ message: 'Method not allowed' });
   }
 
   try {
@@ -25,17 +25,17 @@ export default async function handler(
 
     // Validation
     if (!emailStr || !password || !nameTrim || !phone) {
-      return res.status(400).json({ error: 'Name, email, phone, and password are required' });
+      return res.status(400).json({ message: 'Name, email, phone, and password are required' });
     }
 
     const parsedPhone = parseToE164(String(phone));
     if (!parsedPhone) {
-      return res.status(400).json({ error: 'Invalid phone number' });
+      return res.status(400).json({ message: 'Invalid phone number' });
     }
     const phoneE164 = parsedPhone.e164;
 
     if (!['admin', 'instructor', 'student'].includes(role)) {
-      return res.status(400).json({ error: 'Invalid role' });
+      return res.status(400).json({ message: 'Invalid role' });
     }
 
     const emailNorm = emailStr.toLowerCase();
@@ -46,7 +46,7 @@ export default async function handler(
     // Check if user exists
     const existingUser = await users.findOne({ email: emailNorm });
     if (existingUser) {
-      return res.status(400).json({ error: 'User already exists' });
+      return res.status(409).json({ message: 'This email/phone is already registered' });
     }
 
     const phoneRaw = String(phone).trim();
@@ -54,7 +54,7 @@ export default async function handler(
       $or: [{ phoneE164 }, { phone: phoneRaw }],
     });
     if (existingPhone) {
-      return res.status(400).json({ error: 'This phone number is already registered' });
+      return res.status(409).json({ message: 'This email/phone is already registered' });
     }
 
     // Hash password
@@ -71,7 +71,7 @@ export default async function handler(
       phone: phoneRaw,
       phoneE164,
       password: hashedPassword,
-      name,
+      name: nameTrim,
       role,
       status, // Add status field: 'pending', 'approved', or 'rejected'
       createdAt: new Date(),
@@ -103,7 +103,7 @@ export default async function handler(
     });
   } catch (error: any) {
     console.error('Signup error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 

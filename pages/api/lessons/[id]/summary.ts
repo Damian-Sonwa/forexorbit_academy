@@ -12,14 +12,14 @@ async function updateLessonSummary(req: AuthRequest, res: NextApiResponse) {
   try {
     // Only instructors can update lesson summaries
     if (req.user!.role !== 'instructor') {
-      return res.status(403).json({ error: 'Only instructors can update lesson summaries' });
+      return res.status(403).json({ message: 'Only instructors can update lesson summaries' });
     }
 
     const { id } = req.query;
     const { lessonSummary } = req.body;
 
     if (!id || typeof id !== 'string') {
-      return res.status(400).json({ error: 'Invalid lesson ID' });
+      return res.status(400).json({ message: 'Invalid lesson ID' });
     }
 
     const db = await getDb();
@@ -27,7 +27,7 @@ async function updateLessonSummary(req: AuthRequest, res: NextApiResponse) {
 
     const existing = await lessons.findOne({ _id: new ObjectId(id) });
     if (!existing) {
-      return res.status(404).json({ error: 'Lesson not found' });
+      return res.status(404).json({ message: 'Lesson not found' });
     }
 
     const existingSummary = (existing as any).lessonSummary || {};
@@ -51,7 +51,7 @@ async function updateLessonSummary(req: AuthRequest, res: NextApiResponse) {
     const result = await lessons.updateOne({ _id: new ObjectId(id) }, { $set });
 
     if (result.matchedCount === 0) {
-      return res.status(404).json({ error: 'Lesson not found' });
+      return res.status(404).json({ message: 'Lesson not found' });
     }
 
     res.json({
@@ -59,8 +59,7 @@ async function updateLessonSummary(req: AuthRequest, res: NextApiResponse) {
       message: 'Lesson summary updated successfully',
     });
   } catch (error: any) {
-    console.error('Update lesson summary error:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    console.error('Update lesson summary error:', error);    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 

@@ -15,7 +15,7 @@ async function checkReminders(req: AuthRequest, res: NextApiResponse) {
   try {
     // Only allow admin/superadmin or system calls
     if (req.user!.role !== 'admin' && req.user!.role !== 'superadmin') {
-      return res.status(403).json({ error: 'Unauthorized' });
+      return res.status(403).json({ message: 'Unauthorized' });
     }
 
     const db = await getDb();
@@ -91,8 +91,7 @@ async function checkReminders(req: AuthRequest, res: NextApiResponse) {
     });
   } catch (error: unknown) {
     console.error('Check reminders error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
-    res.status(500).json({ error: 'Failed to check reminders', message: errorMessage });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 

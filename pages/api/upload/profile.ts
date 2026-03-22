@@ -38,7 +38,7 @@ async function uploadProfilePhoto(req: AuthRequest, res: NextApiResponse) {
     const file = Array.isArray(files.profilePhoto) ? files.profilePhoto[0] : files.profilePhoto;
 
     if (!file) {
-      return res.status(400).json({ error: 'No file uploaded' });
+      return res.status(400).json({ message: 'No file uploaded' });
     }
 
     // Check if Cloudinary is configured
@@ -62,8 +62,7 @@ async function uploadProfilePhoto(req: AuthRequest, res: NextApiResponse) {
         hasApiKey: !!process.env.CLOUDINARY_API_KEY,
         hasApiSecret: !!process.env.CLOUDINARY_API_SECRET,
       });
-      return res.status(500).json({ 
-        error: 'Image upload service is not configured. Please contact support.',
+      return res.status(500).json({ message: 'Image upload service is not configured. Please contact support.',
         details: `Missing: ${missing.join(', ')}`
       });
     }
@@ -84,7 +83,7 @@ async function uploadProfilePhoto(req: AuthRequest, res: NextApiResponse) {
           // Ignore cleanup errors
         }
       }
-      return res.status(400).json({ error: validation.error });
+      return res.status(400).json({ message: validation.error });
     }
 
     // Get old profile photo to delete it from Cloudinary if it exists
@@ -135,12 +134,12 @@ async function uploadProfilePhoto(req: AuthRequest, res: NextApiResponse) {
   } catch (error: any) {
     console.error('Profile photo upload error:', error);
     if (error.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json({ error: 'File size exceeds 10MB limit' });
+      return res.status(400).json({ message: 'File size exceeds 10MB limit' });
     }
     if (error.message?.includes('Cloudinary configuration is missing')) {
-      return res.status(500).json({ error: 'Image upload service is not configured. Please contact support.' });
+      return res.status(500).json({ message: 'Image upload service is not configured. Please contact support.' });
     }
-    res.status(500).json({ error: error.message || 'Failed to upload profile photo' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 

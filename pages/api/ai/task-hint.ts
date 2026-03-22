@@ -11,18 +11,18 @@ import { ObjectId } from 'mongodb';
 
 async function handler(req: AuthRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ message: 'Method not allowed' });
   }
 
   if (!isAIConfigured()) {
-    return res.status(503).json({ error: 'AI service is not configured' });
+    return res.status(503).json({ message: 'AI service is not configured' });
   }
 
   try {
     const { taskId } = req.body;
 
     if (!taskId) {
-      return res.status(400).json({ error: 'taskId is required' });
+      return res.status(400).json({ message: 'taskId is required' });
     }
 
     // Fetch task details
@@ -31,7 +31,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
     const task = await tasks.findOne({ _id: new ObjectId(taskId) });
 
     if (!task) {
-      return res.status(404).json({ error: 'Task not found' });
+      return res.status(404).json({ message: 'Task not found' });
     }
 
     // Get user level for context
@@ -53,8 +53,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
     res.json({ hint });
   } catch (error: unknown) {
     console.error('AI task hint error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Failed to get AI hint';
-    res.status(500).json({ error: errorMessage });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 

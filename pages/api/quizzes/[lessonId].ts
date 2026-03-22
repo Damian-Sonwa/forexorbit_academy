@@ -18,7 +18,7 @@ async function getQuiz(req: AuthRequest, res: NextApiResponse) {
 
     const quiz = await quizzes.findOne({ lessonId });
     if (!quiz) {
-      return res.status(404).json({ error: 'Quiz not found' });
+      return res.status(404).json({ message: 'Quiz not found' });
     }
 
     // Don't send correct answers if not admin/instructor
@@ -32,7 +32,7 @@ async function getQuiz(req: AuthRequest, res: NextApiResponse) {
     res.json(quiz);
   } catch (error: any) {
     console.error('Get quiz error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -50,13 +50,13 @@ async function submitQuiz(req: AuthRequest, res: NextApiResponse) {
     // Get quiz
     const quiz = await quizzes.findOne({ lessonId });
     if (!quiz) {
-      return res.status(404).json({ error: 'Quiz not found' });
+      return res.status(404).json({ message: 'Quiz not found' });
     }
 
     if (req.user!.role === 'student') {
       const gate = await assertStudentCanAccessLessonContent(db, req.user!, lessonId as string);
       if (!gate.ok) {
-        return res.status(gate.status).json({ error: gate.error });
+        return res.status(gate.status).json({ message: gate.message });
       }
     }
 
@@ -123,7 +123,7 @@ async function submitQuiz(req: AuthRequest, res: NextApiResponse) {
     });
   } catch (error: any) {
     console.error('Submit quiz error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -132,7 +132,7 @@ async function createQuiz(req: AuthRequest, res: NextApiResponse) {
     const { lessonId, courseId, questions } = req.body;
 
     if (!lessonId || !courseId || !questions) {
-      return res.status(400).json({ error: 'Missing required fields' });
+      return res.status(400).json({ message: 'Missing required fields' });
     }
 
     const db = await getDb();
@@ -160,7 +160,7 @@ async function createQuiz(req: AuthRequest, res: NextApiResponse) {
     }
   } catch (error: any) {
     console.error('Create quiz error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -172,7 +172,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
   } else if (req.method === 'PUT') {
     return createQuiz(req, res);
   } else {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ message: 'Method not allowed' });
   }
 }
 

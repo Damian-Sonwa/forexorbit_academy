@@ -27,7 +27,7 @@ async function getLessons(req: AuthRequest, res: NextApiResponse) {
   try {
     const { courseId } = req.query;
     if (!courseId) {
-      return res.status(400).json({ error: 'courseId required' });
+      return res.status(400).json({ message: 'courseId required' });
     }
 
     const db = await getDb();
@@ -88,7 +88,7 @@ async function getLessons(req: AuthRequest, res: NextApiResponse) {
     res.json(sortedList.map((l) => stripLessonVisualAidsFields(l as Record<string, unknown>)));
   } catch (error: any) {
     console.error('Get lessons error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -99,13 +99,13 @@ async function createLesson(req: AuthRequest, res: NextApiResponse) {
     console.log('Create lesson - User role:', userRole, 'User:', req.user!.email);
     if (userRole !== 'admin' && userRole !== 'instructor' && userRole !== 'superadmin') {
       console.log('Access denied - Role not authorized:', userRole);
-      return res.status(403).json({ error: 'Not authorized', role: userRole });
+      return res.status(403).json({ message: 'Not authorized', role: userRole });
     }
 
     const { courseId, title, description, summary, videoUrl, pdfUrl, order, content, type, requiredLevel, resources } = req.body;
 
     if (!courseId || !title) {
-      return res.status(400).json({ error: 'Missing required fields' });
+      return res.status(400).json({ message: 'Missing required fields' });
     }
 
     const db = await getDb();
@@ -133,7 +133,7 @@ async function createLesson(req: AuthRequest, res: NextApiResponse) {
     });
   } catch (error: any) {
     console.error('Create lesson error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -143,7 +143,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
   } else if (req.method === 'POST') {
     return createLesson(req, res);
   } else {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ message: 'Method not allowed' });
   }
 }
 

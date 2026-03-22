@@ -57,7 +57,7 @@ async function getForumPosts(req: AuthRequest, res: NextApiResponse) {
     res.json(enrichedPosts);
   } catch (error: any) {
     console.error('Get forum posts error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -67,11 +67,11 @@ async function createForumPost(req: AuthRequest, res: NextApiResponse) {
     const userId = req.user!.userId;
 
     if (!title || !content) {
-      return res.status(400).json({ error: 'Title and content required' });
+      return res.status(400).json({ message: 'Title and content required' });
     }
 
     if (!courseId && !lessonId) {
-      return res.status(400).json({ error: 'courseId or lessonId required' });
+      return res.status(400).json({ message: 'courseId or lessonId required' });
     }
 
     const db = await getDb();
@@ -96,7 +96,7 @@ async function createForumPost(req: AuthRequest, res: NextApiResponse) {
     });
   } catch (error: any) {
     console.error('Create forum post error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -106,7 +106,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
   } else if (req.method === 'POST') {
     return createForumPost(req, res);
   } else {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ message: 'Method not allowed' });
   }
 }
 

@@ -69,7 +69,7 @@ async function getTodos(req: AuthRequest, res: NextApiResponse) {
     res.json({ todos: result });
   } catch (error: unknown) {
     console.error('Get todos error:', error);
-    res.status(500).json({ error: 'Failed to fetch todos', message: error instanceof Error ? error.message : 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -89,7 +89,7 @@ async function createTodo(req: AuthRequest, res: NextApiResponse) {
     } = req.body;
 
     if (!title) {
-      return res.status(400).json({ error: 'Title is required' });
+      return res.status(400).json({ message: 'Title is required' });
     }
 
     const todo: Omit<TodoItem, '_id'> = {
@@ -124,7 +124,7 @@ async function createTodo(req: AuthRequest, res: NextApiResponse) {
     });
   } catch (error: unknown) {
     console.error('Create todo error:', error);
-    res.status(500).json({ error: 'Failed to create todo', message: error instanceof Error ? error.message : 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -134,7 +134,7 @@ async function updateTodo(req: AuthRequest, res: NextApiResponse) {
     const updates = req.body;
 
     if (!todoId || typeof todoId !== 'string') {
-      return res.status(400).json({ error: 'Todo ID is required' });
+      return res.status(400).json({ message: 'Todo ID is required' });
     }
 
     const db = await getDb();
@@ -147,7 +147,7 @@ async function updateTodo(req: AuthRequest, res: NextApiResponse) {
     });
 
     if (!todo) {
-      return res.status(404).json({ error: 'Todo not found or unauthorized' });
+      return res.status(404).json({ message: 'Todo not found or unauthorized' });
     }
 
     // Build update object
@@ -184,7 +184,7 @@ async function updateTodo(req: AuthRequest, res: NextApiResponse) {
     res.json({ success: true });
   } catch (error: unknown) {
     console.error('Update todo error:', error);
-    res.status(500).json({ error: 'Failed to update todo', message: error instanceof Error ? error.message : 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -193,7 +193,7 @@ async function deleteTodo(req: AuthRequest, res: NextApiResponse) {
     const { todoId } = req.query;
 
     if (!todoId || typeof todoId !== 'string') {
-      return res.status(400).json({ error: 'Todo ID is required' });
+      return res.status(400).json({ message: 'Todo ID is required' });
     }
 
     const db = await getDb();
@@ -206,7 +206,7 @@ async function deleteTodo(req: AuthRequest, res: NextApiResponse) {
     });
 
     if (!todo) {
-      return res.status(404).json({ error: 'Todo not found or unauthorized' });
+      return res.status(404).json({ message: 'Todo not found or unauthorized' });
     }
 
     await todos.deleteOne({ _id: new ObjectId(todoId) });
@@ -219,7 +219,7 @@ async function deleteTodo(req: AuthRequest, res: NextApiResponse) {
     res.json({ success: true });
   } catch (error: unknown) {
     console.error('Delete todo error:', error);
-    res.status(500).json({ error: 'Failed to delete todo', message: error instanceof Error ? error.message : 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -234,7 +234,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
     case 'DELETE':
       return deleteTodo(req, res);
     default:
-      return res.status(405).json({ error: 'Method not allowed' });
+      return res.status(405).json({ message: 'Method not allowed' });
   }
 }
 

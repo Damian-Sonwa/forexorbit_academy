@@ -19,7 +19,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
     );
 
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ message: 'User not found' });
     }
 
     // Determine role (Super Admin gets 'superadmin' role)
@@ -53,7 +53,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
     });
   } catch (error: any) {
     console.error('Get user error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 

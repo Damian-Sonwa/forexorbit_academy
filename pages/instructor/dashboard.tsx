@@ -269,7 +269,7 @@ export default function InstructorDashboard() {
       await loadUpcomingClasses();
       alert('Class created successfully!');
     } catch (error: any) {
-      alert(error.response?.data?.error || error.message || 'Failed to create class');
+      alert(error.response?.data?.message || error.response?.data?.error || error.message || 'Failed to create class');
     } finally {
       setSubmittingClass(false);
     }
@@ -301,7 +301,7 @@ export default function InstructorDashboard() {
       await loadUpcomingClasses();
       alert('Class updated successfully!');
     } catch (error: any) {
-      alert(error.response?.data?.error || error.message || 'Failed to update class');
+      alert(error.response?.data?.message || error.response?.data?.error || error.message || 'Failed to update class');
     } finally {
       setSubmittingClass(false);
     }
@@ -315,7 +315,7 @@ export default function InstructorDashboard() {
       await loadUpcomingClasses();
       alert('Class deleted successfully!');
     } catch (error: any) {
-      alert(error.response?.data?.error || error.message || 'Failed to delete class');
+      alert(error.response?.data?.message || error.response?.data?.error || error.message || 'Failed to delete class');
     }
   };
 
@@ -1851,7 +1851,7 @@ export default function InstructorDashboard() {
                                 await loadNews();
                                 alert('News deleted successfully');
                               } catch (error: any) {
-                                alert(error.response?.data?.error || error.message || 'Failed to delete news');
+                                alert(error.response?.data?.message || error.response?.data?.error || error.message || 'Failed to delete news');
                               }
                             }}
                             className="p-1.5 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30 rounded transition-colors"
@@ -1926,7 +1926,7 @@ export default function InstructorDashboard() {
                   setNewsEditForm({ title: '', description: '', category: 'market', content: '', link: '' });
                   await loadNews();
                 } catch (error: any) {
-                  alert(error.response?.data?.error || error.message || `Failed to ${editingNews._id ? 'update' : 'post'} news`);
+                  alert(error.response?.data?.message || error.response?.data?.error || error.message || `Failed to ${editingNews._id ? 'update' : 'post'} news`);
                 } finally {
                   setSubmittingNews(false);
                 }

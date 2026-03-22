@@ -13,7 +13,7 @@ async function getPerformance(req: AuthRequest, res: NextApiResponse) {
   try {
     // Only students can access their performance
     if (req.user!.role !== 'student') {
-      return res.status(403).json({ error: 'Only students can access performance metrics' });
+      return res.status(403).json({ message: 'Only students can access performance metrics' });
     }
 
     const db = await getDb();
@@ -22,12 +22,12 @@ async function getPerformance(req: AuthRequest, res: NextApiResponse) {
     // Get student's demo account
     const account = await accounts.findOne({ studentId: req.user!.userId });
     if (!account) {
-      return res.status(404).json({ error: 'Demo account not found' });
+      return res.status(404).json({ message: 'Demo account not found' });
     }
 
     // CRITICAL: Verify this is a demo account
     if (!account.isDemo) {
-      return res.status(403).json({ error: 'Only demo accounts are allowed' });
+      return res.status(403).json({ message: 'Only demo accounts are allowed' });
     }
 
     const broker = BrokerFactory.createBroker(
@@ -44,7 +44,7 @@ async function getPerformance(req: AuthRequest, res: NextApiResponse) {
     res.json(metrics);
   } catch (error: any) {
     console.error('Get performance error:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 

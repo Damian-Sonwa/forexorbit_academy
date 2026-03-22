@@ -39,7 +39,7 @@ async function uploadMessageFile(req: AuthRequest, res: NextApiResponse) {
     const type = Array.isArray(fields.type) ? fields.type[0] : fields.type;
 
     if (!file || !roomId || !type) {
-      return res.status(400).json({ error: 'File, roomId, and type are required' });
+      return res.status(400).json({ message: 'File, roomId, and type are required' });
     }
 
     // Generate unique filename
@@ -62,7 +62,7 @@ async function uploadMessageFile(req: AuthRequest, res: NextApiResponse) {
     // Verify room access
     const room = await rooms.findOne({ _id: new ObjectId(roomId) });
     if (!room) {
-      return res.status(404).json({ error: 'Room not found' });
+      return res.status(404).json({ message: 'Room not found' });
     }
 
     // Get user's learning level
@@ -85,15 +85,14 @@ async function uploadMessageFile(req: AuthRequest, res: NextApiResponse) {
     // Check access for global rooms - students can ONLY access their exact level room
     if (room.type === 'global' && ['Beginner', 'Intermediate', 'Advanced'].includes(room.name)) {
       if (!canAccessRoom(userLevel, room.name, user?.role)) {
-        return res.status(403).json({ 
-          error: 'Access denied. You can only access the community room for your current level.' 
+        return res.status(403).json({ message: 'Access denied. You can only access the community room for your current level.' 
         });
       }
     }
 
     // Check access for direct messages
     if (room.type === 'direct' && !room.participants.includes(req.user!.userId)) {
-      return res.status(403).json({ error: 'Access denied' });
+      return res.status(403).json({ message: 'Access denied' });
     }
 
     // Get sender info
@@ -157,9 +156,9 @@ async function uploadMessageFile(req: AuthRequest, res: NextApiResponse) {
   } catch (error: any) {
     console.error('Upload message file error:', error);
     if (error.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json({ error: 'File size exceeds 50MB limit' });
+      return res.status(400).json({ message: 'File size exceeds 50MB limit' });
     }
-    res.status(500).json({ error: error.message || 'Failed to upload file' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 

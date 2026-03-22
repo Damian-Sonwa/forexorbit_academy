@@ -9,7 +9,7 @@ import { getDb } from '@/lib/mongodb';
 
 async function handler(req: AuthRequest, res: NextApiResponse) {
   if (req.user!.role !== 'admin' && req.user!.role !== 'superadmin') {
-    return res.status(403).json({ error: 'Admin only' });
+    return res.status(403).json({ message: 'Admin only' });
   }
 
   try {
@@ -103,7 +103,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
     });
   } catch (error: unknown) {
     console.error('Get analytics error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 

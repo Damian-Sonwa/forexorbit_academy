@@ -14,24 +14,24 @@ async function reviewSubmission(req: AuthRequest, res: NextApiResponse) {
   try {
     // Only instructors and admins can review submissions
     if (req.user!.role !== 'instructor' && req.user!.role !== 'admin') {
-      return res.status(403).json({ error: 'Only instructors and admins can review submissions' });
+      return res.status(403).json({ message: 'Only instructors and admins can review submissions' });
     }
 
     const { id } = req.query;
     if (!id || typeof id !== 'string') {
-      return res.status(400).json({ error: 'Submission ID is required' });
+      return res.status(400).json({ message: 'Submission ID is required' });
     }
 
     const { grade, feedback } = req.body;
 
     if (grade === undefined && !feedback) {
-      return res.status(400).json({ error: 'Grade or feedback is required' });
+      return res.status(400).json({ message: 'Grade or feedback is required' });
     }
 
     // Validate grade if provided (0-100 or letter grade)
     if (grade !== undefined && grade !== null) {
       if (typeof grade === 'number' && (grade < 0 || grade > 100)) {
-        return res.status(400).json({ error: 'Grade must be between 0 and 100' });
+        return res.status(400).json({ message: 'Grade must be between 0 and 100' });
       }
     }
 
@@ -42,7 +42,7 @@ async function reviewSubmission(req: AuthRequest, res: NextApiResponse) {
     // Get submission
     const submission = await submissions.findOne({ _id: new ObjectId(id) });
     if (!submission) {
-      return res.status(404).json({ error: 'Submission not found' });
+      return res.status(404).json({ message: 'Submission not found' });
     }
 
     // Verify task exists and instructor has permission
@@ -50,13 +50,13 @@ async function reviewSubmission(req: AuthRequest, res: NextApiResponse) {
     if (submission.taskId) {
       const taskDoc = await tasks.findOne({ _id: new ObjectId(submission.taskId) });
       if (!taskDoc) {
-        return res.status(404).json({ error: 'Task not found' });
+        return res.status(404).json({ message: 'Task not found' });
       }
       task = taskDoc as { title?: string; assignedBy?: string };
 
       // For instructors, verify they created this task
       if (req.user!.role === 'instructor' && task.assignedBy !== req.user!.userId) {
-        return res.status(403).json({ error: 'You can only review submissions for your own tasks' });
+        return res.status(403).json({ message: 'You can only review submissions for your own tasks' });
       }
     }
 
@@ -129,9 +129,8 @@ async function reviewSubmission(req: AuthRequest, res: NextApiResponse) {
       },
     });
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
-    console.error('Review submission error:', errorMessage);
-    res.status(500).json({ error: errorMessage });
+    console.error('Review submission error:', error);
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 

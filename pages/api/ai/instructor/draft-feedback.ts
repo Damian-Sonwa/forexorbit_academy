@@ -11,22 +11,22 @@ import { ObjectId } from 'mongodb';
 
 async function handler(req: AuthRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ message: 'Method not allowed' });
   }
 
   if (req.user!.role !== 'instructor' && req.user!.role !== 'admin' && req.user!.role !== 'superadmin') {
-    return res.status(403).json({ error: 'Only instructors and admins can draft feedback' });
+    return res.status(403).json({ message: 'Only instructors and admins can draft feedback' });
   }
 
   if (!isAIConfigured()) {
-    return res.status(503).json({ error: 'AI service is not configured' });
+    return res.status(503).json({ message: 'AI service is not configured' });
   }
 
   try {
     const { submissionId } = req.body;
 
     if (!submissionId) {
-      return res.status(400).json({ error: 'submissionId is required' });
+      return res.status(400).json({ message: 'submissionId is required' });
     }
 
     const db = await getDb();
@@ -37,7 +37,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
     // Get submission
     const submission = await submissions.findOne({ _id: new ObjectId(submissionId) });
     if (!submission) {
-      return res.status(404).json({ error: 'Submission not found' });
+      return res.status(404).json({ message: 'Submission not found' });
     }
 
     // Get task
@@ -50,7 +50,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
     }
 
     if (!task) {
-      return res.status(404).json({ error: 'Task not found' });
+      return res.status(404).json({ message: 'Task not found' });
     }
 
     // Get student level
@@ -73,8 +73,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
     res.json({ feedback });
   } catch (error: unknown) {
     console.error('AI draft feedback error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Failed to draft feedback';
-    res.status(500).json({ error: errorMessage });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 

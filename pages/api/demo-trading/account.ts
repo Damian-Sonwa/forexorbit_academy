@@ -14,7 +14,7 @@ async function getAccount(req: AuthRequest, res: NextApiResponse) {
   try {
     // Only students can access their demo account
     if (req.user!.role !== 'student') {
-      return res.status(403).json({ error: 'Only students can access demo accounts' });
+      return res.status(403).json({ message: 'Only students can access demo accounts' });
     }
 
     const db = await getDb();
@@ -24,7 +24,7 @@ async function getAccount(req: AuthRequest, res: NextApiResponse) {
     const account = await accounts.findOne({ studentId: req.user!.userId });
 
     if (!account) {
-      return res.status(404).json({ error: 'Demo account not found. Please create one first.' });
+      return res.status(404).json({ message: 'Demo account not found. Please create one first.' });
     }
 
     // Get latest account info from broker
@@ -67,7 +67,7 @@ async function getAccount(req: AuthRequest, res: NextApiResponse) {
     }
   } catch (error: any) {
     console.error('Get account error:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -75,7 +75,7 @@ async function createAccount(req: AuthRequest, res: NextApiResponse) {
   try {
     // Only students can create demo accounts
     if (req.user!.role !== 'student') {
-      return res.status(403).json({ error: 'Only students can create demo accounts' });
+      return res.status(403).json({ message: 'Only students can create demo accounts' });
     }
 
     const { initialBalance } = req.body;
@@ -83,7 +83,7 @@ async function createAccount(req: AuthRequest, res: NextApiResponse) {
 
     // CRITICAL: Validate this is always demo mode
     if (process.env.BROKER_DEMO_MODE !== 'true' && process.env.NODE_ENV === 'production') {
-      return res.status(403).json({ error: 'Demo account creation is disabled' });
+      return res.status(403).json({ message: 'Demo account creation is disabled' });
     }
 
     const db = await getDb();
@@ -93,7 +93,7 @@ async function createAccount(req: AuthRequest, res: NextApiResponse) {
     // Check if account already exists
     const existingAccount = await accounts.findOne({ studentId: req.user!.userId });
     if (existingAccount) {
-      return res.status(400).json({ error: 'Demo account already exists' });
+      return res.status(400).json({ message: 'Demo account already exists' });
     }
 
     // Get user info
@@ -103,7 +103,7 @@ async function createAccount(req: AuthRequest, res: NextApiResponse) {
     );
 
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ message: 'User not found' });
     }
 
     // Create broker account
@@ -138,9 +138,7 @@ async function createAccount(req: AuthRequest, res: NextApiResponse) {
     });
   } catch (error: any) {
     console.error('Create account error:', error);
-    res.status(500).json({ 
-      error: error.message || 'Failed to create demo account. Please ensure broker API is configured correctly.' 
-    });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 
@@ -150,7 +148,7 @@ export default withAuth(async (req: AuthRequest, res: NextApiResponse) => {
   } else if (req.method === 'POST') {
     return createAccount(req, res);
   } else {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ message: 'Method not allowed' });
   }
 }, ['student']);
 

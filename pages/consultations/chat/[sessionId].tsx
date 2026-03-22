@@ -195,7 +195,7 @@ export default function ConsultationChat() {
       }
     } catch (error: any) {
       console.error('Failed to send message:', error);
-      alert(error.response?.data?.error || 'Failed to send message');
+      alert(error.response?.data?.message || error.response?.data?.error || 'Failed to send message');
       setInput(messageContent); // Restore input on error
     } finally {
       setSending(false);
@@ -274,15 +274,15 @@ export default function ConsultationChat() {
       // Log token fetch failure (but NOT the token value)
       console.error('Agora token fetch: FAILED', {
         status: error.response?.status,
-        error: error.response?.data?.error || error.message,
+        error: error.response?.data?.message || error.response?.data?.error || error.message,
       });
 
       // Show error only when token request fails
       let errorMessage = 'Failed to start call. Please try again.';
       if (error.response?.status === 500) {
         // Backend error - token service unavailable
-        errorMessage = error.response?.data?.error || 'Agora token service unavailable. Please contact support.';
-      } else if (error.response?.data?.error) {
+        errorMessage = error.response?.data?.message || error.response?.data?.error || 'Agora token service unavailable. Please contact support.';
+      } else if (error.response?.data?.message || error.response?.data?.error) {
         errorMessage = error.response.data.error;
       } else if (error.message) {
         errorMessage = error.message;

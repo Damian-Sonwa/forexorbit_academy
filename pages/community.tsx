@@ -582,7 +582,7 @@ export default function Community() {
       await apiClient.post(`/community/messages/read`, { roomId: roomId.toString() });
     } catch (error: any) {
       console.error('Failed to load messages:', error);
-      const errorMessage = error.response?.data?.error || 'Failed to load messages';
+      const errorMessage = error.response?.data?.message || error.response?.data?.error || 'Failed to load messages';
       if (error.response?.status === 403) {
         // Access denied - room is locked
         setToastMessage(errorMessage);
@@ -1017,7 +1017,10 @@ export default function Community() {
       let errorMessage = 'Failed to send message';
       
       if (error.response) {
-        errorMessage = error.response?.data?.error || `Error ${error.response.status}: ${error.response.statusText}`;
+        errorMessage =
+          error.response?.data?.message ||
+          error.response?.data?.error ||
+          'Something went wrong. Please try again later.';
       } else if (error.message) {
         errorMessage = error.message;
       }
@@ -1076,7 +1079,7 @@ export default function Community() {
       setTimeout(() => setShowToast(false), 3000);
     } catch (error: any) {
       console.error('Failed to delete message:', error);
-      const errorMessage = error.response?.data?.error || 'Failed to delete message';
+      const errorMessage = error.response?.data?.message || error.response?.data?.error || 'Failed to delete message';
       setToastMessage(errorMessage);
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
@@ -1697,7 +1700,7 @@ export default function Community() {
                     setNewsEditForm({ title: '', description: '', category: 'market', content: '', link: '' });
                     await loadNews();
                   } catch (error: any) {
-                    setToastMessage(error.response?.data?.error || error.message || `Failed to ${editingNews._id ? 'update' : 'post'} news`);
+                    setToastMessage(error.response?.data?.message || error.response?.data?.error || error.message || `Failed to ${editingNews._id ? 'update' : 'post'} news`);
                     setShowToast(true);
                     setTimeout(() => setShowToast(false), 3000);
                   } finally {
@@ -2433,7 +2436,7 @@ export default function Community() {
                             setShowToast(true);
                             setTimeout(() => setShowToast(false), 3000);
                           } catch (error: any) {
-                            alert(error.response?.data?.error || error.message || 'Failed to delete news');
+                            alert(error.response?.data?.message || error.response?.data?.error || error.message || 'Failed to delete news');
                           }
                         }}
                         className="flex-1 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-md text-xs font-semibold transition-colors flex items-center justify-center space-x-1"
@@ -2536,7 +2539,7 @@ export default function Community() {
                     setNewsEditForm({ title: '', description: '', category: 'market', content: '', link: '' });
                     await loadNews();
                   } catch (error: any) {
-                    setToastMessage(error.response?.data?.error || error.message || `Failed to ${editingNews._id ? 'update' : 'post'} news`);
+                    setToastMessage(error.response?.data?.message || error.response?.data?.error || error.message || `Failed to ${editingNews._id ? 'update' : 'post'} news`);
                     setShowToast(true);
                     setTimeout(() => setShowToast(false), 3000);
                   } finally {
@@ -2778,7 +2781,7 @@ export default function Community() {
                                     setShowToast(true);
                                     setTimeout(() => setShowToast(false), 3000);
                                   } catch (error: any) {
-                                    alert(error.response?.data?.error || error.message || 'Failed to delete news');
+                                    alert(error.response?.data?.message || error.response?.data?.error || error.message || 'Failed to delete news');
                                   }
                                 }}
                                 className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded-md text-xs font-semibold transition-colors flex items-center space-x-1 shadow-sm"
@@ -2831,7 +2834,7 @@ export default function Community() {
                                     setShowToast(true);
                                     setTimeout(() => setShowToast(false), 3000);
                                   } catch (error: any) {
-                                    alert(error.response?.data?.error || error.message || 'Failed to delete news');
+                                    alert(error.response?.data?.message || error.response?.data?.error || error.message || 'Failed to delete news');
                                   }
                                 }}
                                 className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded-md text-xs font-semibold transition-colors flex items-center space-x-1 shadow-sm"

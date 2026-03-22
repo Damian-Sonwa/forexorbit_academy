@@ -17,9 +17,10 @@ const PUBLIC_API_BASE =
   '';
 
 function mapForgotPasswordError(err: unknown): string {
-  const e = err as { code?: string; response?: { data?: { error?: string } } };
-  const apiErr = e.response?.data?.error;
-  if (typeof apiErr === 'string' && apiErr.trim()) return apiErr;
+  const e = err as { code?: string; response?: { data?: { message?: string; error?: string } } };
+  const d = e.response?.data;
+  const apiErr = d?.message?.trim() || d?.error?.trim();
+  if (apiErr) return apiErr;
   const noResponse = !e.response;
   if (noResponse && (e.code === 'ERR_NETWORK' || e.code === 'ECONNABORTED')) {
     if (PUBLIC_API_BASE && PUBLIC_API_BASE !== '/api') {

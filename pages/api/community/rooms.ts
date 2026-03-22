@@ -17,8 +17,7 @@ async function getRooms(req: AuthRequest, res: NextApiResponse) {
       db = await getDb();
     } catch (dbError: any) {
       console.error('Database connection error:', dbError);
-      return res.status(500).json({ 
-        error: 'Database connection failed',
+      return res.status(500).json({ message: 'Database connection failed',
         details: process.env.NODE_ENV === 'development' ? dbError.message : 'Please check server logs'
       });
     }
@@ -34,7 +33,7 @@ async function getRooms(req: AuthRequest, res: NextApiResponse) {
     );
 
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ message: 'User not found' });
     }
 
     // Check if student has completed onboarding
@@ -196,15 +195,9 @@ async function getRooms(req: AuthRequest, res: NextApiResponse) {
     }
 
     res.json(roomsWithLastMessage);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Get rooms error:', error);
-    console.error('Error stack:', error.stack);
-    // Don't return placeholder rooms - return error instead
-    // This forces proper error handling on frontend
-    res.status(500).json({ 
-      error: 'Failed to load rooms. Please ensure rooms are seeded in the database.',
-      details: error.message 
-    });
+    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
 

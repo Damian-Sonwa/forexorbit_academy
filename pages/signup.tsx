@@ -98,11 +98,12 @@ export default function Signup() {
       let errorMessage = 'Signup failed. Please try again.';
       const ax = err as {
         message?: string;
-        response?: { status?: number; data?: { error?: string } };
+        response?: { status?: number; data?: { message?: string; error?: string } };
         code?: string;
       };
-      if (ax.response?.data?.error) {
-        errorMessage = ax.response.data.error;
+      if (ax.response?.data?.message || ax.response?.data?.error) {
+        errorMessage =
+          ax.response.data.message || ax.response.data.error || errorMessage;
       } else if (err instanceof Error && ax.message) {
         errorMessage = ax.message;
       } else if (ax.response?.status && ax.response.status >= 500) {
