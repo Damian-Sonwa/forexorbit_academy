@@ -73,12 +73,8 @@ export function sanitizeHtml(
     }
   }
 
-  // Server-side fallback: Use regex-based sanitization
-  return sanitizeHtmlString(
-    html,
-    allowedTags,
-    allowedAttributes as Record<string, string[]>
-  );
+  // Server-side fallback: regex-based sanitization (whitelist not applied here)
+  return sanitizeHtmlString(html);
 }
 
 /**
@@ -104,8 +100,6 @@ function sanitizeElement(
   allowedTags: string[],
   allowedAttributes: Record<string, string[]>
 ): void {
-  const nodesToRemove: Element[] = [];
-
   for (let i = 0; i < element.children.length; i++) {
     const child = element.children[i];
     const tagName = child.tagName.toLowerCase();
@@ -152,11 +146,7 @@ function sanitizeElement(
 /**
  * Regex-based HTML sanitization (server-side fallback)
  */
-function sanitizeHtmlString(
-  html: string,
-  allowedTags: string[],
-  allowedAttributes: Record<string, string[]>
-): string {
+function sanitizeHtmlString(html: string): string {
   let result = html;
 
   // Remove script tags and content

@@ -242,7 +242,7 @@ export default function SetupGuide() {
                   <li><strong>Screenshot:</strong> Upload a screenshot of your demo trading activity (optional)</li>
                 </ul>
                 <p className="text-sm text-gray-700 mt-3 mb-2">
-                  Click <strong>"Submit Task"</strong> to send your work for instructor review.
+                  Click <strong>&quot;Submit Task&quot;</strong> to send your work for instructor review.
                 </p>
               </div>
 

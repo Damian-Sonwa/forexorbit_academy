@@ -26,6 +26,9 @@
     "paths": {
       "@/*": [
         "./*"
+      ],
+      "next/types.js": [
+        "./next-types-js.d.ts"
       ]
     },
     "types": [
