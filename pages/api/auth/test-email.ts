@@ -29,16 +29,14 @@ export default async function handler(
     const configured = isEmailConfigured();
     
     if (!configured) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'Email not configured',
-        message: 'Please set SMTP environment variables in Vercel',
-        required: ['SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASSWORD'],
+        message: 'Set RESEND_API_KEY for Resend (password reset emails).',
+        required: ['RESEND_API_KEY'],
+        optional: ['RESEND_FROM'],
         current: {
-          hasHost: !!process.env.SMTP_HOST,
-          hasPort: !!process.env.SMTP_PORT,
-          hasUser: !!process.env.SMTP_USER,
-          hasPassword: !!process.env.SMTP_PASSWORD,
-        }
+          hasResendApiKey: !!process.env.RESEND_API_KEY?.trim(),
+        },
       });
     }
 

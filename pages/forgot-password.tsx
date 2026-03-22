@@ -27,7 +27,7 @@ export default function ForgotPassword() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [resendCooldown, setResendCooldown] = useState(0);
+  const [retryAfterSeconds, setRetryAfterSeconds] = useState(0);
   const [lastEmailSent, setLastEmailSent] = useState<string | null>(null);
   const cooldownTimerRef = useRef<NodeJS.Timeout | null>(null);
   const router = useRouter();
@@ -72,12 +72,12 @@ export default function ForgotPassword() {
       
       // Start 60-second cooldown timer (or use cooldown from API response if provided)
       const cooldownSeconds = (response as any)?.data?.cooldown || 60;
-      setResendCooldown(cooldownSeconds);
+      setRetryAfterSeconds(cooldownSeconds);
       if (cooldownTimerRef.current) {
         clearInterval(cooldownTimerRef.current);
       }
       cooldownTimerRef.current = setInterval(() => {
-        setResendCooldown((prev) => {
+        setRetryAfterSeconds((prev) => {
           if (prev <= 1) {
             if (cooldownTimerRef.current) {
               clearInterval(cooldownTimerRef.current);
@@ -142,28 +142,27 @@ export default function ForgotPassword() {
     }
   };
 
-  const handleResend = async () => {
-    if (resendCooldown > 0 || !lastEmailSent) return;
+  /** Calls server POST /api/auth/forgot-password only — never sends email from the browser. */
+  const handleSendResetLinkAgain = async () => {
+    if (retryAfterSeconds > 0 || !lastEmailSent) return;
 
     setError('');
     setLoading(true);
 
-    // Development-only logging
     if (process.env.NODE_ENV === 'development') {
-      console.log('Resending password reset email for:', lastEmailSent);
+      console.log('Requesting another password reset link for:', lastEmailSent);
     }
 
     try {
       const response = await apiClient.post('/auth/forgot-password', { email: lastEmailSent });
       
-      // Start 60-second cooldown (or use cooldown from API response if provided)
       const cooldownSeconds = (response as any)?.data?.cooldown || 60;
-      setResendCooldown(cooldownSeconds);
+      setRetryAfterSeconds(cooldownSeconds);
       if (cooldownTimerRef.current) {
         clearInterval(cooldownTimerRef.current);
       }
       cooldownTimerRef.current = setInterval(() => {
-        setResendCooldown((prev) => {
+        setRetryAfterSeconds((prev) => {
           if (prev <= 1) {
             if (cooldownTimerRef.current) {
               clearInterval(cooldownTimerRef.current);
@@ -174,9 +173,8 @@ export default function ForgotPassword() {
         });
       }, 1000);
 
-      // Development-only logging
       if (process.env.NODE_ENV === 'development') {
-        console.log('Password reset email resent successfully');
+        console.log('Another reset link was requested via API');
       }
     } catch (err: any) {
       // Map errors safely
@@ -235,14 +233,15 @@ export default function ForgotPassword() {
                 
                 {lastEmailSent && (
                   <button
-                    onClick={handleResend}
-                    disabled={resendCooldown > 0 || loading}
+                    type="button"
+                    onClick={handleSendResetLinkAgain}
+                    disabled={retryAfterSeconds > 0 || loading}
                     className="w-full px-6 py-3 bg-primary-600 hover:bg-primary-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-xl font-semibold transition-colors"
                   >
-                    {resendCooldown > 0 ? (
-                      `Resend in ${resendCooldown}s`
+                    {retryAfterSeconds > 0 ? (
+                      `Try again in ${retryAfterSeconds}s`
                     ) : (
-                      'Resend Reset Email'
+                      'Send reset link again'
                     )}
                   </button>
                 )}

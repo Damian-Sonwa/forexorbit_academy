@@ -97,14 +97,8 @@ export default async function handler(
           await sendPasswordResetEmail(user.email, user.name || 'User', resetUrl);
           console.log('✅ Password reset email sent successfully to', user.email);
         } else {
-          // Email not configured - log the URL for manual use (development/testing)
-          console.warn('❌ Email not configured. Password reset URL for', email, ':', resetUrl);
-          console.log('To enable email sending, configure SMTP environment variables in Vercel:');
-          console.log('- SMTP_HOST (e.g., smtp.gmail.com)');
-          console.log('- SMTP_PORT (e.g., 587)');
-          console.log('- SMTP_SECURE (true or false)');
-          console.log('- SMTP_USER (your email address)');
-          console.log('- SMTP_PASSWORD (your app password)');
+          console.warn('❌ Email not configured (set RESEND_API_KEY). Password reset URL for', email, ':', resetUrl);
+          console.log('Add RESEND_API_KEY to .env / Vercel. Optional: RESEND_FROM (default onboarding@resend.dev).');
         }
       } catch (emailError: any) {
         // Log detailed error for debugging

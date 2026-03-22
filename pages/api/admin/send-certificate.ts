@@ -128,10 +128,10 @@ async function sendCertificate(req: AuthRequest, res: NextApiResponse) {
     // Students will see the certificate when they refresh or when the page refetches
 
     // Optional: Send email notification
-    // Note: Email functionality would require nodemailer or similar service
+    // Note: Certificate email could use Resend (see lib/email.ts) when implemented
     // This is a placeholder for future email integration
     if (sendEmail) {
-      // TODO: Implement email sending using nodemailer
+      // TODO: Implement email sending (e.g. Resend)
       // Example:
       // await sendCertificateEmail(student.email, {
       //   studentName: student.name,
