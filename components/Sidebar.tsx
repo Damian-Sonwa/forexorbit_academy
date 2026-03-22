@@ -16,6 +16,7 @@ import { useRouter } from 'next/router';
 import { useAuth } from '@/hooks/useAuth';
 import { useEffect, useState } from 'react';
 import { apiClient } from '@/lib/api-client';
+import { isNavHrefDisabled } from '@/lib/config/features';
 
 interface SidebarProps {
   courseId?: string;
@@ -285,7 +286,7 @@ export default function Sidebar({ }: SidebarProps) {
       {/* Mobile Hamburger Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="lg:hidden fixed top-[3.5rem] left-2 sm:left-4 z-50 p-2 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+        className="lg:hidden fixed top-[3.5rem] left-2 sm:left-4 z-50 p-2 bg-brand-surface/95 dark:bg-nav-bg rounded-lg shadow-lg border border-primary-600/15 dark:border-white/10 text-brand-dark dark:text-nav-text hover:bg-brand-bg dark:hover:bg-white/5 transition-colors"
         aria-label="Toggle sidebar"
       >
         {isOpen ? <CloseIcon className="w-5 h-5 sm:w-6 sm:h-6" /> : <MenuIcon className="w-5 h-5 sm:w-6 sm:h-6" />}
@@ -305,9 +306,9 @@ export default function Sidebar({ }: SidebarProps) {
           fixed lg:sticky top-0 left-0 z-40
           h-screen lg:h-auto lg:self-start
           w-64 sm:w-72 lg:w-72
-          ${user?.role === 'student' ? 'bg-gradient-to-b from-indigo-600 via-purple-600 to-blue-700' : 'bg-white dark:bg-gray-800'}
+          ${user?.role === 'student' ? 'bg-gradient-to-b from-brand-dark via-primary-900 to-primary-950' : 'bg-brand-surface dark:bg-nav-bg'}
           shadow-xl lg:shadow-md
-          ${user?.role === 'student' ? 'border-r border-purple-500/30' : 'border-r border-gray-200 dark:border-gray-700'}
+          ${user?.role === 'student' ? 'border-r border-white/10' : 'border-r border-[var(--color-border)] dark:border-white/10'}
           transform transition-transform duration-300 ease-in-out
           ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
           ${isCollapsed ? 'lg:w-20' : 'lg:w-72'}
@@ -317,7 +318,7 @@ export default function Sidebar({ }: SidebarProps) {
         `}
       >
         {/* Sidebar Header */}
-        <div className={`p-3 sm:p-4 lg:p-6 ${user?.role === 'student' ? 'border-b border-purple-500/30' : 'border-b border-gray-200 dark:border-gray-700'} flex-shrink-0`}>
+        <div className={`p-3 sm:p-4 lg:p-6 ${user?.role === 'student' ? 'border-b border-white/10' : 'border-b border-[var(--color-border)] dark:border-white/10'} flex-shrink-0`}>
           {/* Collapse Toggle (Desktop only) */}
           <div className="hidden lg:flex justify-end mb-4">
             <button
@@ -418,7 +419,55 @@ export default function Sidebar({ }: SidebarProps) {
             }
             
             const href = (item as any).tab ? `${baseHref}?tab=${(item as any).tab}` : item.href;
-            
+            const navDisabled = isNavHrefDisabled(item.href);
+
+            if (navDisabled) {
+              if (user?.role === 'student') {
+                return (
+                  <div
+                    key={`${item.href}-${(item as any).tab || ''}-disabled`}
+                    className={`
+                      flex items-center space-x-3 px-4 py-3 rounded-lg
+                      opacity-55 cursor-not-allowed select-none
+                      bg-white/5 text-white/80
+                      ${isCollapsed ? 'justify-center' : ''}
+                    `}
+                    aria-disabled
+                    title={isCollapsed ? `${item.label} — Coming soon` : undefined}
+                  >
+                    <Icon className="w-5 h-5 flex-shrink-0 text-white/70" />
+                    {!isCollapsed && (
+                      <>
+                        <span className="font-medium">{item.label}</span>
+                        <span className="ml-auto text-[10px] uppercase tracking-wide text-white/70">Soon</span>
+                      </>
+                    )}
+                  </div>
+                );
+              }
+              return (
+                <div
+                  key={`${item.href}-${(item as any).tab || ''}-disabled`}
+                  className={`
+                    flex items-center space-x-3 px-4 py-3 rounded-xl
+                    opacity-55 cursor-not-allowed select-none
+                    text-gray-500 dark:text-gray-500 border border-dashed border-gray-200 dark:border-gray-600
+                    ${isCollapsed ? 'justify-center' : ''}
+                  `}
+                  aria-disabled
+                  title={isCollapsed ? `${item.label} — Coming soon` : undefined}
+                >
+                  <Icon className="w-5 h-5 flex-shrink-0 text-current" />
+                  {!isCollapsed && (
+                    <>
+                      <span className="font-medium">{item.label}</span>
+                      <span className="ml-auto text-[10px] uppercase tracking-wide text-gray-400">Soon</span>
+                    </>
+                  )}
+                </div>
+              );
+            }
+
             // For students, use rectangular boxes with blue styling
             if (user?.role === 'student') {
               return (
@@ -482,7 +531,7 @@ export default function Sidebar({ }: SidebarProps) {
         </nav>
 
         {/* Footer with Logout Button */}
-        <div className={`${user?.role === 'student' ? 'border-t border-purple-500/30' : 'border-t border-gray-200 dark:border-gray-700'} flex-shrink-0`}>
+        <div className={`${user?.role === 'student' ? 'border-t border-white/10' : 'border-t border-[var(--color-border)] dark:border-white/10'} flex-shrink-0`}>
           {!isCollapsed ? (
             <div className="p-3 sm:p-4 lg:p-6">
               <p className={`text-xs text-center mb-3 ${user?.role === 'student' ? 'text-white/80' : 'text-gray-500 dark:text-gray-400'}`}>

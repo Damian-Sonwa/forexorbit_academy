@@ -90,7 +90,7 @@ export default function Login() {
     <div className="min-h-screen flex flex-col">
       <Header />
 
-      <main className="flex-1 flex items-center justify-center bg-[#00273F] py-8 sm:py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+      <main className="flex-1 flex items-center justify-center bg-brand-darker py-8 sm:py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
         {/* Subtle background decoration */}
         <div className="absolute top-0 right-0 w-48 h-48 sm:w-64 sm:h-64 opacity-10">
           <svg viewBox="0 0 200 200" className="w-full h-full">
@@ -103,33 +103,33 @@ export default function Login() {
         <div className="max-w-md w-full relative z-10 animate-fade-in">
           <div className="bg-[#003153] rounded-xl sm:rounded-2xl shadow-2xl p-6 sm:p-8 border border-[#001a2e]">
             <div className="text-center mb-6 sm:mb-8">
-              <h2 className="text-white font-bold text-2xl sm:text-3xl mb-3 sm:mb-4">Sign In</h2>
-              <p className="text-sm sm:text-base text-gray-300">Welcome back to ForexOrbit Academy</p>
+              <h2 className="text-nav-text font-bold text-2xl sm:text-3xl mb-3 sm:mb-4">Sign In</h2>
+              <p className="text-sm sm:text-base text-nav-muted">Welcome back to ForexOrbit Academy</p>
             </div>
 
             {error && (
-              <div className="mb-6 p-4 bg-red-900/30 border border-red-700 rounded-xl">
-                <p className="text-red-300 text-sm">{error}</p>
+              <div className="mb-6 p-4 bg-accent-500/10 border border-accent-500/40 rounded-xl">
+                <p className="text-accent-200 text-sm">{error}</p>
               </div>
             )}
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-semibold text-gray-200 mb-2">Email</label>
+                <label className="block text-sm font-semibold text-nav-muted mb-2">Email</label>
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="bg-[#001a2e] border border-gray-600 text-white rounded-xl px-4 py-3 focus:ring-2 focus:ring-white/50 focus:border-transparent w-full mb-4 placeholder-gray-400"
+                  className="bg-brand-deep border border-white/15 text-nav-text rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary-400/50 focus:border-transparent w-full mb-4 placeholder:text-nav-muted"
                   placeholder="you@example.com"
                 />
               </div>
 
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <label className="block text-sm font-semibold text-gray-200">Password</label>
-                  <Link href="/forgot-password" className="text-gray-300 hover:text-white hover:underline text-sm">
+                  <label className="block text-sm font-semibold text-nav-muted">Password</label>
+                  <Link href="/forgot-password" className="text-nav-muted hover:text-nav-text hover:underline text-sm">
                     Forgot password?
                   </Link>
                 </div>
@@ -138,7 +138,7 @@ export default function Login() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="bg-[#001a2e] border border-gray-600 text-white rounded-xl px-4 py-3 focus:ring-2 focus:ring-white/50 focus:border-transparent w-full mb-4 placeholder-gray-400"
+                  className="bg-brand-deep border border-white/15 text-nav-text rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary-400/50 focus:border-transparent w-full mb-4 placeholder:text-nav-muted"
                   placeholder="••••••••"
                 />
               </div>
@@ -146,11 +146,11 @@ export default function Login() {
                   <button
                     type="submit"
                     disabled={loading || !email.trim() || !password.trim()}
-                    className="bg-white text-[#003153] hover:bg-gray-100 w-full rounded-xl py-3 font-semibold transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed"
+                    className="bg-primary-500 hover:bg-primary-600 text-white w-full rounded-xl py-3 font-semibold transition-colors disabled:bg-primary-900/50 disabled:cursor-not-allowed"
                   >
                 {loading ? (
                   <span className="flex items-center justify-center">
-                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24"
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
@@ -162,10 +162,10 @@ export default function Login() {
               </button>
             </form>
 
-            <div className="mt-6 pt-6 border-t border-gray-600">
-              <p className="text-center text-sm text-gray-300">
+            <div className="mt-6 pt-6 border-t border-white/10">
+              <p className="text-center text-sm text-nav-muted">
                 Don't have an account?{' '}
-                <Link href="/signup" className="text-white hover:underline font-semibold">
+                <Link href="/signup" className="text-nav-text hover:underline font-semibold">
                   Sign Up
                 </Link>
               </p>

@@ -7,7 +7,7 @@ import Link from 'next/link';
 
 export default function Footer() {
   return (
-    <footer className="bg-gradient-to-br from-gray-900 to-gray-800 text-gray-300 border-t border-gray-700">
+    <footer className="bg-nav-bg text-nav-text border-t border-white/10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
           {/* Brand */}
@@ -18,20 +18,20 @@ export default function Footer() {
               </div>
               <span className="text-2xl font-display font-bold">
                 <span className="bg-gradient-to-r from-primary-400 to-secondary-400 bg-clip-text text-transparent">ForexOrbit</span>
-                <span className="text-white ml-1">Academy</span>
+                <span className="text-nav-text ml-1">Academy</span>
               </span>
             </div>
-            <p className="text-sm text-gray-400 leading-relaxed">
+            <p className="text-sm text-nav-muted leading-relaxed">
               Learn Forex trading with expert instructors and real-time market signals.
             </p>
           </div>
 
           {/* Quick Links */}
           <div>
-            <h3 className="text-white font-bold mb-6 text-lg">Quick Links</h3>
+            <h3 className="text-nav-text font-bold mb-6 text-lg">Quick Links</h3>
             <ul className="space-y-3">
               <li>
-                <Link href="/courses" className="text-sm text-gray-400 hover:text-primary-400 transition-colors flex items-center group">
+                <Link href="/courses" className="text-sm text-nav-muted hover:text-primary-300 transition-colors flex items-center group">
                   <svg className="w-4 h-4 mr-2 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
@@ -39,7 +39,7 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/dashboard" className="text-sm text-gray-400 hover:text-primary-400 transition-colors flex items-center group">
+                <Link href="/dashboard" className="text-sm text-nav-muted hover:text-primary-300 transition-colors flex items-center group">
                   <svg className="w-4 h-4 mr-2 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
@@ -47,7 +47,7 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/about" className="text-sm text-gray-400 hover:text-primary-400 transition-colors flex items-center group">
+                <Link href="/about" className="text-sm text-nav-muted hover:text-primary-300 transition-colors flex items-center group">
                   <svg className="w-4 h-4 mr-2 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
@@ -59,10 +59,10 @@ export default function Footer() {
 
           {/* Support */}
           <div>
-            <h3 className="text-white font-bold mb-6 text-lg">Support</h3>
+            <h3 className="text-nav-text font-bold mb-6 text-lg">Support</h3>
             <ul className="space-y-3">
               <li>
-                <Link href="/help" className="text-sm text-gray-400 hover:text-primary-400 transition-colors flex items-center group">
+                <Link href="/help" className="text-sm text-nav-muted hover:text-primary-300 transition-colors flex items-center group">
                   <svg className="w-4 h-4 mr-2 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
@@ -70,7 +70,7 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/contact" className="text-sm text-gray-400 hover:text-primary-400 transition-colors flex items-center group">
+                <Link href="/contact" className="text-sm text-nav-muted hover:text-primary-300 transition-colors flex items-center group">
                   <svg className="w-4 h-4 mr-2 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
@@ -78,7 +78,7 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/faq" className="text-sm text-gray-400 hover:text-primary-400 transition-colors flex items-center group">
+                <Link href="/faq" className="text-sm text-nav-muted hover:text-primary-300 transition-colors flex items-center group">
                   <svg className="w-4 h-4 mr-2 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
@@ -90,10 +90,10 @@ export default function Footer() {
 
           {/* Legal */}
           <div>
-            <h3 className="text-white font-bold mb-6 text-lg">Legal</h3>
+            <h3 className="text-nav-text font-bold mb-6 text-lg">Legal</h3>
             <ul className="space-y-3">
               <li>
-                <Link href="/privacy" className="text-sm text-gray-400 hover:text-primary-400 transition-colors flex items-center group">
+                <Link href="/privacy" className="text-sm text-nav-muted hover:text-primary-300 transition-colors flex items-center group">
                   <svg className="w-4 h-4 mr-2 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
@@ -101,7 +101,7 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/terms" className="text-sm text-gray-400 hover:text-primary-400 transition-colors flex items-center group">
+                <Link href="/terms" className="text-sm text-nav-muted hover:text-primary-300 transition-colors flex items-center group">
                   <svg className="w-4 h-4 mr-2 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
@@ -112,8 +112,8 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="mt-12 pt-8 border-t border-gray-700 text-center">
-          <p className="text-sm text-gray-400">
+        <div className="mt-12 pt-8 border-t border-white/10 text-center">
+          <p className="text-sm text-nav-muted">
             &copy; {new Date().getFullYear()} ForexOrbit Academy. All rights reserved.
           </p>
         </div>

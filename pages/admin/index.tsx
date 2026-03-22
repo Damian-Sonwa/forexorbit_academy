@@ -29,6 +29,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { formatDistanceToNow } from 'date-fns';
+import { FEATURES } from '@/lib/config/features';
 
 interface Analytics {
   totalCourses?: number;
@@ -663,17 +664,30 @@ export default function AdminPanel() {
               <p className="text-gray-600 dark:text-gray-400">Manage courses, lessons, and view analytics</p>
             </div>
             {/* Community Navigation Link for Super Admin */}
-            {user?.role === 'superadmin' && (
-              <Link
-                href="/community"
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors flex items-center space-x-2 shadow-md"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
-                <span>Community</span>
-              </Link>
-            )}
+            {user?.role === 'superadmin' &&
+              (FEATURES.COMMUNITY ? (
+                <Link
+                  href="/community"
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors flex items-center space-x-2 shadow-md"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                  <span>Community</span>
+                </Link>
+              ) : (
+                <div
+                  className="px-4 py-2 bg-gray-400 dark:bg-gray-600 text-white rounded-lg font-semibold flex items-center space-x-2 shadow-md cursor-not-allowed opacity-90"
+                  title="Coming soon"
+                  aria-disabled
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                  <span>Community</span>
+                  <span className="text-xs font-medium opacity-90">Soon</span>
+                </div>
+              ))}
           </div>
         </div>
 
@@ -1202,9 +1216,9 @@ export default function AdminPanel() {
                 <div className="text-3xl font-bold mb-1">{analytics.activeUsers || 0}</div>
                 <div className="text-yellow-100 text-xs font-medium">Active (7d)</div>
               </div>
-              <div className="bg-gradient-to-br from-accent-500 to-accent-600 rounded-xl p-4 text-white shadow-lg">
+              <div className="bg-gradient-to-br from-primary-600 to-primary-800 rounded-xl p-4 text-white shadow-lg">
                 <div className="text-3xl font-bold mb-1">{analytics.recentMessages || 0}</div>
-                <div className="text-accent-100 text-xs font-medium">Messages (24h)</div>
+                <div className="text-primary-100 text-xs font-medium">Messages (24h)</div>
               </div>
             </div>
 

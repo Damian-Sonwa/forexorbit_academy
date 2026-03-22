@@ -1961,7 +1961,7 @@ export default function Community() {
           <div className="flex-1 flex flex-col bg-gray-100 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 min-h-0 overflow-hidden">
             {/* Chat Header - WhatsApp Style */}
             {/* FIX: Make header responsive - stack elements on mobile if needed */}
-            <div className="bg-[#f0f2f5] dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-2 sm:px-4 py-2 sm:py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 sticky top-0 z-10 shadow-sm flex-shrink-0">
+            <div className="bg-brand-bg dark:bg-nav-bg border-b border-[var(--color-border)] px-2 sm:px-4 py-2 sm:py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 sticky top-0 z-10 shadow-sm flex-shrink-0">
               <div className="flex items-center space-x-2 sm:space-x-3 flex-1 min-w-0 w-full sm:w-auto">
                 <button
                   onClick={() => setShowRoomSelection(true)}
@@ -2065,7 +2065,7 @@ export default function Community() {
             {/* FIX: Messages container - add min-h-0 for proper flex shrinking, responsive padding */}
             <div 
               ref={messagesContainerRef}
-              className="flex-1 overflow-y-auto p-2 sm:p-4 space-y-2 bg-[#ece5dd] dark:bg-gray-900 min-h-0"
+              className="flex-1 overflow-y-auto p-2 sm:p-4 space-y-2 bg-brand-bg/90 dark:bg-brand-darker min-h-0"
               style={{
                 backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'100\' height=\'100\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cdefs%3E%3Cpattern id=\'grid\' width=\'100\' height=\'100\' patternUnits=\'userSpaceOnUse\'%3E%3Cpath d=\'M 100 0 L 0 0 0 100\' fill=\'none\' stroke=\'%23e0e0e0\' stroke-width=\'0.5\' opacity=\'0.3\'/%3E%3C/pattern%3E%3C/defs%3E%3Crect width=\'100\' height=\'100\' fill=\'url(%23grid)\'/%3E%3C/svg%3E")',
                 backgroundSize: '100px 100px',
@@ -2118,7 +2118,7 @@ export default function Community() {
             </div>
 
             {/* FIX: Input Area - sticky at bottom, responsive padding, prevents cutoff on mobile */}
-            <div className="bg-[#f0f2f5] dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-2 sm:p-3 sticky bottom-0 z-10 flex-shrink-0">
+            <div className="bg-brand-bg dark:bg-nav-bg border-t border-[var(--color-border)] p-2 sm:p-3 sticky bottom-0 z-10 flex-shrink-0">
               {selectedFile && (
                 <div className="mb-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg flex items-center justify-between">
                   <div className="flex items-center space-x-3">
@@ -2310,7 +2310,7 @@ export default function Community() {
                       type="submit"
                       disabled={!input.trim() || !connected || !roomConfirmed || !selectedRoom}
                       title={!connected ? 'Not connected to chat' : !roomConfirmed ? 'Room not confirmed yet' : !input.trim() ? 'Enter a message' : 'Send message'}
-                      className="p-2 sm:p-2.5 bg-[#25d366] hover:bg-[#20ba5a] text-white rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-md flex-shrink-0"
+                      className="p-2 sm:p-2.5 bg-primary-600 hover:bg-primary-700 text-white rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-md flex-shrink-0"
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
@@ -2989,7 +2989,7 @@ function MessageBubble({ message, isOwn, onReaction, onDelete }: MessageBubblePr
         <div
           className={`rounded-2xl px-3 py-2 shadow-sm ${
             isOwn
-              ? 'bg-[#dcf8c6] dark:bg-[#056162] text-gray-900 dark:text-white rounded-br-sm'
+              ? 'bg-primary-100 dark:bg-primary-900/80 text-brand-dark dark:text-nav-text rounded-br-sm'
               : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-bl-sm shadow-md'
           }`}
           style={{

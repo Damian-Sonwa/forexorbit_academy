@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { isFeaturePathBlocked } from '@/lib/config/features';
 
 const STATIC_EXT = /\.(ico|png|jpg|jpeg|gif|webp|svg|woff2?|ttf|eot|txt|xml|json|map)$/i;
 
@@ -18,6 +19,13 @@ export function middleware(request: NextRequest) {
     STATIC_EXT.test(pathname)
   ) {
     return NextResponse.next();
+  }
+
+  if (isFeaturePathBlocked(pathname)) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/dashboard';
+    url.search = '';
+    return NextResponse.redirect(url);
   }
 
   const res = NextResponse.next();

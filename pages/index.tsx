@@ -96,7 +96,7 @@ export default function Home() {
                 alt="Forex market trading charts and financial graphs showing currency exchange rates and market trends"
                 className="w-full h-full object-cover"
               />
-              <div className="absolute inset-0 bg-gradient-to-br from-[#1E88E5]/80 via-[#1565C0]/80 to-prussian/80" />
+              <div className="absolute inset-0 bg-gradient-to-br from-primary-700/85 via-primary-800/85 to-brand-dark/90" />
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <div className="text-center text-white px-4">
                   <p className="text-xl sm:text-2xl md:text-3xl font-bold drop-shadow-2xl">Forex Market Analysis</p>
@@ -111,7 +111,7 @@ export default function Home() {
                 alt="Students learning and collaborating on financial education, online learning platform"
                 className="w-full h-full object-cover"
               />
-              <div className="absolute inset-0 bg-gradient-to-br from-[#00897B]/80 via-[#00695C]/80 to-prussian/80" />
+              <div className="absolute inset-0 bg-gradient-to-br from-secondary-600/80 via-secondary-800/80 to-brand-dark/90" />
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <div className="text-center text-white px-4">
                   <p className="text-xl sm:text-2xl md:text-3xl font-bold drop-shadow-2xl">Students Learning Forex</p>
@@ -126,7 +126,7 @@ export default function Home() {
                 alt="Financial charts, graphs, and data analytics showing forex trading patterns and market analysis"
                 className="w-full h-full object-cover"
               />
-              <div className="absolute inset-0 bg-gradient-to-br from-[#283593]/80 via-[#1A237E]/80 to-prussian/80" />
+              <div className="absolute inset-0 bg-gradient-to-br from-brand-dark/90 via-primary-950/90 to-primary-950/95" />
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <div className="text-center text-white px-4">
                   <p className="text-xl sm:text-2xl md:text-3xl font-bold drop-shadow-2xl">Forex Charts & Graphs</p>
@@ -152,7 +152,7 @@ export default function Home() {
                 <div className="flex flex-col sm:flex-row justify-center items-center gap-3 sm:gap-4">
                   <Link 
                     href="/signup" 
-                    className="w-full sm:w-auto px-6 sm:px-8 md:px-10 py-3 sm:py-3 md:py-4 bg-prussian hover:bg-prussian-dark text-white rounded-xl font-bold text-base sm:text-lg shadow-2xl hover:shadow-3xl transition-all transform hover:scale-105 text-center"
+                    className="w-full sm:w-auto px-6 sm:px-8 md:px-10 py-3 sm:py-3 md:py-4 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-bold text-base sm:text-lg shadow-2xl hover:shadow-3xl transition-all transform hover:scale-105 text-center"
                   >
                     Start Learning Free
                   </Link>
@@ -169,136 +169,136 @@ export default function Home() {
         </section>
 
         {/* Stats Section */}
-        <section className="bg-gradient-to-br from-gray-50 to-gray-100 py-12 sm:py-16">
+        <section className="bg-gradient-to-br from-brand-bg via-primary-50/40 to-brand-bg py-12 sm:py-16">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 className="text-2xl sm:text-3xl md:text-4xl font-display font-bold text-center text-gray-900 mb-8 sm:mb-12">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-display font-bold text-center text-brand-dark dark:text-nav-text mb-8 sm:mb-12">
               Stats Overview
             </h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
-              <div className="bg-white rounded-xl p-4 sm:p-6 text-center shadow-md border border-gray-200 flex flex-col items-center justify-center h-full">
-                <div className="text-3xl sm:text-4xl md:text-5xl font-bold text-[#1E88E5] mb-2 count-animate">
+              <div className="bg-brand-surface dark:bg-nav-bg rounded-xl p-4 sm:p-6 text-center shadow-card border border-[var(--color-border)] flex flex-col items-center justify-center h-full">
+                <div className="text-3xl sm:text-4xl md:text-5xl font-bold text-primary-600 dark:text-primary-400 mb-2 count-animate">
                   {stats.users.toLocaleString()}+
                 </div>
-                <div className="text-xs sm:text-sm md:text-base font-semibold text-gray-700">Active Users</div>
+                <div className="text-xs sm:text-sm md:text-base font-semibold text-secondary-800 dark:text-nav-muted">Active Users</div>
               </div>
-              <div className="bg-white rounded-xl p-4 sm:p-6 text-center shadow-md border border-gray-200 flex flex-col items-center justify-center h-full">
-                <div className="text-3xl sm:text-4xl md:text-5xl font-bold text-[#00897B] mb-2 count-animate">
+              <div className="bg-brand-surface dark:bg-nav-bg rounded-xl p-4 sm:p-6 text-center shadow-card border border-[var(--color-border)] flex flex-col items-center justify-center h-full">
+                <div className="text-3xl sm:text-4xl md:text-5xl font-bold text-secondary-600 dark:text-secondary-400 mb-2 count-animate">
                   {stats.courses}+
                 </div>
-                <div className="text-xs sm:text-sm md:text-base font-semibold text-gray-700">Expert Courses</div>
+                <div className="text-xs sm:text-sm md:text-base font-semibold text-secondary-800 dark:text-nav-muted">Expert Courses</div>
               </div>
-              <div className="bg-white rounded-xl p-4 sm:p-6 text-center shadow-md border border-gray-200 flex flex-col items-center justify-center h-full">
-                <div className="text-3xl sm:text-4xl md:text-5xl font-bold text-[#283593] mb-2 count-animate">
+              <div className="bg-brand-surface dark:bg-nav-bg rounded-xl p-4 sm:p-6 text-center shadow-card border border-[var(--color-border)] flex flex-col items-center justify-center h-full">
+                <div className="text-3xl sm:text-4xl md:text-5xl font-bold text-primary-700 dark:text-primary-400 mb-2 count-animate">
                   {stats.success}%
                 </div>
-                <div className="text-xs sm:text-sm md:text-base font-semibold text-gray-700">Success Rate</div>
+                <div className="text-xs sm:text-sm md:text-base font-semibold text-secondary-800 dark:text-nav-muted">Success Rate</div>
               </div>
-              <div className="bg-white rounded-xl p-4 sm:p-6 text-center shadow-md border border-gray-200 flex flex-col items-center justify-center h-full">
-                <div className="text-3xl sm:text-4xl md:text-5xl font-bold text-prussian mb-2 count-animate">
+              <div className="bg-brand-surface dark:bg-nav-bg rounded-xl p-4 sm:p-6 text-center shadow-card border border-[var(--color-border)] flex flex-col items-center justify-center h-full">
+                <div className="text-3xl sm:text-4xl md:text-5xl font-bold text-brand-dark dark:text-nav-text mb-2 count-animate">
                   {stats.time}/7
                 </div>
-                <div className="text-xs sm:text-sm md:text-base font-semibold text-gray-700">Activated Time</div>
+                <div className="text-xs sm:text-sm md:text-base font-semibold text-secondary-800 dark:text-nav-muted">Activated Time</div>
               </div>
             </div>
           </div>
         </section>
 
         {/* Why Choose Us Section */}
-        <section className="py-12 sm:py-16 md:py-20 bg-white">
+        <section className="py-12 sm:py-16 md:py-20 bg-brand-surface dark:bg-[var(--color-bg)]">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-display font-bold text-center text-gray-900 mb-4">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-display font-bold text-center text-brand-dark dark:text-nav-text mb-4">
               Why Choose Us
             </h2>
-            <p className="text-base sm:text-lg md:text-xl text-gray-600 text-center mb-8 sm:mb-12 max-w-2xl mx-auto px-4">
+            <p className="text-base sm:text-lg md:text-xl text-secondary-700 dark:text-nav-muted text-center mb-8 sm:mb-12 max-w-2xl mx-auto px-4">
               Comprehensive Forex education designed for all skill levels
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {/* Card 1: Beginner to Advanced */}
-              <div className="bg-gradient-to-br from-[#E8F2FB] to-white rounded-xl p-6 shadow-md border-2 border-[#1E88E5]/20 hover:shadow-lg transition-all flex flex-col h-full">
-                <div className="w-16 h-16 bg-[#1E88E5] rounded-xl flex items-center justify-center mb-4 overflow-hidden flex-shrink-0">
+              <div className="bg-gradient-to-br from-primary-50 to-brand-surface dark:from-primary-950/40 dark:to-nav-bg rounded-xl p-6 shadow-card border-2 border-primary-500/20 hover:shadow-lg transition-all flex flex-col h-full">
+                <div className="w-16 h-16 bg-primary-600 rounded-xl flex items-center justify-center mb-4 overflow-hidden flex-shrink-0">
                   <img 
                     src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=100&h=100&fit=crop&crop=center" 
                     alt="Forex trading courses"
                     className="w-full h-full object-cover"
                   />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">Structured Courses</h3>
-                <p className="text-gray-700 leading-relaxed text-sm flex-grow">
+                <h3 className="text-xl font-bold text-brand-dark dark:text-nav-text mb-2">Structured Courses</h3>
+                <p className="text-secondary-800 dark:text-nav-muted leading-relaxed text-sm flex-grow">
                   From beginner to advanced, our structured courses guide you through every step of Forex trading mastery.
                 </p>
               </div>
 
               {/* Card 2: Expert Instructors */}
-              <div className="bg-gradient-to-br from-[#E3F6F4] to-white rounded-xl p-6 shadow-md border-2 border-[#00897B]/20 hover:shadow-lg transition-all flex flex-col h-full">
-                <div className="w-16 h-16 bg-[#00897B] rounded-xl flex items-center justify-center mb-4 overflow-hidden flex-shrink-0">
+              <div className="bg-gradient-to-br from-secondary-50 to-brand-surface dark:from-secondary-950/30 dark:to-nav-bg rounded-xl p-6 shadow-card border-2 border-secondary-500/20 hover:shadow-lg transition-all flex flex-col h-full">
+                <div className="w-16 h-16 bg-secondary-600 rounded-xl flex items-center justify-center mb-4 overflow-hidden flex-shrink-0">
                   <img 
                     src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=100&h=100&fit=crop&crop=faces" 
                     alt="Expert Forex instructors"
                     className="w-full h-full object-cover"
                   />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">Expert Instructors</h3>
-                <p className="text-gray-700 leading-relaxed text-sm flex-grow">
+                <h3 className="text-xl font-bold text-brand-dark dark:text-nav-text mb-2">Expert Instructors</h3>
+                <p className="text-secondary-800 dark:text-nav-muted leading-relaxed text-sm flex-grow">
                   Learn from industry professionals with years of real-world trading experience and proven track records.
                 </p>
               </div>
 
               {/* Card 3: Practical Lessons */}
-              <div className="bg-gradient-to-br from-[#ECEFF9] to-white rounded-xl p-6 shadow-md border-2 border-[#283593]/20 hover:shadow-lg transition-all flex flex-col h-full">
-                <div className="w-16 h-16 bg-[#283593] rounded-xl flex items-center justify-center mb-4 overflow-hidden flex-shrink-0">
+              <div className="bg-gradient-to-br from-brand-bg to-brand-surface dark:from-brand-dark/40 dark:to-nav-bg rounded-xl p-6 shadow-card border-2 border-brand-dark/20 hover:shadow-lg transition-all flex flex-col h-full">
+                <div className="w-16 h-16 bg-brand-dark rounded-xl flex items-center justify-center mb-4 overflow-hidden flex-shrink-0">
                   <img 
                     src="https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?w=100&h=100&fit=crop&crop=center" 
                     alt="Practical trading lessons"
                     className="w-full h-full object-cover"
                   />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">Practical Lessons</h3>
-                <p className="text-gray-700 leading-relaxed text-sm flex-grow">
+                <h3 className="text-xl font-bold text-brand-dark dark:text-nav-text mb-2">Practical Lessons</h3>
+                <p className="text-secondary-800 dark:text-nav-muted leading-relaxed text-sm flex-grow">
                   Hands-on lessons with real market examples, live trading scenarios, and interactive exercises.
                 </p>
               </div>
 
               {/* Card 4: Real-time Market Analysis */}
-              <div className="bg-gradient-to-br from-[#E8F2FB] to-white rounded-xl p-6 shadow-md border-2 border-[#1E88E5]/20 hover:shadow-lg transition-all flex flex-col h-full">
-                <div className="w-16 h-16 bg-[#1E88E5] rounded-xl flex items-center justify-center mb-4 overflow-hidden flex-shrink-0">
+              <div className="bg-gradient-to-br from-primary-50 to-brand-surface dark:from-primary-950/40 dark:to-nav-bg rounded-xl p-6 shadow-card border-2 border-primary-500/20 hover:shadow-lg transition-all flex flex-col h-full">
+                <div className="w-16 h-16 bg-primary-600 rounded-xl flex items-center justify-center mb-4 overflow-hidden flex-shrink-0">
                   <img 
                     src="https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=100&h=100&fit=crop&crop=center" 
                     alt="Real-time market analysis charts"
                     className="w-full h-full object-cover"
                   />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">Real-Time Analysis</h3>
-                <p className="text-gray-700 leading-relaxed text-sm flex-grow">
+                <h3 className="text-xl font-bold text-brand-dark dark:text-nav-text mb-2">Real-Time Analysis</h3>
+                <p className="text-secondary-800 dark:text-nav-muted leading-relaxed text-sm flex-grow">
                   Access live market signals, real-time charts, and instant market analysis to enhance your learning.
                 </p>
               </div>
 
               {/* Card 5: Certification */}
-              <div className="bg-gradient-to-br from-[#E3F6F4] to-white rounded-xl p-6 shadow-md border-2 border-[#00897B]/20 hover:shadow-lg transition-all flex flex-col h-full">
-                <div className="w-16 h-16 bg-[#00897B] rounded-xl flex items-center justify-center mb-4 overflow-hidden flex-shrink-0">
+              <div className="bg-gradient-to-br from-secondary-50 to-brand-surface dark:from-secondary-950/30 dark:to-nav-bg rounded-xl p-6 shadow-card border-2 border-secondary-500/20 hover:shadow-lg transition-all flex flex-col h-full">
+                <div className="w-16 h-16 bg-secondary-600 rounded-xl flex items-center justify-center mb-4 overflow-hidden flex-shrink-0">
                   <img 
                     src="https://images.unsplash.com/photo-1450101499163-c8848c66ca85?w=100&h=100&fit=crop&crop=center" 
                     alt="Forex trading certification"
                     className="w-full h-full object-cover"
                   />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">Certification</h3>
-                <p className="text-gray-700 leading-relaxed text-sm flex-grow">
+                <h3 className="text-xl font-bold text-brand-dark dark:text-nav-text mb-2">Certification</h3>
+                <p className="text-secondary-800 dark:text-nav-muted leading-relaxed text-sm flex-grow">
                   Earn recognized certificates upon course completion to showcase your Forex trading expertise.
                 </p>
               </div>
 
               {/* Card 6: Mobile-Friendly */}
-              <div className="bg-gradient-to-br from-[#ECEFF9] to-white rounded-xl p-6 shadow-md border-2 border-[#283593]/20 hover:shadow-lg transition-all flex flex-col h-full">
-                <div className="w-16 h-16 bg-[#283593] rounded-xl flex items-center justify-center mb-4 overflow-hidden flex-shrink-0">
+              <div className="bg-gradient-to-br from-brand-bg to-brand-surface dark:from-brand-dark/40 dark:to-nav-bg rounded-xl p-6 shadow-card border-2 border-brand-dark/20 hover:shadow-lg transition-all flex flex-col h-full">
+                <div className="w-16 h-16 bg-brand-dark rounded-xl flex items-center justify-center mb-4 overflow-hidden flex-shrink-0">
                   <img 
                     src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=100&h=100&fit=crop&crop=center" 
                     alt="Mobile trading platform"
                     className="w-full h-full object-cover"
                   />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">Mobile-Friendly</h3>
-                <p className="text-gray-700 leading-relaxed text-sm flex-grow">
+                <h3 className="text-xl font-bold text-brand-dark dark:text-nav-text mb-2">Mobile-Friendly</h3>
+                <p className="text-secondary-800 dark:text-nav-muted leading-relaxed text-sm flex-grow">
                   Learn on-the-go with our fully responsive platform optimized for mobile, tablet, and desktop devices.
                 </p>
               </div>
@@ -307,30 +307,30 @@ export default function Home() {
         </section>
 
         {/* Instructor Section */}
-        <section className="py-12 sm:py-16 md:py-20 bg-gradient-to-br from-gray-50 to-gray-100">
+        <section className="py-12 sm:py-16 md:py-20 bg-gradient-to-br from-brand-bg via-primary-50/30 to-brand-bg">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-display font-bold text-center text-gray-900 mb-4">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-display font-bold text-center text-brand-dark dark:text-nav-text mb-4">
               Learn from the Best
             </h2>
-            <p className="text-base sm:text-lg md:text-xl text-gray-600 text-center mb-8 sm:mb-12 max-w-2xl mx-auto px-4">
+            <p className="text-base sm:text-lg md:text-xl text-secondary-700 dark:text-nav-muted text-center mb-8 sm:mb-12 max-w-2xl mx-auto px-4">
               Our expert instructors bring years of real-world trading experience to help you succeed
             </p>
             {instructors.length === 0 ? (
-              <div className="text-center py-12 bg-white rounded-xl shadow-md border border-gray-200">
-                <p className="text-gray-500">No instructors available yet.</p>
+              <div className="text-center py-12 bg-brand-surface dark:bg-nav-bg rounded-xl shadow-card border border-[var(--color-border)]">
+                <p className="text-secondary-700 dark:text-nav-muted">No instructors available yet.</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                 {instructors.map((instructor: any, index: number) => {
                   const colors = [
-                    { from: '#1E88E5', to: '#1565C0', text: '#1E88E5' },
-                    { from: '#00897B', to: '#00695C', text: '#00897B' },
-                    { from: '#283593', to: '#1A237E', text: '#283593' },
+                    { from: '#197278', to: '#125458', text: '#197278' },
+                    { from: '#772E25', to: '#53201a', text: '#772E25' },
+                    { from: '#283D3B', to: '#1e2d2b', text: '#283D3B' },
                   ];
                   const color = colors[index % colors.length];
                   
                   return (
-                    <div key={instructor._id || instructor.id || index} className="bg-white rounded-xl p-6 shadow-md border border-gray-200 hover:shadow-lg transition-all text-center flex flex-col items-center h-full">
+                    <div key={instructor._id || instructor.id || index} className="bg-brand-surface dark:bg-nav-bg rounded-xl p-6 shadow-card border border-[var(--color-border)] hover:shadow-lg transition-all text-center flex flex-col items-center h-full">
                       {instructor.imageUrl ? (
                         <img
                           src={instructor.imageUrl}
@@ -352,9 +352,9 @@ export default function Home() {
                       >
                         <span className="text-4xl text-white">{instructor.name?.charAt(0) || '👨‍💼'}</span>
                       </div>
-                      <h3 className="text-lg font-bold text-gray-900 mb-2">{instructor.name}</h3>
+                      <h3 className="text-lg font-bold text-brand-dark dark:text-nav-text mb-2">{instructor.name}</h3>
                       <p className="font-semibold mb-2 text-sm" style={{ color: color.text }}>{instructor.title}</p>
-                      <p className="text-gray-600 text-sm flex-grow">{instructor.description}</p>
+                      <p className="text-secondary-700 dark:text-nav-muted text-sm flex-grow">{instructor.description}</p>
                     </div>
                   );
                 })}
@@ -367,16 +367,16 @@ export default function Home() {
         <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           {/* Section Title */}
           <div className="text-center mb-12">
-            <h2 className="text-4xl md:text-5xl font-display font-bold text-gray-900 mb-4">
+            <h2 className="text-4xl md:text-5xl font-display font-bold text-brand-dark dark:text-nav-text mb-4">
               Explore Our Courses
             </h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+            <p className="text-xl text-secondary-700 dark:text-nav-muted max-w-2xl mx-auto">
               Discover comprehensive Forex trading courses designed for all skill levels, from beginner to advanced
             </p>
           </div>
 
           {/* Filters */}
-          <div className="bg-white rounded-xl shadow-md border border-gray-200 p-4 sm:p-6 mb-6 sm:mb-8">
+          <div className="bg-brand-surface dark:bg-nav-bg rounded-xl shadow-card border border-[var(--color-border)] p-4 sm:p-6 mb-6 sm:mb-8">
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
               <div className="flex-1 relative">
                 <input

@@ -203,7 +203,7 @@ export default function ForgotPassword() {
     <div className="min-h-screen flex flex-col">
       <Header />
 
-      <main className="flex-1 flex items-center justify-center bg-[#00273F] py-8 sm:py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+      <main className="flex-1 flex items-center justify-center bg-brand-darker py-8 sm:py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
         {/* Subtle background decoration */}
         <div className="absolute top-0 right-0 w-48 h-48 sm:w-64 sm:h-64 opacity-10">
           <svg viewBox="0 0 200 200" className="w-full h-full">
@@ -257,20 +257,20 @@ export default function ForgotPassword() {
             ) : (
               <>
                 {error && (
-                  <div className="mb-6 p-4 bg-red-900/30 border border-red-700 rounded-xl">
-                    <p className="text-red-300 text-sm">{error}</p>
+                  <div className="mb-6 p-4 bg-accent-500/10 border border-accent-500/40 rounded-xl">
+                    <p className="text-accent-200 text-sm">{error}</p>
                   </div>
                 )}
 
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div>
-                    <label className="block text-sm font-semibold text-gray-200 mb-2">Email</label>
+                    <label className="block text-sm font-semibold text-nav-muted mb-2">Email</label>
                     <input
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
-                      className="bg-[#001a2e] border border-gray-600 text-white rounded-xl px-4 py-3 focus:ring-2 focus:ring-white/50 focus:border-transparent w-full mb-4 placeholder-gray-400"
+                      className="bg-brand-deep border border-white/15 text-nav-text rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary-400/50 focus:border-transparent w-full mb-4 placeholder:text-nav-muted"
                       placeholder="you@example.com"
                     />
                   </div>
@@ -278,7 +278,7 @@ export default function ForgotPassword() {
                   <button
                     type="submit"
                     disabled={loading || !email.trim()}
-                    className="bg-white text-[#003153] hover:bg-gray-100 w-full rounded-xl py-3 font-semibold transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed"
+                    className="bg-primary-500 hover:bg-primary-600 text-white w-full rounded-xl py-3 font-semibold transition-colors disabled:bg-primary-900/50 disabled:cursor-not-allowed"
                   >
                     {loading ? (
                       <span className="flex items-center justify-center">

@@ -9,11 +9,43 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap');
 
+:root {
+  --color-primary: #197278;
+  --color-primary-hover: #125458;
+  --color-bg: #edddd4;
+  --color-dark: #283d3b;
+  --color-accent: #c44536;
+  --color-accent-hover: #a3392d;
+  --color-secondary: #772e25;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f3ebe4;
+  --color-border: rgba(40, 61, 59, 0.14);
+  --color-text: #283d3b;
+  --color-text-muted: #5a4a42;
+  --color-navbar-bg: #283d3b;
+  --color-nav-text: #edddd4;
+  --color-nav-muted: #b8cfc9;
+  --shadow-card: 0 4px 14px -4px rgba(40, 61, 59, 0.12), 0 2px 6px -2px rgba(40, 61, 59, 0.08);
+}
+
+.dark {
+  --color-bg: #1a2423;
+  --color-surface: #283d3b;
+  --color-surface-muted: #324946;
+  --color-border: rgba(237, 221, 212, 0.12);
+  --color-text: #edddd4;
+  --color-text-muted: #c9b8ae;
+  --color-navbar-bg: #1e2d2b;
+  --shadow-card: 0 4px 14px -4px rgba(0, 0, 0, 0.35), 0 2px 8px -2px rgba(0, 0, 0, 0.25);
+}
+
 @layer base {
   body {
-    @apply bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 font-sans;
+    @apply font-sans antialiased;
+    background-color: var(--color-bg);
+    color: var(--color-text);
   }
-  
+
   /* Dark mode support for all elements */
   * {
     @apply transition-colors duration-200;
@@ -22,15 +54,15 @@
 
 @layer components {
   /**
-   * Sanitized HTML from lessons/courses: body uses dark:text-gray-100 but cards stay bg-white,
-   * so text inherited as light gray on white. Force readable contrast on both themes.
+   * Sanitized HTML from lessons/courses: readable on light cards and dark surfaces.
    */
   .rich-html-readable {
-    @apply max-w-none text-gray-900 dark:text-gray-100;
+    @apply max-w-none;
+    color: var(--color-text);
   }
 
   .rich-html-readable :where(p, li, ul, ol, span, strong, em, h1, h2, h3, h4, td, th, blockquote, div) {
-    @apply text-gray-900 dark:text-gray-100;
+    color: var(--color-text);
   }
 
   .rich-html-readable :where(a) {
@@ -50,19 +82,26 @@
   }
 
   .btn-outline {
-    @apply border-2 border-primary-600 dark:border-primary-500 text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 focus:ring-primary-500;
+    @apply border-2 border-primary-600 dark:border-primary-500 text-primary-700 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 focus:ring-primary-500;
   }
 
   .card {
-    @apply bg-white dark:bg-gray-800 rounded-xl shadow-card dark:shadow-lg dark:shadow-black/20 p-6 border border-gray-100 dark:border-gray-700;
+    @apply rounded-xl p-6 border;
+    background-color: var(--color-surface);
+    border-color: var(--color-border);
+    box-shadow: var(--shadow-card);
   }
 
   .input {
-    @apply w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent;
+    @apply w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent;
+    border-color: var(--color-border);
+    background-color: var(--color-surface);
+    color: var(--color-text);
   }
 
   .label {
-    @apply block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2;
+    @apply block text-sm font-medium mb-2;
+    color: var(--color-text-muted);
   }
 }
 
@@ -73,11 +112,13 @@
       opacity: 0;
       transform: scale(1.1);
     }
-    10%, 30% {
+    10%,
+    30% {
       opacity: 1;
       transform: scale(1);
     }
-    40%, 100% {
+    40%,
+    100% {
       opacity: 0;
       transform: scale(1.1);
     }
@@ -142,28 +183,27 @@
 
   .dark .rich-text-editor-root .ql-toolbar.ql-snow,
   .dark .rich-text-editor-root .ql-container.ql-snow {
-    border-color: rgb(75 85 99);
-    background: rgb(55 65 81);
+    border-color: rgb(55 84 81);
+    background: rgb(40 61 59);
   }
 
   .dark .rich-text-editor-root .ql-editor {
-    color: rgb(243 244 246);
+    color: rgb(237 221 212);
   }
 
   .dark .rich-text-editor-root .ql-stroke {
-    stroke: rgb(209 213 219);
+    stroke: rgb(184 207 201);
   }
 
   .dark .rich-text-editor-root .ql-fill {
-    fill: rgb(209 213 219);
+    fill: rgb(184 207 201);
   }
 
   .dark .rich-text-editor-root .ql-picker {
-    color: rgb(209 213 219);
+    color: rgb(184 207 201);
   }
 
   .instructor-lesson-quill .ql-editor {
     min-height: var(--instructor-lesson-editor-h, 500px);
   }
 }
-

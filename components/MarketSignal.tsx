@@ -47,8 +47,8 @@ export default function MarketSignal() {
             <span
               className={`px-4 py-1.5 rounded-full text-xs font-bold ${
                 marketSignal.type === 'buy'
-                  ? 'bg-green-500 text-white'
-                  : 'bg-red-500 text-white'
+                  ? 'bg-primary-600 text-white'
+                  : 'bg-secondary-600 text-white'
               }`}
             >
               {marketSignal.type.toUpperCase()}
@@ -79,10 +79,10 @@ export default function MarketSignal() {
               <Line 
                 type="monotone" 
                 dataKey="price" 
-                stroke="#0284c7" 
+                stroke="#197278" 
                 strokeWidth={3} 
                 dot={false}
-                activeDot={{ r: 6, fill: '#0284c7' }}
+                activeDot={{ r: 6, fill: '#197278' }}
               />
             </LineChart>
           </ResponsiveContainer>

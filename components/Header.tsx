@@ -10,6 +10,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { useState, useEffect, useRef } from 'react';
 import { apiClient } from '@/lib/api-client';
 import { useSocket } from '@/hooks/useSocket';
+import { isNavHrefDisabled } from '@/lib/config/features';
 
 interface Notification {
   _id: string;
@@ -158,7 +159,7 @@ export default function Header() {
   };
 
   return (
-    <header className="bg-gradient-to-br from-gray-900 to-gray-800 text-gray-300 shadow-md dark:shadow-gray-900/50 sticky top-0 z-50 border-b border-gray-700">
+    <header className="bg-nav-bg text-nav-text shadow-md sticky top-0 z-50 border-b border-white/10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-14 py-2">
           {/* Logo */}
@@ -168,7 +169,7 @@ export default function Header() {
             </div>
             <span className="text-lg sm:text-xl font-display font-bold">
               <span className="bg-gradient-to-r from-primary-400 to-secondary-400 bg-clip-text text-transparent">ForexOrbit</span>
-              <span className="text-white ml-1 hidden sm:inline">Academy</span>
+              <span className="text-nav-text ml-1 hidden sm:inline">Academy</span>
             </span>
           </Link>
 
@@ -179,31 +180,49 @@ export default function Header() {
                 <>
                   {user?.role === 'instructor' && (
                     <>
-                      <Link href="/instructor/dashboard" className="px-4 py-2 text-gray-300 hover:text-primary-400 hover:bg-gray-800/50 rounded-lg font-medium transition-all">
+                      <Link href="/instructor/dashboard" className="px-4 py-2 text-nav-muted hover:text-nav-text hover:bg-white/10 rounded-lg font-medium transition-all">
                         Instructor
                       </Link>
-                      <Link href="/progress" className="px-4 py-2 text-gray-300 hover:text-primary-400 hover:bg-gray-800/50 rounded-lg font-medium transition-all">
+                      <Link href="/progress" className="px-4 py-2 text-nav-muted hover:text-nav-text hover:bg-white/10 rounded-lg font-medium transition-all">
                         Progress
                       </Link>
-                      <Link href="/certificates" className="px-4 py-2 text-gray-300 hover:text-primary-400 hover:bg-gray-800/50 rounded-lg font-medium transition-all">
-                        Certificates
-                      </Link>
-                      <Link href="/community" className="px-4 py-2 text-gray-300 hover:text-primary-400 hover:bg-gray-800/50 rounded-lg font-medium transition-all">
-                        Community
-                      </Link>
+                      {isNavHrefDisabled('/certificates') ? (
+                        <span className="px-4 py-2 text-nav-muted/60 cursor-not-allowed rounded-lg font-medium" title="Coming soon">
+                          Certificates <span className="text-[10px] ml-1 opacity-80">Soon</span>
+                        </span>
+                      ) : (
+                        <Link href="/certificates" className="px-4 py-2 text-nav-muted hover:text-nav-text hover:bg-white/10 rounded-lg font-medium transition-all">
+                          Certificates
+                        </Link>
+                      )}
+                      {isNavHrefDisabled('/community') ? (
+                        <span className="px-4 py-2 text-nav-muted/60 cursor-not-allowed rounded-lg font-medium" title="Coming soon">
+                          Community <span className="text-[10px] ml-1 opacity-80">Soon</span>
+                        </span>
+                      ) : (
+                        <Link href="/community" className="px-4 py-2 text-nav-muted hover:text-nav-text hover:bg-white/10 rounded-lg font-medium transition-all">
+                          Community
+                        </Link>
+                      )}
                     </>
                   )}
                   {user?.role === 'admin' && (
                     <>
-                      <Link href="/admin" className="px-4 py-2 text-gray-300 hover:text-primary-400 hover:bg-gray-800/50 rounded-lg font-medium transition-all">
+                      <Link href="/admin" className="px-4 py-2 text-nav-muted hover:text-nav-text hover:bg-white/10 rounded-lg font-medium transition-all">
                         Admin
                       </Link>
-                      <Link href="/progress" className="px-4 py-2 text-gray-300 hover:text-primary-400 hover:bg-gray-800/50 rounded-lg font-medium transition-all">
+                      <Link href="/progress" className="px-4 py-2 text-nav-muted hover:text-nav-text hover:bg-white/10 rounded-lg font-medium transition-all">
                         Progress
                       </Link>
-                      <Link href="/certificates" className="px-4 py-2 text-gray-300 hover:text-primary-400 hover:bg-gray-800/50 rounded-lg font-medium transition-all">
-                        Certificates
-                      </Link>
+                      {isNavHrefDisabled('/certificates') ? (
+                        <span className="px-4 py-2 text-nav-muted/60 cursor-not-allowed rounded-lg font-medium" title="Coming soon">
+                          Certificates <span className="text-[10px] ml-1 opacity-80">Soon</span>
+                        </span>
+                      ) : (
+                        <Link href="/certificates" className="px-4 py-2 text-nav-muted hover:text-nav-text hover:bg-white/10 rounded-lg font-medium transition-all">
+                          Certificates
+                        </Link>
+                      )}
                     </>
                   )}
                 </>
@@ -218,14 +237,14 @@ export default function Header() {
               <div className="relative" ref={notificationsRef}>
                 <button
                   onClick={() => setNotificationsOpen(!notificationsOpen)}
-                  className="relative p-1.5 sm:p-2 rounded-lg transition-colors hover:bg-gray-800/50 text-gray-300"
+                  className="relative p-1.5 sm:p-2 rounded-lg transition-colors hover:bg-white/10 text-nav-muted"
                   aria-label="Notifications"
                 >
-                  <svg className="w-4 h-4 sm:w-5 sm:h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4 sm:w-5 sm:h-5 text-nav-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                   </svg>
                   {unreadCount > 0 && (
-                    <span className="absolute -top-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 bg-red-500 text-white text-[10px] sm:text-xs font-bold rounded-full flex items-center justify-center">
+                    <span className="absolute -top-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 bg-primary-600 text-white text-[10px] sm:text-xs font-bold rounded-full flex items-center justify-center">
                       {unreadCount > 9 ? '9+' : unreadCount}
                     </span>
                   )}
@@ -297,7 +316,7 @@ export default function Header() {
               <div className="relative" ref={languageRef}>
                 <button
                   onClick={() => setLanguageOpen(!languageOpen)}
-                  className="flex items-center space-x-1.5 px-2 py-1 rounded-lg transition-colors hover:bg-gray-800/50 text-gray-300"
+                  className="flex items-center space-x-1.5 px-2 py-1 rounded-lg transition-colors hover:bg-white/10 text-nav-muted"
                   aria-label="Language"
                 >
                   <span className="text-lg">
@@ -335,15 +354,15 @@ export default function Header() {
             {/* Dark Mode Toggle */}
             <button
               onClick={toggleTheme}
-              className="p-1.5 rounded-lg transition-colors hover:bg-gray-800/50 text-gray-300"
+              className="p-1.5 rounded-lg transition-colors hover:bg-white/10 text-nav-muted"
               aria-label="Toggle dark mode"
             >
               {isDark ? (
-                <svg className="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 text-nav-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
                 </svg>
               ) : (
-                <svg className="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 text-nav-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
                 </svg>
               )}
@@ -353,12 +372,12 @@ export default function Header() {
               <div className="relative">
                 <button
                   onClick={() => setMenuOpen(!menuOpen)}
-                  className="flex items-center space-x-2 px-2 py-1 rounded-lg transition-colors hover:bg-gray-800/50"
+                  className="flex items-center space-x-2 px-2 py-1 rounded-lg transition-colors hover:bg-white/10"
                 >
                   <div className="w-8 h-8 sm:w-9 sm:h-9 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-full flex items-center justify-center text-white font-bold text-xs sm:text-sm shadow-md">
                     {user?.name?.charAt(0).toUpperCase()}
                   </div>
-                  <span className="hidden lg:block text-gray-300 text-sm">{user?.name}</span>
+                  <span className="hidden lg:block text-nav-muted text-sm">{user?.name}</span>
                   <svg className="w-4 h-4 text-gray-400 hidden sm:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
@@ -382,7 +401,7 @@ export default function Header() {
                     </Link>
                     <button
                       onClick={handleLogout}
-                      className="flex items-center w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                      className="flex items-center w-full text-left px-4 py-3 text-sm text-accent-600 dark:text-accent-400 hover:bg-accent-50 dark:hover:bg-accent-900/20 transition-colors"
                     >
                       <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -394,7 +413,7 @@ export default function Header() {
               </div>
             ) : (
               <div className="flex items-center space-x-2">
-                <Link href="/login" className="px-3 sm:px-4 py-1.5 sm:py-2 text-sm sm:text-base text-gray-300 hover:text-white border border-gray-600 hover:border-gray-500 rounded-lg transition-colors">
+                <Link href="/login" className="px-3 sm:px-4 py-1.5 sm:py-2 text-sm sm:text-base text-nav-muted hover:text-nav-text border border-white/25 hover:border-white/45 rounded-lg transition-colors">
                   Login
                 </Link>
                 <Link href="/signup" className="px-3 sm:px-4 py-1.5 sm:py-2 text-sm sm:text-base bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-colors">

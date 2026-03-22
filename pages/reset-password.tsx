@@ -81,7 +81,7 @@ export default function ResetPassword() {
     <div className="min-h-screen flex flex-col">
       <Header />
 
-      <main className="flex-1 flex items-center justify-center bg-[#00273F] py-8 sm:py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+      <main className="flex-1 flex items-center justify-center bg-brand-darker py-8 sm:py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
         {/* Subtle background decoration */}
         <div className="absolute top-0 right-0 w-48 h-48 sm:w-64 sm:h-64 opacity-10">
           <svg viewBox="0 0 200 200" className="w-full h-full">
@@ -92,10 +92,10 @@ export default function ResetPassword() {
         </div>
 
         <div className="max-w-md w-full relative z-10 animate-fade-in">
-          <div className="bg-[#003153] rounded-xl sm:rounded-2xl shadow-2xl p-6 sm:p-8 border border-[#001a2e]">
+          <div className="bg-nav-bg rounded-xl sm:rounded-2xl shadow-2xl p-6 sm:p-8 border border-white/10">
             <div className="text-center mb-6 sm:mb-8">
-              <h2 className="text-white font-bold text-2xl sm:text-3xl mb-3 sm:mb-4">Reset Password</h2>
-              <p className="text-sm sm:text-base text-gray-300">
+              <h2 className="text-nav-text font-bold text-2xl sm:text-3xl mb-3 sm:mb-4">Reset Password</h2>
+              <p className="text-sm sm:text-base text-nav-muted">
                 Enter your new password below.
               </p>
             </div>
@@ -117,8 +117,8 @@ export default function ResetPassword() {
             ) : (
               <>
                 {error && (
-                  <div className="mb-6 p-4 bg-red-900/30 border border-red-700 rounded-xl">
-                    <p className="text-red-300 text-sm">{error}</p>
+                  <div className="mb-6 p-4 bg-accent-500/10 border border-accent-500/40 rounded-xl">
+                    <p className="text-accent-200 text-sm">{error}</p>
                   </div>
                 )}
 
@@ -139,28 +139,28 @@ export default function ResetPassword() {
                 ) : (
                   <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
-                      <label className="block text-sm font-semibold text-gray-200 mb-2">New Password</label>
+                      <label className="block text-sm font-semibold text-nav-muted mb-2">New Password</label>
                       <input
                         type="password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         required
                         minLength={6}
-                        className="bg-[#001a2e] border border-gray-600 text-white rounded-xl px-4 py-3 focus:ring-2 focus:ring-white/50 focus:border-transparent w-full mb-4 placeholder-gray-400"
+                        className="bg-brand-deep border border-white/15 text-nav-text rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary-400/50 focus:border-transparent w-full mb-4 placeholder:text-nav-muted"
                         placeholder="••••••••"
                       />
-                      <p className="text-xs text-gray-400">Must be at least 6 characters</p>
+                      <p className="text-xs text-nav-muted">Must be at least 6 characters</p>
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-gray-200 mb-2">Confirm Password</label>
+                      <label className="block text-sm font-semibold text-nav-muted mb-2">Confirm Password</label>
                       <input
                         type="password"
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
                         required
                         minLength={6}
-                        className="bg-[#001a2e] border border-gray-600 text-white rounded-xl px-4 py-3 focus:ring-2 focus:ring-white/50 focus:border-transparent w-full mb-4 placeholder-gray-400"
+                        className="bg-brand-deep border border-white/15 text-nav-text rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary-400/50 focus:border-transparent w-full mb-4 placeholder:text-nav-muted"
                         placeholder="••••••••"
                       />
                     </div>
@@ -168,7 +168,7 @@ export default function ResetPassword() {
                     <button
                       type="submit"
                       disabled={loading}
-                      className="bg-white text-[#003153] hover:bg-gray-100 w-full rounded-xl py-3 font-semibold transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed"
+                      className="bg-primary-500 hover:bg-primary-600 text-white w-full rounded-xl py-3 font-semibold transition-colors disabled:bg-primary-900/50 disabled:cursor-not-allowed"
                     >
                       {loading ? (
                         <span className="flex items-center justify-center">

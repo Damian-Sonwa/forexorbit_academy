@@ -102,7 +102,7 @@ export default function Signup() {
     <div className="min-h-screen flex flex-col">
       <Header />
 
-      <main className="flex-1 flex items-center justify-center bg-[#0d47a1] py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+      <main className="flex-1 flex items-center justify-center bg-brand-darker py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
         {/* Subtle background decoration */}
         <div className="absolute top-0 left-0 w-64 h-64 opacity-10">
           <svg viewBox="0 0 200 200" className="w-full h-full">
@@ -117,23 +117,23 @@ export default function Signup() {
         <div className="max-w-md w-full relative z-10 animate-fade-in">
           {/* Benefit Section */}
           <div className="mb-6 text-center">
-            <div className="flex items-center justify-center gap-6 text-sm text-white/90 mb-4">
+            <div className="flex items-center justify-center gap-6 text-sm text-nav-text/90 mb-4">
               <div className="flex items-center gap-2">
-                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 text-nav-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                 </svg>
                 <span>Learn from expert traders</span>
               </div>
             </div>
-            <div className="flex items-center justify-center gap-6 text-sm text-white/90">
+            <div className="flex items-center justify-center gap-6 text-sm text-nav-text/90">
               <div className="flex items-center gap-2">
-                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 text-nav-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 <span>Practical lessons</span>
               </div>
               <div className="flex items-center gap-2">
-                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 text-nav-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                 </svg>
                 <span>Beginner-friendly</span>
@@ -141,63 +141,63 @@ export default function Signup() {
             </div>
           </div>
 
-          <div className="bg-[#1565C0] shadow-2xl rounded-2xl p-8 border border-[#0d47a1]">
+          <div className="bg-nav-bg shadow-2xl rounded-2xl p-8 border border-white/10">
             <div className="text-center mb-8">
-              <h2 className="text-white font-bold text-3xl mb-4">Create Account</h2>
-              <p className="text-blue-100">Start your Forex trading journey today</p>
+              <h2 className="text-nav-text font-bold text-3xl mb-4">Create Account</h2>
+              <p className="text-nav-muted">Start your Forex trading journey today</p>
             </div>
 
             {error && (
-              <div className="mb-6 p-4 bg-red-900/30 border border-red-700 rounded-xl">
-                <p className="text-red-300 text-sm">{error}</p>
+              <div className="mb-6 p-4 bg-accent-500/10 border border-accent-500/40 rounded-xl">
+                <p className="text-accent-200 text-sm">{error}</p>
               </div>
             )}
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-semibold text-gray-200 mb-2">Full Name</label>
+                <label className="block text-sm font-semibold text-nav-muted mb-2">Full Name</label>
                 <input
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   required
-                  className="bg-[#0d47a1] border border-blue-400/30 text-white rounded-xl px-4 py-3 focus:ring-2 focus:ring-white/50 focus:border-transparent w-full mb-4 placeholder-gray-400"
+                  className="bg-brand-deep border border-white/15 text-nav-text rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary-400/50 focus:border-transparent w-full mb-4 placeholder:text-nav-muted"
                   placeholder="John Doe"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-200 mb-2">Email</label>
+                <label className="block text-sm font-semibold text-nav-muted mb-2">Email</label>
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="bg-[#0d47a1] border border-blue-400/30 text-white rounded-xl px-4 py-3 focus:ring-2 focus:ring-white/50 focus:border-transparent w-full mb-4 placeholder-gray-400"
+                  className="bg-brand-deep border border-white/15 text-nav-text rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary-400/50 focus:border-transparent w-full mb-4 placeholder:text-nav-muted"
                   placeholder="you@example.com"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-200 mb-2">Password</label>
+                <label className="block text-sm font-semibold text-nav-muted mb-2">Password</label>
                 <input
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   minLength={6}
-                  className="bg-[#0d47a1] border border-blue-400/30 text-white rounded-xl px-4 py-3 focus:ring-2 focus:ring-white/50 focus:border-transparent w-full mb-4 placeholder-gray-400"
+                  className="bg-brand-deep border border-white/15 text-nav-text rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary-400/50 focus:border-transparent w-full mb-4 placeholder:text-nav-muted"
                   placeholder="••••••••"
                 />
-                <p className="text-xs text-blue-200 mt-1">Minimum 6 characters</p>
+                <p className="text-xs text-nav-muted mt-1">Minimum 6 characters</p>
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-200 mb-2">Role</label>
+                <label className="block text-sm font-semibold text-nav-muted mb-2">Role</label>
                 <select
                   value={role}
                   onChange={(e) => setRole(e.target.value)}
-                  className="bg-[#0d47a1] border border-blue-400/30 text-white rounded-xl px-4 py-3 focus:ring-2 focus:ring-white/50 focus:border-transparent w-full mb-4"
+                  className="bg-brand-deep border border-white/15 text-nav-text rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary-400/50 focus:border-transparent w-full mb-4"
                 >
                   <option value="student">Student</option>
                   <option value="instructor">Instructor</option>
@@ -208,7 +208,7 @@ export default function Signup() {
               <button
                 type="submit"
                 disabled={loading || !email.trim() || !password.trim() || !name.trim()}
-                className="bg-white text-[#1565C0] hover:bg-gray-100 w-full rounded-xl py-3 font-semibold transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed"
+                className="bg-primary-500 hover:bg-primary-600 text-white w-full rounded-xl py-3 font-semibold transition-colors disabled:bg-primary-900/50 disabled:cursor-not-allowed"
               >
                 {loading ? (
                   <span className="flex items-center justify-center">

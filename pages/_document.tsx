@@ -12,7 +12,7 @@ export default function Document() {
         <meta charSet="utf-8" />
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
         <link rel="alternate icon" href="/favicon.ico" />
-        <meta name="theme-color" content="#003153" />
+        <meta name="theme-color" content="#283D3B" />
       </Head>
       <body>
         <Main />
