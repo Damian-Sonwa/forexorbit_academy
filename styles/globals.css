@@ -40,10 +40,19 @@
 }
 
 @layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+  }
+
   body {
     @apply font-sans antialiased;
     background-color: var(--color-bg);
     color: var(--color-text);
+    min-height: 100dvh;
+    overflow-x: hidden;
+    padding-left: env(safe-area-inset-left, 0);
+    padding-right: env(safe-area-inset-right, 0);
   }
 
   /* Dark mode support for all elements */

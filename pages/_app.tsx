@@ -1,6 +1,5 @@
 // pages/_app.tsx
 import type { AppProps } from 'next/app';
-import { InstallPwaPrompt } from '@/components/InstallPwaPrompt';
 import { RegisterPwa } from '@/components/RegisterPwa';
 import { PwaInstallProvider } from '@/contexts/PwaInstallContext';
 import { AuthProvider } from '@/hooks/useAuth';
@@ -13,7 +12,6 @@ export default function App({ Component, pageProps }: AppProps) {
       <PwaInstallProvider>
         <AuthProvider>
           <RegisterPwa />
-          <InstallPwaPrompt />
           <Component {...pageProps} />
         </AuthProvider>
       </PwaInstallProvider>

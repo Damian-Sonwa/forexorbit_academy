@@ -3,12 +3,13 @@
   "lang": "en",
   "name": "ForexOrbit Academy",
   "short_name": "ForexOrbit",
-  "description": "Forex trading app with real-time data",
+  "description": "Forex education, courses, and trading practice — install for quick access.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#0a74da",
+  "orientation": "any",
+  "background_color": "#edddd4",
+  "theme_color": "#197278",
   "icons": [
     {
       "src": "/icons/icon-192.png",

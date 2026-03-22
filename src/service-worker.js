@@ -1,13 +1,15 @@
 /* eslint-disable no-restricted-globals */
 /**
- * ForexOrbit PWA — served from /service-worker.js (copied from here to /public on build).
- * Bump CACHE_VERSION when static shell or precache list changes so clients drop old caches.
+ * ForexOrbit PWA — /service-worker.js (copied from src to public when Next config loads).
+ * Bump CACHE_VERSION when precache list changes.
+ *
+ * Strategy: network-first for Next hashed assets (/_next/static/) so CSS/JS updates apply;
+ * cache-first for other static file extensions as a fallback.
  */
-const CACHE_VERSION = '2026-03-22-pwa';
+const CACHE_VERSION = '2026-03-22-pwa-v2';
 const STATIC_CACHE = `forexorbit-static-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `forexorbit-runtime-${CACHE_VERSION}`;
 
-/** Core shell + icons + manifest for offline / fast repeat visits (Vercel HTTPS). */
 const PRECACHE_URLS = [
   '/',
   '/offline.html',
@@ -71,6 +73,28 @@ self.addEventListener('fetch', (event) => {
 
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(fetch(request));
+    return;
+  }
+
+  /** Next.js build assets: always try network first to avoid stale CSS/JS after deploy */
+  if (url.pathname.startsWith('/_next/static/')) {
+    event.respondWith(
+      (async () => {
+        try {
+          const res = await fetch(request);
+          if (res.ok) {
+            const copy = res.clone();
+            const cache = await caches.open(RUNTIME_CACHE);
+            await cache.put(request, copy);
+          }
+          return res;
+        } catch {
+          const cached = await caches.match(request);
+          if (cached) return cached;
+          return new Response('Offline', { status: 503, statusText: 'Unavailable' });
+        }
+      })()
+    );
     return;
   }
 
