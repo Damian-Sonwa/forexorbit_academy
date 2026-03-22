@@ -33,6 +33,10 @@ export function RegisterPwa() {
         });
         if (cancelled) return;
 
+        if (typeof console !== 'undefined' && console.info) {
+          console.info('[ForexOrbit PWA] service worker registered:', SW_PATH, 'scope:', reg.scope);
+        }
+
         reg.addEventListener('updatefound', () => {
           const installing = reg.installing;
           if (!installing) return;

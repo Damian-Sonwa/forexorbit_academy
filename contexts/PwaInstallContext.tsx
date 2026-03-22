@@ -103,10 +103,23 @@ export function PwaInstallProvider({ children }: { children: ReactNode }) {
     if (!mounted || !isSecureEnough() || isStandalone()) return;
     const onBip = (e: Event) => {
       e.preventDefault();
+      if (typeof console !== 'undefined' && console.info) {
+        console.info('[ForexOrbit PWA] beforeinstallprompt captured (deferred for #installBtn)');
+      }
       setDeferred(e as BeforeInstallPromptEvent);
     };
+    const onInstalled = () => {
+      if (typeof console !== 'undefined' && console.info) {
+        console.info('[ForexOrbit PWA] appinstalled — PWA added to device');
+      }
+      setDeferred(null);
+    };
     window.addEventListener('beforeinstallprompt', onBip);
-    return () => window.removeEventListener('beforeinstallprompt', onBip);
+    window.addEventListener('appinstalled', onInstalled);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', onBip);
+      window.removeEventListener('appinstalled', onInstalled);
+    };
   }, [mounted]);
 
   const promptNativeInstall = useCallback(async () => {
@@ -114,10 +127,17 @@ export function PwaInstallProvider({ children }: { children: ReactNode }) {
     setBusy(true);
     try {
       await deferred.prompt();
-      await deferred.userChoice;
+      const choice = await deferred.userChoice;
+      const outcome = choice?.outcome ?? 'dismissed';
+      if (typeof console !== 'undefined' && console.info) {
+        console.info('[ForexOrbit PWA] install prompt user choice:', outcome);
+      }
       setDeferred(null);
-      return true;
-    } catch {
+      return outcome === 'accepted';
+    } catch (err) {
+      if (typeof console !== 'undefined' && console.warn) {
+        console.warn('[ForexOrbit PWA] install prompt failed:', err);
+      }
       return false;
     } finally {
       setBusy(false);

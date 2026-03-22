@@ -18,6 +18,7 @@ import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 import { stripLessonVisualAidsFields } from '@/lib/strip-visual-aids-html';
+import { getMonetizationForLessonDoc, stripLessonForLockedStudent } from '@/lib/lesson-monetization';
 
 async function getLesson(req: AuthRequest, res: NextApiResponse) {
   try {
@@ -71,6 +72,24 @@ async function getLesson(req: AuthRequest, res: NextApiResponse) {
       };
     }
 
+    let monetization: Record<string, unknown> | null = null;
+    if (req.user) {
+      const { flags } = await getMonetizationForLessonDoc(db, req.user, lesson as { _id: ObjectId; courseId: string });
+      monetization = {
+        unlocked: flags.unlocked,
+        isFreeTier: flags.isFreeTier,
+        requiresPayment: flags.requiresPayment,
+        showAds: flags.showAds,
+        amountKobo: flags.amountKobo,
+        currency: flags.currency,
+        paymentsConfigured: flags.paymentsConfigured,
+      };
+      if (req.user.role === 'student' && !flags.unlocked) {
+        Object.assign(lesson, stripLessonForLockedStudent(lesson as Record<string, unknown>));
+        lesson.quiz = null;
+      }
+    }
+
     // Get progress if authenticated
     if (req.user) {
       const userProgress = await progress.findOne({
@@ -80,7 +99,10 @@ async function getLesson(req: AuthRequest, res: NextApiResponse) {
       lesson.completed = userProgress?.completedLessons?.includes(id as string) || false;
     }
 
-    const lessonOut = stripLessonVisualAidsFields(lesson as Record<string, unknown>);
+    const lessonOut = stripLessonVisualAidsFields(lesson as Record<string, unknown>) as Record<string, unknown>;
+    if (monetization) {
+      lessonOut.monetization = monetization;
+    }
     res.json(lessonOut);
   } catch (error: any) {
     console.error('Get lesson error:', error);

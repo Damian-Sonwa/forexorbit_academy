@@ -14,6 +14,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { apiClient } from '@/lib/api-client';
 import { format } from 'date-fns';
 import TradingInterface from '@/components/TradingInterface';
+import { ContentAdBanner } from '@/components/ads/ContentAdBanner';
+import { ContentAdInterstitial } from '@/components/ads/ContentAdInterstitial';
 
 interface DemoTask {
   _id: string;
@@ -734,6 +736,10 @@ export default function DemoTrading() {
             {/* Tasks Tab */}
             {activeTab === 'tasks' && (
               <div className="space-y-6">
+                <ContentAdInterstitial storageKey="fo-demo-tasks-int" enabled />
+                <div className="mb-2">
+                  <ContentAdBanner propellerPlacement="demoTasksBanner" />
+                </div>
                 <div className="flex justify-between items-center">
                   <h2 className="text-2xl font-bold text-gray-900">Demo Trading Tasks</h2>
                   <button

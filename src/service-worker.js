@@ -3,14 +3,16 @@
  * ForexOrbit PWA — served from /service-worker.js (copied from here to /public on build).
  * Bump CACHE_VERSION when static shell or precache list changes so clients drop old caches.
  */
-const CACHE_VERSION = '2025-03-22-1';
+const CACHE_VERSION = '2026-03-22-pwa';
 const STATIC_CACHE = `forexorbit-static-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `forexorbit-runtime-${CACHE_VERSION}`;
 
+/** Core shell + icons + manifest for offline / fast repeat visits (Vercel HTTPS). */
 const PRECACHE_URLS = [
   '/',
   '/offline.html',
   '/manifest.json',
+  '/favicon.ico',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
 ];

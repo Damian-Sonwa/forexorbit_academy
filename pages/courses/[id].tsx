@@ -152,18 +152,30 @@ export default function CourseDetailPage() {
                     const lessonDesc = getLessonDescriptionHtml(lesson);
                     const lessonDescStudent = sanitizeForStudentView(lessonDesc);
                     const previewPlain = stripHtml(lessonDescStudent).replace(/\s+/g, ' ').trim();
+                    const isLocked = Boolean(lesson.locked);
                     return (
                     <Link
                       key={lesson._id || lesson.id}
                       href={`/courses/${id}/lessons/${lesson._id || lesson.id}`}
-                      className="flex items-center justify-between p-5 border-2 border-gray-200 rounded-xl hover:border-primary-300 hover:bg-primary-50 transition-all group"
+                      className={`flex items-center justify-between p-5 border-2 rounded-xl transition-all group ${
+                        isLocked
+                          ? 'border-amber-200 bg-amber-50/40 hover:border-amber-300'
+                          : 'border-gray-200 hover:border-primary-300 hover:bg-primary-50'
+                      }`}
                     >
                       <div className="flex items-center space-x-4 flex-1">
                         <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-primary-600 text-white rounded-xl flex items-center justify-center font-bold shadow-md group-hover:scale-110 transition-transform">
                           {index + 1}
                         </div>
                         <div className="flex-1">
-                          <h3 className="font-semibold text-gray-900 group-hover:text-primary-600 transition-colors" dangerouslySetInnerHTML={{ __html: sanitizeForStudentView(lesson.title) }} />
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h3 className="font-semibold text-gray-900 group-hover:text-primary-600 transition-colors" dangerouslySetInnerHTML={{ __html: sanitizeForStudentView(lesson.title) }} />
+                            {isLocked && (
+                              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-amber-900">
+                                Unlock
+                              </span>
+                            )}
+                          </div>
                           {hasVisibleHtml(lessonDescStudent) && previewPlain && (
                             <p className="text-sm text-gray-800 dark:text-gray-200 line-clamp-2 mt-1">
                               {previewPlain.length > 200 ? `${previewPlain.slice(0, 200)}…` : previewPlain}

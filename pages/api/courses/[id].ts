@@ -19,6 +19,11 @@ import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 import { stripCourseVisualAidsFields, stripLessonVisualAidsFields } from '@/lib/strip-visual-aids-html';
+import {
+  sortLessonsByOrder,
+  getPurchasedLessonIdSet,
+  computeMonetizationFlags,
+} from '@/lib/lesson-monetization';
 
 async function getCourse(req: AuthRequest, res: NextApiResponse) {
   try {
@@ -39,17 +44,61 @@ async function getCourse(req: AuthRequest, res: NextApiResponse) {
       .sort({ order: 1 })
       .toArray();
 
-    const coursePayload = {
-      ...stripCourseVisualAidsFields(course as Record<string, unknown>),
-      lessons: courseLessons.map((l) => stripLessonVisualAidsFields(l as Record<string, unknown>)),
-    };
+    const sortedLessons = sortLessonsByOrder(courseLessons as { _id: ObjectId; order?: number }[]);
 
-    // Get progress if authenticated
+    let userProgress: { progress?: number } | null = null;
     if (req.user) {
-      const userProgress = await progress.findOne({
+      userProgress = (await progress.findOne({
         userId: req.user.userId,
         courseId: id,
+      })) as { progress?: number } | null;
+    }
+
+    let lessonsOut: Record<string, unknown>[] = sortedLessons.map((l) =>
+      stripLessonVisualAidsFields(l as Record<string, unknown>) as Record<string, unknown>
+    );
+
+    if (req.user?.role === 'student') {
+      const lessonIdStrings = sortedLessons.map((l) => l._id.toString());
+      const purchasedIds = await getPurchasedLessonIdSet(db, req.user.userId, lessonIdStrings);
+      const adsEnabled = process.env.NEXT_PUBLIC_ADS_ENABLED !== 'false';
+
+      lessonsOut = sortedLessons.map((lesson) => {
+        let levelOk = true;
+        if ((lesson as { requiredLevel?: string }).requiredLevel) {
+          levelOk = !!userProgress;
+        }
+        const flags = computeMonetizationFlags(
+          lesson._id.toString(),
+          sortedLessons as { _id: ObjectId }[],
+          purchasedIds,
+          req.user!.role,
+          adsEnabled
+        );
+        const canOpen = levelOk && flags.unlocked;
+        return stripLessonVisualAidsFields({
+          ...lesson,
+          accessible: canOpen,
+          locked: !canOpen,
+          monetization: {
+            unlocked: flags.unlocked,
+            isFreeTier: flags.isFreeTier,
+            requiresPayment: flags.requiresPayment,
+            showAds: flags.showAds,
+            amountKobo: flags.amountKobo,
+            currency: flags.currency,
+            paymentsConfigured: flags.paymentsConfigured,
+          },
+        } as Record<string, unknown>) as Record<string, unknown>;
       });
+    }
+
+    const coursePayload = {
+      ...stripCourseVisualAidsFields(course as Record<string, unknown>),
+      lessons: lessonsOut,
+    };
+
+    if (req.user) {
       (coursePayload as Record<string, unknown>).progress = userProgress?.progress || 0;
       (coursePayload as Record<string, unknown>).enrolled = !!userProgress;
     }

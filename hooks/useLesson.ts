@@ -6,6 +6,16 @@
 import { useState, useEffect } from 'react';
 import { apiClient } from '@/lib/api-client';
 
+export interface LessonMonetization {
+  unlocked: boolean;
+  isFreeTier: boolean;
+  requiresPayment: boolean;
+  showAds: boolean;
+  amountKobo: number;
+  currency: string;
+  paymentsConfigured: boolean;
+}
+
 export interface Lesson {
   _id?: string;
   id?: string;
@@ -17,6 +27,9 @@ export interface Lesson {
   order: number;
   quiz?: any;
   completed?: boolean;
+  monetization?: LessonMonetization;
+  accessible?: boolean;
+  locked?: boolean;
 }
 
 export function useLesson(lessonId: string | string[] | undefined) {

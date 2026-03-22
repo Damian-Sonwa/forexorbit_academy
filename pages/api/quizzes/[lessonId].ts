@@ -8,6 +8,7 @@
 import type { NextApiResponse } from 'next';
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
+import { assertStudentCanAccessLessonContent } from '@/lib/lesson-monetization';
 
 async function getQuiz(req: AuthRequest, res: NextApiResponse) {
   try {
@@ -50,6 +51,13 @@ async function submitQuiz(req: AuthRequest, res: NextApiResponse) {
     const quiz = await quizzes.findOne({ lessonId });
     if (!quiz) {
       return res.status(404).json({ error: 'Quiz not found' });
+    }
+
+    if (req.user!.role === 'student') {
+      const gate = await assertStudentCanAccessLessonContent(db, req.user!, lessonId as string);
+      if (!gate.ok) {
+        return res.status(gate.status).json({ error: gate.error });
+      }
     }
 
     // Grade quiz

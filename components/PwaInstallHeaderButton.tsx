@@ -24,7 +24,9 @@ export function PwaInstallHeaderButton() {
 
   return (
     <button
+      id="installBtn"
       type="button"
+      aria-label="Install ForexOrbit Academy app"
       onClick={onClick}
       disabled={busy}
       title={

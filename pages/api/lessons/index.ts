@@ -16,6 +16,12 @@ export const config = {
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
 import { stripLessonVisualAidsFields } from '@/lib/strip-visual-aids-html';
+import type { ObjectId } from 'mongodb';
+import {
+  sortLessonsByOrder,
+  getPurchasedLessonIdSet,
+  computeMonetizationFlags,
+} from '@/lib/lesson-monetization';
 
 async function getLessons(req: AuthRequest, res: NextApiResponse) {
   try {
@@ -33,31 +39,53 @@ async function getLessons(req: AuthRequest, res: NextApiResponse) {
       .sort({ order: 1 })
       .toArray();
 
-    // For students, filter lessons based on level access and mark accessible ones
+    const sortedList = sortLessonsByOrder(lessonsList as { _id: ObjectId; order?: number }[]);
+
+    // For students, level access + per-lesson monetization (first free, rest paid)
     if (req.user && req.user.role === 'student') {
       const userProgress = await progress.findOne({
         userId: req.user.userId,
         courseId,
       });
 
-      const enrichedLessons = lessonsList.map((lesson) => {
-        let accessible = true;
-        if (lesson.requiredLevel) {
-          // Check if user has completed prerequisite courses
-          // For now, allow if user is enrolled (can be enhanced with prerequisite checking)
-          accessible = !!userProgress;
+      const lessonIdStrings = sortedList.map((l) => l._id.toString());
+      const purchasedIds = await getPurchasedLessonIdSet(db, req.user.userId, lessonIdStrings);
+      const adsEnabled = process.env.NEXT_PUBLIC_ADS_ENABLED !== 'false';
+
+      const enrichedLessons = sortedList.map((lesson) => {
+        const doc = lesson as { _id: ObjectId; order?: number; requiredLevel?: string };
+        let levelOk = true;
+        if (doc.requiredLevel) {
+          levelOk = !!userProgress;
         }
+        const flags = computeMonetizationFlags(
+          doc._id.toString(),
+          sortedList as { _id: ObjectId }[],
+          purchasedIds,
+          req.user!.role,
+          adsEnabled
+        );
+        const canOpen = levelOk && flags.unlocked;
         return stripLessonVisualAidsFields({
-          ...lesson,
-          accessible,
-          locked: !accessible,
+          ...doc,
+          accessible: canOpen,
+          locked: !canOpen,
+          monetization: {
+            unlocked: flags.unlocked,
+            isFreeTier: flags.isFreeTier,
+            requiresPayment: flags.requiresPayment,
+            showAds: flags.showAds,
+            amountKobo: flags.amountKobo,
+            currency: flags.currency,
+            paymentsConfigured: flags.paymentsConfigured,
+          },
         } as Record<string, unknown>);
       });
 
       return res.json(enrichedLessons);
     }
 
-    res.json(lessonsList.map((l) => stripLessonVisualAidsFields(l as Record<string, unknown>)));
+    res.json(sortedList.map((l) => stripLessonVisualAidsFields(l as Record<string, unknown>)));
   } catch (error: any) {
     console.error('Get lessons error:', error);
     res.status(500).json({ error: 'Internal server error' });
