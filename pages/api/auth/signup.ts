@@ -46,7 +46,10 @@ export default async function handler(
       return res.status(400).json({ error: 'User already exists' });
     }
 
-    const existingPhone = await users.findOne({ phoneE164 });
+    const phoneRaw = String(phone).trim();
+    const existingPhone = await users.findOne({
+      $or: [{ phoneE164 }, { phone: phoneRaw }],
+    });
     if (existingPhone) {
       return res.status(400).json({ error: 'This phone number is already registered' });
     }
@@ -62,6 +65,7 @@ export default async function handler(
     // Create user
     const result = await users.insertOne({
       email: emailNorm,
+      phone: phoneRaw,
       phoneE164,
       password: hashedPassword,
       name,

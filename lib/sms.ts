@@ -1,5 +1,3 @@
-import Twilio from 'twilio';
-
 export type SmsProvider = 'twilio' | 'termii';
 
 export function getSmsProvider(): SmsProvider {
@@ -19,15 +17,21 @@ export function isSmsConfigured(): boolean {
 }
 
 async function sendViaTwilio(toE164: string, body: string): Promise<void> {
-  const sid = process.env.TWILIO_ACCOUNT_SID!;
-  const token = process.env.TWILIO_AUTH_TOKEN!;
-  const from = process.env.TWILIO_PHONE_NUMBER!;
-  const client = Twilio(sid, token);
+  const sid = process.env.TWILIO_ACCOUNT_SID!.trim();
+  const token = process.env.TWILIO_AUTH_TOKEN!.trim();
+  const from = process.env.TWILIO_PHONE_NUMBER!.trim();
+  // Dynamic import avoids some Next.js/webpack edge cases with twilio’s CJS bundle.
+  const twilioMod = await import('twilio');
+  const twilioFn = twilioMod.default ?? twilioMod;
+  const client = (twilioFn as (sid: string, token: string) => ReturnType<typeof import('twilio')>)(
+    sid,
+    token
+  );
   await client.messages.create({ from, to: toE164, body });
 }
 
 async function sendViaTermii(toE164: string, body: string): Promise<void> {
-  const apiKey = process.env.TERMII_API_KEY!;
+  const apiKey = process.env.TERMII_API_KEY!.trim();
   const senderId = (process.env.TERMII_SENDER_ID || 'ForexOrbit').trim();
   const to = toE164.replace(/^\+/, '');
   const res = await fetch('https://api.ng.termii.com/api/sms/send', {
@@ -42,9 +46,15 @@ async function sendViaTermii(toE164: string, body: string): Promise<void> {
       channel: 'generic',
     }),
   });
-  const data = (await res.json().catch(() => ({}))) as { message?: string };
+  const data = (await res.json().catch(() => ({}))) as {
+    message?: string;
+    code?: string;
+  };
   if (!res.ok) {
     throw new Error(data.message || `Termii HTTP ${res.status}`);
+  }
+  if (data.code && data.code !== 'ok') {
+    throw new Error(data.message || `Termii: ${data.code}`);
   }
 }
 

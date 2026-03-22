@@ -11,6 +11,25 @@ import { apiClient } from '@/lib/api-client';
 
 const PWD_RESET_STORAGE = 'forexorbitPwdReset';
 
+const PUBLIC_API_BASE =
+  (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_API_BASE_URL) ||
+  (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_API_URL) ||
+  '';
+
+function mapForgotPasswordError(err: unknown): string {
+  const e = err as { code?: string; response?: { data?: { error?: string } } };
+  const apiErr = e.response?.data?.error;
+  if (typeof apiErr === 'string' && apiErr.trim()) return apiErr;
+  const noResponse = !e.response;
+  if (noResponse && (e.code === 'ERR_NETWORK' || e.code === 'ECONNABORTED')) {
+    if (PUBLIC_API_BASE && PUBLIC_API_BASE !== '/api') {
+      return `Cannot reach the API (${PUBLIC_API_BASE}). Check your connection, CORS, and that the backend is running.`;
+    }
+    return 'Cannot reach the server. Check your connection and try again.';
+  }
+  return 'Something went wrong. Try again.';
+}
+
 type Step = 'phone' | 'otp';
 
 export default function ForgotPassword() {
@@ -22,10 +41,25 @@ export default function ForgotPassword() {
   const [info, setInfo] = useState('');
   const [loading, setLoading] = useState(false);
   const [retryAfterSeconds, setRetryAfterSeconds] = useState(0);
+  const [smsDeliveryEnabled, setSmsDeliveryEnabled] = useState<boolean | null>(null);
   const cooldownTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const cfg = await apiClient.get<{ smsDeliveryEnabled?: boolean; configured?: boolean }>(
+          '/auth/check-email-config'
+        );
+        if (!cancelled) {
+          setSmsDeliveryEnabled(cfg.smsDeliveryEnabled ?? cfg.configured ?? false);
+        }
+      } catch {
+        if (!cancelled) setSmsDeliveryEnabled(null);
+      }
+    })();
     return () => {
+      cancelled = true;
       if (cooldownTimerRef.current) clearInterval(cooldownTimerRef.current);
     };
   }, []);
@@ -59,10 +93,19 @@ export default function ForgotPassword() {
         cooldown?: number;
         rateLimited?: boolean;
         _devNote?: string;
+        smsDeliveryEnabled?: boolean;
       }>('/auth/forgot-password', { phone: phone.trim() });
+
+      if (typeof res.smsDeliveryEnabled === 'boolean') {
+        setSmsDeliveryEnabled(res.smsDeliveryEnabled);
+      }
 
       if (res._devNote) {
         setInfo(res._devNote);
+      } else if (res.smsDeliveryEnabled === false) {
+        setInfo(
+          'SMS is not configured on the server. No text can be sent until Twilio or Termii env vars are set on the host that runs /api (e.g. Render).'
+        );
       } else {
         setInfo('If this number is registered, you should receive an SMS within a minute.');
       }
@@ -73,8 +116,7 @@ export default function ForgotPassword() {
 
       setStep('otp');
     } catch (err: unknown) {
-      const ax = err as { response?: { data?: { error?: string } } };
-      setError(ax.response?.data?.error || 'Something went wrong. Try again.');
+      setError(mapForgotPasswordError(err));
     } finally {
       setLoading(false);
     }
@@ -93,8 +135,8 @@ export default function ForgotPassword() {
       if (typeof res.cooldown === 'number' && res.cooldown > 0) {
         startCooldown(res.cooldown);
       }
-    } catch {
-      setError('Could not resend. Try again shortly.');
+    } catch (err: unknown) {
+      setError(mapForgotPasswordError(err));
     } finally {
       setLoading(false);
     }
@@ -177,6 +219,16 @@ export default function ForgotPassword() {
                   : `Code sent to your phone. It expires in 5 minutes.`}
               </p>
             </div>
+
+            {smsDeliveryEnabled === false && (
+              <div className="mb-4 p-3 bg-amber-900/40 border border-amber-600/60 rounded-xl">
+                <p className="text-amber-100 text-sm text-center font-medium">
+                  SMS delivery is off on this API server. Add TWILIO_* or TERMII_* to the same deployment
+                  that serves your API (if the site uses Vercel + Render, set them on Render when
+                  NEXT_PUBLIC_API_BASE_URL points there).
+                </p>
+              </div>
+            )}
 
             {info && (
               <div className="mb-4 p-3 bg-primary-900/40 border border-primary-600/50 rounded-xl">

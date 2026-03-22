@@ -3,6 +3,8 @@ import type { ObjectId } from 'mongodb';
 
 export type PasswordResetLogEvent =
   | 'otp_requested'
+  | 'otp_generated'
+  | 'otp_sms_attempt'
   | 'otp_sent'
   | 'otp_send_failed'
   | 'otp_verify_success'

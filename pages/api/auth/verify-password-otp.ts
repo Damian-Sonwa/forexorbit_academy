@@ -8,6 +8,7 @@ import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import { getDb } from '@/lib/mongodb';
 import { parseToE164, maskPhoneTail } from '@/lib/phone';
+import { findUserByPhoneInput } from '@/lib/user-phone-lookup';
 import { logPasswordResetEvent } from '@/lib/password-reset-log';
 import {
   MAX_OTP_VERIFY_ATTEMPTS,
@@ -54,7 +55,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const users = db.collection('users');
     const resets = db.collection(PASSWORD_PHONE_RESETS_COLLECTION);
 
-    const user = await users.findOne({ phoneE164 });
+    const user = await findUserByPhoneInput(users, phoneE164, phone);
     if (!user) {
       return res.status(400).json({ error: 'Invalid or expired code. Request a new code.' });
     }

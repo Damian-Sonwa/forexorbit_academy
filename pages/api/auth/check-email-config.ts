@@ -17,6 +17,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     res.json({
       configured,
+      smsDeliveryEnabled: configured,
       provider,
       passwordResetChannel: 'sms_otp',
       environment: process.env.NODE_ENV,
