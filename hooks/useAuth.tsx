@@ -98,44 +98,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signup = async (email: string, password: string, name: string, role = 'student', phone = '') => {
-    // Normalize email (trim + lowercase)
     const normalizedEmail = email.trim().toLowerCase();
-    
-    // Development-only logging
+
     if (process.env.NODE_ENV === 'development') {
       console.log('Signup API call for:', normalizedEmail, 'role:', role);
     }
-    
-    const response = await apiClient.post<{ token: string | null; user: User; message?: string }>('/auth/signup', {
-      email: normalizedEmail,
-      password,
-      name,
-      role,
-      phone: phone.trim(),
-    });
 
-    // Only set token if user is approved (students are auto-approved, instructors/admins need approval)
-    if (response.token) {
-      localStorage.setItem('token', response.token);
-      // Fetch full user data including onboarding status for approved users
-      try {
-        const userData = await apiClient.get<User>('/auth/me');
-        const fullUser: User = { ...response.user, ...userData };
-        localStorage.setItem('user', JSON.stringify(fullUser));
-        setUser(fullUser);
-      } catch {
-        // If /auth/me fails, use response.user
+    try {
+      const response = await apiClient.post<{ token: string | null; user: User; message?: string }>(
+        '/auth/signup',
+        {
+          email: normalizedEmail,
+          password,
+          name: name.trim(),
+          role,
+          phone: phone.trim(),
+        }
+      );
+
+      if (response.token) {
+        localStorage.setItem('token', response.token);
+        try {
+          const userData = await apiClient.get<User>('/auth/me');
+          const fullUser: User = { ...response.user, ...userData };
+          localStorage.setItem('user', JSON.stringify(fullUser));
+          setUser(fullUser);
+        } catch {
+          localStorage.setItem('user', JSON.stringify(response.user));
+          setUser(response.user);
+        }
+      } else {
         localStorage.setItem('user', JSON.stringify(response.user));
         setUser(response.user);
       }
-    } else {
-      localStorage.setItem('user', JSON.stringify(response.user));
-      setUser(response.user);
-    }
-    
-    // Show message if provided (e.g., pending approval message)
-    if (response.message) {
-      alert(response.message);
+
+      if (response.message) {
+        alert(response.message);
+      }
+    } catch (error: unknown) {
+      let errorMessage = 'Signup failed. Please try again.';
+      if (error && typeof error === 'object' && 'response' in error) {
+        const apiError = error as { response?: { data?: { error?: string } }; message?: string };
+        errorMessage = apiError.response?.data?.error || apiError.message || errorMessage;
+      } else if (error instanceof Error) {
+        errorMessage = error.message || errorMessage;
+      }
+      throw new Error(errorMessage);
     }
   };
 

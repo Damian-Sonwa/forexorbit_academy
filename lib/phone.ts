@@ -2,7 +2,9 @@ import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import type { CountryCode } from 'libphonenumber-js';
 
 export function getDefaultPhoneRegion(): CountryCode {
-  const r = (process.env.SMS_DEFAULT_REGION || 'NG').trim().toUpperCase();
+  const fromPublic = process.env.NEXT_PUBLIC_PHONE_DEFAULT_REGION?.trim();
+  const fromSms = process.env.SMS_DEFAULT_REGION?.trim();
+  const r = (fromPublic || fromSms || 'NG').toUpperCase();
   return (r.length === 2 ? r : 'NG') as CountryCode;
 }
 

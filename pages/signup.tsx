@@ -9,6 +9,7 @@ import Link from 'next/link';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { useAuth } from '@/hooks/useAuth';
+import { parseToE164 } from '@/lib/phone';
 
 // Helper function to normalize email (trim + lowercase)
 const normalizeEmail = (email: string): string => {
@@ -59,6 +60,19 @@ export default function Signup() {
       return;
     }
 
+    if (!name.trim()) {
+      setError('Please enter your full name');
+      return;
+    }
+
+    const phoneParsed = parseToE164(phone.trim());
+    if (!phoneParsed) {
+      setError(
+        'Enter a valid phone number with country code (e.g. +2348012345678). Local numbers are accepted if valid for your region.'
+      );
+      return;
+    }
+
     setLoading(true);
 
     // Development-only logging
@@ -80,21 +94,22 @@ export default function Signup() {
       } else {
         router.push('/dashboard');
       }
-    } catch (err: any) {
-      // Map errors safely without exposing backend details
+    } catch (err: unknown) {
       let errorMessage = 'Signup failed. Please try again.';
-      
-      if (err.message) {
-        // Use the error message from useAuth or API
-        errorMessage = err.message;
-      } else if (err.response) {
-        const status = err.response.status;
-        if (status >= 500) {
-          errorMessage = 'Service temporarily unavailable. Please try again later.';
-        } else if (status === 408 || err.code === 'ECONNABORTED') {
-          errorMessage = 'Request took too long. Please try again.';
-        }
-      } else if (err.message?.includes('timeout') || err.message?.includes('network')) {
+      const ax = err as {
+        message?: string;
+        response?: { status?: number; data?: { error?: string } };
+        code?: string;
+      };
+      if (ax.response?.data?.error) {
+        errorMessage = ax.response.data.error;
+      } else if (err instanceof Error && ax.message) {
+        errorMessage = ax.message;
+      } else if (ax.response?.status && ax.response.status >= 500) {
+        errorMessage = 'Service temporarily unavailable. Please try again later.';
+      } else if (ax.response?.status === 408 || ax.code === 'ECONNABORTED') {
+        errorMessage = 'Request took too long. Please try again.';
+      } else if (ax.message?.includes('timeout') || ax.message?.includes('network')) {
         errorMessage = 'Network issue. Please check your connection and try again.';
       }
       

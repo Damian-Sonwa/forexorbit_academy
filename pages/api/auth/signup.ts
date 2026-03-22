@@ -20,8 +20,11 @@ export default async function handler(
   try {
     const { email, password, name, phone, role = 'student' } = req.body;
 
+    const nameTrim = typeof name === 'string' ? name.trim() : '';
+    const emailStr = typeof email === 'string' ? email.trim() : '';
+
     // Validation
-    if (!email || !password || !name || !phone) {
+    if (!emailStr || !password || !nameTrim || !phone) {
       return res.status(400).json({ error: 'Name, email, phone, and password are required' });
     }
 
@@ -35,7 +38,7 @@ export default async function handler(
       return res.status(400).json({ error: 'Invalid role' });
     }
 
-    const emailNorm = String(email).trim().toLowerCase();
+    const emailNorm = emailStr.toLowerCase();
 
     const db = await getDb();
     const users = db.collection('users');
@@ -90,7 +93,7 @@ export default async function handler(
       user: {
         id: result.insertedId.toString(),
         email: emailNorm,
-        name,
+        name: nameTrim,
         role,
         status,
       },
