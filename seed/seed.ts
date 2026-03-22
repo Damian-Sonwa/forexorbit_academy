@@ -34,6 +34,7 @@ async function seed() {
       {
         name: 'Demo Student',
         email: 'student@demo.com',
+        phoneE164: '+234800099991',
         password: hashedPassword,
         role: 'student',
         createdAt: new Date(),
@@ -42,6 +43,7 @@ async function seed() {
       {
         name: 'Demo Instructor',
         email: 'instructor@demo.com',
+        phoneE164: '+234800099993',
         password: hashedPassword,
         role: 'instructor',
         createdAt: new Date(),
@@ -50,6 +52,7 @@ async function seed() {
       {
         name: 'Admin User',
         email: 'admin@demo.com',
+        phoneE164: '+234800099994',
         password: hashedPassword,
         role: 'admin',
         createdAt: new Date(),

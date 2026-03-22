@@ -93,9 +93,10 @@ async function seed() {
       { name: 'Giulia Romano', email: 'giulia.romano@demo.com', points: 1700, region: 'Italy' },
     ];
     
-    const studentUsers = studentNames.map(student => ({
+    const studentUsers = studentNames.map((student, i) => ({
       name: student.name,
       email: student.email,
+      phoneE164: `+23480000${String(i + 1).padStart(4, '0')}`, // demo SMS reset testing (not real)
       password: hashedPassword,
       role: 'student',
       status: 'approved', // Students are automatically approved
@@ -111,6 +112,7 @@ async function seed() {
       {
         name: 'Demo Student',
       email: 'student@demo.com',
+      phoneE164: '+234800099991',
       password: hashedPassword,
       role: 'student',
       status: 'approved', // Students are automatically approved
@@ -122,6 +124,7 @@ async function seed() {
       {
         name: 'Super Admin',
         email: 'madudamian25@gmail.com',
+        phoneE164: '+234800099992',
         password: hashedPassword,
         role: 'superadmin',
         status: 'approved', // Super Admin is always approved
@@ -132,6 +135,7 @@ async function seed() {
       {
         name: 'Demo Instructor',
         email: 'instructor@demo.com',
+        phoneE164: '+234800099993',
         password: hashedPassword,
         role: 'instructor',
         status: 'approved', // Approved for demo purposes
@@ -142,6 +146,7 @@ async function seed() {
       {
         name: 'Admin User',
         email: 'admin@demo.com',
+        phoneE164: '+234800099994',
         password: hashedPassword,
         role: 'admin',
         status: 'approved', // Approved for demo purposes
@@ -152,6 +157,7 @@ async function seed() {
       {
         name: 'Pending Instructor',
         email: 'pending.instructor@demo.com',
+        phoneE164: '+234800099995',
         password: hashedPassword,
         role: 'instructor',
         status: 'pending', // Pending approval for demo
@@ -162,6 +168,7 @@ async function seed() {
       {
         name: 'Pending Admin',
         email: 'pending.admin@demo.com',
+        phoneE164: '+234800099996',
         password: hashedPassword,
         role: 'admin',
         status: 'pending', // Pending approval for demo

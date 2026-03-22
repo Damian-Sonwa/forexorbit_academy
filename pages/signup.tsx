@@ -25,6 +25,7 @@ const isValidEmail = (email: string): boolean => {
 export default function Signup() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState('student');
   const [error, setError] = useState('');
@@ -53,6 +54,11 @@ export default function Signup() {
       return;
     }
 
+    if (!phone.trim()) {
+      setError('Phone number is required for account recovery (SMS verification)');
+      return;
+    }
+
     setLoading(true);
 
     // Development-only logging
@@ -61,7 +67,7 @@ export default function Signup() {
     }
 
     try {
-      await signup(normalizedEmail, password, name, role);
+      await signup(normalizedEmail, password, name, role, phone.trim());
       
       // Development-only logging
       if (process.env.NODE_ENV === 'development') {
@@ -179,6 +185,23 @@ export default function Signup() {
               </div>
 
               <div>
+                <label className="block text-sm font-semibold text-nav-muted mb-2">Phone</label>
+                <input
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  required
+                  className="bg-brand-deep border border-white/15 text-nav-text rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary-400/50 focus:border-transparent w-full mb-1 placeholder:text-nav-muted text-base"
+                  placeholder="+234 801 234 5678"
+                />
+                <p className="text-xs text-nav-muted mb-4">
+                  Used for password reset via SMS. Include country code.
+                </p>
+              </div>
+
+              <div>
                 <label className="block text-sm font-semibold text-nav-muted mb-2">Password</label>
                 <input
                   type="password"
@@ -207,7 +230,7 @@ export default function Signup() {
 
               <button
                 type="submit"
-                disabled={loading || !email.trim() || !password.trim() || !name.trim()}
+                disabled={loading || !email.trim() || !password.trim() || !name.trim() || !phone.trim()}
                 className="bg-primary-500 hover:bg-primary-600 text-white w-full rounded-xl py-3 font-semibold transition-colors disabled:bg-primary-900/50 disabled:cursor-not-allowed"
               >
                 {loading ? (

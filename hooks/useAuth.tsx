@@ -21,7 +21,7 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  signup: (email: string, password: string, name: string, role?: string) => Promise<void>;
+  signup: (email: string, password: string, name: string, role?: string, phone?: string) => Promise<void>;
   logout: () => void;
   isAuthenticated: boolean;
 }
@@ -97,7 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const signup = async (email: string, password: string, name: string, role = 'student') => {
+  const signup = async (email: string, password: string, name: string, role = 'student', phone = '') => {
     // Normalize email (trim + lowercase)
     const normalizedEmail = email.trim().toLowerCase();
     
@@ -111,6 +111,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       password,
       name,
       role,
+      phone: phone.trim(),
     });
 
     // Only set token if user is approved (students are auto-approved, instructors/admins need approval)

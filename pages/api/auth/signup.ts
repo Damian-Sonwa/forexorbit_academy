@@ -7,6 +7,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import bcrypt from 'bcryptjs';
 import { getDb } from '@/lib/mongodb';
 import { generateToken } from '@/lib/jwt';
+import { parseToE164 } from '@/lib/phone';
 
 export default async function handler(
   req: NextApiRequest,
@@ -17,24 +18,37 @@ export default async function handler(
   }
 
   try {
-    const { email, password, name, role = 'student' } = req.body;
+    const { email, password, name, phone, role = 'student' } = req.body;
 
     // Validation
-    if (!email || !password || !name) {
-      return res.status(400).json({ error: 'Missing required fields' });
+    if (!email || !password || !name || !phone) {
+      return res.status(400).json({ error: 'Name, email, phone, and password are required' });
     }
+
+    const parsedPhone = parseToE164(String(phone));
+    if (!parsedPhone) {
+      return res.status(400).json({ error: 'Invalid phone number' });
+    }
+    const phoneE164 = parsedPhone.e164;
 
     if (!['admin', 'instructor', 'student'].includes(role)) {
       return res.status(400).json({ error: 'Invalid role' });
     }
 
+    const emailNorm = String(email).trim().toLowerCase();
+
     const db = await getDb();
     const users = db.collection('users');
 
     // Check if user exists
-    const existingUser = await users.findOne({ email });
+    const existingUser = await users.findOne({ email: emailNorm });
     if (existingUser) {
       return res.status(400).json({ error: 'User already exists' });
+    }
+
+    const existingPhone = await users.findOne({ phoneE164 });
+    if (existingPhone) {
+      return res.status(400).json({ error: 'This phone number is already registered' });
     }
 
     // Hash password
@@ -47,7 +61,8 @@ export default async function handler(
 
     // Create user
     const result = await users.insertOne({
-      email,
+      email: emailNorm,
+      phoneE164,
       password: hashedPassword,
       name,
       role,
@@ -61,7 +76,7 @@ export default async function handler(
     if (status === 'approved') {
       token = generateToken({
         userId: result.insertedId.toString(),
-        email,
+        email: emailNorm,
         role: role as 'admin' | 'instructor' | 'student',
       });
     }
@@ -70,7 +85,7 @@ export default async function handler(
       token,
       user: {
         id: result.insertedId.toString(),
-        email,
+        email: emailNorm,
         name,
         role,
         status,

@@ -130,7 +130,7 @@ export default function Login() {
                 <div className="flex items-center justify-between mb-2">
                   <label className="block text-sm font-semibold text-nav-muted">Password</label>
                   <Link href="/forgot-password" className="text-nav-muted hover:text-nav-text hover:underline text-sm">
-                    Forgot password?
+                    Forgot password? (SMS code)
                   </Link>
                 </div>
                 <input

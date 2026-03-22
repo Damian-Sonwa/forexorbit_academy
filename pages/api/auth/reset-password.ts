@@ -1,93 +1,95 @@
 /**
- * Reset Password API Route
- * Validates token and updates user password
- * POST /api/auth/reset-password
+ * Reset Password — after OTP verification (resetTicket + resetSecret from verify-password-otp)
+ * POST /api/auth/reset-password  { resetTicket, resetSecret, password }
  */
 
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getDb } from '@/lib/mongodb';
-import { ObjectId } from 'mongodb';
 import bcrypt from 'bcryptjs';
+import { ObjectId } from 'mongodb';
+import { getDb } from '@/lib/mongodb';
+import { logPasswordResetEvent } from '@/lib/password-reset-log';
+import { maskPhoneTail } from '@/lib/phone';
+import { PASSWORD_PHONE_RESETS_COLLECTION } from '@/lib/password-otp';
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
+function getClientIp(req: NextApiRequest): string | undefined {
+  const x = req.headers['x-forwarded-for'];
+  if (typeof x === 'string') return x.split(',')[0].trim();
+  if (Array.isArray(x)) return x[0];
+  const ra = req.socket?.remoteAddress;
+  return typeof ra === 'string' ? ra : undefined;
+}
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  try {
-    const { token, userId, password } = req.body;
+  const ip = getClientIp(req);
 
-    if (!token || !userId || !password) {
-      return res.status(400).json({ error: 'Token, user ID, and new password are required' });
+  try {
+    const { resetTicket, resetSecret, password } = req.body;
+
+    if (!resetTicket || !resetSecret || !password) {
+      return res.status(400).json({ error: 'Reset session and new password are required' });
     }
 
-    // Validate password strength
-    if (password.length < 6) {
+    if (typeof password !== 'string' || password.length < 6) {
       return res.status(400).json({ error: 'Password must be at least 6 characters long' });
     }
 
     const db = await getDb();
     const users = db.collection('users');
-    const passwordResets = db.collection('passwordResets');
+    const resets = db.collection(PASSWORD_PHONE_RESETS_COLLECTION);
 
-    // Find reset token record
-    const resetRecord = await passwordResets.findOne({ 
-      userId: new ObjectId(userId) 
-    });
+    const doc = await resets.findOne({ ticket: String(resetTicket) });
 
-    if (!resetRecord) {
-      return res.status(400).json({ error: 'Invalid or expired reset token' });
+    if (!doc?.secretHash) {
+      return res.status(400).json({
+        error: 'This reset link is invalid or expired. Start again from Forgot password.',
+      });
     }
 
-    // Check if token has expired
-    if (new Date() > resetRecord.expiresAt) {
-      // Clean up expired token
-      await passwordResets.deleteOne({ _id: resetRecord._id });
-      return res.status(400).json({ error: 'Reset token has expired. Please request a new one.' });
+    if (!doc.passwordStepExpiresAt || new Date(doc.passwordStepExpiresAt) < new Date()) {
+      await resets.deleteMany({ userId: doc.userId });
+      return res.status(400).json({
+        error: 'Your reset session expired. Verify your code again from the beginning.',
+      });
     }
 
-    // Verify token (compare hashed token)
-    const isValidToken = await bcrypt.compare(token, resetRecord.token);
-    if (!isValidToken) {
-      return res.status(400).json({ error: 'Invalid reset token' });
+    const secretOk = await bcrypt.compare(String(resetSecret), doc.secretHash);
+    if (!secretOk) {
+      return res.status(400).json({
+        error: 'Invalid reset session. Open the reset password page again from your phone flow.',
+      });
     }
 
-    // Find user
-    const user = await users.findOne({ _id: new ObjectId(userId) });
+    const user = await users.findOne({ _id: doc.userId as ObjectId });
     if (!user) {
+      await resets.deleteMany({ userId: doc.userId });
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // Hash new password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Update user password
     await users.updateOne(
-      { _id: new ObjectId(userId) },
-      { 
-        $set: { 
-          password: hashedPassword,
-          updatedAt: new Date()
-        } 
-      }
+      { _id: user._id },
+      { $set: { password: hashedPassword, updatedAt: new Date() } }
     );
 
-    // Delete used reset token (invalidate it)
-    await passwordResets.deleteOne({ _id: resetRecord._id });
+    await resets.deleteMany({ userId: user._id });
 
-    // Delete any other reset tokens for this user (security: one-time use)
-    await passwordResets.deleteMany({ userId: new ObjectId(userId) });
+    await logPasswordResetEvent(db, {
+      event: 'password_reset_complete',
+      userId: user._id,
+      phoneE164: user.phoneE164 ? maskPhoneTail(String(user.phoneE164)) : undefined,
+      ip,
+    });
 
-    return res.status(200).json({ 
-      message: 'Password has been reset successfully. You can now login with your new password.' 
+    return res.status(200).json({
+      message: 'Password has been reset successfully. You can now sign in with your new password.',
     });
   } catch (error: unknown) {
     console.error('Reset password error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
     return res.status(500).json({ error: 'Failed to reset password' });
   }
 }
-

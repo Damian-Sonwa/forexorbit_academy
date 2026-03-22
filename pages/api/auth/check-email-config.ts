@@ -1,41 +1,43 @@
 /**
- * Check Email Configuration API Route
- * Diagnostic: Resend API key present for password reset emails
- * GET /api/auth/check-email-config
+ * Diagnostic: SMS provider configured for password reset (OTP)
+ * GET /api/auth/check-email-config  (path kept for existing bookmarks)
  */
 
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { isEmailConfigured } from '@/lib/email';
+import { getSmsProvider, isSmsConfigured } from '@/lib/sms';
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
-    const configured = isEmailConfigured();
-    const hasApiKey = !!process.env.RESEND_API_KEY?.trim();
-    const fromSet = !!process.env.RESEND_FROM?.trim();
+    const provider = getSmsProvider();
+    const configured = isSmsConfigured();
 
     res.json({
       configured,
-      provider: 'resend',
+      provider,
+      passwordResetChannel: 'sms_otp',
       environment: process.env.NODE_ENV,
-      checks: {
-        resendApiKey: hasApiKey,
-        resendFromOverride: fromSet,
-      },
+      checks:
+        provider === 'twilio'
+          ? {
+              twilioAccountSid: !!process.env.TWILIO_ACCOUNT_SID?.trim(),
+              twilioAuthToken: !!process.env.TWILIO_AUTH_TOKEN?.trim(),
+              twilioPhoneNumber: !!process.env.TWILIO_PHONE_NUMBER?.trim(),
+            }
+          : {
+              termiiApiKey: !!process.env.TERMII_API_KEY?.trim(),
+              termiiSenderId: process.env.TERMII_SENDER_ID || 'ForexOrbit (default)',
+            },
       message: configured
-        ? 'Email (Resend) is configured for password reset'
-        : 'Set RESEND_API_KEY in environment variables (Vercel / .env.local).',
-      apiKeyLength: process.env.RESEND_API_KEY?.length || 0,
-      resendFrom: process.env.RESEND_FROM || 'onboarding@resend.dev (default)',
+        ? `SMS (${provider}) is configured for password reset OTP`
+        : `Set ${provider === 'twilio' ? 'TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER' : 'TERMII_API_KEY'} (or SMS_PROVIDER=termii|twilio).`,
+      smsDefaultRegion: process.env.SMS_DEFAULT_REGION || 'NG',
     });
   } catch (error: unknown) {
-    console.error('Check email config error:', error);
-    res.status(500).json({ error: 'Failed to check email configuration' });
+    console.error('Check SMS config error:', error);
+    res.status(500).json({ error: 'Failed to check SMS configuration' });
   }
 }
