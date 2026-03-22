@@ -44,7 +44,7 @@ async function getCourse(req: AuthRequest, res: NextApiResponse) {
       .sort({ order: 1 })
       .toArray();
 
-    const sortedLessons = sortLessonsByOrder(courseLessons as { _id: ObjectId; order?: number }[]);
+    const sortedLessons = sortLessonsByOrder(courseLessons as { _id: ObjectId; order?: number; isDemo?: boolean }[]);
 
     let userProgress: { progress?: number } | null = null;
     if (req.user) {
@@ -70,7 +70,7 @@ async function getCourse(req: AuthRequest, res: NextApiResponse) {
         }
         const flags = computeMonetizationFlags(
           lesson._id.toString(),
-          sortedLessons as { _id: ObjectId }[],
+          sortedLessons as { _id: ObjectId; isDemo?: boolean }[],
           purchasedIds,
           req.user!.role,
           adsEnabled
@@ -83,6 +83,7 @@ async function getCourse(req: AuthRequest, res: NextApiResponse) {
           monetization: {
             unlocked: flags.unlocked,
             isFreeTier: flags.isFreeTier,
+            isDemo: flags.isDemo,
             requiresPayment: flags.requiresPayment,
             showAds: flags.showAds,
             amountKobo: flags.amountKobo,

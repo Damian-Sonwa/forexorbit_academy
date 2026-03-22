@@ -17,9 +17,10 @@ const next = require('next');
 const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
 
-// Validate environment variables
-if (!process.env.MONGO_URI) {
-  console.error('❌ Error: MONGO_URI not defined in .env.local');
+// Validate environment variables (same URI as Next API: .env.local)
+const mongoUri = (process.env.MONGO_URI || process.env.MONGODB_URI)?.trim();
+if (!mongoUri) {
+  console.error('❌ Error: MONGO_URI or MONGODB_URI not defined (e.g. in .env.local)');
   process.exit(1);
 }
 

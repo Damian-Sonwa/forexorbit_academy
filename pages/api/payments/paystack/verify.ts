@@ -105,6 +105,9 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
     if (sorted[0]?._id.toString() === lessonId) {
       return res.status(400).json({ message: 'Cannot purchase free first lesson' });
     }
+    if (lesson.isDemo === true) {
+      return res.status(400).json({ message: 'Demo lessons are free' });
+    }
 
     const already = await hasLessonPurchase(db, req.user!.userId, lessonId);
     if (!already) {
@@ -137,6 +140,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 
     return res.status(200).json({
       success: true,
+      access: true,
       message: 'Payment successful. This lesson is now unlocked.',
       unlocked: true,
       reference,

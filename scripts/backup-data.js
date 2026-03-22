@@ -11,9 +11,9 @@ require('dotenv').config({ path: '.env.local' });
 
 async function backupData() {
   try {
-    const uri = process.env.MONGO_URI;
+    const uri = (process.env.MONGO_URI || process.env.MONGODB_URI)?.trim();
     if (!uri) {
-      console.error('❌ MONGO_URI not found in .env.local');
+      console.error('❌ MONGO_URI or MONGODB_URI not found in .env.local');
       return;
     }
 

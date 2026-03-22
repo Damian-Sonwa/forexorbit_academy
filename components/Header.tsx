@@ -11,8 +11,6 @@ import { useState, useEffect, useRef } from 'react';
 import { apiClient } from '@/lib/api-client';
 import { useSocket } from '@/hooks/useSocket';
 import { isNavHrefDisabled } from '@/lib/config/features';
-import { PwaInstallHeaderButton } from '@/components/PwaInstallHeaderButton';
-
 interface Notification {
   _id: string;
   type: string;
@@ -233,7 +231,6 @@ export default function Header() {
 
           {/* Right Side Actions */}
           <div className="flex items-center space-x-2 sm:space-x-4">
-            <PwaInstallHeaderButton />
             {/* Notifications - Only for authenticated users */}
             {isAuthenticated && (
               <div className="relative" ref={notificationsRef}>

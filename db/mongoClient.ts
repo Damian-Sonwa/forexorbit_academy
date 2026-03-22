@@ -1,20 +1,21 @@
 /**
  * MongoDB Client Connection
  * Reusable MongoDB client that ensures one connection in dev & production
- * Uses MONGO_URI from environment variables
+ * Uses MONGO_URI or MONGODB_URI from environment variables (same string; Atlas often documents MONGODB_URI).
  */
 
 import { MongoClient } from 'mongodb';
 
-// Validate MONGO_URI exists at runtime
-const uri = process.env.MONGO_URI;
+const uri = (process.env.MONGO_URI || process.env.MONGODB_URI)?.trim();
 if (!uri) {
-  throw new Error('MONGO_URI not defined in .env.local. Please add your MongoDB connection string.');
+  throw new Error(
+    'MongoDB URI not set. Add MONGO_URI (or MONGODB_URI) to .env.local with your connection string.'
+  );
 }
 
 // Validate URI format
 if (!uri.startsWith('mongodb')) {
-  throw new Error('MONGO_URI must be a valid MongoDB connection string starting with mongodb:// or mongodb+srv://');
+  throw new Error('MONGO_URI / MONGODB_URI must start with mongodb:// or mongodb+srv://');
 }
 
 let client: MongoClient;

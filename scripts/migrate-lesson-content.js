@@ -11,6 +11,13 @@
  */
 
 const { MongoClient } = require('mongodb');
+const fs = require('fs');
+const path = require('path');
+if (fs.existsSync(path.join(process.cwd(), '.env.local'))) {
+  require('dotenv').config({ path: '.env.local' });
+} else {
+  require('dotenv').config();
+}
 
 async function migrateLessonContent() {
   let client;
@@ -18,21 +25,15 @@ async function migrateLessonContent() {
   try {
     console.log('🚀 Starting lesson content migration...');
 
-    // Try Atlas connection first, fallback to local
-    let uri;
-    try {
-      uri = 'mongodb+srv://Damian25:sopuluchukwu@cluster0.tcjhicx.mongodb.net/Forex_elearning?appName=Cluster0';
-      console.log('📡 Attempting connection to MongoDB Atlas...');
-      client = new MongoClient(uri);
-      await client.connect();
-      console.log('✅ Connected to MongoDB Atlas');
-    } catch (atlasError) {
-      console.log('⚠️  Atlas connection failed, trying local MongoDB...');
-      uri = 'mongodb://localhost:27017';
-      client = new MongoClient(uri);
-      await client.connect();
-      console.log('✅ Connected to local MongoDB');
+    const uri = (process.env.MONGO_URI || process.env.MONGODB_URI)?.trim();
+    if (!uri) {
+      console.error('❌ Set MONGO_URI or MONGODB_URI (e.g. in .env.local).');
+      process.exit(1);
     }
+    console.log('📡 Connecting with MONGO_URI / MONGODB_URI...');
+    client = new MongoClient(uri);
+    await client.connect();
+    console.log('✅ Connected to MongoDB');
 
     const db = client.db('Forex_elearning');
     const lessonsCollection = db.collection('lessons');

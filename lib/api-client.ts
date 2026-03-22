@@ -58,6 +58,20 @@ class ApiClient {
     return response.data;
   }
 
+  /** Returns response body and status without throwing on 4xx (for lesson paywall 403). Network errors still throw. */
+  async getAllowingError<T>(url: string, config?: AxiosRequestConfig) {
+    try {
+      const response = await this.client.get<T>(url, config);
+      return { ok: true as const, status: response.status, data: response.data };
+    } catch (e: unknown) {
+      const ax = e as { response?: { status?: number; data?: unknown } };
+      if (ax.response && typeof ax.response.status === 'number') {
+        return { ok: false as const, status: ax.response.status, data: ax.response.data };
+      }
+      throw e;
+    }
+  }
+
   async post<T>(url: string, data?: unknown, config?: AxiosRequestConfig) {
     // FIX: Don't set Content-Type for FormData - let browser set it with boundary
     const isFormData = data instanceof FormData;

@@ -8,13 +8,21 @@
 import type { NextApiResponse } from 'next';
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
-import { assertStudentCanAccessLessonContent } from '@/lib/lesson-monetization';
+import { assertStudentCanAccessLessonContent, isStaffRole } from '@/lib/lesson-monetization';
 
 async function getQuiz(req: AuthRequest, res: NextApiResponse) {
   try {
     const { lessonId } = req.query;
     const db = await getDb();
     const quizzes = db.collection('quizzes');
+
+    if (req.user && !isStaffRole(req.user.role)) {
+      const gate = await assertStudentCanAccessLessonContent(db, req.user, lessonId as string);
+      if (!gate.ok) {
+        if (gate.lockedBody) return res.status(gate.status).json(gate.lockedBody);
+        return res.status(gate.status).json({ access: false as const, message: gate.message });
+      }
+    }
 
     const quiz = await quizzes.findOne({ lessonId });
     if (!quiz) {
@@ -53,10 +61,11 @@ async function submitQuiz(req: AuthRequest, res: NextApiResponse) {
       return res.status(404).json({ message: 'Quiz not found' });
     }
 
-    if (req.user!.role === 'student') {
-      const gate = await assertStudentCanAccessLessonContent(db, req.user!, lessonId as string);
+    if (req.user && !isStaffRole(req.user.role)) {
+      const gate = await assertStudentCanAccessLessonContent(db, req.user, lessonId as string);
       if (!gate.ok) {
-        return res.status(gate.status).json({ message: gate.message });
+        if (gate.lockedBody) return res.status(gate.status).json(gate.lockedBody);
+        return res.status(gate.status).json({ access: false as const, message: gate.message });
       }
     }
 

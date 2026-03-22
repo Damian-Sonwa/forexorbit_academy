@@ -16,6 +16,8 @@ export type MonetizationFlags = {
   unlocked: boolean;
   /** First lesson in course (free tier) — show ads when true and ads enabled */
   isFreeTier: boolean;
+  /** Demo lesson: free + ads (same ad rules as free tier when ads enabled) */
+  isDemo: boolean;
   /** Paid lesson not yet purchased */
   requiresPayment: boolean;
   /** Show ad slots (banner / interstitial) for this view */
@@ -24,6 +26,50 @@ export type MonetizationFlags = {
   currency: string;
   paymentsConfigured: boolean;
 };
+
+/** Exact copy for API 403 responses (student paywall). */
+export const LESSON_LOCKED_MESSAGE = 'Lesson locked. Please pay to unlock.';
+
+export type LessonMonetizationPayload = {
+  unlocked: boolean;
+  isFreeTier: boolean;
+  isDemo: boolean;
+  requiresPayment: boolean;
+  showAds: boolean;
+  amountKobo: number;
+  currency: string;
+  paymentsConfigured: boolean;
+};
+
+export function flagsToMonetizationPayload(flags: MonetizationFlags): LessonMonetizationPayload {
+  return {
+    unlocked: flags.unlocked,
+    isFreeTier: flags.isFreeTier,
+    isDemo: flags.isDemo,
+    requiresPayment: flags.requiresPayment,
+    showAds: flags.showAds,
+    amountKobo: flags.amountKobo,
+    currency: flags.currency,
+    paymentsConfigured: flags.paymentsConfigured,
+  };
+}
+
+/** JSON body for 403 when a student cannot load paid lesson/quiz content. */
+export function buildLessonLockedBody(
+  flags: MonetizationFlags,
+  lesson: { _id: ObjectId; title?: string; courseId: string }
+): { access: false; message: string; monetization: LessonMonetizationPayload; lessonMeta: Record<string, string> } {
+  return {
+    access: false as const,
+    message: LESSON_LOCKED_MESSAGE,
+    monetization: flagsToMonetizationPayload(flags),
+    lessonMeta: {
+      _id: lesson._id.toString(),
+      courseId: String(lesson.courseId),
+      title: typeof lesson.title === 'string' && lesson.title.trim() ? lesson.title : 'Lesson',
+    },
+  };
+}
 
 export function isStaffRole(role: string): boolean {
   return role === 'superadmin' || role === 'admin' || role === 'instructor';
@@ -43,7 +89,7 @@ export function getPaystackCurrency(): string {
   return (process.env.PAYSTACK_CURRENCY || 'NGN').toUpperCase();
 }
 
-export function sortLessonsByOrder<T extends { _id: ObjectId; order?: number }>(lessons: T[]): T[] {
+export function sortLessonsByOrder<T extends { _id: ObjectId; order?: number; isDemo?: boolean }>(lessons: T[]): T[] {
   return [...lessons].sort((a, b) => {
     const oa = typeof a.order === 'number' ? a.order : 0;
     const ob = typeof b.order === 'number' ? b.order : 0;
@@ -84,7 +130,7 @@ export async function hasLessonPurchase(db: Db, userId: string, lessonId: string
  */
 export function computeMonetizationFlags(
   lessonIdStr: string,
-  sortedCourseLessons: { _id: ObjectId }[],
+  sortedCourseLessons: { _id: ObjectId; isDemo?: boolean }[],
   purchasedIds: Set<string>,
   userRole: string,
   adsEnabled: boolean
@@ -92,11 +138,14 @@ export function computeMonetizationFlags(
   const paymentsConfigured = isPaystackConfigured();
   const amountKobo = getLessonPriceKobo();
   const currency = getPaystackCurrency();
+  const self = sortedCourseLessons.find((l) => l._id.toString() === lessonIdStr);
+  const isDemoLesson = Boolean(self?.isDemo);
 
   if (isStaffRole(userRole)) {
     return {
       unlocked: true,
       isFreeTier: false,
+      isDemo: isDemoLesson,
       requiresPayment: false,
       showAds: false,
       amountKobo,
@@ -111,8 +160,9 @@ export function computeMonetizationFlags(
     return {
       unlocked: true,
       isFreeTier,
+      isDemo: isDemoLesson,
       requiresPayment: false,
-      showAds: Boolean(isFreeTier && adsEnabled),
+      showAds: Boolean((isFreeTier || isDemoLesson) && adsEnabled),
       amountKobo,
       currency,
       paymentsConfigured: false,
@@ -126,6 +176,20 @@ export function computeMonetizationFlags(
     return {
       unlocked: true,
       isFreeTier: true,
+      isDemo: false,
+      requiresPayment: false,
+      showAds: Boolean(adsEnabled),
+      amountKobo,
+      currency,
+      paymentsConfigured: true,
+    };
+  }
+
+  if (isDemoLesson) {
+    return {
+      unlocked: true,
+      isFreeTier: false,
+      isDemo: true,
       requiresPayment: false,
       showAds: Boolean(adsEnabled),
       amountKobo,
@@ -138,6 +202,7 @@ export function computeMonetizationFlags(
     return {
       unlocked: true,
       isFreeTier: false,
+      isDemo: false,
       requiresPayment: false,
       showAds: false,
       amountKobo,
@@ -149,6 +214,7 @@ export function computeMonetizationFlags(
   return {
     unlocked: false,
     isFreeTier: false,
+    isDemo: false,
     requiresPayment: true,
     showAds: false,
     amountKobo,
@@ -176,10 +242,10 @@ export async function getMonetizationForLessonDoc(
   db: Db,
   user: { userId: string; role: string },
   lesson: { _id: ObjectId; courseId: string }
-): Promise<{ flags: MonetizationFlags; sortedLessons: { _id: ObjectId }[]; purchasedIds: Set<string> }> {
+): Promise<{ flags: MonetizationFlags; sortedLessons: { _id: ObjectId; isDemo?: boolean }[]; purchasedIds: Set<string> }> {
   const lessonsCol = db.collection('lessons');
   const raw = await lessonsCol.find({ courseId: lesson.courseId }).toArray();
-  const sorted = sortLessonsByOrder(raw as { _id: ObjectId; order?: number }[]);
+  const sorted = sortLessonsByOrder(raw as { _id: ObjectId; order?: number; isDemo?: boolean }[]);
   const lessonIdStr = lesson._id.toString();
   const ids = sorted.map((l) => l._id.toString());
   const purchasedIds = isStaffRole(user.role)
@@ -192,18 +258,28 @@ export async function getMonetizationForLessonDoc(
   return { flags, sortedLessons: sorted, purchasedIds };
 }
 
+export type LessonAccessGateResult =
+  | { ok: true }
+  | {
+      ok: false;
+      status: number;
+      message: string;
+      /** Present for paywall denials — send as JSON body */
+      lockedBody?: ReturnType<typeof buildLessonLockedBody>;
+    };
+
 export async function assertStudentCanAccessLessonContent(
   db: Db,
   user: { userId: string; role: string },
   lessonId: string
-): Promise<{ ok: true } | { ok: false; status: number; message: string }> {
+): Promise<LessonAccessGateResult> {
   if (isStaffRole(user.role)) return { ok: true };
 
   let oid: ObjectId;
   try {
     oid = new ObjectId(lessonId);
   } catch {
-    return { ok: false, status: 400, message: 'Invalid lesson' };
+    return { ok: false, status: 400, message: 'Invalid lesson id' };
   }
 
   const lessonsCol = db.collection('lessons');
@@ -215,7 +291,8 @@ export async function assertStudentCanAccessLessonContent(
     return {
       ok: false,
       status: 403,
-      message: 'This lesson is locked. Complete payment on the lesson page to unlock content and the quiz.',
+      message: LESSON_LOCKED_MESSAGE,
+      lockedBody: buildLessonLockedBody(flags, lesson as { _id: ObjectId; title?: string; courseId: string }),
     };
   }
   return { ok: true };

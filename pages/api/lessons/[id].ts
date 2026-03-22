@@ -18,7 +18,7 @@ import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 import { stripLessonVisualAidsFields } from '@/lib/strip-visual-aids-html';
-import { getMonetizationForLessonDoc, stripLessonForLockedStudent } from '@/lib/lesson-monetization';
+import { buildLessonLockedBody, getMonetizationForLessonDoc, isStaffRole } from '@/lib/lesson-monetization';
 
 async function getLesson(req: AuthRequest, res: NextApiResponse) {
   try {
@@ -59,7 +59,27 @@ async function getLesson(req: AuthRequest, res: NextApiResponse) {
       }
     }
 
-    // Get quiz for this lesson
+    let monetization: Record<string, unknown> | null = null;
+    if (req.user) {
+      const { flags } = await getMonetizationForLessonDoc(db, req.user, lesson as { _id: ObjectId; courseId: string });
+      monetization = {
+        unlocked: flags.unlocked,
+        isFreeTier: flags.isFreeTier,
+        isDemo: flags.isDemo,
+        requiresPayment: flags.requiresPayment,
+        showAds: flags.showAds,
+        amountKobo: flags.amountKobo,
+        currency: flags.currency,
+        paymentsConfigured: flags.paymentsConfigured,
+      };
+      if (!isStaffRole(req.user.role) && !flags.unlocked) {
+        return res
+          .status(403)
+          .json(buildLessonLockedBody(flags, lesson as { _id: ObjectId; title?: string; courseId: string }));
+      }
+    }
+
+    // Get quiz for this lesson (only after monetization gate — no quiz leak for locked students)
     const quiz = await quizzes.findOne({ lessonId: id });
     lesson.quiz = quiz;
 
@@ -69,24 +89,6 @@ async function getLesson(req: AuthRequest, res: NextApiResponse) {
         overview: lesson.summary,
         updatedAt: lesson.updatedAt || lesson.createdAt || new Date(),
       };
-    }
-
-    let monetization: Record<string, unknown> | null = null;
-    if (req.user) {
-      const { flags } = await getMonetizationForLessonDoc(db, req.user, lesson as { _id: ObjectId; courseId: string });
-      monetization = {
-        unlocked: flags.unlocked,
-        isFreeTier: flags.isFreeTier,
-        requiresPayment: flags.requiresPayment,
-        showAds: flags.showAds,
-        amountKobo: flags.amountKobo,
-        currency: flags.currency,
-        paymentsConfigured: flags.paymentsConfigured,
-      };
-      if (req.user.role === 'student' && !flags.unlocked) {
-        Object.assign(lesson, stripLessonForLockedStudent(lesson as Record<string, unknown>));
-        lesson.quiz = null;
-      }
     }
 
     // Get progress if authenticated

@@ -33,8 +33,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     console.log('🚀 Starting lesson content migration via API...');
 
-    // Use the connection string from environment or the one provided in the task
-    const uri = process.env.MONGO_URI || 'mongodb+srv://Damian25:sopuluchukwu@cluster0.tcjhicx.mongodb.net/Forex_elearning?appName=Cluster0';
+    const uri = (process.env.MONGO_URI || process.env.MONGODB_URI)?.trim();
+    if (!uri) {
+      return res.status(500).json({
+        message: 'MONGO_URI or MONGODB_URI is not set. Configure it in .env.local.',
+      });
+    }
 
     client = new MongoClient(uri);
     await client.connect();

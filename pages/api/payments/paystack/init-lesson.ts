@@ -58,6 +58,9 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
     if (firstId === lessonId) {
       return res.status(400).json({ message: 'The first lesson in each course is free' });
     }
+    if (lesson.isDemo === true) {
+      return res.status(400).json({ message: 'Demo lessons are free' });
+    }
 
     const owned = await hasLessonPurchase(db, req.user!.userId, lessonId);
     if (owned) {

@@ -60,7 +60,7 @@ async function getLessons(req: AuthRequest, res: NextApiResponse) {
         }
         const flags = computeMonetizationFlags(
           doc._id.toString(),
-          sortedList as { _id: ObjectId }[],
+          sortedList as { _id: ObjectId; isDemo?: boolean }[],
           purchasedIds,
           req.user!.role,
           adsEnabled
@@ -73,6 +73,7 @@ async function getLessons(req: AuthRequest, res: NextApiResponse) {
           monetization: {
             unlocked: flags.unlocked,
             isFreeTier: flags.isFreeTier,
+            isDemo: flags.isDemo,
             requiresPayment: flags.requiresPayment,
             showAds: flags.showAds,
             amountKobo: flags.amountKobo,

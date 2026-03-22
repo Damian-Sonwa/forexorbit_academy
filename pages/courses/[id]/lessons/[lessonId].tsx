@@ -13,7 +13,6 @@ import VideoPlayer from '@/components/VideoPlayer';
 import MarketSignal from '@/components/MarketSignal';
 import Quiz from '@/components/Quiz';
 import { useLesson, useLessons } from '@/hooks/useLesson';
-import { apiClient } from '@/lib/api-client';
 // import { useCourse } from '@/hooks/useCourses'; // Reserved for future use
 import { useSocket } from '@/hooks/useSocket';
 import { useAuth } from '@/hooks/useAuth';
@@ -24,12 +23,12 @@ import { useState, useEffect, useCallback } from 'react';
 import { ContentAdBanner } from '@/components/ads/ContentAdBanner';
 import { ContentAdInterstitial } from '@/components/ads/ContentAdInterstitial';
 import { PaystackLessonUnlock } from '@/components/monetization/PaystackLessonUnlock';
-import type { LessonMonetization } from '@/hooks/useLesson';
+import type { LessonAccessDeniedPayload, LessonMonetization } from '@/hooks/useLesson';
 
 export default function LessonPage() {
   const router = useRouter();
   const { id: courseId, lessonId } = router.query;
-  const { lesson, loading: lessonLoading, refetch: refetchLesson } = useLesson(lessonId);
+  const { lesson, loading: lessonLoading, error: lessonError, accessDenied, refetch: refetchLesson } = useLesson(lessonId);
   const { lessons, refetch: refetchLessons } = useLessons(courseId);
   // const { course } = useCourse(courseId); // Reserved for future use
   const { isAuthenticated, user } = useAuth();
@@ -42,8 +41,10 @@ export default function LessonPage() {
   useEffect(() => {
     if (lesson) {
       setCurrentLesson(lesson);
+    } else if (!lessonLoading) {
+      setCurrentLesson(null);
     }
-  }, [lesson]);
+  }, [lesson, lessonLoading]);
 
   useEffect(() => {
     if (lessonId && isAuthenticated) {
@@ -60,16 +61,7 @@ export default function LessonPage() {
 
     const handleLessonUpdate = (data: { lessonId: string; courseId: string }) => {
       if (data.lessonId === lessonId) {
-        // Refetch lesson data when updated
-        (async () => {
-          try {
-            const fresh = await apiClient.get<any>(`/lessons/${lessonId}`);
-            setCurrentLesson(fresh);
-          } catch (err) {
-            // Fallback to route replace if direct fetch fails
-            router.replace(router.asPath);
-          }
-        })();
+        void refetchLesson();
       }
     };
 
@@ -78,7 +70,7 @@ export default function LessonPage() {
     return () => {
       socket.off('lessonUpdated', handleLessonUpdate);
     };
-  }, [socket, connected, lessonId, router]);
+  }, [socket, connected, lessonId, refetchLesson]);
 
   const handleVideoEnd = () => {
     if (courseId && lessonId && isAuthenticated) {
@@ -99,43 +91,47 @@ export default function LessonPage() {
     );
   }
 
-  const displayLesson = currentLesson || lesson;
-  if (!displayLesson) {
+  if (lessonError && !accessDenied) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p>Lesson not found</p>
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <p className="text-center text-gray-700">{lessonError}</p>
       </div>
     );
   }
 
-  const monetization = displayLesson.monetization as LessonMonetization | undefined;
+  const displayLesson = currentLesson || lesson;
+  const lockedPayload = accessDenied as LessonAccessDeniedPayload | null;
+  const monetization = (displayLesson?.monetization ?? lockedPayload?.monetization) as LessonMonetization | undefined;
   const payBlocked =
     user?.role === 'student' &&
-    Boolean(monetization && !monetization.unlocked && monetization.requiresPayment);
+    (lockedPayload?.access === false ||
+      Boolean(displayLesson && monetization && !monetization.unlocked && monetization.requiresPayment));
 
-  /** PropellerAds / free-tier ads only: first free lesson per course, never paid lessons. */
-  const freeContentAds = Boolean(
-    monetization?.unlocked &&
-      monetization?.isFreeTier === true &&
-      monetization?.showAds === true
-  );
+  /** Free tier + demo: ads only when full lesson payload is loaded and backend marks showAds. */
+  const freeContentAds = Boolean(displayLesson && monetization?.unlocked && monetization?.showAds === true);
 
-  const lessonDescriptionHtml = getLessonDescriptionHtml(displayLesson as any);
+  const lessonDescriptionHtml = displayLesson ? getLessonDescriptionHtml(displayLesson as any) : '';
   const lessonDescStudent = sanitizeForStudentView(lessonDescriptionHtml);
 
-  const lessonBodyRaw =
-    String(
-      (currentLesson as any)?.content ||
-        (displayLesson as any).content ||
-        (currentLesson as any)?.lessonSummary?.overview ||
-        (displayLesson as any).lessonSummary?.overview ||
-        (displayLesson as any).summary ||
-        ''
-    ) || '';
+  const lessonBodyRaw = displayLesson
+    ? String(
+        (currentLesson as any)?.content ||
+          (displayLesson as any).content ||
+          (currentLesson as any)?.lessonSummary?.overview ||
+          (displayLesson as any).lessonSummary?.overview ||
+          (displayLesson as any).summary ||
+          ''
+      ) || ''
+    : '';
   const lessonBodyStudent = sanitizeForStudentView(lessonBodyRaw);
 
+  const displayTitleHtml = displayLesson
+    ? displayLesson.title
+    : lockedPayload?.lessonMeta?.title || 'Lesson';
+
   // Find current lesson index
-  const currentIndex = lessons.findIndex((l) => (l._id || l.id) === (displayLesson._id || displayLesson.id));
+  const currentLessonKey = displayLesson?._id || displayLesson?.id || (lessonId as string);
+  const currentIndex = lessons.findIndex((l) => (l._id || l.id) === currentLessonKey);
   const prevLesson = currentIndex > 0 ? lessons[currentIndex - 1] : null;
   const nextLesson = currentIndex < lessons.length - 1 ? lessons[currentIndex + 1] : null;
 
@@ -160,7 +156,10 @@ export default function LessonPage() {
             <div className="mb-2">
               <BackButton href={`/courses/${courseId}`} label="Back to Course" />
             </div>
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-display font-bold text-gray-900 mb-2 break-words" dangerouslySetInnerHTML={{ __html: sanitizeForStudentView(displayLesson.title) }} />
+            <h1
+              className="text-2xl sm:text-3xl md:text-4xl font-display font-bold text-gray-900 mb-2 break-words"
+              dangerouslySetInnerHTML={{ __html: sanitizeForStudentView(displayTitleHtml) }}
+            />
           </div>
 
           <ContentAdInterstitial
@@ -175,16 +174,20 @@ export default function LessonPage() {
           )}
 
           {payBlocked && monetization && lessonId && courseId && (
-            <div className="relative mb-8 overflow-hidden rounded-2xl border border-amber-300/80 bg-gradient-to-b from-amber-50/95 to-amber-100/40 shadow-inner dark:border-amber-700/60 dark:from-amber-950/50 dark:to-amber-950/20">
+            <div className="relative mb-8 min-h-[280px] overflow-hidden rounded-2xl border border-amber-300/80 bg-gradient-to-b from-amber-50/95 to-amber-100/40 shadow-inner dark:border-amber-700/60 dark:from-amber-950/50 dark:to-amber-950/20">
               <div
-                className="pointer-events-none absolute inset-0 opacity-[0.12] dark:opacity-[0.08]"
+                className="pointer-events-none absolute inset-0 z-0 bg-gray-900/5 dark:bg-black/20"
+                aria-hidden
+              />
+              <div
+                className="pointer-events-none absolute inset-0 z-[1] opacity-[0.12] dark:opacity-[0.08]"
                 style={{
                   backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23000000' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
                 }}
               />
-              <div className="relative z-10 flex flex-col items-center px-4 py-10 sm:py-12">
-                <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-200/80 text-amber-900 shadow-inner ring-2 ring-amber-400/50 dark:bg-amber-900/60 dark:text-amber-100 dark:ring-amber-700/50">
-                  <svg className="h-9 w-9" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+              <div className="pointer-events-none absolute inset-0 z-[2] flex items-center justify-center bg-white/40 backdrop-blur-[2px] dark:bg-gray-950/50">
+                <div className="flex h-20 w-20 items-center justify-center rounded-full bg-amber-100/90 text-amber-900 shadow-lg ring-4 ring-amber-300/60 dark:bg-amber-900/80 dark:text-amber-50 dark:ring-amber-600/40">
+                  <svg className="h-10 w-10" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -193,10 +196,12 @@ export default function LessonPage() {
                     />
                   </svg>
                 </div>
+              </div>
+              <div className="relative z-10 flex flex-col items-center px-4 pb-10 pt-24 sm:pb-12 sm:pt-28">
                 <h2 className="text-xl font-bold text-gray-900 dark:text-white">This lesson is locked</h2>
                 <p className="mt-2 max-w-md text-center text-sm text-gray-700 dark:text-gray-300">
-                  Pay once to unlock the full video, lesson content, resources, and quiz. The first lesson in this course
-                  remains free.
+                  {lockedPayload?.message ||
+                    'Pay once to unlock the full video, lesson content, resources, and quiz. The first lesson in this course remains free.'}
                 </p>
                 <div className="mt-6 w-full max-w-md">
                   <PaystackLessonUnlock
@@ -210,8 +215,14 @@ export default function LessonPage() {
             </div>
           )}
 
+          {!displayLesson && !payBlocked && (
+            <div className="min-h-[200px] rounded-xl border border-gray-200 bg-white p-8 text-center text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300">
+              <p>Lesson not found</p>
+            </div>
+          )}
+
           {/* Video Player - Display YouTube videos and other video URLs */}
-          {!payBlocked && displayLesson.videoUrl && (
+          {!payBlocked && displayLesson && displayLesson.videoUrl && (
             <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg border border-gray-100 p-2 mb-4 overflow-hidden">
               <VideoPlayer url={displayLesson.videoUrl} onEnded={handleVideoEnd} />
             </div>
@@ -234,7 +245,7 @@ export default function LessonPage() {
           )}
 
           {/* Instructor/Admin Lesson Content Editor - ONLY visible to instructors/admins */}
-          {user?.role === 'instructor' && (
+          {user?.role === 'instructor' && displayLesson && (
             <div className="mb-4">
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-lg font-semibold text-gray-900">Lesson Content Editor</h2>
@@ -277,7 +288,10 @@ export default function LessonPage() {
           )}
 
           {/* Lesson Resources */}
-          {!payBlocked && (displayLesson as any).resources && (displayLesson as any).resources.length > 0 && (
+          {!payBlocked &&
+            displayLesson &&
+            (displayLesson as any).resources &&
+            (displayLesson as any).resources.length > 0 && (
             <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 mb-4">
               <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2 flex items-center">
                 <svg className="w-5 h-5 sm:w-6 sm:h-6 mr-2 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -333,7 +347,7 @@ export default function LessonPage() {
           )}
 
           {/* Quiz */}
-          {!payBlocked && displayLesson.quiz && (
+          {!payBlocked && displayLesson && displayLesson.quiz && (
             <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 mb-4">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-3 gap-3">
                 <div className="flex-1">

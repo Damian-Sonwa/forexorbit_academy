@@ -35,6 +35,8 @@ export type PwaInstallContextValue = {
   busy: boolean;
   /** Opens the browser/OS install dialog (must call only when nativeInstallAvailable) */
   promptNativeInstall: () => Promise<boolean>;
+  /** Clears the deferred prompt (e.g. “Not now”) — next install UI requires a new beforeinstallprompt (usually after reload) */
+  dismissDeferredPrompt: () => void;
 };
 
 const PwaInstallContext = createContext<PwaInstallContextValue | null>(null);
@@ -81,6 +83,10 @@ export function PwaInstallProvider({ children }: { children: ReactNode }) {
     }
   }, [deferred]);
 
+  const dismissDeferredPrompt = useCallback(() => {
+    setDeferred(null);
+  }, []);
+
   const canShowInstallUi = mounted && isSecureEnough() && !isStandalone();
   const nativeInstallAvailable = !!deferred;
 
@@ -90,8 +96,9 @@ export function PwaInstallProvider({ children }: { children: ReactNode }) {
       nativeInstallAvailable,
       busy,
       promptNativeInstall,
+      dismissDeferredPrompt,
     }),
-    [canShowInstallUi, nativeInstallAvailable, busy, promptNativeInstall]
+    [canShowInstallUi, nativeInstallAvailable, busy, promptNativeInstall, dismissDeferredPrompt]
   );
 
   return <PwaInstallContext.Provider value={value}>{children}</PwaInstallContext.Provider>;

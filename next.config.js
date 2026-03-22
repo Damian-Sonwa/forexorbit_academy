@@ -25,7 +25,8 @@ const nextConfig = {
     ],
   },
   env: {
-    MONGO_URI: process.env.MONGO_URI,
+    // Same DB string as .env.local; supports either name (Render/Vercel/Atlas often use MONGODB_URI).
+    MONGO_URI: process.env.MONGO_URI || process.env.MONGODB_URI,
     JWT_SECRET: process.env.JWT_SECRET,
     // NOTE: Socket.IO URL is hardcoded in useSocket.ts to always use Render backend
     // NOTE: NEXT_PUBLIC_AGORA_APP_ID is NOT exposed to client
