@@ -31,7 +31,6 @@
     "react-quill": "^2.0.0",
     "recharts": "^2.10.0",
     "resend": "^6.9.4",
-    "server-only": "^0.0.1",
     "socket.io": "^4.6.0",
     "socket.io-client": "^4.6.0"
   },

@@ -2,10 +2,9 @@
  * Email utility — password reset via [Resend](https://resend.com).
  * Set RESEND_API_KEY. Optional: RESEND_FROM (default onboarding@resend.dev for testing).
  *
- * Server-only: never import this module from client components (API keys).
+ * Do not import from client code — API keys. (Pages Router: only use from pages/api.)
  */
 
-import 'server-only';
 import { Resend } from 'resend';
 
 const DEFAULT_RESEND_FROM = 'onboarding@resend.dev';
