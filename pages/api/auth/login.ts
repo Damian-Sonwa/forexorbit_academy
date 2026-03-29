@@ -16,10 +16,22 @@ export default async function handler(
     return res.status(405).json({ message: 'Method not allowed' });
   }
 
-  try {
-    const { email, password } = req.body;
+  if (!process.env.JWT_SECRET?.trim()) {
+    console.error('Login: JWT_SECRET is not set — cannot issue tokens');
+    return res.status(500).json({ message: 'Server configuration error' });
+  }
 
-    if (!email || !password) {
+  try {
+    const body = req.body;
+    if (!body || typeof body !== 'object') {
+      return res.status(400).json({
+        message: 'Send JSON body with Content-Type: application/json (email and password)',
+      });
+    }
+
+    const { email, password } = body as { email?: unknown; password?: unknown };
+
+    if (!email || !password || typeof email !== 'string' || typeof password !== 'string') {
       return res.status(400).json({ message: 'Field email and password are required or invalid' });
     }
 
@@ -36,7 +48,12 @@ export default async function handler(
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    // Verify password
+    // Verify password (avoid 500 if account has no password hash, e.g. OAuth-only)
+    if (typeof user.password !== 'string' || !user.password) {
+      console.log(`Login attempt failed: No password set for email: ${emailNorm}`);
+      return res.status(401).json({ message: 'Invalid credentials' });
+    }
+
     const isValid = await bcrypt.compare(password, user.password);
     if (!isValid) {
       console.log(`Login attempt failed: Invalid password for email: ${emailNorm}`);
@@ -77,8 +94,9 @@ export default async function handler(
         status: userStatus,
       },
     });
-  } catch (error: any) {
-    console.error('Login error:', error);
+  } catch (error: unknown) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    console.error('Login error:', err.message, err.stack);
     res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }
