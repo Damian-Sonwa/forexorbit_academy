@@ -5,8 +5,25 @@
 
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
 
-// Use NEXT_PUBLIC_API_BASE_URL if set (for Render backend), otherwise default to relative /api (Vercel)
-const API_URL = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || '/api';
+/**
+ * Next.js API routes live under `/api`. If the env is `https://host.onrender.com` without `/api`,
+ * axios would call `/auth/login` and get 404 — normalize to `https://host.onrender.com/api`.
+ */
+function normalizeApiBaseUrl(raw: string): string {
+  const t = raw.trim().replace(/\/+$/, '');
+  if (!t) return '/api';
+  if (t === '/api') return '/api';
+  if (/^https?:\/\//i.test(t)) {
+    if (t.endsWith('/api')) return t;
+    return `${t}/api`;
+  }
+  return t.startsWith('/') ? t : `/${t}`;
+}
+
+// Use NEXT_PUBLIC_API_BASE_URL if set (for Render backend), otherwise default to relative /api (same-origin)
+const API_URL = normalizeApiBaseUrl(
+  process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || '/api'
+);
 
 class ApiClient {
   private client: AxiosInstance;

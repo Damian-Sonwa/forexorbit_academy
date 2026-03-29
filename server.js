@@ -88,8 +88,7 @@ app.prepare().then(async () => {
   const allowedOrigins = process.env.ALLOWED_ORIGINS 
     ? process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim())
     : [
-        'https://forexorbit-academy11.vercel.app',
-        'https://forexorbit-academy001.vercel.app',
+        
         'https://forexorbit-academy.vercel.app',
         'https://forexorbit-academy.onrender.com',
         // Allow any Vercel preview URLs
