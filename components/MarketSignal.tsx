@@ -10,6 +10,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function MarketSignal() {
+  const { isAuthenticated } = useAuth();
   const { marketSignal, connected } = useSocket();
   const [signalHistory, setSignalHistory] = useState<Array<{ time: string; price: number }>>([]);
 
