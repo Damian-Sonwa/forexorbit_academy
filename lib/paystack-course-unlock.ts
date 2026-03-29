@@ -146,14 +146,101 @@ export async function persistCourseUnlockFromPaystackData(
   return { ok: true, alreadyHadAccess: false, duplicateReference: false };
 }
 
+/** Paystack may return metadata values as strings or numbers — normalize to strings. */
+function flattenPaystackMetadata(
+  raw: Record<string, unknown> | null | undefined
+): Record<string, string | undefined> {
+  const out: Record<string, string | undefined> = {};
+  if (!raw || typeof raw !== 'object') return out;
+  for (const [k, v] of Object.entries(raw)) {
+    if (v == null) continue;
+    out[k] = typeof v === 'string' ? v : String(v);
+  }
+  return out;
+}
+
+/**
+ * If Paystack did not echo userId/courseId (legacy checkouts), fill from our intent or payment row
+ * for this reference — only when the row belongs to the logged-in user (verify path).
+ */
+async function enrichMetadataFromDbForVerify(
+  db: Db,
+  reference: string,
+  meta: Record<string, string | undefined>,
+  sessionUserId: string
+): Promise<Record<string, string | undefined>> {
+  const hasUser = meta.userId?.trim();
+  const hasCourse = meta.courseId?.trim();
+  if (hasUser && hasCourse) return meta;
+
+  const intents = db.collection(PAYSTACK_INTENTS_COLLECTION);
+  const payments = db.collection(PAYSTACK_PAYMENTS_COLLECTION);
+
+  const intent = await intents.findOne({
+    reference,
+    userId: sessionUserId,
+    kind: 'course',
+  });
+  const row =
+    intent ||
+    (await payments.findOne({
+      reference,
+      userId: sessionUserId,
+      kind: 'course',
+    }));
+
+  if (!row) return meta;
+
+  log('verify', 'enriched metadata from DB (Paystack metadata missing userId/courseId)', { reference });
+
+  return {
+    ...meta,
+    userId: hasUser || String(row.userId),
+    courseId: hasCourse || String(row.courseId),
+    unlockCourse: meta.unlockCourse?.trim() || 'true',
+  };
+}
+
+/**
+ * Webhook: Paystack signature proves the payload — we can fill userId/courseId from our DB by reference.
+ */
+async function enrichMetadataFromDbForWebhook(
+  db: Db,
+  reference: string,
+  meta: Record<string, string | undefined>
+): Promise<Record<string, string | undefined>> {
+  const hasUser = meta.userId?.trim();
+  const hasCourse = meta.courseId?.trim();
+  if (hasUser && hasCourse) return meta;
+
+  const intents = db.collection(PAYSTACK_INTENTS_COLLECTION);
+  const payments = db.collection(PAYSTACK_PAYMENTS_COLLECTION);
+
+  const intent = await intents.findOne({ reference, kind: 'course' });
+  const row = intent || (await payments.findOne({ reference, kind: 'course' }));
+
+  if (!row) return meta;
+
+  log('webhook', 'enriched metadata from DB (Paystack metadata incomplete)', { reference });
+
+  return {
+    ...meta,
+    userId: hasUser || String(row.userId),
+    courseId: hasCourse || String(row.courseId),
+    unlockCourse: meta.unlockCourse?.trim() || 'true',
+  };
+}
+
 function validateTransactionData(
   d: PaystackVerifyData,
-  expectedCourseId: string
+  expectedCourseId: string,
+  metaOverride?: Record<string, string | undefined>
 ): { ok: true; courseId: string } | { ok: false; message: string } {
   if (d.status !== 'success') {
     return { ok: false, message: 'Payment was not successful' };
   }
-  const meta = (d.metadata || {}) as Record<string, string | undefined>;
+  const meta =
+    metaOverride ?? ((d.metadata || {}) as Record<string, string | undefined>);
   const courseId = meta.courseId != null ? String(meta.courseId).trim() : '';
   const metaUserId = meta.userId != null ? String(meta.userId).trim() : '';
   const lessonId = meta.lessonId != null ? String(meta.lessonId).trim() : '';
@@ -263,7 +350,9 @@ export async function verifyPaymentReferenceForUser(
   }
 
   const d = verify.data;
-  const meta = (d.metadata || {}) as Record<string, string | undefined>;
+
+  let meta = flattenPaystackMetadata(d.metadata as Record<string, unknown> | null | undefined);
+  meta = await enrichMetadataFromDbForVerify(db, ref, meta, authUser.userId);
 
   const resolved = await resolveCoursePurchaseFromMetadata(db, meta, {
     sessionUserId: authUser.userId,
@@ -274,7 +363,7 @@ export async function verifyPaymentReferenceForUser(
 
   const { userId: userIdFromMeta, courseId: courseIdFromMeta } = resolved;
 
-  const validated = validateTransactionData(d, courseIdFromMeta);
+  const validated = validateTransactionData(d, courseIdFromMeta, meta);
   if (!validated.ok) {
     return { ok: false, status: 400, message: validated.message };
   }
@@ -315,7 +404,12 @@ export async function unlockCourseFromWebhookPayload(
     return { ok: false, message: 'Transaction not successful' };
   }
 
-  const meta = (d.metadata || {}) as Record<string, string | undefined>;
+  const payRef = d.reference?.trim() || '';
+  let meta = flattenPaystackMetadata(d.metadata as Record<string, unknown> | null | undefined);
+  if (payRef) {
+    meta = await enrichMetadataFromDbForWebhook(db, payRef, meta);
+  }
+
   const lessonId = meta.lessonId != null ? String(meta.lessonId).trim() : '';
   if (lessonId) {
     log('webhook', 'skip — lesson payment (not full course)', { reference: d.reference });
@@ -344,7 +438,6 @@ export async function unlockCourseFromWebhookPayload(
     return { ok: false, message: 'Amount mismatch' };
   }
 
-  const payRef = d.reference?.trim() || '';
   if (!payRef) {
     log('webhook', 'FAILED missing reference', {});
     return { ok: false, message: 'Missing transaction reference' };

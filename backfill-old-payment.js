@@ -146,7 +146,9 @@ async function backfillOldPayment() {
       status: 'success',
       amountKobo,
       currency,
-      paystackCustomerEmail: typeof user.email === 'string' ? user.email : undefined,
+      paystackCustomerEmail:
+        typeof user.email === 'string' ? user.email.trim().toLowerCase() : undefined,
+      metadata: { userId: userOid, courseId: courseOid },
       source: source,
       createdAt: now,
     });
