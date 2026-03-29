@@ -1,41 +1,42 @@
 /**
  * GET /api/health
- * Lightweight diagnostics for deployment (no secrets exposed).
+ * Uses server/health.js checkMongo() (standalone MongoClient ping).
  */
 
 import type { NextApiRequest, NextApiResponse } from 'next';
+
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { checkMongo } = require('../../server/health') as { checkMongo: () => Promise<boolean> };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
     return res.status(405).json({ ok: false, message: 'Method not allowed' });
   }
 
-  const mongoEnv = Boolean(process.env.MONGO_URI?.trim() || process.env.MONGODB_URI?.trim());
-  const jwtEnv = Boolean(process.env.JWT_SECRET?.trim());
-  let dbPing = false;
-  let dbError: string | undefined;
+  const databasePing = await checkMongo();
+  const mongoEnvConfigured = Boolean(
+    process.env.MONGO_URI?.trim() || process.env.MONGODB_URI?.trim()
+  );
+  const jwtSecretConfigured = Boolean(process.env.JWT_SECRET?.trim());
 
-  try {
-    const { getDb } = await import('@/lib/mongodb');
-    const db = await getDb();
-    await db.command({ ping: 1 });
-    dbPing = true;
-  } catch (e: unknown) {
-    dbError = e instanceof Error ? e.message : String(e);
+  let hint: string | null = null;
+  if (!databasePing) {
+    hint = 'Fix MONGO_URI / MONGODB_URI and IP allowlist (Atlas).';
+  } else if (!jwtSecretConfigured) {
+    hint = 'Set JWT_SECRET on the host (e.g. Render env vars).';
   }
 
-  const ok = mongoEnv && jwtEnv && dbPing;
+  const healthy = databasePing && jwtSecretConfigured && mongoEnvConfigured;
 
-  return res.status(ok ? 200 : 503).json({
-    ok,
+  return res.status(healthy ? 200 : 503).json({
+    ok: databasePing,
     checks: {
-      mongoEnvConfigured: mongoEnv,
-      jwtSecretConfigured: jwtEnv,
-      databasePing: dbPing,
+      mongoEnvConfigured,
+      jwtSecretConfigured,
+      databasePing,
     },
     nodeEnv: process.env.NODE_ENV || 'development',
-    ...(dbError && !dbPing ? { hint: 'Fix MONGO_URI / MONGODB_URI and IP allowlist (Atlas).' } : {}),
-    ...(!jwtEnv ? { hint: 'Set JWT_SECRET on the host (Render env vars).' } : {}),
+    hint,
     timestamp: new Date().toISOString(),
   });
 }
