@@ -1,6 +1,8 @@
 /**
  * POST /api/paystack/webhook
- * Paystack webhook — verify HMAC signature, handle charge.success, unlock course.
+ * Paystack webhook — raw JSON body.
+ * - Development: signature check skipped (local/ngrok testing).
+ * - Production: HMAC-SHA512 of raw body vs x-paystack-signature using PAYSTACK_SECRET_KEY.
  */
 
 import type { NextApiRequest, NextApiResponse } from 'next';
@@ -27,16 +29,23 @@ function getRawBody(req: NextApiRequest): Promise<Buffer> {
   });
 }
 
+function verifyPaystackSignature(rawBody: Buffer, secret: string, signatureHeader: string | undefined): boolean {
+  if (!signatureHeader) return false;
+  const hash = crypto.createHmac('sha512', secret).update(rawBody).digest('hex');
+  if (hash.length !== signatureHeader.length) return false;
+  try {
+    return crypto.timingSafeEqual(Buffer.from(hash, 'utf8'), Buffer.from(signatureHeader, 'utf8'));
+  } catch {
+    return false;
+  }
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ message: 'Method not allowed' });
   }
 
-  const secret = process.env.PAYSTACK_SECRET_KEY?.trim();
-  if (!secret || !isPaystackConfigured()) {
-    console.error('[paystack-webhook] secret not configured');
-    return res.status(503).json({ message: 'Webhook not configured' });
-  }
+  const isProduction = process.env.NODE_ENV === 'production';
 
   let rawBody: Buffer;
   try {
@@ -46,17 +55,31 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ message: 'Invalid body' });
   }
 
-  const signature = (req.headers['x-paystack-signature'] as string) || '';
-  const hash = crypto.createHmac('sha512', secret).update(rawBody).digest('hex');
+  const secret = process.env.PAYSTACK_SECRET_KEY?.trim();
 
-  if (!signature || hash !== signature) {
-    console.error('[paystack-webhook] INVALID signature', { hasSig: Boolean(signature) });
-    return res.status(400).json({ message: 'Invalid signature' });
+  if (isProduction) {
+    if (!secret || !isPaystackConfigured()) {
+      console.error('[paystack-webhook] PAYSTACK_SECRET_KEY not configured in production');
+      return res.status(503).json({ message: 'Webhook not configured' });
+    }
+
+    const signature = req.headers['x-paystack-signature'] as string | undefined;
+    if (!verifyPaystackSignature(rawBody, secret, signature)) {
+      console.error('[paystack-webhook] Invalid signature — unauthorized');
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+  } else {
+    console.warn(
+      '[paystack-webhook] DEV: Paystack signature verification skipped (NODE_ENV !== production). Do not use in production.'
+    );
+    if (!secret) {
+      console.warn('[paystack-webhook] DEV: PAYSTACK_SECRET_KEY missing — unlock still runs if payload is valid');
+    }
   }
 
-  let payload: { event?: string; data?: PaystackVerifyData };
+  let payload: { event?: string; data?: PaystackVerifyData & { customer?: { email?: string }; metadata?: Record<string, unknown> } };
   try {
-    payload = JSON.parse(rawBody.toString('utf8')) as { event?: string; data?: PaystackVerifyData };
+    payload = JSON.parse(rawBody.toString('utf8')) as typeof payload;
   } catch {
     console.error('[paystack-webhook] invalid JSON');
     return res.status(400).json({ message: 'Invalid JSON' });
@@ -73,17 +96,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json({ received: true });
   }
 
+  const reference = data.reference;
+  const customer = data.customer as { email?: string } | undefined;
+  const metadata = (data.metadata || {}) as Record<string, unknown>;
+  const email = customer?.email;
+  const courseId = metadata?.courseId != null ? String(metadata.courseId) : undefined;
+  console.log('[paystack-webhook] charge.success', { reference, email, courseId });
+
   try {
     const db = await getDb();
-    const result = await unlockCourseFromWebhookPayload(db, data);
+    const result = await unlockCourseFromWebhookPayload(db, data as PaystackVerifyData);
     if (!result.ok) {
       console.warn('[paystack-webhook] unlock skipped or failed', result.message);
     } else {
-      console.log('[paystack-webhook] unlock ok', { reference: data.reference });
+      console.log('[paystack-webhook] course unlock processed', { reference: data.reference });
     }
     return res.status(200).json({ received: true });
-  } catch (e) {
-    console.error('[paystack-webhook] handler error', e);
-    return res.status(500).json({ message: 'Processing error' });
+  } catch (e: unknown) {
+    const err = e instanceof Error ? e : new Error(String(e));
+    console.error('[paystack-webhook] handler error', err);
+    return res.status(500).json({ error: 'Internal server error', details: err.message });
   }
 }
