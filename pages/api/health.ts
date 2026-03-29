@@ -2,7 +2,7 @@
  * GET /api/health
  *
  * Default: **instant** — only env flags (no Mongo call). Safe for probes / curl.
- * Deep:   GET /api/health?deep=1 — runs Mongo ping with driver timeouts + 10s hard deadline.
+ * Deep:   GET /api/health?deep=1 — pings Mongo via the shared connection (getDb), not a new client.
  */
 
 import type { NextApiRequest, NextApiResponse } from 'next';
@@ -41,7 +41,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
   }
 
-  const databasePing = await checkMongoWithDeadline(10_000);
+  let databasePing: boolean | null = null;
+
+  if (mongoEnvConfigured) {
+    try {
+      const { getDb } = await import('@/lib/mongodb');
+      const db = await getDb();
+      databasePing = await checkMongoWithDeadline(10_000, db);
+    } catch (e) {
+      console.error('[health deep]', e instanceof Error ? e.message : e);
+      databasePing = false;
+    }
+  } else {
+    databasePing = false;
+  }
 
   let hint: string | null = null;
   if (!databasePing) {

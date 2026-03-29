@@ -1,36 +1,17 @@
 /**
- * Shared MongoDB check for plain Node scripts (e.g. node -e "require('./server/health')").
- * Same timeouts as lib/check-mongo.ts — keep in sync if you change limits.
+ * Shared MongoDB ping for plain Node scripts.
+ * Pass an already-connected DB from your MongoClient (do not open a new client per ping).
  */
 
-const { MongoClient } = require('mongodb');
-
-const CLIENT_OPTS = {
-  serverSelectionTimeoutMS: 8000,
-  connectTimeoutMS: 8000,
-};
-
-async function checkMongo() {
-  const uri = (process.env.MONGO_URI || process.env.MONGODB_URI || '').trim();
-  if (!uri) return false;
-
-  let client;
+async function checkMongo(existingDb) {
   try {
-    client = new MongoClient(uri, CLIENT_OPTS);
-    await client.connect();
-    await client.db().command({ ping: 1 });
+    if (!existingDb) return false;
+
+    await existingDb.command({ ping: 1 });
     return true;
   } catch (e) {
-    console.error('DB ping failed', e instanceof Error ? e.message : e);
+    console.error('DB ping failed', e.message);
     return false;
-  } finally {
-    if (client) {
-      try {
-        await client.close();
-      } catch {
-        /* ignore */
-      }
-    }
   }
 }
 
