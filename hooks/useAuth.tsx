@@ -73,12 +73,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     
     try {
-      const response = await apiClient.post<{ token: string; user: User }>('/auth/login', {
+      const response = await apiClient.post<{ token?: string; user: User }>('/auth/login', {
         email: normalizedEmail,
         password,
       });
 
-      localStorage.setItem('token', response.token);
+      const token =
+        response?.token != null && typeof response.token === 'string' ? response.token.trim() : '';
+      if (!token) {
+        throw new Error('Login did not return a token. Check the server logs and JWT_SECRET.');
+      }
+      localStorage.setItem('token', token);
       // Fetch full user data including onboarding status
       const userData = await apiClient.get<User>('/auth/me');
       const fullUser: User = { ...response.user, ...userData };

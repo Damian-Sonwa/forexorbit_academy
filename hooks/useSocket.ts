@@ -1,14 +1,30 @@
 /**
  * useSocket Hook
- * Manages Socket.io connection and real-time events
+ * Manages Socket.io connection and real-time events.
+ * Connects only after auth is ready and the user is logged in (avoids "No token" noise and matches server JWT gate).
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
+import { useAuth } from '@/hooks/useAuth';
+
+const SOCKET_PATH = '/api/socket';
 
 const getSocketUrl = (): string => {
   const fromEnv = process.env.NEXT_PUBLIC_SOCKET_URL?.trim();
-  if (fromEnv) return fromEnv;
+  if (fromEnv) return fromEnv.replace(/\/$/, '');
+
+  const apiBase =
+    process.env.NEXT_PUBLIC_API_BASE_URL?.trim() ||
+    process.env.NEXT_PUBLIC_API_URL?.trim();
+  if (apiBase && /^https?:\/\//i.test(apiBase)) {
+    try {
+      return new URL(apiBase).origin;
+    } catch {
+      /* fall through */
+    }
+  }
+
   if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'production') {
     return window.location.origin;
   }
@@ -16,6 +32,7 @@ const getSocketUrl = (): string => {
 };
 
 export function useSocket() {
+  const { isAuthenticated, loading: authLoading } = useAuth();
   const [socket, setSocket] = useState<Socket | null>(null);
   const [connected, setConnected] = useState(false);
   const [marketSignal, setMarketSignal] = useState<any>(null);
@@ -24,11 +41,17 @@ export function useSocket() {
   useEffect(() => {
     // Only run on client side
     if (typeof window === 'undefined') return;
-    
-    // Get token from localStorage
-    const token = localStorage.getItem('token');
+
+    // Wait for AuthProvider to hydrate; only connect when logged in (token present + user session).
+    if (authLoading) return;
+    if (!isAuthenticated) {
+      setConnected(false);
+      setSocket(null);
+      return;
+    }
+
+    const token = localStorage.getItem('token')?.trim();
     if (!token) {
-      console.log('No token found, skipping socket connection');
       return;
     }
 
@@ -44,7 +67,7 @@ export function useSocket() {
       // Initialize socket connection with production-ready configuration
       // Force websocket + polling fallback for Render/Vercel compatibility
       newSocket = io(socketUrl, {
-        path: '/api/socket',
+        path: SOCKET_PATH,
         auth: { token },
         transports: ['websocket', 'polling'], // Allow upgrade from polling → websocket
         reconnection: true,
@@ -126,7 +149,7 @@ export function useSocket() {
         socketRef.current = null;
       }
     };
-  }, []);
+  }, [authLoading, isAuthenticated]);
 
   const joinLesson = useCallback((lessonId: string) => {
     if (socket) {

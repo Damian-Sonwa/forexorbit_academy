@@ -1,6 +1,7 @@
 /**
  * POST /api/payments/paystack/init-course
  * Creates a Paystack intent to unlock all paid lessons in a course (one-time course payment).
+ * Client should send Paystack metadata: { userId, courseId } (from this response).
  */
 
 import type { NextApiResponse } from 'next';
@@ -59,6 +60,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
         amountKobo: getCoursePriceKobo(),
         currency: getPaystackCurrency(),
         email: req.user!.email,
+        userId: req.user!.userId,
         courseId,
       });
     }
@@ -85,6 +87,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
       amountKobo,
       currency,
       email: req.user!.email,
+      userId: req.user!.userId,
       courseId,
     });
   } catch (e) {

@@ -71,6 +71,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
         amountKobo: getLessonPriceKobo(),
         currency: getPaystackCurrency(),
         email: req.user!.email,
+        userId: req.user!.userId,
         lessonId,
         courseId,
       });
@@ -99,6 +100,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
       amountKobo,
       currency,
       email: req.user!.email,
+      userId: req.user!.userId,
       lessonId,
       courseId,
     });

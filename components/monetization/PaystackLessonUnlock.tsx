@@ -56,6 +56,8 @@ export function PaystackLessonUnlock({
             amountKobo: number;
             currency: string;
             email: string;
+            userId?: string;
+            courseId?: string;
             message?: string;
           }>('/payments/paystack/init-course', { courseId })
         : await apiClient.post<{
@@ -64,6 +66,8 @@ export function PaystackLessonUnlock({
             amountKobo: number;
             currency: string;
             email: string;
+            userId?: string;
+            courseId?: string;
             message?: string;
           }>('/payments/paystack/init-lesson', { lessonId });
 
@@ -96,8 +100,15 @@ export function PaystackLessonUnlock({
         currency: init.currency || 'NGN',
         ref: init.reference,
         metadata: isCourse
-          ? { courseId, unlockCourse: 'true' }
-          : { lessonId, courseId },
+          ? {
+              userId: init.userId ?? '',
+              courseId: init.courseId ?? courseId,
+            }
+          : {
+              userId: init.userId ?? '',
+              courseId: init.courseId ?? courseId,
+              lessonId: lessonId ?? '',
+            },
         callback: async (response: { reference: string }) => {
           setBusy(true);
           try {

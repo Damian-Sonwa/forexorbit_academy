@@ -62,6 +62,9 @@ export async function verifyCoursePaymentAndUnlock(
   }
 
   const meta = (d.metadata || {}) as Record<string, string>;
+  if (meta.userId !== undefined && String(meta.userId) !== userId) {
+    return { ok: false, status: 400, message: 'Metadata mismatch (user)' };
+  }
   if (meta.courseId !== undefined && String(meta.courseId) !== courseId) {
     return { ok: false, status: 400, message: 'Metadata mismatch (course)' };
   }

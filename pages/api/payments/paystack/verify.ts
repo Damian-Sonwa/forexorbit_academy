@@ -114,6 +114,9 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
     }
 
     const meta = (d.metadata || {}) as Record<string, string>;
+    if (meta.userId !== undefined && String(meta.userId) !== req.user!.userId) {
+      return res.status(400).json({ message: 'Metadata mismatch (user)' });
+    }
     if (meta.lessonId !== undefined && String(meta.lessonId) !== lessonId) {
       return res.status(400).json({ message: 'Metadata mismatch (lesson)' });
     }

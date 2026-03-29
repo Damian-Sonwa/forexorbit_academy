@@ -19,10 +19,6 @@ import {
 
 export type UnlockSource = 'verify-api' | 'webhook';
 
-function normEmail(e: string | undefined | null): string {
-  return typeof e === 'string' ? e.trim().toLowerCase() : '';
-}
-
 function log(prefix: string, msg: string, extra?: Record<string, unknown>) {
   const line = `[paystack-unlock] ${prefix} ${msg}`;
   if (extra) console.log(line, extra);
@@ -159,12 +155,17 @@ function validateTransactionData(
   }
   const meta = (d.metadata || {}) as Record<string, string | undefined>;
   const courseId = meta.courseId != null ? String(meta.courseId).trim() : '';
+  const metaUserId = meta.userId != null ? String(meta.userId).trim() : '';
+  const lessonId = meta.lessonId != null ? String(meta.lessonId).trim() : '';
   const unlockCourse = meta.unlockCourse === 'true' || meta.unlockCourse === '1';
+  /** Full course checkout: explicit flag, or { userId, courseId } without lesson unlock. */
+  const isCoursePurchase =
+    Boolean(lessonId) === false && (unlockCourse || (Boolean(metaUserId) && Boolean(courseId)));
   if (!courseId) {
     return { ok: false, message: 'Missing courseId in payment metadata' };
   }
-  if (!unlockCourse) {
-    return { ok: false, message: 'Payment metadata does not mark a course unlock' };
+  if (!isCoursePurchase) {
+    return { ok: false, message: 'Payment metadata does not mark a course purchase' };
   }
   if (courseId !== expectedCourseId) {
     return { ok: false, message: 'courseId in metadata does not match' };
@@ -178,7 +179,59 @@ function validateTransactionData(
 }
 
 /**
- * GET /api/verify-payment/:reference — authenticated user; email must match Paystack customer.
+ * From Paystack metadata: { userId, courseId } → load user + course (Mongo driver, not Mongoose).
+ * Optional sessionUserId ensures verify-payment only completes for the logged-in purchaser.
+ */
+async function resolveCoursePurchaseFromMetadata(
+  db: Db,
+  meta: Record<string, string | undefined>,
+  options?: { sessionUserId?: string }
+): Promise<{ ok: true; userId: string; courseId: string } | { ok: false; status: number; message: string }> {
+  const userId = meta.userId != null ? String(meta.userId).trim() : '';
+  const courseId = meta.courseId != null ? String(meta.courseId).trim() : '';
+
+  if (!userId || !courseId) {
+    return { ok: false, status: 400, message: 'Missing userId or courseId in payment metadata' };
+  }
+  if (options?.sessionUserId !== undefined && userId !== options.sessionUserId) {
+    return {
+      ok: false,
+      status: 403,
+      message: 'This payment belongs to another account. Sign in as the purchaser or contact support.',
+    };
+  }
+
+  let userOid: ObjectId;
+  try {
+    userOid = new ObjectId(userId);
+  } catch {
+    return { ok: false, status: 400, message: 'Invalid userId in payment metadata' };
+  }
+  let courseOid: ObjectId;
+  try {
+    courseOid = new ObjectId(courseId);
+  } catch {
+    return { ok: false, status: 400, message: 'Invalid courseId in payment metadata' };
+  }
+
+  const user = await db.collection('users').findOne({ _id: userOid });
+  if (!user?._id) {
+    log('resolve', 'User not found', { userId });
+    return { ok: false, status: 404, message: 'User not found' };
+  }
+
+  const course = await db.collection('courses').findOne({ _id: courseOid });
+  if (!course) {
+    log('resolve', 'Course not found', { courseId });
+    return { ok: false, status: 404, message: 'Course not found' };
+  }
+
+  return { ok: true, userId: String(user._id), courseId };
+}
+
+/**
+ * GET /api/verify-payment/:reference — authenticated user; metadata userId must match session
+ * and resolve to a real user (no email matching).
  */
 export async function verifyPaymentReferenceForUser(
   db: Db,
@@ -210,42 +263,24 @@ export async function verifyPaymentReferenceForUser(
   }
 
   const d = verify.data;
-  const payEmail = normEmail(d.customer?.email);
-  const userEmail = normEmail(authUser.email);
-  if (!payEmail || payEmail !== userEmail) {
-    log('verify', 'FAILED email mismatch', { payEmail, userEmail });
-    return {
-      ok: false,
-      status: 403,
-      message: 'Payment email does not match your account. Use the same email you paid with, or contact support.',
-    };
+  const meta = (d.metadata || {}) as Record<string, string | undefined>;
+
+  const resolved = await resolveCoursePurchaseFromMetadata(db, meta, {
+    sessionUserId: authUser.userId,
+  });
+  if (!resolved.ok) {
+    return { ok: false, status: resolved.status, message: resolved.message };
   }
 
-  const meta = (d.metadata || {}) as Record<string, string | undefined>;
-  const courseIdFromMeta = meta.courseId != null ? String(meta.courseId).trim() : '';
-  if (!courseIdFromMeta) {
-    return { ok: false, status: 400, message: 'Missing courseId in payment metadata' };
-  }
+  const { userId: userIdFromMeta, courseId: courseIdFromMeta } = resolved;
 
   const validated = validateTransactionData(d, courseIdFromMeta);
   if (!validated.ok) {
     return { ok: false, status: 400, message: validated.message };
   }
 
-  let oid: ObjectId;
-  try {
-    oid = new ObjectId(courseIdFromMeta);
-  } catch {
-    return { ok: false, status: 400, message: 'Invalid courseId in metadata' };
-  }
-
-  const course = await db.collection('courses').findOne({ _id: oid });
-  if (!course) {
-    return { ok: false, status: 404, message: 'Course not found' };
-  }
-
   const persist = await persistCourseUnlockFromPaystackData(db, {
-    userId: authUser.userId,
+    userId: userIdFromMeta,
     courseId: courseIdFromMeta,
     reference: d.reference || ref,
     amountKobo: d.amount,
@@ -269,7 +304,7 @@ export async function verifyPaymentReferenceForUser(
 }
 
 /**
- * Webhook: find user by email and unlock course from verified payload (caller verifies signature).
+ * Webhook: resolve user from metadata.userId and unlock course (caller verifies signature).
  */
 export async function unlockCourseFromWebhookPayload(
   db: Db,
@@ -281,12 +316,27 @@ export async function unlockCourseFromWebhookPayload(
   }
 
   const meta = (d.metadata || {}) as Record<string, string | undefined>;
-  const courseId = meta.courseId != null ? String(meta.courseId).trim() : '';
-  const unlockCourse = meta.unlockCourse === 'true' || meta.unlockCourse === '1';
-  if (!courseId || !unlockCourse) {
-    log('webhook', 'skip — not a course unlock', { reference: d.reference });
+  const lessonId = meta.lessonId != null ? String(meta.lessonId).trim() : '';
+  if (lessonId) {
+    log('webhook', 'skip — lesson payment (not full course)', { reference: d.reference });
     return { ok: false, message: 'Not a course unlock payment' };
   }
+
+  const unlockCourse = meta.unlockCourse === 'true' || meta.unlockCourse === '1';
+  const metaUserId = meta.userId != null ? String(meta.userId).trim() : '';
+  const courseIdMeta = meta.courseId != null ? String(meta.courseId).trim() : '';
+  const isCoursePurchase = unlockCourse || (Boolean(metaUserId) && Boolean(courseIdMeta));
+  if (!courseIdMeta || !isCoursePurchase) {
+    log('webhook', 'skip — not a course purchase', { reference: d.reference });
+    return { ok: false, message: 'Not a course unlock payment' };
+  }
+
+  const resolved = await resolveCoursePurchaseFromMetadata(db, meta);
+  if (!resolved.ok) {
+    return { ok: false, message: resolved.message };
+  }
+
+  const { userId, courseId } = resolved;
 
   const expectedKobo = getCoursePriceKobo();
   if (d.amount !== expectedKobo) {
@@ -294,37 +344,13 @@ export async function unlockCourseFromWebhookPayload(
     return { ok: false, message: 'Amount mismatch' };
   }
 
-  let oid: ObjectId;
-  try {
-    oid = new ObjectId(courseId);
-  } catch {
-    return { ok: false, message: 'Invalid courseId' };
-  }
-
-  const course = await db.collection('courses').findOne({ _id: oid });
-  if (!course) {
-    return { ok: false, message: 'Course not found' };
-  }
-
-  const email = normEmail(d.customer?.email);
-  if (!email) {
-    log('webhook', 'FAILED no customer email', { reference: d.reference });
-    return { ok: false, message: 'No customer email on transaction' };
-  }
-
-  const user = await db.collection('users').findOne({ email });
-  if (!user || !user._id) {
-    log('webhook', 'FAILED user not found for email', { email });
-    return { ok: false, message: 'No user account for this email' };
-  }
-
-  const userId = String(user._id);
   const payRef = d.reference?.trim() || '';
   if (!payRef) {
     log('webhook', 'FAILED missing reference', {});
     return { ok: false, message: 'Missing transaction reference' };
   }
 
+  // Idempotent: purchase + access rows (see persistCourseUnlockFromPaystackData)
   const persist = await persistCourseUnlockFromPaystackData(db, {
     userId,
     courseId,

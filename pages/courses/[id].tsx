@@ -79,13 +79,19 @@ export default function CourseDetailPage() {
         }
 
         const ref = `fo_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+        const userId = user?.id?.trim();
+        if (!userId) {
+          alert('Your account ID is missing. Sign in again before paying.');
+          return;
+        }
+        const courseIdForMeta = String(course?._id ?? course?.id ?? courseId).trim();
         const handler = PaystackPop.setup({
           key: publicKey,
           email: payEmail,
           amount: parseInt(process.env.NEXT_PUBLIC_PAYSTACK_COURSE_PRICE_KOBO || '500000', 10) || 500000,
           currency: 'NGN',
           ref,
-          metadata: { courseId, unlockCourse: 'true' },
+          metadata: { userId, courseId: courseIdForMeta },
           callback: function (response: { reference?: string }) {
             console.log('Payment success:', response);
             const paymentRef = response.reference || ref;
@@ -123,7 +129,7 @@ export default function CourseDetailPage() {
         alert('Could not start payment. Check console.');
       }
     },
-    [isAuthenticated, user?.email, router, refetchLessons, refetchCourse]
+    [isAuthenticated, user?.email, user?.id, course?._id, course?.id, router, refetchLessons, refetchCourse]
   );
 
   const handleManualVerify = useCallback(async () => {

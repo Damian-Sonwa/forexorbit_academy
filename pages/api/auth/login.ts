@@ -84,8 +84,14 @@ export default async function handler(
       role: tokenRole as 'superadmin' | 'admin' | 'instructor' | 'student',
     });
 
-    res.json({
-      token,
+    if (!token || typeof token !== 'string' || !token.trim()) {
+      console.error('Login: generateToken returned an empty token');
+      return res.status(500).json({ message: 'Could not issue session token' });
+    }
+
+    // Frontend + Socket.io expect a JWT in `token` (see useAuth / useSocket).
+    return res.status(200).json({
+      token: token.trim(),
       user: {
         id: user._id.toString(),
         email: user.email,

@@ -4,7 +4,9 @@
  */
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useSocket } from '@/hooks/useSocket';
+import { useAuth } from '@/hooks/useAuth';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function MarketSignal() {
@@ -23,6 +25,18 @@ export default function MarketSignal() {
       });
     }
   }, [marketSignal]);
+
+  if (!isAuthenticated) {
+    return (
+      <div className="card">
+        <h3 className="text-lg font-semibold mb-4">Market Signals</h3>
+        <p className="text-gray-500 text-sm mb-3">Sign in to stream live market data.</p>
+        <Link href="/login" className="text-primary-600 text-sm font-medium hover:underline">
+          Log in
+        </Link>
+      </div>
+    );
+  }
 
   if (!connected) {
     return (
