@@ -29,6 +29,8 @@ export default function CourseDetailPage() {
   const { isAuthenticated, user } = useAuth();
   const [enrolling, setEnrolling] = useState(false);
   const [paid, setPaid] = useState(false);
+  const [verifyBusy, setVerifyBusy] = useState(false);
+  const [fixRef, setFixRef] = useState('');
 
   useEffect(() => {
     if (typeof id === 'string' && readCoursePaidClient(id)) {
@@ -44,53 +46,115 @@ export default function CourseDetailPage() {
   );
 
   /**
-   * Paystack: callback MUST be function(response) { ... } to avoid "Attribute callback must be a valid function".
-   * IMPORTANT: Never use onClick={handlePay(courseId)} — it runs on render and breaks everything.
-   * Always use: onClick={() => handlePay(courseId)}
+   * Paystack: callback MUST be function(response) { ... }.
+   * After Paystack reports success, server verifies via GET /api/verify-payment/:reference (secret never on client).
    */
-  const handlePay = useCallback(async (courseId: string) => {
-    if (!courseId?.trim()) return;
+  const handlePay = useCallback(
+    async (courseId: string) => {
+      if (!courseId?.trim()) return;
 
-    const publicKey = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY?.trim();
-    if (!publicKey) {
-      alert('Missing NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY in environment.');
-      return;
-    }
-
-    try {
-      await loadPaystackInline();
-      const PaystackPop = window.PaystackPop;
-      if (!PaystackPop) {
-        alert('Paystack script failed to load.');
+      if (!isAuthenticated) {
+        void router.push('/login');
         return;
       }
 
-      const ref = `fo_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-      const handler = PaystackPop.setup({
-        key: publicKey,
-        email: 'test@example.com',
-        amount: 5000 * 100, // ₦5,000
-        currency: 'NGN',
-        ref,
-        metadata: { courseId, unlockCourse: 'true' },
-        callback: function (response: { reference?: string }) {
-          console.log('Payment success:', response);
-          setPaid(true);
-          writeCoursePaidClient(courseId);
-        },
-        onClose: function () {
-          console.log('Payment closed');
-        },
-      });
-
-      if (typeof handler.openIframe === 'function') {
-        handler.openIframe();
+      const payEmail = user?.email?.trim().toLowerCase();
+      if (!payEmail) {
+        alert('Your account has no email. Update your profile before paying.');
+        return;
       }
-    } catch (e) {
-      console.error(e);
-      alert('Could not start payment. Check console.');
+
+      const publicKey = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY?.trim();
+      if (!publicKey) {
+        alert('Missing NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY in environment.');
+        return;
+      }
+
+      try {
+        await loadPaystackInline();
+        const PaystackPop = window.PaystackPop;
+        if (!PaystackPop) {
+          alert('Paystack script failed to load.');
+          return;
+        }
+
+        const ref = `fo_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+        const handler = PaystackPop.setup({
+          key: publicKey,
+          email: payEmail,
+          amount: parseInt(process.env.NEXT_PUBLIC_PAYSTACK_COURSE_PRICE_KOBO || '500000', 10) || 500000,
+          currency: 'NGN',
+          ref,
+          metadata: { courseId, unlockCourse: 'true' },
+          callback: function (response: { reference?: string }) {
+            console.log('Payment success:', response);
+            const paymentRef = response.reference || ref;
+            void (async () => {
+              try {
+                const data = await apiClient.get<{
+                  verified?: boolean;
+                  message?: string;
+                }>(`/verify-payment/${encodeURIComponent(paymentRef)}`);
+                if (data.verified) {
+                  setPaid(true);
+                  writeCoursePaidClient(courseId);
+                  await refetchLessons();
+                  await refetchCourse?.();
+                } else {
+                  alert(data.message || 'Could not verify payment.');
+                }
+              } catch (e: unknown) {
+                console.error('[verify-payment]', e);
+                const ax = e as { response?: { data?: { message?: string } } };
+                alert(ax.response?.data?.message || 'Payment verification failed. Use “Fix payment” with your reference or contact support.');
+              }
+            })();
+          },
+          onClose: function () {
+            console.log('Payment closed');
+          },
+        });
+
+        if (typeof handler.openIframe === 'function') {
+          handler.openIframe();
+        }
+      } catch (e) {
+        console.error(e);
+        alert('Could not start payment. Check console.');
+      }
+    },
+    [isAuthenticated, user?.email, router, refetchLessons, refetchCourse]
+  );
+
+  const handleManualVerify = useCallback(async () => {
+    const ref = fixRef.trim();
+    if (!ref || typeof id !== 'string') return;
+    if (!isAuthenticated) {
+      void router.push('/login');
+      return;
     }
-  }, []);
+    setVerifyBusy(true);
+    try {
+      const data = await apiClient.post<{ verified?: boolean; message?: string }>('/verify-payment/manual', {
+        reference: ref,
+      });
+      if (data.verified) {
+        setPaid(true);
+        writeCoursePaidClient(id);
+        await refetchLessons();
+        await refetchCourse?.();
+        setFixRef('');
+        alert('Payment verified. Course unlocked.');
+      } else {
+        alert(data.message || 'Verification failed.');
+      }
+    } catch (e: unknown) {
+      const ax = e as { response?: { data?: { message?: string } } };
+      alert(ax.response?.data?.message || 'Verification failed.');
+    } finally {
+      setVerifyBusy(false);
+    }
+  }, [fixRef, id, isAuthenticated, router, refetchLessons, refetchCourse]);
 
   // Redirect instructors to instructor course management page
   useEffect(() => {
@@ -271,6 +335,26 @@ export default function CourseDetailPage() {
                       >
                         Unlock full course – ₦5,000
                       </button>
+                      <p className="mt-3 text-xs text-gray-600 dark:text-gray-400">
+                        Paid but still locked? Enter your Paystack reference below.
+                      </p>
+                      <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
+                        <input
+                          type="text"
+                          value={fixRef}
+                          onChange={(e) => setFixRef(e.target.value)}
+                          placeholder="Paystack reference"
+                          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800"
+                        />
+                        <button
+                          type="button"
+                          disabled={verifyBusy || !fixRef.trim()}
+                          onClick={() => void handleManualVerify()}
+                          className="shrink-0 rounded-lg border border-primary-600 px-4 py-2 text-sm font-semibold text-primary-700 hover:bg-primary-50 disabled:opacity-50 dark:text-primary-300 dark:hover:bg-primary-950/40"
+                        >
+                          {verifyBusy ? 'Verifying…' : 'Fix payment'}
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>

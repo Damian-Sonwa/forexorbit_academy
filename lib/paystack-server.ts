@@ -4,7 +4,7 @@
 
 export type PaystackVerifyData = {
   status: string;
-  reference: string;
+  reference?: string;
   amount: number;
   currency: string;
   metadata?: Record<string, unknown> | null;

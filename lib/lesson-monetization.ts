@@ -14,6 +14,8 @@ export const USER_ACCESS_COLLECTION = 'userLessonAccess';
 export const USER_COURSE_ACCESS_COLLECTION = 'userCourseAccess';
 export const PAYSTACK_PAYMENTS_COLLECTION = 'paystackPayments';
 export const PAYSTACK_INTENTS_COLLECTION = 'paystackPaymentIntents';
+/** Denormalized course purchase rows (userId, courseId, reference, status) for reporting */
+export const COURSE_PURCHASES_COLLECTION = 'coursePurchases';
 
 export type MonetizationFlags = {
   unlocked: boolean;
@@ -105,14 +107,14 @@ export function getLessonPriceKobo(): number {
   return Number.isFinite(n) && n > 0 ? n : 300000;
 }
 
-/** One-time course unlock (defaults to lesson price if PAYSTACK_COURSE_PRICE_KOBO unset). */
+/** One-time course unlock (default ₦5,000 = 500000 kobo; override with PAYSTACK_COURSE_PRICE_KOBO). */
 export function getCoursePriceKobo(): number {
   const raw = process.env.PAYSTACK_COURSE_PRICE_KOBO?.trim();
   if (raw) {
     const n = parseInt(raw, 10);
     if (Number.isFinite(n) && n > 0) return n;
   }
-  return getLessonPriceKobo();
+  return 500000;
 }
 
 export function getPaystackCurrency(): string {
