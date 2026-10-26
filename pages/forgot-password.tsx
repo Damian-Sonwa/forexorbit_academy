@@ -1,0 +1,287 @@
+/**
+ * Forgot Password — phone + SMS OTP
+ */
+
+import React, { useState, useRef, useEffect } from 'react';
+import { useRouter } from 'next/router';
+import Link from 'next/link';
+import Header from '@/components/Header';
+import Footer from '@/components/Footer';
+import { apiClient } from '@/lib/api-client';
+
+const PWD_RESET_STORAGE = 'forexorbitPwdReset';
+
+type Step = 'phone' | 'otp';
+
+export default function ForgotPassword() {
+  const router = useRouter();
+  const [step, setStep] = useState<Step>('phone');
+  const [phone, setPhone] = useState('');
+  const [otp, setOtp] = useState('');
+  const [error, setError] = useState('');
+  const [info, setInfo] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [retryAfterSeconds, setRetryAfterSeconds] = useState(0);
+  const cooldownTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (cooldownTimerRef.current) clearInterval(cooldownTimerRef.current);
+    };
+  }, []);
+
+  const startCooldown = (seconds: number) => {
+    setRetryAfterSeconds(seconds);
+    if (cooldownTimerRef.current) clearInterval(cooldownTimerRef.current);
+    cooldownTimerRef.current = setInterval(() => {
+      setRetryAfterSeconds((prev) => {
+        if (prev <= 1) {
+          if (cooldownTimerRef.current) clearInterval(cooldownTimerRef.current);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  const handleSendCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setInfo('');
+    if (!phone.trim()) {
+      setError('Enter the phone number on your account');
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await apiClient.post<{
+        message: string;
+        cooldown?: number;
+        rateLimited?: boolean;
+        _devNote?: string;
+      }>('/auth/forgot-password', { phone: phone.trim() });
+
+      if (res._devNote) {
+        setInfo(res._devNote);
+      } else {
+        setInfo('If this number is registered, you should receive an SMS within a minute.');
+      }
+
+      if (typeof res.cooldown === 'number' && res.cooldown > 0) {
+        startCooldown(res.cooldown);
+      }
+
+      setStep('otp');
+    } catch (err: unknown) {
+      const ax = err as { response?: { data?: { error?: string } } };
+      setError(ax.response?.data?.error || 'Something went wrong. Try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResend = async () => {
+    if (retryAfterSeconds > 0 || loading) return;
+    setError('');
+    setInfo('');
+    setLoading(true);
+    try {
+      const res = await apiClient.post<{ message: string; cooldown?: number }>('/auth/forgot-password', {
+        phone: phone.trim(),
+      });
+      setInfo('Code sent again. Check your SMS.');
+      if (typeof res.cooldown === 'number' && res.cooldown > 0) {
+        startCooldown(res.cooldown);
+      }
+    } catch {
+      setError('Could not resend. Try again shortly.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setInfo('');
+    const code = otp.replace(/\s/g, '');
+    if (!/^\d{6}$/.test(code)) {
+      setError('Enter the 6-digit code from your SMS');
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await apiClient.post<{
+        message: string;
+        resetTicket: string;
+        resetSecret: string;
+      }>('/auth/verify-password-otp', { phone: phone.trim(), otp: code });
+
+      try {
+        sessionStorage.setItem(
+          PWD_RESET_STORAGE,
+          JSON.stringify({
+            resetTicket: res.resetTicket,
+            resetSecret: res.resetSecret,
+            expiresAt: Date.now() + 14 * 60 * 1000,
+          })
+        );
+      } catch {
+        setError('Your browser blocked storage. Allow session storage and try again.');
+        setLoading(false);
+        return;
+      }
+
+      setInfo(res.message);
+      await router.push('/reset-password');
+    } catch (err: unknown) {
+      const ax = err as {
+        response?: { data?: { error?: string; attemptsRemaining?: number; locked?: boolean } };
+      };
+      const d = ax.response?.data;
+      if (d?.attemptsRemaining != null) {
+        setError(`${d.error} (${d.attemptsRemaining} attempt(s) left)`);
+      } else {
+        setError(d?.error || 'Verification failed.');
+      }
+      if (d?.locked) {
+        setStep('phone');
+        setOtp('');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex flex-col">
+      <Header />
+
+      <main className="flex-1 flex items-center justify-center bg-neutral-50 py-8 sm:py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-48 h-48 sm:w-64 sm:h-64 opacity-10">
+          <svg viewBox="0 0 200 200" className="w-full h-full">
+            <path d="M50,50 Q100,0 150,50 T250,50" stroke="#E5E5E5" strokeWidth="2" fill="none" />
+            <path d="M30,100 Q100,50 170,100 T310,100" stroke="#E5E5E5" strokeWidth="2" fill="none" />
+          </svg>
+        </div>
+
+        <div className="max-w-md w-full relative z-10 animate-fade-in">
+          <div className="bg-white rounded-2xl shadow-soft p-6 sm:p-8 border border-neutral-200">
+            <div className="text-center mb-6 sm:mb-8">
+              <h2 className="text-white font-bold text-2xl sm:text-3xl mb-3 sm:mb-4">
+                {step === 'phone' ? 'Forgot password' : 'Enter verification code'}
+              </h2>
+              <p className="text-sm sm:text-base text-gray-300">
+                {step === 'phone'
+                  ? 'We’ll text a 6-digit code to the phone number on your account.'
+                  : `Code sent to your phone. It expires in 5 minutes.`}
+              </p>
+            </div>
+
+            {info && (
+              <div className="mb-4 p-3 bg-primary-900/40 border border-primary-600/50 rounded-xl">
+                <p className="text-neutral-500 text-sm text-center">{info}</p>
+              </div>
+            )}
+
+            {error && (
+              <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl">
+                <p className="text-red-700 text-sm">{error}</p>
+              </div>
+            )}
+
+            {step === 'phone' ? (
+              <form onSubmit={handleSendCode} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-semibold text-neutral-500 mb-2">Phone number</label>
+                  <input
+                    type="tel"
+                    inputMode="tel"
+                    autoComplete="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    required
+                    className="bg-white border border-neutral-300 text-neutral-900 rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary-400/50 focus:border-transparent w-full text-base placeholder:text-neutral-400"
+                    placeholder="+234 801 234 5678"
+                  />
+                  <p className="text-xs text-gray-400 mt-2">
+                    Use the same number you registered with. Include country code.
+                  </p>
+                </div>
+                <button
+                  type="submit"
+                  disabled={loading || !phone.trim()}
+                  className="bg-primary-600 hover:bg-primary-700 text-white w-full rounded-xl py-3 font-semibold transition-colors disabled:bg-primary-900/50 disabled:cursor-not-allowed min-h-[48px]"
+                >
+                  {loading ? 'Sending…' : 'Send code'}
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={handleVerifyOtp} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-semibold text-neutral-500 mb-2">6-digit code</label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="\d*"
+                    maxLength={8}
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    required
+                    className="bg-white border border-neutral-300 text-neutral-900 rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary-400/50 focus:border-transparent w-full text-center text-2xl tracking-[0.4em] font-mono placeholder:text-neutral-400"
+                    placeholder="••••••"
+                    autoComplete="one-time-code"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={loading || otp.length !== 6}
+                  className="bg-primary-600 hover:bg-primary-700 text-white w-full rounded-xl py-3 font-semibold transition-colors disabled:bg-primary-900/50 disabled:cursor-not-allowed min-h-[48px]"
+                >
+                  {loading ? 'Checking…' : 'Verify & continue'}
+                </button>
+                <div className="flex flex-col sm:flex-row gap-2 sm:justify-between sm:items-center pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStep('phone');
+                      setOtp('');
+                      setError('');
+                      setInfo('');
+                    }}
+                    className="text-sm text-gray-300 hover:text-white underline"
+                  >
+                    Change number
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleResend}
+                    disabled={retryAfterSeconds > 0 || loading}
+                    className="text-sm font-semibold text-primary-300 hover:text-primary-600 disabled:text-gray-500 disabled:cursor-not-allowed"
+                  >
+                    {retryAfterSeconds > 0 ? `Resend in ${retryAfterSeconds}s` : 'Resend code'}
+                  </button>
+                </div>
+              </form>
+            )}
+
+            <div className="mt-6 pt-6 border-t border-gray-600">
+              <p className="text-center text-sm text-gray-300">
+                Remember your password?{' '}
+                <Link href="/login" className="text-white hover:underline font-semibold">
+                  Sign in
+                </Link>
+              </p>
+              <p className="text-center text-xs text-gray-500 mt-3">
+                After too many wrong codes, request a new SMS. Multiple failed attempts are logged for
+                security.
+              </p>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <Footer />
+    </div>
+  );
+}

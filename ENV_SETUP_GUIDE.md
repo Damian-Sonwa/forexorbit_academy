@@ -1,0 +1,395 @@
+# Environment Variables Setup Guide
+
+## Overview
+
+This guide explains how to set up environment variables for the ForexOrbit Academy app, including the new broker API integration.
+
+## Environment Variables Required
+
+### Core Application Variables
+
+```env
+# Database
+MONGO_URI=mongodb+srv://username:password@cluster.mongodb.net/Forex_elearning?retryWrites=true&w=majority
+
+# Authentication
+JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
+
+# Socket.IO
+NEXT_PUBLIC_SOCKET_URL=https://forexorbit-academy.onrender.com
+ALLOWED_ORIGINS=https://forexorbit-academy.vercel.app,https://forexorbit-academy.onrender.com
+
+# Agora (for video calls)
+NEXT_PUBLIC_AGORA_APP_ID=your-agora-app-id
+AGORA_APP_CERTIFICATE=your-agora-app-certificate
+
+# TinyMCE (Rich Text Editor for Instructor Lesson Editor)
+NEXT_PUBLIC_TINYMCE_API_KEY=your-tinymce-api-key
+```
+
+### Broker API Integration Variables (NEW)
+
+```env
+# Broker Configuration
+BROKER_TYPE=oanda
+BROKER_DEMO_MODE=true  # CRITICAL: Must be true (only demo trading allowed)
+
+# OANDA API Credentials
+OANDA_API_KEY=your_oanda_practice_api_key
+OANDA_ACCOUNT_ID=your_oanda_practice_account_id
+OANDA_DEMO_URL=https://api-fxpractice.oanda.com
+```
+
+## Setup Instructions
+
+### 1. Local Development (.env.local)
+
+1. **Create `.env.local` file** in the root directory of your project:
+   ```
+   Inforex_app/
+   ├── .env.local  ← Create this file
+   ├── package.json
+   └── ...
+   ```
+
+2. **Add all environment variables** to `.env.local`:
+   ```env
+   # Database
+   MONGO_URI=mongodb+srv://username:password@cluster.mongodb.net/Forex_elearning?retryWrites=true&w=majority
+
+   # Authentication
+   JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
+
+   # Socket.IO
+   NEXT_PUBLIC_SOCKET_URL=http://localhost:3000
+   ALLOWED_ORIGINS=http://localhost:3000
+
+   # Agora
+   NEXT_PUBLIC_AGORA_APP_ID=your-agora-app-id
+   AGORA_APP_CERTIFICATE=your-agora-app-certificate
+
+   # Broker API (OANDA Demo)
+   BROKER_TYPE=oanda
+   BROKER_DEMO_MODE=true
+   OANDA_API_KEY=your_oanda_practice_api_key
+   OANDA_ACCOUNT_ID=your_oanda_practice_account_id
+   OANDA_DEMO_URL=https://api-fxpractice.oanda.com
+   ```
+
+3. **Important Notes:**
+   - `.env.local` is already in `.gitignore` - it won't be committed to git
+   - Never commit API keys or secrets to version control
+   - Restart your development server after adding/changing variables
+
+### 2. Vercel (Frontend Deployment)
+
+1. **Go to Vercel Dashboard:**
+   - Visit: https://vercel.com/dashboard
+   - Select your project: `forexorbit-academy`
+
+2. **Navigate to Settings:**
+   - Click on your project
+   - Go to **Settings** → **Environment Variables**
+
+3. **Add Environment Variables:**
+   Click **Add New** and add each variable:
+
+   **Public Variables** (accessible in browser):
+   ```
+   NEXT_PUBLIC_SOCKET_URL = https://forexorbit-academy.onrender.com
+   NEXT_PUBLIC_AGORA_APP_ID = your-agora-app-id
+   ```
+
+   **Private Variables** (server-side only):
+   ```
+   MONGO_URI = mongodb+srv://...
+   JWT_SECRET = your-secret-key
+   AGORA_APP_CERTIFICATE = your-certificate
+   ALLOWED_ORIGINS = https://forexorbit-academy.vercel.app,https://forexorbit-academy.onrender.com
+   
+   # Broker API (server-side only)
+   BROKER_TYPE = oanda
+   BROKER_DEMO_MODE = true
+   OANDA_API_KEY = your_oanda_practice_api_key
+   OANDA_ACCOUNT_ID = your_oanda_practice_account_id
+   OANDA_DEMO_URL = https://api-fxpractice.oanda.com
+   ```
+
+4. **Select Environments:**
+   - For each variable, select which environments it applies to:
+     - ✅ Production
+     - ✅ Preview
+     - ✅ Development (optional)
+
+5. **Redeploy:**
+   - After adding variables, go to **Deployments**
+   - Click **Redeploy** on the latest deployment
+   - Or push a new commit to trigger automatic deployment
+
+### 3. Render (Backend/Socket.IO Server)
+
+1. **Go to Render Dashboard:**
+   - Visit: https://dashboard.render.com
+   - Select your web service: `forex-elearning-app` (or your service name)
+
+2. **Navigate to Environment:**
+   - Click on your service
+   - Go to **Environment** tab
+
+3. **Add Environment Variables:**
+   Click **Add Environment Variable** and add:
+
+   ```
+   NODE_ENV = production
+   PORT = 3000
+   
+   # Database
+   MONGO_URI = mongodb+srv://...
+   
+   # Authentication
+   JWT_SECRET = your-secret-key
+   
+   # Socket.IO
+   NEXT_PUBLIC_SOCKET_URL = https://forexorbit-academy.onrender.com
+   ALLOWED_ORIGINS = https://forexorbit-academy.vercel.app,https://forexorbit-academy.onrender.com
+   
+   # Agora
+   NEXT_PUBLIC_AGORA_APP_ID = your-agora-app-id
+   AGORA_APP_CERTIFICATE = your-agora-app-certificate
+   
+   # Broker API (OANDA Demo)
+   BROKER_TYPE = oanda
+   BROKER_DEMO_MODE = true
+   OANDA_API_KEY = your_oanda_practice_api_key
+   OANDA_ACCOUNT_ID = your_oanda_practice_account_id
+   OANDA_DEMO_URL = https://api-fxpractice.oanda.com
+   ```
+
+4. **Save and Redeploy:**
+   - Click **Save Changes**
+   - Render will automatically redeploy your service
+
+## Getting OANDA Credentials
+
+### Step 1: Create OANDA Practice Account
+
+1. Visit: https://hub.oanda.com/apply/demo/
+2. Click **"Open Practice Account"** or **"Try Demo"**
+3. Fill in the registration form:
+   - Email address
+   - Password
+   - Personal information
+4. Verify your email address
+
+### Step 2: Get Practice Account ID
+
+1. Log in to your OANDA practice account
+2. Go to **Account** or **Settings**
+3. Find your **Account ID** (usually a number like `101-004-1234567-001`)
+   - May also be visible on the dashboard or in the trading platform
+4. Copy this value - this is your `OANDA_ACCOUNT_ID`
+5. **Alternative:** Use OANDA API to list accounts:
+   ```bash
+   curl -H "Authorization: Bearer YOUR_TOKEN" \
+        https://api-fxpractice.oanda.com/v3/accounts
+   ```
+
+### Step 3: Generate API Token
+
+1. In your OANDA practice account, go to **Manage API Access**
+   - Direct link: https://www.oanda.com/account/tpa/personal_access_tokens
+2. Click **"Generate API Token"** or **"Create Token"**
+3. **CRITICAL:** Select **"Practice Account"** (not Live)
+4. Give it a name (e.g., "ForexOrbit Academy Demo")
+5. Copy the generated token immediately - this is your `OANDA_API_KEY`
+6. **Important:** Save this token securely - you won't be able to see it again!
+7. Token should have permissions for: View account, Place orders, View positions, View pricing
+
+### Step 4: Verify Practice API URL
+
+- **Practice/Demo URL:** `https://api-fxpractice.oanda.com` ✅ USE THIS
+- **Live URL (DO NOT USE):** `https://api-fxtrade.oanda.com` ❌ NEVER USE
+
+Make sure you're using the **practice** URL only!
+
+### Quick Test
+
+Test your credentials work:
+
+```bash
+# Replace YOUR_TOKEN and YOUR_ACCOUNT_ID
+curl -H "Authorization: Bearer YOUR_TOKEN" \
+     https://api-fxpractice.oanda.com/v3/accounts/YOUR_ACCOUNT_ID
+```
+
+If successful, you'll see account information in JSON format.
+
+## Security Best Practices
+
+### ✅ DO:
+
+- ✅ Store all secrets in environment variables
+- ✅ Use different secrets for development and production
+- ✅ Keep `.env.local` in `.gitignore` (already done)
+- ✅ Use strong, random JWT secrets
+- ✅ Rotate API keys periodically
+- ✅ Set `BROKER_DEMO_MODE=true` always
+
+### ❌ DON'T:
+
+- ❌ Commit `.env.local` to git
+- ❌ Share API keys in chat/email
+- ❌ Use production API keys in development
+- ❌ Set `BROKER_DEMO_MODE=false` (real trading not allowed)
+- ❌ Expose API keys in client-side code
+- ❌ Use the same JWT secret across environments
+
+## Verifying Setup
+
+### Check Local Development:
+
+1. Restart your dev server: `npm run dev`
+2. Check console for environment validation messages
+3. Try accessing the demo trading page
+4. Check browser console for any API errors
+
+### Check Vercel:
+
+1. Go to Vercel Dashboard → Your Project → Settings → Environment Variables
+2. Verify all variables are set
+3. Check deployment logs for any errors
+4. Test the live site
+
+### Check Render:
+
+1. Go to Render Dashboard → Your Service → Environment
+2. Verify all variables are set
+3. Check service logs: `Logs` tab
+4. Look for "✓ Environment variables validated" message
+
+## Getting TinyMCE API Key (Rich Text Editor)
+
+The rich text editor (InstructorLessonEditor) requires a TinyMCE Cloud API key for instructors to create formatted lesson content.
+
+### Step 1: Create TinyMCE Cloud Account
+
+1. Visit: https://www.tiny.cloud/
+2. Click **"Get Started"** or **"Sign Up"**
+3. Create a free account (Cloud Free plan available)
+4. Verify your email
+
+### Step 2: Get Your API Key
+
+1. Log in to TinyMCE Cloud Dashboard: https://www.tiny.cloud/auth/login
+2. Go to **API Key** section
+3. Copy your API key (starts with a random string)
+4. This is your `NEXT_PUBLIC_TINYMCE_API_KEY`
+
+### Step 3: Add to Environment
+
+**Local Development (.env.local):**
+```env
+NEXT_PUBLIC_TINYMCE_API_KEY=your_tinymce_api_key_here
+```
+
+**Vercel:**
+1. Go to **Settings** → **Environment Variables**
+2. Add as **Public** variable (accessible in browser):
+   ```
+   NEXT_PUBLIC_TINYMCE_API_KEY = your_tinymce_api_key_here
+   ```
+3. Select all environments (Production, Preview, Development)
+4. Redeploy
+
+**Render:**
+1. Go to **Environment** tab
+2. Add environment variable:
+   ```
+   NEXT_PUBLIC_TINYMCE_API_KEY = your_tinymce_api_key_here
+   ```
+3. Save and the service will auto-redeploy
+
+### TinyMCE Features Included
+
+The InstructorLessonEditor provides:
+- **Formatting:** Bold, Italic, Underline, Strikethrough
+- **Headings:** H1-H4
+- **Lists:** Bullet and numbered lists
+- **Advanced:** Links, Images, Tables, Code blocks
+- **Alignment:** Left, Center, Right, Justify
+- **Font Control:** Font family and size selection
+
+### Notes
+
+- The editor is **only visible to instructors and admins**
+- Students see read-only rendered lesson content
+- Content is automatically sanitized for security
+- Autosave happens every 30 seconds
+- The TinyMCE API key is safe to expose (it's limited to your domain)
+
+## Troubleshooting
+
+### "tinymce editor failed to load"
+- **Solution:** 
+  - Verify `NEXT_PUBLIC_TINYMCE_API_KEY` is set
+  - Check browser console for specific errors
+  - Ensure API key is valid (not expired)
+  - Restart dev server after adding key
+
+### Editor toolbar not showing
+- **Solution:**
+  - Hard refresh browser (Ctrl+Shift+R or Cmd+Shift+R)
+  - Clear browser cache
+  - Check that API key is correct
+
+### "Evaluation license error"
+- **Solution:**
+  - Make sure you're using the correct API key
+  - TinyMCE Cloud Free plan may have limitations
+  - Upgrade to paid plan if needed: https://www.tiny.cloud/pricing/
+
+
+- **Solution:** Make sure `OANDA_API_KEY` is set in your environment variables
+- Check both Vercel and Render if using separate deployments
+
+### "BROKER_DEMO_MODE must be true"
+- **Solution:** Set `BROKER_DEMO_MODE=true` in all environments
+- This is a security requirement - real trading is not allowed
+
+### "Failed to create demo account"
+- **Solution:** 
+  - Verify OANDA credentials are correct
+  - Check that you're using practice account credentials (not live)
+  - Verify `OANDA_DEMO_URL` is set to practice URL
+  - Check Render logs for detailed error messages
+
+### Environment variables not updating
+- **Solution:**
+  - **Vercel:** Redeploy after adding variables
+  - **Render:** Save changes and wait for auto-redeploy
+  - **Local:** Restart dev server (`npm run dev`)
+
+## Quick Reference
+
+### Required for Broker Integration:
+```env
+BROKER_TYPE=oanda
+BROKER_DEMO_MODE=true
+OANDA_API_KEY=your_key_here
+OANDA_ACCOUNT_ID=your_account_id_here
+OANDA_DEMO_URL=https://api-fxpractice.oanda.com
+```
+
+### Where to Get OANDA Credentials:
+- **Practice Account:** https://hub.oanda.com/apply/demo/
+- **API Documentation:** https://developer.oanda.com/rest-live-v20/introduction/
+- **Practice API Base:** https://api-fxpractice.oanda.com
+
+## Support
+
+If you encounter issues:
+1. Check the error logs in Vercel/Render
+2. Verify all environment variables are set correctly
+3. Ensure you're using OANDA **practice** credentials (not live)
+4. Check that `BROKER_DEMO_MODE=true` is set
+

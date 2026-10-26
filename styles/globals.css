@@ -1,0 +1,226 @@
+/**
+ * Global Styles
+ * TailwindCSS imports and custom styles
+ */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap');
+
+:root {
+  --color-primary: #b85c0e;
+  --color-primary-hover: #a34e09;
+  --color-primary-accent: #f28c28;
+  --color-bg: #faf8f4;
+  --color-dark: #171717;
+  --color-accent: #f28c28;
+  --color-accent-hover: #d96f12;
+  --color-secondary: #171717;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f3f0ea;
+  --color-border: #e7e2da;
+  --color-text: #171717;
+  --color-text-muted: #666666;
+  --color-navbar-bg: #171717;
+  --color-nav-text: #ffffff;
+  --color-nav-muted: #a3a3a3;
+  --color-success: #15803d;
+  --color-warning: #a16207;
+  --color-danger: #b91c1c;
+  --shadow-card: 0 1px 2px rgba(23, 23, 23, 0.04), 0 8px 24px rgba(23, 23, 23, 0.04);
+}
+
+.dark {
+  --color-bg: #121212;
+  --color-surface: #1c1c1c;
+  --color-surface-muted: #242424;
+  --color-border: #2e2e2e;
+  --color-text: #f5f5f5;
+  --color-text-muted: #a3a3a3;
+  --color-navbar-bg: #0e0e0e;
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+@layer base {
+  body {
+    @apply font-sans antialiased;
+    background-color: var(--color-bg);
+    color: var(--color-text);
+  }
+
+  /* Dark mode support for all elements */
+  * {
+    @apply transition-colors duration-200;
+  }
+}
+
+@layer components {
+  /**
+   * Sanitized HTML from lessons/courses: readable on light cards and dark surfaces.
+   */
+  .rich-html-readable {
+    @apply max-w-none;
+    color: var(--color-text);
+  }
+
+  .rich-html-readable :where(p, li, ul, ol, span, strong, em, h1, h2, h3, h4, td, th, blockquote, div) {
+    color: var(--color-text);
+  }
+
+  .rich-html-readable :where(a) {
+    @apply text-primary-600 dark:text-primary-400 underline;
+  }
+
+  ::selection {
+    background: #f28c28;
+    color: #171717;
+  }
+
+  .btn {
+    @apply px-4 py-2 rounded-lg font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-400 focus:ring-offset-[#FAF8F4] dark:focus:ring-offset-neutral-900 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-primary {
+    @apply bg-primary-400 text-neutral-900 hover:bg-primary-500 focus:ring-primary-400;
+  }
+
+  .btn-secondary {
+    @apply bg-secondary-600 text-white hover:bg-secondary-700 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-white focus:ring-neutral-500;
+  }
+
+  .btn-outline {
+    @apply border-2 border-primary-600 text-primary-700 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 focus:ring-primary-500;
+  }
+
+  .page-kicker {
+    @apply text-[11px] font-semibold uppercase tracking-[0.16em] text-primary-700;
+  }
+
+  .page-title {
+    @apply font-display text-2xl sm:text-3xl font-semibold tracking-tight text-neutral-900;
+  }
+
+  .card {
+    @apply rounded-2xl p-6 border;
+    background-color: var(--color-surface);
+    border-color: var(--color-border);
+    box-shadow: var(--shadow-card);
+  }
+
+  .input {
+    @apply w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent;
+    border-color: var(--color-border);
+    background-color: var(--color-surface);
+    color: var(--color-text);
+  }
+
+  .label {
+    @apply block text-sm font-medium mb-2;
+    color: var(--color-text-muted);
+  }
+}
+
+@layer utilities {
+  /* Slideshow Animation */
+  @keyframes fadeInOut {
+    0% {
+      opacity: 0;
+      transform: scale(1.1);
+    }
+    10%,
+    30% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    40%,
+    100% {
+      opacity: 0;
+      transform: scale(1.1);
+    }
+  }
+
+  .slideshow-item {
+    animation: fadeInOut 15s infinite;
+  }
+
+  .slideshow-item:nth-child(1) {
+    animation-delay: 0s;
+  }
+
+  .slideshow-item:nth-child(2) {
+    animation-delay: 5s;
+  }
+
+  .slideshow-item:nth-child(3) {
+    animation-delay: 10s;
+  }
+
+  /* Counter Animation */
+  @keyframes countUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .count-animate {
+    animation: countUp 0.6s ease-out;
+  }
+
+  /* Fade In Animation */
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 0.5s ease-out;
+  }
+
+  /* React Quill (RichTextEditor) — dynamic min-height from --rich-editor-min-height */
+  .rich-text-editor-root .ql-container {
+    font-size: 1rem;
+  }
+
+  .rich-text-editor-root .ql-editor {
+    min-height: var(--rich-editor-min-height, 280px);
+  }
+
+  .dark .rich-text-editor-root .ql-toolbar.ql-snow,
+  .dark .rich-text-editor-root .ql-container.ql-snow {
+    border-color: #2e2e2e;
+    background: #1c1c1c;
+  }
+
+  .dark .rich-text-editor-root .ql-editor {
+    color: #f5f5f5;
+  }
+
+  .dark .rich-text-editor-root .ql-stroke {
+    stroke: #a3a3a3;
+  }
+
+  .dark .rich-text-editor-root .ql-fill {
+    fill: #a3a3a3;
+  }
+
+  .dark .rich-text-editor-root .ql-picker {
+    color: #a3a3a3;
+  }
+
+  .instructor-lesson-quill .ql-editor {
+    min-height: var(--instructor-lesson-editor-h, 500px);
+  }
+}
