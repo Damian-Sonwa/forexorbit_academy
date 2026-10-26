@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Trade Journal API Route
  * GET: Get trade journal entries for student
@@ -14,7 +15,7 @@ async function getJournal(req: AuthRequest, res: NextApiResponse) {
   try {
     // Only students can access their journal
     if (req.user!.role !== 'student') {
-      return res.status(403).json({ message: 'Only students can access trade journal' });
+      return res.status(403).json({ error: 'Only students can access trade journal' });
     }
 
     const db = await getDb();
@@ -57,8 +58,8 @@ async function getJournal(req: AuthRequest, res: NextApiResponse) {
 
     res.json(entriesWithTasks);
   } catch (error: any) {
-    console.error('Get journal error:', error);
-    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+    console.error('Get journal error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 
@@ -66,7 +67,7 @@ async function createJournalEntry(req: AuthRequest, res: NextApiResponse) {
   try {
     // Only students can create journal entries
     if (req.user!.role !== 'student') {
-      return res.status(403).json({ message: 'Only students can create journal entries' });
+      return res.status(403).json({ error: 'Only students can create journal entries' });
     }
 
     const {
@@ -97,25 +98,25 @@ async function createJournalEntry(req: AuthRequest, res: NextApiResponse) {
     });
 
     if (duplicateCheck) {
-      return res.status(409).json({ message: 'Duplicate entry detected. Please wait a moment before submitting again.' });
+      return res.status(409).json({ error: 'Duplicate entry detected. Please wait a moment before submitting again.' });
     }
 
     // Validation
     if (!pair || !direction || !entryPrice || !stopLoss || !takeProfit || !lotSize || !result) {
-      return res.status(400).json({ message: 'Missing required fields' });
+      return res.status(400).json({ error: 'Missing required fields' });
     }
 
     if (!['buy', 'sell'].includes(direction)) {
-      return res.status(400).json({ message: 'Invalid direction. Must be "buy" or "sell"' });
+      return res.status(400).json({ error: 'Invalid direction. Must be "buy" or "sell"' });
     }
 
     if (!['win', 'loss', 'breakeven', 'open'].includes(result)) {
-      return res.status(400).json({ message: 'Invalid result. Must be "win", "loss", "breakeven", or "open"' });
+      return res.status(400).json({ error: 'Invalid result. Must be "win", "loss", "breakeven", or "open"' });
     }
 
     // If result is not "open", profitLoss should be provided
     if (result !== 'open' && profitLoss === undefined) {
-      return res.status(400).json({ message: 'Profit/Loss is required for closed trades' });
+      return res.status(400).json({ error: 'Profit/Loss is required for closed trades' });
     }
 
     // If taskId is provided, verify it exists and is assigned to the student
@@ -131,7 +132,7 @@ async function createJournalEntry(req: AuthRequest, res: NextApiResponse) {
       });
 
       if (!task) {
-        return res.status(404).json({ message: 'Task not found or not assigned to you' });
+        return res.status(404).json({ error: 'Task not found or not assigned to you' });
       }
 
       // Get instructorId from the task (assignedBy field)
@@ -199,8 +200,8 @@ async function createJournalEntry(req: AuthRequest, res: NextApiResponse) {
 
     res.status(201).json(createdEntry);
   } catch (error: any) {
-    console.error('Create journal entry error:', error);
-    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+    console.error('Create journal entry error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 
@@ -210,7 +211,7 @@ export default withAuth(async (req: AuthRequest, res: NextApiResponse) => {
   } else if (req.method === 'POST') {
     return createJournalEntry(req, res);
   } else {
-    return res.status(405).json({ message: 'Method not allowed' });
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 }, ['student']);
 

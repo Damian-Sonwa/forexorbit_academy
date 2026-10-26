@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Admin Users API Route
  * GET: List all users (admin only)
@@ -13,12 +14,12 @@ async function getUsers(req: AuthRequest, res: NextApiResponse) {
     const db = await getDb();
     const users = db.collection('users');
 
-    const usersList = await users.find({}, { projection: { password: 0 } }).sort({ createdAt: -1 }).toArray();
+    const usersList = await users.find({}, { projection: { password: 0, sessionGeneration: 0 } }).sort({ createdAt: -1 }).toArray();
 
     res.json(usersList);
   } catch (error: unknown) {
-    console.error('Get users error:', error);
-    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+    console.error('Get users error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 
@@ -26,7 +27,7 @@ export default async function(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'GET') {
     return withAuth(getUsers, ['admin', 'superadmin'])(req as AuthRequest, res);
   } else {
-    return res.status(405).json({ message: 'Method not allowed' });
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 }
 

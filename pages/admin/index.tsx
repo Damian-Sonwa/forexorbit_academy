@@ -11,6 +11,8 @@ import Footer from '@/components/Footer';
 import Sidebar from '@/components/Sidebar';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { useAuth } from '@/hooks/useAuth';
+import { FEATURES } from '@/lib/config/features';
+import { isAbortedRequest } from '@/lib/request-status';
 import { apiClient } from '@/lib/api-client';
 import { useCourses } from '@/hooks/useCourses';
 import {
@@ -29,7 +31,6 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { formatDistanceToNow } from 'date-fns';
-import { FEATURES } from '@/lib/config/features';
 
 interface Analytics {
   totalCourses?: number;
@@ -143,6 +144,7 @@ export default function AdminPanel() {
     date: '',
     time: '',
     meetingLink: '',
+    courseId: '',
   });
   const [submittingClass, setSubmittingClass] = useState(false);
   const [editingClass, setEditingClass] = useState<any>(null);
@@ -190,7 +192,7 @@ export default function AdminPanel() {
       const data = await apiClient.get<any[]>('/consultations/requests');
       setConsultationRequests(data || []);
     } catch (error) {
-      console.error('Failed to load consultation requests:', error);
+      console.error('Failed to load consultation requests');
       setConsultationRequests([]);
     } finally {
       setLoadingConsultations(false);
@@ -204,7 +206,7 @@ export default function AdminPanel() {
       const data = await apiClient.get<any[]>('/consultations/sessions');
       setConsultationSessions(data || []);
     } catch (error) {
-      console.error('Failed to load consultation sessions:', error);
+      console.error('Failed to load consultation sessions');
       setConsultationSessions([]);
     }
   };
@@ -244,15 +246,7 @@ export default function AdminPanel() {
       const data = await apiClient.get<Analytics>('/admin/analytics');
       setAnalytics(data);
     } catch (error: unknown) {
-      console.error('Failed to load analytics:', error);
-      let errorDetails: string | undefined;
-      if (error && typeof error === 'object' && 'response' in error) {
-        const apiError = error as { response?: { data?: unknown }; message?: string };
-        errorDetails = apiError.response?.data ? String(apiError.response.data) : apiError.message;
-      } else if (error instanceof Error) {
-        errorDetails = error.message;
-      }
-      console.error('Error details:', errorDetails);
+      console.error('Failed to load analytics');
       // Set default analytics on error
       setAnalytics({
         totalUsers: 0,
@@ -269,11 +263,16 @@ export default function AdminPanel() {
   };
 
   const loadNews = async () => {
+    if (!FEATURES.COMMUNITY) {
+      setNewsItems([]);
+      return;
+    }
     try {
       const data = await apiClient.get<NewsItem[]>('/community/news');
       setNewsItems(data);
     } catch (error) {
-      console.error('Failed to load news:', error);
+      if (isAbortedRequest(error)) return;
+      console.error('Failed to load news');
     }
   };
 
@@ -282,15 +281,7 @@ export default function AdminPanel() {
       const data = await apiClient.get<User[]>('/admin/users');
       setUsers(data || []);
     } catch (error: unknown) {
-      console.error('Failed to load users:', error);
-      let errorDetails: string | undefined;
-      if (error && typeof error === 'object' && 'response' in error) {
-        const apiError = error as { response?: { data?: unknown }; message?: string };
-        errorDetails = apiError.response?.data ? String(apiError.response.data) : apiError.message;
-      } else if (error instanceof Error) {
-        errorDetails = error.message;
-      }
-      console.error('Error details:', errorDetails);
+      console.error('Failed to load users');
       // Set empty array on error to prevent undefined issues
       setUsers([]);
     }
@@ -315,7 +306,7 @@ export default function AdminPanel() {
         errorMessage = error.message || errorMessage;
       }
       alert(errorMessage);
-      console.error('Update user role error:', error);
+      console.error('Update user role error');
       // Reload users to revert the UI change if update failed
       await loadUsers();
     }
@@ -338,7 +329,7 @@ export default function AdminPanel() {
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message || 'Failed to delete user';
       alert(errorMessage);
-      console.error('Delete user error:', error);
+      console.error('Delete user error');
     }
   };
 
@@ -347,7 +338,7 @@ export default function AdminPanel() {
       const data = await apiClient.get<User[]>('/instructors');
       setInstructors(data);
     } catch (error) {
-      console.error('Failed to load instructors:', error);
+      console.error('Failed to load instructors');
     }
   };
 
@@ -357,7 +348,7 @@ export default function AdminPanel() {
       const data = await apiClient.get<any[]>('/classes');
       setUpcomingClasses(data || []);
     } catch (error) {
-      console.error('Failed to load upcoming classes:', error);
+      console.error('Failed to load upcoming classes');
       setUpcomingClasses([]);
     }
   };
@@ -368,7 +359,7 @@ export default function AdminPanel() {
     setSubmittingClass(true);
     try {
       await apiClient.post('/classes', classForm);
-      setClassForm({ title: '', description: '', date: '', time: '', meetingLink: '' });
+      setClassForm({ title: '', description: '', date: '', time: '', meetingLink: '', courseId: '' });
       setEditingClass(null);
       await loadUpcomingClasses();
       alert('Class created successfully!');
@@ -388,6 +379,7 @@ export default function AdminPanel() {
       date: cls.date,
       time: cls.time,
       meetingLink: cls.meetingLink || '',
+      courseId: cls.courseId || '',
     });
   };
 
@@ -398,7 +390,7 @@ export default function AdminPanel() {
     setSubmittingClass(true);
     try {
       await apiClient.put(`/classes?id=${editingClass._id}`, classForm);
-      setClassForm({ title: '', description: '', date: '', time: '', meetingLink: '' });
+      setClassForm({ title: '', description: '', date: '', time: '', meetingLink: '', courseId: '' });
       setEditingClass(null);
       await loadUpcomingClasses();
       alert('Class updated successfully!');
@@ -426,7 +418,7 @@ export default function AdminPanel() {
       const data = await apiClient.get<User[]>('/admin/approvals');
       setPendingUsers(data);
     } catch (error) {
-      console.error('Failed to load pending users:', error);
+      console.error('Failed to load pending users');
     }
   };
 
@@ -522,7 +514,7 @@ export default function AdminPanel() {
       // Force router refresh to ensure UI updates
       router.replace(router.asPath, undefined, { shallow: true });
     } catch (error: any) {
-      console.error('Failed to delete course:', error);
+      console.error('Failed to delete course');
       alert(error.message || 'Failed to delete course');
       // Refetch on error to ensure UI is in sync
       await refetch();
@@ -574,8 +566,8 @@ export default function AdminPanel() {
 
       return imageUrl;
     } catch (error: any) {
-      console.error('Upload error:', error);
-      const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message || 'Failed to upload image';
+      console.error('Upload error');
+      const errorMessage = error.response?.data?.error || error.response?.data?.message || 'Failed to upload image';
       throw new Error(errorMessage);
     } finally {
       setUploadingImage(false);
@@ -641,8 +633,7 @@ export default function AdminPanel() {
   };
 
   // Check if user is admin or superadmin
-  const isAdminOrSuperAdmin = user?.role === 'admin' || user?.role === 'superadmin' || user?.email === 'madudamian25@gmail.com';
-  // const isSuperAdmin = user?.role === 'superadmin' || user?.email === 'madudamian25@gmail.com';
+  const isAdminOrSuperAdmin = user?.role === 'admin' || user?.role === 'superadmin';
 
   if (authLoading || !isAuthenticated || !isAdminOrSuperAdmin) {
     return <LoadingSpinner message="Loading admin panel..." fullScreen />;
@@ -668,7 +659,7 @@ export default function AdminPanel() {
               (FEATURES.COMMUNITY ? (
                 <Link
                   href="/community"
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors flex items-center space-x-2 shadow-md"
+                  className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold transition-colors flex items-center space-x-2 shadow-md"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
@@ -693,14 +684,14 @@ export default function AdminPanel() {
 
         {/* Pending Approvals Notification Banner */}
         {pendingUsers.length > 0 && (
-          <div className="mb-6 bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 border-l-4 border-yellow-500 dark:border-yellow-400 rounded-lg p-4 shadow-lg">
+          <div className="mb-6 bg-amber-50 dark:bg-amber-950/30 border-l-4 border-yellow-500 dark:border-yellow-400 rounded-lg p-4 shadow-lg">
             <div className="flex items-center justify-between">
               <div className="flex items-center">
                 <svg className="w-6 h-6 text-yellow-600 dark:text-yellow-400 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
                 <div>
-                  <h3 className="text-lg font-bold text-yellow-900 dark:text-yellow-200">
+                  <h3 className="text-lg font-bold text-yellow-900 dark:text-primary-600">
                     {pendingUsers.length} Pending {pendingUsers.length === 1 ? 'Request' : 'Requests'} for Approval
                   </h3>
                   <p className="text-sm text-yellow-800 dark:text-yellow-300 mt-1">
@@ -723,7 +714,7 @@ export default function AdminPanel() {
                 </button>
                 <button
                   onClick={() => setPendingUsers([])}
-                  className="text-yellow-800 dark:text-yellow-300 hover:text-yellow-900 dark:hover:text-yellow-200"
+                  className="text-yellow-800 dark:text-yellow-300 hover:text-yellow-900 dark:hover:text-primary-600"
                   aria-label="Dismiss notification"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1082,7 +1073,7 @@ export default function AdminPanel() {
                           }}
                         />
                       ) : (
-                        <div className="w-32 h-32 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-full mx-auto flex items-center justify-center text-white text-4xl font-bold">
+                        <div className="w-32 h-32 bg-neutral-900 rounded-full mx-auto flex items-center justify-center text-white text-4xl font-bold">
                           {instructor.name.charAt(0)}
                         </div>
                       )}
@@ -1148,13 +1139,13 @@ export default function AdminPanel() {
                               value={userItem.role}
                               onChange={(e) => handleUpdateUserRole(userItem._id || userItem.id, e.target.value)}
                               className="px-3 py-1 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
-                              disabled={userItem.email === 'madudamian25@gmail.com' || userItem.role === 'superadmin'}
-                              title={userItem.email === 'madudamian25@gmail.com' || userItem.role === 'superadmin' ? 'Cannot change Super Admin role' : ''}
+                              disabled={userItem.role === 'superadmin'}
+                              title={userItem.role === 'superadmin' ? 'Cannot change Super Admin role' : ''}
                             >
                               <option value="student">Student</option>
                               <option value="instructor">Instructor</option>
                               <option value="admin">Admin</option>
-                              {userItem.email === 'madudamian25@gmail.com' && <option value="superadmin">Super Admin</option>}
+                              {userItem.role === 'superadmin' && <option value="superadmin">Super Admin</option>}
                             </select>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
@@ -1171,9 +1162,9 @@ export default function AdminPanel() {
                             <button
                               onClick={() => handleDeleteUser(userItem._id || userItem.id)}
                               className="px-3 py-1 bg-red-100 text-red-700 hover:bg-red-200 rounded-lg font-medium transition-colors dark:bg-red-900 dark:text-red-300 dark:hover:bg-red-800 disabled:opacity-50 disabled:cursor-not-allowed"
-                              disabled={userItem.email === 'madudamian25@gmail.com' || userItem.role === 'superadmin' || (user && user.id === (userItem._id || userItem.id))}
+                              disabled={userItem.role === 'superadmin' || (user && user.id === (userItem._id || userItem.id))}
                               title={
-                                userItem.email === 'madudamian25@gmail.com' || userItem.role === 'superadmin'
+                                userItem.role === 'superadmin'
                                   ? 'Cannot delete Super Admin'
                                   : user && user.id === (userItem._id || userItem.id)
                                   ? 'Cannot delete your own account'
@@ -1200,25 +1191,25 @@ export default function AdminPanel() {
             
             {/* Summary Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-              <div className="bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl p-4 text-white shadow-lg">
+              <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-4 text-neutral-900 dark:text-white shadow-sm">
                 <div className="text-3xl font-bold mb-1">{analytics.totalUsers || 0}</div>
-                <div className="text-primary-100 text-xs font-medium">Total Users</div>
+                <div className="text-neutral-500 text-xs font-medium">Total Users</div>
               </div>
-              <div className="bg-gradient-to-br from-secondary-500 to-secondary-600 rounded-xl p-4 text-white shadow-lg">
+              <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-4 text-neutral-900 dark:text-white shadow-sm">
                 <div className="text-3xl font-bold mb-1">{analytics.totalCourses || 0}</div>
-                <div className="text-secondary-100 text-xs font-medium">Total Courses</div>
+                <div className="text-neutral-500 text-xs font-medium">Total Courses</div>
               </div>
-              <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-4 text-white shadow-lg">
+              <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-4 text-neutral-900 dark:text-white shadow-sm">
                 <div className="text-3xl font-bold mb-1">{analytics.totalEnrollments || 0}</div>
-                <div className="text-green-100 text-xs font-medium">Enrollments</div>
+                <div className="text-neutral-500 text-xs font-medium">Enrollments</div>
               </div>
-              <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-xl p-4 text-white shadow-lg">
+              <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-4 text-neutral-900 dark:text-white shadow-sm">
                 <div className="text-3xl font-bold mb-1">{analytics.activeUsers || 0}</div>
-                <div className="text-yellow-100 text-xs font-medium">Active (7d)</div>
+                <div className="text-neutral-500 text-xs font-medium">Active (7d)</div>
               </div>
-              <div className="bg-gradient-to-br from-primary-600 to-primary-800 rounded-xl p-4 text-white shadow-lg">
+              <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-4 text-neutral-900 dark:text-white shadow-sm">
                 <div className="text-3xl font-bold mb-1">{analytics.recentMessages || 0}</div>
-                <div className="text-primary-100 text-xs font-medium">Messages (24h)</div>
+                <div className="text-neutral-500 text-xs font-medium">Messages (24h)</div>
               </div>
             </div>
 
@@ -1231,22 +1222,22 @@ export default function AdminPanel() {
                   <PieChart>
                     <Pie
                       data={[
-                        { name: 'Students', value: analytics.usersByRole?.student || 0, color: '#3B82F6' },
-                        { name: 'Instructors', value: analytics.usersByRole?.instructor || 0, color: '#10B981' },
-                        { name: 'Admins', value: analytics.usersByRole?.admin || 0, color: '#F59E0B' },
+                        { name: 'Students', value: analytics.usersByRole?.student || 0, color: '#B85C0E' },
+                        { name: 'Instructors', value: analytics.usersByRole?.instructor || 0, color: '#171717' },
+                        { name: 'Admins', value: analytics.usersByRole?.admin || 0, color: '#737373' },
                       ]}
                       cx="50%"
                       cy="50%"
                       labelLine={false}
                       label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
                       outerRadius={80}
-                      fill="#8884d8"
+                      fill="#B85C0E"
                       dataKey="value"
                     >
                       {[
-                        { name: 'Students', value: analytics.usersByRole?.student || 0, color: '#3B82F6' },
-                        { name: 'Instructors', value: analytics.usersByRole?.instructor || 0, color: '#10B981' },
-                        { name: 'Admins', value: analytics.usersByRole?.admin || 0, color: '#F59E0B' },
+                        { name: 'Students', value: analytics.usersByRole?.student || 0, color: '#B85C0E' },
+                        { name: 'Instructors', value: analytics.usersByRole?.instructor || 0, color: '#171717' },
+                        { name: 'Admins', value: analytics.usersByRole?.admin || 0, color: '#737373' },
                       ].map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
@@ -1278,7 +1269,7 @@ export default function AdminPanel() {
                         borderRadius: '8px',
                       }}
                     />
-                    <Bar dataKey="courses" fill="#3B82F6" radius={[8, 8, 0, 0]} />
+                    <Bar dataKey="courses" fill="#B85C0E" radius={[8, 8, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -1312,9 +1303,9 @@ export default function AdminPanel() {
                     <Line
                       type="monotone"
                       dataKey="enrollments"
-                      stroke="#10B981"
+                      stroke="#B85C0E"
                       strokeWidth={2}
-                      dot={{ fill: '#10B981', r: 4 }}
+                      dot={{ fill: '#B85C0E', r: 4 }}
                       name="Enrollments"
                     />
                   </LineChart>
@@ -1343,20 +1334,20 @@ export default function AdminPanel() {
                       }}
                     />
                     <Legend />
-                    <Bar dataKey="enrolled" fill="#3B82F6" name="Enrolled" radius={[8, 8, 0, 0]} />
+                    <Bar dataKey="enrolled" fill="#B85C0E" name="Enrolled" radius={[8, 8, 0, 0]} />
                     <Bar dataKey="completed" fill="#10B981" name="Completed" radius={[8, 8, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
             </div>
 
-            {/* Forex News Posting Section */}
+            {FEATURES.COMMUNITY && (
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 mt-6">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-bold text-gray-900 dark:text-white">Forex News Updates</h3>
                 <button
                   onClick={() => setShowNewsModal(true)}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-sm transition-colors flex items-center space-x-2"
+                  className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold text-sm transition-colors flex items-center space-x-2"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -1368,6 +1359,7 @@ export default function AdminPanel() {
                 Share important Forex updates, market news, and announcements with the community
               </p>
             </div>
+            )}
           </div>
         )}
 
@@ -1413,7 +1405,7 @@ export default function AdminPanel() {
               <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-full">
-                    <thead className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800">
+                    <thead className="bg-neutral-50 dark:bg-neutral-800">
                       <tr>
                         <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
                           Name
@@ -1448,8 +1440,8 @@ export default function AdminPanel() {
                             <span
                               className={`px-3 py-1 rounded-full text-xs font-semibold ${
                                 pendingUser.role === 'instructor'
-                                  ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-                                  : 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
+                                  ? 'bg-neutral-100 text-neutral-800 dark:bg-neutral-900 dark:text-primary-600'
+                                  : 'bg-neutral-100 text-neutral-800 dark:bg-neutral-900 dark:text-primary-600'
                               }`}
                             >
                               {pendingUser.role.charAt(0).toUpperCase() + pendingUser.role.slice(1)}
@@ -1579,14 +1571,14 @@ export default function AdminPanel() {
             </div>
 
             {/* Information Card */}
-            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4">
+            <div className="bg-neutral-50 dark:bg-neutral-900/20 border border-neutral-200 dark:border-neutral-800 rounded-xl p-4">
               <div className="flex items-start">
-                <svg className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 text-primary-600 dark:text-primary-400 mt-0.5 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 <div>
-                  <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-200 mb-1">How it works</h3>
-                  <ul className="text-xs text-blue-800 dark:text-blue-300 space-y-1">
+                  <h3 className="text-sm font-semibold text-neutral-900 dark:text-primary-600 mb-1">How it works</h3>
+                  <ul className="text-xs text-neutral-800 dark:text-neutral-300 space-y-1">
                     <li>• Enter the student's ID (MongoDB ObjectId) or email address</li>
                     <li>• Select the course for which to issue the certificate</li>
                     <li>• The certificate will be automatically assigned to the student</li>
@@ -1679,12 +1671,29 @@ export default function AdminPanel() {
                     />
                   </div>
                 </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                    Course for enrolled students
+                  </label>
+                  <select
+                    value={classForm.courseId}
+                    onChange={(e) => setClassForm({ ...classForm, courseId: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  >
+                    <option value="">No course notification</option>
+                    {courses.map((course) => (
+                      <option key={course._id || course.id} value={course._id || course.id}>
+                        {course.title}
+                      </option>
+                    ))}
+                  </select>
+                </div>
                 <button
                   type="submit"
                   disabled={submittingClass}
                   className="w-full md:w-auto px-6 py-3 bg-primary-600 hover:bg-primary-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-xl font-semibold transition-colors"
                 >
-                  {submittingClass ? 'Creating...' : 'Create Class'}
+                  {submittingClass ? (editingClass ? 'Saving...' : 'Creating...') : (editingClass ? 'Save Class' : 'Create Class')}
                 </button>
               </form>
             </div>
@@ -1732,7 +1741,7 @@ export default function AdminPanel() {
                           {/* FIX: Edit and Delete buttons */}
                           <button
                             onClick={() => handleEditClass(cls)}
-                            className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-sm transition-colors flex items-center space-x-1"
+                            className="px-3 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold text-sm transition-colors flex items-center space-x-1"
                             title="Edit Class"
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1802,11 +1811,11 @@ export default function AdminPanel() {
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-3">
                           <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                            request.status === 'pending' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
-                            request.status === 'accepted' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+                            request.status === 'pending' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-primary-600' :
+                            request.status === 'accepted' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-primary-600' :
                             request.status === 'rejected' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' :
                             request.status === 'cancelled' ? 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200' :
-                            'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                            'bg-neutral-100 text-neutral-800 dark:bg-neutral-900 dark:text-primary-600'
                           }`}>
                             {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
                           </span>
@@ -1929,10 +1938,10 @@ export default function AdminPanel() {
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
             {/* Modal Header */}
-            <div className="p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700 bg-neutral-50 dark:bg-neutral-900">
               <div className="flex items-center justify-between">
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center">
-                  <svg className="w-6 h-6 mr-2 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-6 h-6 mr-2 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
                   </svg>
                   Important Updates
@@ -1944,7 +1953,7 @@ export default function AdminPanel() {
                       setEditingNews(null);
                       setNewsEditForm({ title: '', description: '', category: 'market', content: '', link: '' });
                     }}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-sm transition-colors flex items-center space-x-2"
+                    className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold text-sm transition-colors flex items-center space-x-2"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -2025,7 +2034,7 @@ export default function AdminPanel() {
                                 });
                               }, 100);
                             }}
-                            className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-xs font-semibold transition-colors flex items-center space-x-1 shadow-sm"
+                            className="px-3 py-1 bg-primary-600 hover:bg-primary-700 text-white rounded-md text-xs font-semibold transition-colors flex items-center space-x-1 shadow-sm"
                             title="Edit this update"
                           >
                             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2071,15 +2080,15 @@ export default function AdminPanel() {
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
             {/* Modal Header */}
-            <div className="p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700 bg-neutral-50 dark:bg-neutral-900">
               <div className="flex items-center justify-between">
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center">
                   {editingNews._id ? (
-                    <svg className="w-6 h-6 mr-2 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-6 h-6 mr-2 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                     </svg>
                   ) : (
-                    <svg className="w-6 h-6 mr-2 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-6 h-6 mr-2 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
                     </svg>
                   )}
@@ -2136,7 +2145,7 @@ export default function AdminPanel() {
                   value={newsEditForm.title}
                   onChange={(e) => setNewsEditForm({ ...newsEditForm, title: e.target.value })}
                   placeholder="e.g., NFP Results: 200K Jobs Added"
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-600 focus:border-transparent"
                   required
                 />
               </div>
@@ -2150,7 +2159,7 @@ export default function AdminPanel() {
                   onChange={(e) => setNewsEditForm({ ...newsEditForm, description: e.target.value })}
                   placeholder="Brief summary of the news update"
                   rows={3}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-600 focus:border-transparent"
                   required
                 />
               </div>
@@ -2162,7 +2171,7 @@ export default function AdminPanel() {
                 <select
                   value={newsEditForm.category}
                   onChange={(e) => setNewsEditForm({ ...newsEditForm, category: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-600 focus:border-transparent"
                   required
                 >
                   <option value="market">Market News</option>
@@ -2183,7 +2192,7 @@ export default function AdminPanel() {
                   onChange={(e) => setNewsEditForm({ ...newsEditForm, content: e.target.value })}
                   placeholder="Detailed content or analysis"
                   rows={5}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-600 focus:border-transparent"
                 />
               </div>
 
@@ -2196,7 +2205,7 @@ export default function AdminPanel() {
                   value={newsEditForm.link}
                   onChange={(e) => setNewsEditForm({ ...newsEditForm, link: e.target.value })}
                   placeholder="https://example.com/article"
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-600 focus:border-transparent"
                 />
               </div>
 
@@ -2214,7 +2223,7 @@ export default function AdminPanel() {
                 <button
                   type="submit"
                   disabled={submittingNews}
-                  className={`px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold transition-colors ${
+                  className={`px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-semibold transition-colors ${
                     submittingNews ? 'opacity-50 cursor-not-allowed' : ''
                   }`}
                 >

@@ -6,6 +6,7 @@
 import { useState, useEffect } from 'react';
 import { apiClient } from '@/lib/api-client';
 import { useSocket } from '@/hooks/useSocket';
+import { Check } from 'lucide-react';
 
 interface TodoItem {
   _id: string;
@@ -65,7 +66,7 @@ export default function TodoList() {
       const response = await apiClient.get<{ todos: TodoItem[] }>('/todos');
       setTodos(response.todos || []);
     } catch (error) {
-      console.error('Failed to fetch todos:', error);
+      console.error('Failed to fetch todos:');
     } finally {
       setLoading(false);
     }
@@ -84,7 +85,7 @@ export default function TodoList() {
       setNewTodoTitle('');
       setShowAddForm(false);
     } catch (error) {
-      console.error('Failed to create todo:', error);
+      console.error('Failed to create todo:');
     }
   };
 
@@ -95,7 +96,7 @@ export default function TodoList() {
       });
       // Socket will handle the update
     } catch (error) {
-      console.error('Failed to update todo:', error);
+      console.error('Failed to update todo:');
     }
   };
 
@@ -104,7 +105,7 @@ export default function TodoList() {
       await apiClient.delete(`/todos?todoId=${todoId}`);
       // Socket will handle the deletion
     } catch (error) {
-      console.error('Failed to delete todo:', error);
+      console.error('Failed to delete todo:');
     }
   };
 
@@ -168,7 +169,7 @@ export default function TodoList() {
 
       {todos.length === 0 ? (
         <div className="text-center py-8">
-          <div className="text-4xl mb-2">✓</div>
+          <Check className="mx-auto mb-2 h-10 w-10 text-neutral-400" aria-hidden />
           <p className="text-sm text-gray-500 dark:text-gray-400">No tasks yet</p>
         </div>
       ) : (

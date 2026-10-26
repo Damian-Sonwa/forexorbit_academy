@@ -46,7 +46,7 @@ export default function Badges() {
       const response = await apiClient.get<Badge[]>('/badges');
       setBadges(response);
     } catch (error: any) {
-      console.error('Fetch badges error:', error);
+      console.error('Fetch badges error:');
     } finally {
       setLoading(false);
     }
@@ -57,7 +57,7 @@ export default function Badges() {
       const response = await apiClient.get<{ points?: number; [key: string]: unknown }>('/auth/me');
       setUserPoints(response.points || 0);
     } catch (error: unknown) {
-      console.error('Fetch user points error:', error);
+      console.error('Fetch user points error:');
     }
   };
 
@@ -88,13 +88,13 @@ export default function Badges() {
         </div>
 
         {/* Points Display */}
-        <div className="bg-gradient-to-br from-primary-500 to-secondary-600 rounded-xl shadow-lg p-4 mb-4 flex-shrink-0 text-white">
+        <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-4 mb-4 flex-shrink-0 text-neutral-900 dark:text-white">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-primary-100 text-sm font-medium mb-1">Your Points</p>
+              <p className="text-neutral-600 dark:text-neutral-400 text-sm font-medium mb-1">Your Points</p>
               <p className="text-4xl font-bold">{userPoints}</p>
             </div>
-            <div className="w-20 h-20 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center border-4 border-white/30">
+            <div className="w-20 h-20 bg-primary-50 text-primary-700 rounded-full flex items-center justify-center border border-primary-100">
               <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
               </svg>
@@ -110,14 +110,14 @@ export default function Badges() {
               {earnedBadges.map((badge) => (
                 <div
                   key={badge._id}
-                  className="bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-2xl shadow-lg p-6 border-4 border-yellow-300 dark:border-yellow-500"
+                  className="bg-white dark:bg-neutral-900 rounded-2xl p-6 border border-neutral-200 dark:border-neutral-800"
                 >
                   <div className="text-center">
                     <div className="text-6xl mb-4">{badge.icon}</div>
-                    <h3 className="text-xl font-bold text-white mb-2">{badge.name}</h3>
-                    <p className="text-yellow-100 text-sm mb-4">{badge.description}</p>
-                    <div className="bg-white/20 backdrop-blur-sm rounded-lg p-2">
-                      <p className="text-white text-xs font-semibold">
+                    <h3 className="text-xl font-bold text-neutral-900 dark:text-white mb-2">{badge.name}</h3>
+                    <p className="text-neutral-600 dark:text-neutral-400 text-sm mb-4">{badge.description}</p>
+                    <div className="bg-neutral-50 dark:bg-neutral-800 rounded-lg p-2">
+                      <p className="text-neutral-700 dark:text-neutral-300 text-xs font-semibold">
                         Earned: {badge.earnedAt ? new Date(badge.earnedAt).toLocaleDateString() : 'Recently'}
                       </p>
                     </div>
@@ -162,7 +162,7 @@ export default function Badges() {
               {lockedBadges.map((badge) => (
                 <div
                   key={badge._id}
-                  className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border-2 border-gray-200 dark:border-gray-700 p-6 opacity-60"
+                  className="bg-white dark:bg-gray-800 rounded-2xl border border-neutral-200 dark:border-neutral-700 p-6"
                 >
                   <div className="text-center">
                     <div className="text-6xl mb-4 grayscale">{badge.icon}</div>

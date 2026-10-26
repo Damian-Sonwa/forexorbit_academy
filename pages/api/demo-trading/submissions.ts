@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Demo Trading Submissions API Route
  * GET: Get student demo task submissions for instructor
@@ -13,7 +14,7 @@ async function getSubmissions(req: AuthRequest, res: NextApiResponse) {
   try {
     // Only instructors and admins can view submissions
     if (req.user!.role !== 'instructor' && req.user!.role !== 'admin') {
-      return res.status(403).json({ message: 'Only instructors and admins can view submissions' });
+      return res.status(403).json({ error: 'Only instructors and admins can view submissions' });
     }
 
     const db = await getDb();
@@ -72,8 +73,8 @@ async function getSubmissions(req: AuthRequest, res: NextApiResponse) {
 
     res.json(submissionsWithDetails);
   } catch (error: unknown) {
-    console.error('Get submissions error:', error);
-    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+    console.error('Get submissions error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 

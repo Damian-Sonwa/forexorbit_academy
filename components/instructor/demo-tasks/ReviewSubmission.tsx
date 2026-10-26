@@ -8,6 +8,7 @@ import Image from 'next/image';
 import { apiClient } from '@/lib/api-client';
 import { format } from 'date-fns';
 import LoadingSpinner from '@/components/LoadingSpinner';
+import { Bot, Lightbulb } from 'lucide-react';
 
 interface Submission {
   _id: string;
@@ -45,7 +46,7 @@ export default function ReviewSubmission() {
       const data = await apiClient.get<Submission[]>('/demo-trading/submissions');
       setSubmissions(Array.isArray(data) ? data : []);
     } catch (error) {
-      console.error('Failed to load submissions:', error);
+      console.error('Failed to load submissions:');
       setSubmissions([]);
     } finally {
       setLoading(false);
@@ -107,7 +108,7 @@ export default function ReviewSubmission() {
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to draft feedback';
       setError(errorMessage);
-      console.error('AI draft feedback error:', err);
+      console.error('AI draft feedback error:');
     } finally {
       setDraftingFeedback(null);
     }
@@ -170,7 +171,7 @@ export default function ReviewSubmission() {
                           type="button"
                           onClick={() => handleDraftFeedback(submission._id)}
                           disabled={draftingFeedback === submission._id}
-                          className="px-3 py-1 text-xs bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white rounded-lg font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-1"
+                          className="px-3 py-1 text-xs bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-1"
                         >
                           {draftingFeedback === submission._id ? (
                             <>
@@ -179,7 +180,7 @@ export default function ReviewSubmission() {
                             </>
                           ) : (
                             <>
-                              <span>🤖</span>
+                              <Bot className="h-4 w-4 shrink-0" aria-hidden />
                               <span>AI Draft Feedback</span>
                             </>
                           )}
@@ -194,7 +195,7 @@ export default function ReviewSubmission() {
                       />
                       {reviewForm.feedback && (
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                          💡 AI-drafted feedback is editable. Review and customize before submitting.
+                          <Lightbulb className="mr-2 inline h-4 w-4 shrink-0 text-primary-600" aria-hidden />AI-drafted feedback is editable. Review and customize before submitting.
                         </p>
                       )}
                     </div>

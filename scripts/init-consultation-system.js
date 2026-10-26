@@ -57,15 +57,11 @@ async function initConsultationSystem() {
     );
 
     // Add consultationEnabled to super admin
-    const superAdmin = await users.findOne({ email: 'madudamian25@gmail.com' });
+    const superAdmin = await users.findOne({ role: 'superadmin' });
     if (superAdmin) {
-      await users.updateOne(
-        { email: 'madudamian25@gmail.com' },
-        { 
-          $set: { 
-            consultationEnabled: true, // Default to enabled
-          } 
-        }
+      await users.updateMany(
+        { role: 'superadmin' },
+        { $set: { consultationEnabled: true } }
       );
       console.log('✓ Super admin consultation settings initialized');
     }

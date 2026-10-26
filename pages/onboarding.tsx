@@ -9,6 +9,7 @@ import Header from '@/components/Header';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { useAuth } from '@/hooks/useAuth';
 import { apiClient } from '@/lib/api-client';
+import { Bell, Check, GraduationCap, Mail, MessageSquare, Settings, TrendingUp, User } from 'lucide-react';
 
 interface OnboardingData {
   // Step 1: Personal Details
@@ -106,7 +107,7 @@ export default function Onboarding() {
         }
       }
     } catch (error) {
-      console.error('Failed to load onboarding data:', error);
+      console.error('Failed to load onboarding data:');
     }
   };
 
@@ -294,7 +295,7 @@ export default function Onboarding() {
                         : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
                     }`}
                   >
-                    {currentStep > step.number ? '✓' : step.number}
+                    {currentStep > step.number ? <Check className="h-4 w-4" aria-hidden /> : step.number}
                   </div>
                   <span className="text-xs mt-2 text-center text-gray-600 dark:text-gray-400 hidden sm:block">
                     {step.title}
@@ -333,7 +334,7 @@ export default function Onboarding() {
               {/* Profile Photo Upload */}
               <div className="flex flex-col items-center mb-6 pb-6 border-b border-gray-200 dark:border-gray-700">
                 <div className="relative mb-4">
-                  <div className="w-24 h-24 rounded-full overflow-hidden bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center ring-4 ring-primary-100 dark:ring-primary-900">
+                  <div className="w-24 h-24 rounded-full overflow-hidden bg-primary-600 flex items-center justify-center ring-4 ring-primary-100 dark:ring-primary-900">
                     {photoPreview ? (
                       <img
                         src={photoPreview}
@@ -440,7 +441,7 @@ export default function Onboarding() {
             <div className="space-y-6">
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Educational Background</h2>
               
-              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl p-6 border border-blue-100 dark:border-blue-800">
+              <div className="bg-neutral-50 dark:bg-neutral-900 rounded-xl p-6 border border-neutral-100 dark:border-neutral-800">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                     Highest Education Level <span className="text-red-500">*</span>
@@ -462,7 +463,7 @@ export default function Onboarding() {
                 </div>
               </div>
 
-              <div className="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-xl p-6 border border-purple-100 dark:border-purple-800">
+              <div className="bg-neutral-50 dark:bg-neutral-900 rounded-xl p-6 border border-neutral-100 dark:border-neutral-800">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                     Relevant Certifications (Optional)
@@ -484,7 +485,7 @@ export default function Onboarding() {
             <div className="space-y-6">
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Trading Experience</h2>
               
-              <div className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl p-6 border border-green-100 dark:border-green-800">
+              <div className="bg-neutral-50 dark:bg-neutral-900 rounded-xl p-6 border border-green-100 dark:border-green-800">
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">
                   Trading Level <span className="text-red-500">*</span>
                 </label>
@@ -511,7 +512,7 @@ export default function Onboarding() {
                 </div>
               </div>
 
-              <div className="bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 rounded-xl p-6 border border-yellow-100 dark:border-yellow-800">
+              <div className="bg-neutral-50 dark:bg-neutral-900 rounded-xl p-6 border border-yellow-100 dark:border-yellow-800">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                     Years of Forex/Trading Experience <span className="text-red-500">*</span>
@@ -538,7 +539,7 @@ export default function Onboarding() {
             <div className="space-y-6">
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Learning Preferences</h2>
               
-              <div className="bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 rounded-xl p-6 border border-indigo-100 dark:border-indigo-800">
+              <div className="bg-neutral-50 dark:bg-neutral-900 rounded-xl p-6 border border-neutral-100 dark:border-neutral-800">
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">
                   Preferred Learning Topics <span className="text-red-500">*</span>
                 </label>
@@ -560,16 +561,16 @@ export default function Onboarding() {
                 </div>
               </div>
 
-              <div className="bg-gradient-to-br from-teal-50 to-cyan-50 dark:from-teal-900/20 dark:to-cyan-900/20 rounded-xl p-6 border border-teal-100 dark:border-teal-800">
+              <div className="bg-neutral-50 dark:bg-neutral-900 rounded-xl p-6 border border-neutral-100 dark:border-neutral-800">
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">
                   Notification Preferences
                 </label>
                 <div className="space-y-3">
                   {[
-                    { key: 'email', label: 'Email Notifications', icon: '📧' },
-                    { key: 'sms', label: 'SMS Notifications', icon: '💬' },
-                    { key: 'push', label: 'Push Notifications', icon: '🔔' },
-                  ].map(({ key, label, icon }) => (
+                    { key: 'email', label: 'Email Notifications', icon: Mail },
+                    { key: 'sms', label: 'SMS Notifications', icon: MessageSquare },
+                    { key: 'push', label: 'Push Notifications', icon: Bell },
+                  ].map(({ key, label, icon: Icon }) => (
                     <label key={key} className="flex items-center p-3 rounded-lg hover:bg-white/50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer">
                       <input
                         type="checkbox"
@@ -577,7 +578,7 @@ export default function Onboarding() {
                         onChange={(e) => handleNestedChange('notificationPreferences', key, e.target.checked)}
                         className="w-5 h-5 text-primary-600 rounded focus:ring-primary-500"
                       />
-                      <span className="ml-3 text-lg mr-2">{icon}</span>
+                      <span className="ml-3 mr-2 text-neutral-700 dark:text-neutral-300"><Icon className="h-4 w-4" aria-hidden /></span>
                       <span className="text-gray-700 dark:text-gray-300 font-medium">{label}</span>
                     </label>
                   ))}
@@ -592,9 +593,9 @@ export default function Onboarding() {
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Review Your Information</h2>
               
               <div className="space-y-4">
-                <div className="bg-gradient-to-br from-primary-50 to-primary-100 dark:from-primary-900/20 dark:to-primary-800/20 rounded-xl p-5 border border-primary-200 dark:border-primary-800">
+                <div className="bg-neutral-50 dark:bg-neutral-800/40 rounded-xl p-5 border border-primary-200 dark:border-primary-800">
                   <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-4 flex items-center">
-                    <span className="mr-2">👤</span> Personal Details
+                    <User className="mr-2 h-4 w-4 shrink-0" aria-hidden /> Personal Details
                   </h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                     <div>
@@ -616,9 +617,9 @@ export default function Onboarding() {
                   </div>
                 </div>
 
-                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl p-5 border border-blue-200 dark:border-blue-800">
+                <div className="bg-neutral-50 dark:bg-neutral-900 rounded-xl p-5 border border-neutral-200 dark:border-neutral-800">
                   <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-4 flex items-center">
-                    <span className="mr-2">🎓</span> Education
+                    <GraduationCap className="mr-2 h-4 w-4 shrink-0" aria-hidden /> Education
                   </h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                     <div>
@@ -632,9 +633,9 @@ export default function Onboarding() {
                   </div>
                 </div>
 
-                <div className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl p-5 border border-green-200 dark:border-green-800">
+                <div className="bg-neutral-50 dark:bg-neutral-900 rounded-xl p-5 border border-green-200 dark:border-green-800">
                   <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-4 flex items-center">
-                    <span className="mr-2">📈</span> Trading Experience
+                    <TrendingUp className="mr-2 h-4 w-4 shrink-0" aria-hidden /> Trading Experience
                   </h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                     <div>
@@ -648,9 +649,9 @@ export default function Onboarding() {
                   </div>
                 </div>
 
-                <div className="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-xl p-5 border border-purple-200 dark:border-purple-800">
+                <div className="bg-neutral-50 dark:bg-neutral-900 rounded-xl p-5 border border-neutral-200 dark:border-neutral-800">
                   <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-4 flex items-center">
-                    <span className="mr-2">⚙️</span> Preferences
+                    <Settings className="mr-2 h-4 w-4 shrink-0" aria-hidden /> Preferences
                   </h3>
                   <div className="space-y-3 text-sm">
                     <div>
@@ -678,21 +679,21 @@ export default function Onboarding() {
                             ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
                             : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
                         }`}>
-                          📧 Email: {formData.notificationPreferences.email ? 'On' : 'Off'}
+                          <Mail className="mr-2 inline h-4 w-4 shrink-0 text-neutral-600" aria-hidden />Email: {formData.notificationPreferences.email ? 'On' : 'Off'}
                         </span>
                         <span className={`px-3 py-1 rounded-full text-xs font-medium ${
                           formData.notificationPreferences.sms
                             ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
                             : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
                         }`}>
-                          💬 SMS: {formData.notificationPreferences.sms ? 'On' : 'Off'}
+                          <MessageSquare className="mr-2 inline h-4 w-4 shrink-0 text-neutral-600" aria-hidden />SMS: {formData.notificationPreferences.sms ? 'On' : 'Off'}
                         </span>
                         <span className={`px-3 py-1 rounded-full text-xs font-medium ${
                           formData.notificationPreferences.push
                             ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
                             : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
                         }`}>
-                          🔔 Push: {formData.notificationPreferences.push ? 'On' : 'Off'}
+                          <Bell className="mr-2 inline h-4 w-4 shrink-0 text-neutral-600" aria-hidden />Push: {formData.notificationPreferences.push ? 'On' : 'Off'}
                         </span>
                       </div>
                     </div>

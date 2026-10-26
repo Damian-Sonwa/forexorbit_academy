@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Community Messages API Route
  * GET: Get messages for a room
@@ -8,20 +9,14 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
-import { canAccessRoom } from '@/lib/learning-level';
+import { communityMember, decideCommunityMessageAccess, decideCommunityMessageSend, isStoredId } from '@/lib/account-access';
 
 async function getMessages(req: AuthRequest, res: NextApiResponse) {
   try {
     const { roomId } = req.query;
 
-    if (!roomId || typeof roomId !== 'string') {
-      return res.status(400).json({ message: 'Room ID is required' });
-    }
-
-    // Check if roomId is a valid ObjectId (not a placeholder)
-    if (!ObjectId.isValid(roomId)) {
-      console.warn('Invalid roomId format:', roomId);
-      return res.status(400).json({ message: 'Invalid room ID format' });
+    if (!isStoredId(roomId)) {
+      return res.status(400).json({ error: 'Invalid room ID format' });
     }
 
     const db = await getDb();
@@ -33,47 +28,19 @@ async function getMessages(req: AuthRequest, res: NextApiResponse) {
     const roomIdObj = new ObjectId(roomId);
     const room = await rooms.findOne({ _id: roomIdObj });
     if (!room) {
-      return res.status(404).json({ message: 'Room not found' });
+      return res.status(404).json({ error: 'Room not found' });
     }
 
-    // Get user's learning level and onboarding status
     const user = await users.findOne(
       { _id: new ObjectId(req.user!.userId) },
       { projection: { learningLevel: 1, role: 1, studentDetails: 1 } }
     );
-
-    // Check if student has completed onboarding
-    const hasCompletedOnboarding = !user || user.role !== 'student' || 
-      (user.studentDetails && user.studentDetails.completedAt);
-
-    // Students must complete onboarding before accessing rooms
-    if (user?.role === 'student' && !hasCompletedOnboarding) {
-      return res.status(403).json({ message: 'Access denied. Please complete the onboarding form to access community rooms.' 
-      });
-    }
-
-    // Determine user's learning level
-    // CRITICAL: Use tradingLevel from onboarding if learningLevel is not set
-    let userLevel: 'beginner' | 'intermediate' | 'advanced' = 'beginner';
-    if (user?.role !== 'student') {
-      userLevel = 'advanced';
-    } else {
-      userLevel = (user?.learningLevel as 'beginner' | 'intermediate' | 'advanced') || 
-                  (user?.studentDetails?.tradingLevel as 'beginner' | 'intermediate' | 'advanced') || 
-                  'beginner';
-    }
-
-    // Check access for global rooms - students can ONLY access their exact level room
-    if (room.type === 'global' && ['Beginner', 'Intermediate', 'Advanced'].includes(room.name)) {
-      if (!canAccessRoom(userLevel, room.name, user?.role)) {
-        return res.status(403).json({ message: 'Access denied. You can only access the community room for your current level.' 
-        });
-      }
-    }
-
-    // Check access for direct messages
-    if (room.type === 'direct' && !room.participants.includes(req.user!.userId)) {
-      return res.status(403).json({ message: 'Access denied' });
+    const access = decideCommunityMessageAccess({
+      member: communityMember(req.user!.userId, user),
+      room,
+    });
+    if (!access.ok) {
+      return res.status(access.status).json({ error: access.error });
     }
 
     const pageNum = parseInt((req.query.page as string) || '1', 10);
@@ -123,24 +90,17 @@ async function getMessages(req: AuthRequest, res: NextApiResponse) {
 
     // Reverse to show oldest first (for pagination when loading older messages)
     res.json(enrichedMessages.reverse());
-  } catch (error: any) {
-    console.error('Get messages error:', error);
-    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+  } catch {
+    console.error(JSON.stringify({ event: 'communityMessagesRead', result: 'failed' }));
+    res.status(500).json(unexpectedBody('api'));
   }
 }
 
 async function sendMessage(req: AuthRequest, res: NextApiResponse) {
   try {
-    const { roomId, type, content } = req.body;
-
-    if (!roomId || !type || !content) {
-      return res.status(400).json({ message: 'Room ID, type, and content are required' });
-    }
-
-    // Check if roomId is a valid ObjectId (not a placeholder)
-    if (!ObjectId.isValid(roomId)) {
-      console.warn('Invalid roomId format:', roomId);
-      return res.status(400).json({ message: 'Invalid room ID format. Please select a valid room.' });
+    const roomId = req.body && typeof req.body.roomId === 'string' ? req.body.roomId : '';
+    if (!isStoredId(roomId)) {
+      return res.status(400).json({ error: 'Invalid room ID format. Please select a valid room.' });
     }
 
     const db = await getDb();
@@ -152,66 +112,32 @@ async function sendMessage(req: AuthRequest, res: NextApiResponse) {
     const roomIdObj = new ObjectId(roomId);
     const room = await rooms.findOne({ _id: roomIdObj });
     if (!room) {
-      return res.status(404).json({ message: 'Room not found' });
+      return res.status(404).json({ error: 'Room not found' });
     }
 
-    // Get user's learning level and onboarding status
     const user = await users.findOne(
       { _id: new ObjectId(req.user!.userId) },
-      { projection: { learningLevel: 1, role: 1, studentDetails: 1 } }
+      { projection: { learningLevel: 1, role: 1, studentDetails: 1, name: 1, profilePhoto: 1 } }
     );
-
-    // Check if student has completed onboarding
-    const hasCompletedOnboarding = !user || user.role !== 'student' || 
-      (user.studentDetails && user.studentDetails.completedAt);
-
-    // Students must complete onboarding before accessing rooms
-    if (user?.role === 'student' && !hasCompletedOnboarding) {
-      return res.status(403).json({ message: 'Access denied. Please complete the onboarding form to access community rooms.' 
-      });
+    const decision = decideCommunityMessageSend({
+      member: communityMember(req.user!.userId, user),
+      room,
+      body: req.body,
+    });
+    if (!decision.ok) {
+      return res.status(decision.status).json({ error: decision.error });
     }
 
-    // Determine user's learning level
-    // CRITICAL: Use tradingLevel from onboarding if learningLevel is not set
-    let userLevel: 'beginner' | 'intermediate' | 'advanced' = 'beginner';
-    if (user?.role !== 'student') {
-      userLevel = 'advanced';
-    } else {
-      userLevel = (user?.learningLevel as 'beginner' | 'intermediate' | 'advanced') || 
-                  (user?.studentDetails?.tradingLevel as 'beginner' | 'intermediate' | 'advanced') || 
-                  'beginner';
-    }
-
-    // Check access for global rooms - students can ONLY access their exact level room
-    if (room.type === 'global' && ['Beginner', 'Intermediate', 'Advanced'].includes(room.name)) {
-      if (!canAccessRoom(userLevel, room.name, user?.role)) {
-        return res.status(403).json({ message: 'Access denied. You can only access the community room for your current level.' 
-        });
-      }
-    }
-
-    // Check access for direct messages
-    if (room.type === 'direct' && !room.participants?.includes(req.user!.userId)) {
-      return res.status(403).json({ message: 'Access denied' });
-    }
-
-    // Get sender info
-    const sender = await users.findOne(
-      { _id: new ObjectId(req.user!.userId) },
-      { projection: { name: 1, profilePhoto: 1 } }
-    );
-
-    // Create message - level-specific (tied to this room)
     const message = {
-      roomId: roomIdObj.toString(), // Store as string for consistency - level-specific
-      senderId: req.user!.userId,
-      type,
-      content,
-      fileUrl: req.body.fileUrl || null,
-      fileName: req.body.fileName || null,
-      fileSize: req.body.fileSize || null,
+      roomId: decision.roomId,
+      senderId: decision.message.senderId,
+      type: decision.message.type,
+      content: decision.message.content,
+      fileUrl: decision.message.fileUrl,
+      fileName: decision.message.fileName,
+      fileSize: decision.message.fileSize,
       reactions: [],
-      seenBy: [req.user!.userId],
+      seenBy: [decision.message.senderId],
       delivered: true,
       createdAt: new Date(),
     };
@@ -232,9 +158,9 @@ async function sendMessage(req: AuthRequest, res: NextApiResponse) {
         ...message,
         _id: result.insertedId.toString(),
         senderId: req.user!.userId,
-        senderName: sender?.name || 'Unknown',
-        senderPhoto: sender?.profilePhoto || null,
-        roomId: roomIdObj.toString(), // Room ID for filtering on frontend
+        senderName: user?.name || 'Unknown',
+        senderPhoto: user?.profilePhoto || null,
+        roomId: decision.roomId,
       };
       // Broadcast ONLY to the specific room using its unique database ID
       const roomIdStr = roomIdObj.toString();
@@ -243,7 +169,6 @@ async function sendMessage(req: AuthRequest, res: NextApiResponse) {
       if (roomId !== roomIdStr) {
         req.io.to(`room:${roomId}`).emit('message', messageToEmit);
       }
-      console.log(`Message broadcast to room:${roomIdStr} only (isolated)`);
     }
 
     // Create notification for instructors in the room (if message is from a student)
@@ -303,13 +228,13 @@ async function sendMessage(req: AuthRequest, res: NextApiResponse) {
       message: {
         ...message,
         _id: result.insertedId.toString(),
-        senderName: sender?.name || 'Unknown',
-        senderPhoto: sender?.profilePhoto || null,
+        senderName: user?.name || 'Unknown',
+        senderPhoto: user?.profilePhoto || null,
       },
     });
-  } catch (error: any) {
-    console.error('Send message error:', error);
-    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+  } catch {
+    console.error(JSON.stringify({ event: 'communityMessageSend', result: 'failed' }));
+    res.status(500).json(unexpectedBody('api'));
   }
 }
 
@@ -320,7 +245,7 @@ export default withAuth(async (req: AuthRequest, res: NextApiResponse) => {
     return sendMessage(req, res);
   } else {
     res.setHeader('Allow', ['GET', 'POST']);
-    res.status(405).json({ message: `Method ${req.method} not allowed` });
+    res.status(405).json({ error: `Method ${req.method} not allowed` });
   }
 });
 

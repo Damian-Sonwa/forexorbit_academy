@@ -10,6 +10,7 @@ import Header from '@/components/Header';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { useAuth } from '@/hooks/useAuth';
 import { apiClient } from '@/lib/api-client';
+import { Award, Medal, Trophy } from 'lucide-react';
 
 interface LeaderboardEntry {
   rank: number;
@@ -55,7 +56,7 @@ export default function Leaderboard() {
       const response = await apiClient.get<LeaderboardEntry[]>(`/leaderboard?${params.toString()}`);
       setLeaderboard(response);
     } catch (error: any) {
-      console.error('Fetch leaderboard error:', error);
+      console.error('Fetch leaderboard error:');
     } finally {
       setLoading(false);
     }
@@ -68,17 +69,17 @@ export default function Leaderboard() {
   if (!isAuthenticated || !user) return null;
 
   const getRankIcon = (rank: number) => {
-    if (rank === 1) return '🥇';
-    if (rank === 2) return '🥈';
-    if (rank === 3) return '🥉';
-    return `#${rank}`;
+    if (rank === 1) return <Trophy className="h-5 w-5" aria-hidden />;
+    if (rank === 2) return <Medal className="h-5 w-5" aria-hidden />;
+    if (rank === 3) return <Award className="h-5 w-5" aria-hidden />;
+    return rank;
   };
 
   const getRankColor = (rank: number) => {
-    if (rank === 1) return 'from-yellow-400 to-yellow-600';
-    if (rank === 2) return 'from-gray-300 to-gray-500';
-    if (rank === 3) return 'from-orange-400 to-orange-600';
-    return 'from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800';
+    if (rank === 1) return 'bg-primary-600 text-white';
+    if (rank === 2) return 'bg-neutral-700 text-white';
+    if (rank === 3) return 'bg-neutral-300 text-neutral-900';
+    return 'bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-200';
   };
 
   return (
@@ -86,7 +87,8 @@ export default function Leaderboard() {
       <Header />
       <main className="flex-1 flex flex-col overflow-hidden px-4 sm:px-6 lg:px-8 py-4">
         <div className="mb-4 flex-shrink-0">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-1">Leaderboard</h1>
+          <p className="page-kicker mb-2">Community</p>
+          <h1 className="page-title">Leaderboard</h1>
           <p className="text-gray-600 dark:text-gray-400 text-sm">See how you rank against other students</p>
         </div>
 
@@ -100,7 +102,7 @@ export default function Leaderboard() {
                   onClick={() => setType(t)}
                   className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all ${
                     type === t
-                      ? 'bg-primary-600 text-white shadow-lg'
+                      ? 'bg-primary-400 text-neutral-900'
                       : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                   }`}
                 >
@@ -129,7 +131,7 @@ export default function Leaderboard() {
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden flex-1 flex flex-col">
             <div className="overflow-auto flex-1">
               <table className="w-full min-w-full">
-                <thead className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800 sticky top-0 z-10">
+                <thead className="bg-neutral-50 dark:bg-neutral-800 sticky top-0 z-10">
                   <tr>
                     <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Rank</th>
                     <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Student</th>
@@ -159,13 +161,13 @@ export default function Leaderboard() {
                       }`}
                     >
                       <td className="px-4 py-3 whitespace-nowrap">
-                        <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${getRankColor(entry.rank)} flex items-center justify-center font-bold text-white text-sm`}>
+                        <div className={`w-10 h-10 rounded-full ${getRankColor(entry.rank)} flex items-center justify-center font-bold text-sm`}>
                           {getRankIcon(entry.rank)}
                         </div>
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center">
-                          <div className="w-8 h-8 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-full flex items-center justify-center text-white font-bold mr-2 text-xs">
+                          <div className="w-8 h-8 bg-neutral-900 rounded-full flex items-center justify-center text-white font-bold mr-2 text-xs">
                             {entry.name?.charAt(0).toUpperCase() || 'U'}
                           </div>
                           <div>
@@ -189,7 +191,7 @@ export default function Leaderboard() {
                       {type === 'quizzes' && (
                         <>
                           <td className="px-4 py-3 whitespace-nowrap">
-                            <span className="text-base font-bold text-blue-600 dark:text-blue-400">{entry.avgScore || 0}%</span>
+                            <span className="text-base font-bold text-primary-600 dark:text-primary-400">{entry.avgScore || 0}%</span>
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap">
                             <span className="text-sm text-gray-600 dark:text-gray-400">{entry.totalQuizzes || 0}</span>
@@ -201,7 +203,7 @@ export default function Leaderboard() {
                           <div className="flex items-center gap-2">
                             <div className="w-24 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                               <div
-                                className="bg-gradient-to-r from-primary-500 to-secondary-500 h-2 rounded-full"
+                                className="bg-primary-500 h-2 rounded-full"
                                 style={{ width: `${entry.progress || 0}%` }}
                               ></div>
                             </div>

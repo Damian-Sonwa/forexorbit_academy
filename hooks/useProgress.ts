@@ -16,7 +16,9 @@ export interface Progress {
     id: string;
     title: string;
     thumbnail?: string;
-  };
+  } | null;
+  active?: boolean;
+  countsTowardActiveTotals?: boolean;
 }
 
 export function useProgress() {

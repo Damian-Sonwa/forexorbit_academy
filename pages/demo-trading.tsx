@@ -16,6 +16,7 @@ import { format } from 'date-fns';
 import TradingInterface from '@/components/TradingInterface';
 import { ContentAdBanner } from '@/components/ads/ContentAdBanner';
 import { ContentAdInterstitial } from '@/components/ads/ContentAdInterstitial';
+import { AlertTriangle, BarChart3, BookOpen, CheckCircle2, ClipboardList, GraduationCap, Lightbulb, Monitor, Rocket, Wrench, X, Zap } from 'lucide-react';
 
 interface DemoTask {
   _id: string;
@@ -120,7 +121,7 @@ export default function DemoTrading() {
       setTasks(Array.isArray(tasksData) ? tasksData : []);
       setJournalEntries(Array.isArray(journalData) ? journalData : []);
     } catch (error) {
-      console.error('Failed to load demo trading data:', error);
+      console.error('Failed to load demo trading data:');
     } finally {
       setLoading(false);
     }
@@ -180,7 +181,7 @@ export default function DemoTrading() {
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message || 'Failed to upload screenshot';
       setSubmissionUploadError(errorMessage);
-      console.error('Screenshot upload error:', error);
+      console.error('Screenshot upload error:');
     } finally {
       setUploadingSubmissionScreenshot(false);
     }
@@ -217,7 +218,7 @@ export default function DemoTrading() {
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || error.response?.data?.error || 'Failed to submit task';
       alert(errorMessage);
-      console.error('Task submission error:', error);
+      console.error('Task submission error:');
     } finally {
       setIsSubmittingTask(false);
     }
@@ -264,7 +265,7 @@ export default function DemoTrading() {
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message || 'Failed to upload screenshot';
       setUploadError(errorMessage);
-      console.error('Screenshot upload error:', error);
+      console.error('Screenshot upload error:');
     } finally {
       setUploadingScreenshot(false);
     }
@@ -317,7 +318,7 @@ export default function DemoTrading() {
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || error.response?.data?.error || 'Failed to save trade journal entry';
       alert(errorMessage);
-      console.error('Journal submission error:', error);
+      console.error('Journal submission error:');
     } finally {
       setIsSubmitting(false);
     }
@@ -354,7 +355,7 @@ export default function DemoTrading() {
           <div className="mb-6 bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-lg">
             <div className="flex">
               <div className="flex-shrink-0">
-                <span className="text-2xl">⚠️</span>
+                <AlertTriangle className="h-6 w-6 shrink-0 text-amber-700" aria-hidden />
               </div>
               <div className="ml-3">
                 <h3 className="text-sm font-medium text-yellow-800">Important Disclaimer</h3>
@@ -378,10 +379,10 @@ export default function DemoTrading() {
           <div className="mb-6 border-b border-gray-200">
             <nav className="-mb-px flex space-x-8">
               {[
-                { id: 'guide', label: '📖 Setup Guide', icon: '📖' },
-                { id: 'live', label: '⚡ Live Trading', icon: '⚡' },
-                { id: 'tasks', label: '📋 Tasks', icon: '📋' },
-                { id: 'journal', label: '📊 Trade Journal', icon: '📊' },
+                { id: 'guide', label: 'Setup Guide', icon: BookOpen },
+                { id: 'live', label: 'Live Trading', icon: Zap },
+                { id: 'tasks', label: 'Tasks', icon: ClipboardList },
+                { id: 'journal', label: 'Trade Journal', icon: BarChart3 },
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -392,7 +393,7 @@ export default function DemoTrading() {
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
                 >
-                  {tab.label}
+                  <span className="inline-flex items-center gap-2"><tab.icon className="h-4 w-4 shrink-0" aria-hidden />{tab.label}</span>
                 </button>
               ))}
             </nav>
@@ -406,8 +407,8 @@ export default function DemoTrading() {
                 <h2 className="text-2xl font-bold text-gray-900">MetaTrader Demo Account Setup Guide</h2>
                 
                 {/* What is a Demo Account Section */}
-                <div className="bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-blue-200 rounded-xl p-6 mb-8">
-                  <h3 className="text-2xl font-bold text-gray-900 mb-4">📚 What is a Demo Trading Account?</h3>
+                <div className="bg-neutral-50 border-2 border-neutral-200 rounded-xl p-6 mb-8">
+                  <h3 className="text-2xl font-bold text-gray-900 mb-4"><BookOpen className="mr-2 inline h-5 w-5 shrink-0 text-neutral-700" aria-hidden />What is a Demo Trading Account?</h3>
                   
                   <div className="space-y-4 text-gray-700">
                     <div>
@@ -433,8 +434,8 @@ export default function DemoTrading() {
                     <div>
                       <h4 className="font-semibold text-lg mb-2 text-gray-900">Why Do You Need a Demo Account?</h4>
                       <div className="grid md:grid-cols-2 gap-4 mt-3">
-                        <div className="bg-white rounded-lg p-4 border border-blue-200">
-                          <h5 className="font-semibold mb-2 text-blue-900">🎓 For Learning</h5>
+                        <div className="bg-white rounded-lg p-4 border border-neutral-200">
+                          <h5 className="font-semibold mb-2 text-neutral-900"><GraduationCap className="mr-2 inline h-4 w-4 shrink-0 text-neutral-700" aria-hidden />For Learning</h5>
                           <ul className="text-sm space-y-1 list-disc list-inside text-gray-700">
                             <li>Practice trading strategies safely</li>
                             <li>Learn platform features and tools</li>
@@ -443,7 +444,7 @@ export default function DemoTrading() {
                           </ul>
                         </div>
                         <div className="bg-white rounded-lg p-4 border border-green-200">
-                          <h5 className="font-semibold mb-2 text-green-900">✅ For Course Completion</h5>
+                          <h5 className="font-semibold mb-2 text-green-900"><CheckCircle2 className="mr-2 inline h-4 w-4 shrink-0 text-green-700" aria-hidden />For Course Completion</h5>
                           <ul className="text-sm space-y-1 list-disc list-inside text-gray-700">
                             <li>Complete instructor-assigned tasks</li>
                             <li>Log trades in your Trade Journal</li>
@@ -451,8 +452,8 @@ export default function DemoTrading() {
                             <li>Demonstrate your skills</li>
                           </ul>
                         </div>
-                        <div className="bg-white rounded-lg p-4 border border-purple-200">
-                          <h5 className="font-semibold mb-2 text-purple-900">📊 For Skill Development</h5>
+                        <div className="bg-white rounded-lg p-4 border border-neutral-200">
+                          <h5 className="font-semibold mb-2 text-neutral-900"><BarChart3 className="mr-2 inline h-4 w-4 shrink-0 text-neutral-700" aria-hidden />For Skill Development</h5>
                           <ul className="text-sm space-y-1 list-disc list-inside text-gray-700">
                             <li>Build confidence before real trading</li>
                             <li>Develop risk management skills</li>
@@ -461,7 +462,7 @@ export default function DemoTrading() {
                           </ul>
                         </div>
                         <div className="bg-white rounded-lg p-4 border border-orange-200">
-                          <h5 className="font-semibold mb-2 text-orange-900">🔧 For Platform Mastery</h5>
+                          <h5 className="font-semibold mb-2 text-orange-900"><Wrench className="mr-2 inline h-4 w-4 shrink-0 text-neutral-700" aria-hidden />For Platform Mastery</h5>
                           <ul className="text-sm space-y-1 list-disc list-inside text-gray-700">
                             <li>Familiarize with MetaTrader interface</li>
                             <li>Learn order types and execution</li>
@@ -474,7 +475,7 @@ export default function DemoTrading() {
 
                     <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded mt-4">
                       <p className="text-sm text-yellow-800">
-                        <strong>💡 Important:</strong> Demo accounts are essential for your ForexOrbit Academy journey. 
+                        <strong><Lightbulb className="mr-2 inline h-4 w-4 shrink-0 text-primary-600" aria-hidden />Important:</strong> Demo accounts are essential for your ForexOrbit Academy journey. 
                         They allow you to complete practice tasks, log trades in your journal, and demonstrate your 
                         understanding of trading concepts without any financial risk.
                       </p>
@@ -515,16 +516,16 @@ export default function DemoTrading() {
                     <h3 className="text-xl font-semibold mb-4 text-gray-900">Step 2: Create a Demo Account</h3>
                     <div className="space-y-4">
                       {/* Quick Links Section */}
-                      <div className="bg-gradient-to-r from-blue-50 to-green-50 border-2 border-blue-200 rounded-xl p-6 mb-6">
-                        <h4 className="font-bold text-lg mb-4 text-gray-900">🚀 Quick Start - Create Account Now</h4>
+                      <div className="bg-neutral-50 border-2 border-neutral-200 rounded-xl p-6 mb-6">
+                        <h4 className="font-bold text-lg mb-4 text-gray-900"><Rocket className="mr-2 inline h-5 w-5 shrink-0 text-primary-600" aria-hidden />Quick Start - Create Account Now</h4>
                         <div className="grid md:grid-cols-2 gap-4">
                           <a
                             href="https://hub.oanda.com/apply/demo/"
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex items-center justify-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-4 rounded-lg font-medium transition-colors shadow-md hover:shadow-lg"
+                            className="flex items-center justify-center space-x-2 bg-primary-600 hover:bg-primary-700 text-white px-6 py-4 rounded-lg font-medium transition-colors shadow-md hover:shadow-lg"
                           >
-                            <span>📊</span>
+                            <BarChart3 className="h-4 w-4 shrink-0 text-white" aria-hidden />
                             <span>Create OANDA Demo Account</span>
                             <span>→</span>
                           </a>
@@ -534,7 +535,7 @@ export default function DemoTrading() {
                             rel="noopener noreferrer"
                             className="flex items-center justify-center space-x-2 bg-green-600 hover:bg-green-700 text-white px-6 py-4 rounded-lg font-medium transition-colors shadow-md hover:shadow-lg"
                           >
-                            <span>💻</span>
+                            <Monitor className="h-4 w-4 shrink-0 text-white" aria-hidden />
                             <span>Download MetaTrader</span>
                             <span>→</span>
                           </a>
@@ -544,11 +545,11 @@ export default function DemoTrading() {
                         </p>
                       </div>
 
-                      <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded">
+                      <div className="bg-neutral-50 border-l-4 border-primary-400 p-4 rounded">
                         <h4 className="font-semibold mb-2">Option A: OANDA Demo Account (Recommended for API Integration)</h4>
                         <ol className="list-decimal list-inside space-y-2 text-sm text-gray-700 mb-4">
                           <li>Click the "Create OANDA Demo Account" button above, or</li>
-                          <li>Visit <a href="https://hub.oanda.com/apply/demo/" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium">OANDA Demo Registration</a></li>
+                          <li>Visit <a href="https://hub.oanda.com/apply/demo/" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline font-medium">OANDA Demo Registration</a></li>
                           <li>Fill in the registration form with your email and details</li>
                           <li>Verify your email address</li>
                           <li>Log in to your OANDA practice account</li>
@@ -560,7 +561,7 @@ export default function DemoTrading() {
                             href="https://hub.oanda.com/apply/demo/"
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                            className="inline-flex items-center space-x-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
                           >
                             <span>Open OANDA Demo Registration</span>
                             <span>→</span>
@@ -641,7 +642,7 @@ export default function DemoTrading() {
                           and you can trade directly in your browser - no download required!
                         </p>
                         <p className="text-sm text-gray-600 italic">
-                          💡 Tip: Contact your instructor if you need help accessing your broker's WebTrader platform.
+                          <Lightbulb className="mr-2 inline h-4 w-4 shrink-0 text-primary-600" aria-hidden />Tip: Contact your instructor if you need help accessing your broker's WebTrader platform.
                         </p>
                       </div>
 
@@ -679,19 +680,19 @@ export default function DemoTrading() {
                     <h3 className="text-xl font-semibold mb-4 text-gray-900">Important Notes</h3>
                     <div className="space-y-3 text-sm text-gray-700">
                       <div className="flex items-start">
-                        <span className="mr-2">✅</span>
+                        <CheckCircle2 className="mr-2 h-4 w-4 shrink-0 text-green-700" aria-hidden />
                         <p><strong>Demo accounts use virtual money</strong> - you cannot lose real money, but you also cannot withdraw profits.</p>
                       </div>
                       <div className="flex items-start">
-                        <span className="mr-2">✅</span>
+                        <CheckCircle2 className="mr-2 h-4 w-4 shrink-0 text-green-700" aria-hidden />
                         <p><strong>Demo accounts expire</strong> - typically after 30 days. You can create a new one anytime.</p>
                       </div>
                       <div className="flex items-start">
-                        <span className="mr-2">✅</span>
+                        <CheckCircle2 className="mr-2 h-4 w-4 shrink-0 text-green-700" aria-hidden />
                         <p><strong>Market conditions may differ</strong> - demo accounts sometimes have different spreads and execution speeds than live accounts.</p>
                       </div>
                       <div className="flex items-start">
-                        <span className="mr-2">✅</span>
+                        <CheckCircle2 className="mr-2 h-4 w-4 shrink-0 text-green-700" aria-hidden />
                         <p><strong>Practice makes perfect</strong> - use demo accounts to test strategies, learn the platform, and build confidence before trading with real money.</p>
                       </div>
                     </div>
@@ -706,7 +707,7 @@ export default function DemoTrading() {
                 <div className="mb-6 bg-red-50 border-l-4 border-red-400 p-4 rounded-lg">
                   <div className="flex">
                     <div className="flex-shrink-0">
-                      <span className="text-2xl">⚠️</span>
+                      <AlertTriangle className="h-6 w-6 shrink-0 text-amber-700" aria-hidden />
                     </div>
                     <div className="ml-3">
                       <h3 className="text-sm font-medium text-red-800">Critical Security Notice</h3>
@@ -770,7 +771,7 @@ export default function DemoTrading() {
                                   <h4 className="font-semibold text-gray-900 mb-1">{task.title}</h4>
                                   <p className="text-sm text-gray-600 mb-2">{task.description}</p>
                                   {task.instructions && (
-                                    <div className="bg-blue-50 border-l-4 border-blue-400 p-3 rounded mb-2">
+                                    <div className="bg-neutral-50 border-l-4 border-primary-400 p-3 rounded mb-2">
                                       <p className="text-sm text-gray-700 whitespace-pre-line">{task.instructions}</p>
                                     </div>
                                   )}
@@ -988,7 +989,7 @@ export default function DemoTrading() {
                               {(trade.grade || trade.feedback) && (
                                 <div className="mt-4 pt-4 border-t border-green-200 bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
                                   <div className="flex items-center justify-between mb-2">
-                                    <p className="text-sm font-semibold text-green-800 dark:text-green-200">
+                                    <p className="text-sm font-semibold text-green-800 dark:text-primary-600">
                                       Instructor Feedback
                                     </p>
                                     {trade.grade && (
@@ -1060,8 +1061,9 @@ export default function DemoTrading() {
                     setScreenshotPreview(null);
                   }}
                   className="text-gray-400 hover:text-gray-600"
+                  aria-label="Close"
                 >
-                  ✕
+                  <X className="h-5 w-5" aria-hidden />
                 </button>
               </div>
 
@@ -1212,8 +1214,8 @@ export default function DemoTrading() {
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 bg-white disabled:opacity-50 disabled:cursor-not-allowed"
                     />
                     {uploadingScreenshot && (
-                      <p className="text-sm text-blue-600 flex items-center">
-                        <span className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></span>
+                      <p className="text-sm text-primary-600 flex items-center">
+                        <span className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-primary-600 mr-2"></span>
                         Uploading screenshot...
                       </p>
                     )}
@@ -1317,8 +1319,9 @@ export default function DemoTrading() {
                     setSelectedTask(null);
                   }}
                   className="text-gray-400 hover:text-gray-600"
+                  aria-label="Close"
                 >
-                  ✕
+                  <X className="h-5 w-5" aria-hidden />
                 </button>
               </div>
 
@@ -1356,8 +1359,8 @@ export default function DemoTrading() {
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 bg-white disabled:opacity-50 disabled:cursor-not-allowed"
                     />
                     {uploadingSubmissionScreenshot && (
-                      <p className="text-sm text-blue-600 flex items-center">
-                        <span className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></span>
+                      <p className="text-sm text-primary-600 flex items-center">
+                        <span className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-primary-600 mr-2"></span>
                         Uploading screenshot...
                       </p>
                     )}

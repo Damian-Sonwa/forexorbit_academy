@@ -1,3 +1,4 @@
+import { publicUploadFailure } from '@/lib/public-error';
 /**
  * Trade Journal Screenshot Upload API
  * Allows students to upload screenshots of their demo trading activities
@@ -20,7 +21,7 @@ export const config = {
 async function uploadJournalScreenshot(req: AuthRequest, res: NextApiResponse) {
   // Only students can upload journal screenshots
   if (req.user!.role !== 'student') {
-    return res.status(403).json({ message: 'Only students can upload journal screenshots' });
+    return res.status(403).json({ error: 'Only students can upload journal screenshots' });
   }
 
   try {
@@ -44,7 +45,7 @@ async function uploadJournalScreenshot(req: AuthRequest, res: NextApiResponse) {
     const file = Array.isArray(files.file) ? files.file[0] : files.file;
 
     if (!file) {
-      return res.status(400).json({ message: 'No file uploaded' });
+      return res.status(400).json({ error: 'No file uploaded' });
     }
 
     // Check if Cloudinary is configured
@@ -57,19 +58,9 @@ async function uploadJournalScreenshot(req: AuthRequest, res: NextApiResponse) {
           // Ignore cleanup errors
         }
       }
-      const missing = [];
-      if (!process.env.CLOUDINARY_CLOUD_NAME) missing.push('CLOUDINARY_CLOUD_NAME');
-      if (!process.env.CLOUDINARY_API_KEY) missing.push('CLOUDINARY_API_KEY');
-      if (!process.env.CLOUDINARY_API_SECRET) missing.push('CLOUDINARY_API_SECRET');
-      console.error('Cloudinary not configured - missing environment variables:', missing.join(', '));
-      console.error('Environment check:', {
-        nodeEnv: process.env.NODE_ENV,
-        hasCloudName: !!process.env.CLOUDINARY_CLOUD_NAME,
-        hasApiKey: !!process.env.CLOUDINARY_API_KEY,
-        hasApiSecret: !!process.env.CLOUDINARY_API_SECRET,
-      });
-      return res.status(500).json({ message: 'Image upload service is not configured. Please contact support.',
-        details: `Missing: ${missing.join(', ')}`
+      console.error('Image upload service is not configured');
+      return res.status(500).json({
+        error: 'Image upload service is not configured. Please contact support.',
       });
     }
 
@@ -89,7 +80,7 @@ async function uploadJournalScreenshot(req: AuthRequest, res: NextApiResponse) {
           // Ignore cleanup errors
         }
       }
-      return res.status(400).json({ message: validation.error });
+      return res.status(400).json({ error: validation.error });
     }
 
     // Upload to Cloudinary directly from file path (more efficient)
@@ -134,14 +125,8 @@ async function uploadJournalScreenshot(req: AuthRequest, res: NextApiResponse) {
       screenshotId: insertResult.insertedId.toString(),
     });
   } catch (error: any) {
-    console.error('Journal screenshot upload error:', error);
-    if (error.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json({ message: 'File size exceeds 10MB limit' });
-    }
-    if (error.message?.includes('Cloudinary configuration is missing')) {
-      return res.status(500).json({ message: 'Image upload service is not configured. Please contact support.' });
-    }
-    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+    const failure = publicUploadFailure(error, { limitMessage: 'File size exceeds 10MB limit' });
+    return res.status(failure.status).json(failure.body);
   }
 }
 

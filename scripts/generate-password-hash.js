@@ -1,38 +1,27 @@
 /**
- * Generate Password Hash
- * Generates a bcrypt hash for a password
- * Usage: node scripts/generate-password-hash.js [password]
+ * Generate a bcrypt hash for a password supplied on the command line.
+ * Usage: node scripts/generate-password-hash.js <password>
+ *
+ * This script does not connect to the database and does not update any user.
  */
 
 const bcrypt = require('bcryptjs');
 
-const password = process.argv[2] || 'password123';
+const password = process.argv[2];
+
+if (!password) {
+  console.error('Usage: node scripts/generate-password-hash.js <password>');
+  process.exit(1);
+}
 
 async function generateHash() {
   try {
     const hash = await bcrypt.hash(password, 10);
-    console.log('\n✅ Password Hash Generated:');
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('Password:', password);
-    console.log('Hash:', hash);
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
-    
-    console.log('📋 MongoDB Update Query:');
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log(`db.users.updateOne(
-  { email: "madudamian25@gmail.com" },
-  { 
-    $set: { 
-      password: "${hash}",
-      updatedAt: new Date()
-    } 
-  }
-)`);
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+    console.log(hash);
   } catch (error) {
     console.error('Error generating hash:', error);
+    process.exit(1);
   }
 }
 
 generateHash();
-

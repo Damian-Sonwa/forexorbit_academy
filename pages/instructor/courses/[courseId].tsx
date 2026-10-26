@@ -16,6 +16,7 @@ import { useSocket } from '@/hooks/useSocket';
 import { apiClient } from '@/lib/api-client';
 import { sanitizeHtml, stripHtml } from '@/lib/html-sanitizer';
 import { getLessonDescriptionHtml, hasVisibleHtml } from '@/lib/lesson-html';
+import { canReadCourseLessons } from '@/lib/course-response';
 
 interface Lesson {
   _id: string;
@@ -90,6 +91,7 @@ export default function InstructorCoursePage() {
   const [courseForm, setCourseForm] = useState<Partial<Course>>({});
   const [showLessonForm, setShowLessonForm] = useState(false);
   const [showQuizForm, setShowQuizForm] = useState(false);
+  const [lessonsRestricted, setLessonsRestricted] = useState(false);
 
   // Role enforcement
   useEffect(() => {
@@ -98,18 +100,19 @@ export default function InstructorCoursePage() {
     }
   }, [authLoading, isAuthenticated, user, router]);
 
-  // Load course data
+  // Load course data, then lessons only when this account may manage them.
   useEffect(() => {
-    if (courseId && isAuthenticated && (user?.role === 'instructor' || user?.role === 'admin' || user?.role === 'superadmin')) {
-      loadCourse();
-      loadCourseLessons();
-    }
-  }, [courseId, isAuthenticated, user]);
+    const id = typeof courseId === 'string' ? courseId : '';
+    if (!id || !isAuthenticated) return;
+    if (user?.role !== 'instructor' && user?.role !== 'admin' && user?.role !== 'superadmin') return;
+    loadCourse(id);
+  }, [courseId, isAuthenticated, user?.id, user?.role]);
 
-  const loadCourse = async () => {
+  const loadCourse = async (id = typeof courseId === 'string' ? courseId : '') => {
+    if (!id) return;
     try {
       setLoading(true);
-      const courseData = await apiClient.get<Course>(`/courses/${courseId}`);
+      const courseData = await apiClient.get<Course>(`/courses/${id}`);
       setCourse(courseData);
       setCourseForm({
         title: courseData.title,
@@ -118,22 +121,28 @@ export default function InstructorCoursePage() {
         difficulty: courseData.difficulty,
         thumbnail: courseData.thumbnail || '',
       });
-    } catch (error: any) {
-      console.error('Failed to load course:', error);
-      alert(error.message || 'Failed to load course');
+      if (canReadCourseLessons(user?.role, user?.id, courseData.instructorId)) {
+        setLessonsRestricted(false);
+        await loadCourseLessons(id);
+      } else {
+        setLessonsRestricted(true);
+        setCourseLessons([]);
+      }
+    } catch {
+      alert('Failed to load course');
       router.push('/instructor/dashboard');
     } finally {
       setLoading(false);
     }
   };
 
-  const loadCourseLessons = async () => {
-    if (!courseId) return;
+  const loadCourseLessons = async (id = typeof courseId === 'string' ? courseId : '') => {
+    if (!id) return;
     try {
-      const lessons = await apiClient.get<Lesson[]>(`/lessons?courseId=${courseId}`);
+      const lessons = await apiClient.get<Lesson[]>(`/lessons?courseId=${id}`);
       setCourseLessons(lessons.sort((a, b) => a.order - b.order));
-    } catch (error: any) {
-      console.error('Failed to load lessons:', error);
+    } catch {
+      setCourseLessons([]);
     }
   };
 
@@ -573,7 +582,7 @@ export default function InstructorCoursePage() {
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold text-gray-900 dark:text-white">Lessons</h2>
-              {!showLessonForm && (
+              {!showLessonForm && !lessonsRestricted && (
                 <button
                   onClick={() => {
                     setEditingLesson(null);
@@ -586,6 +595,12 @@ export default function InstructorCoursePage() {
                 </button>
               )}
             </div>
+
+            {lessonsRestricted ? (
+              <p className="text-sm text-gray-600 dark:text-gray-300">
+                Lessons for this course are available to its assigned instructor.
+              </p>
+            ) : null}
 
             {showLessonForm ? (
               <form onSubmit={editingLesson ? handleSaveLesson : handleCreateLesson} className="space-y-4">
@@ -849,7 +864,7 @@ export default function InstructorCoursePage() {
                             </button>
                             <button
                               onClick={() => handleEditQuiz(lesson._id)}
-                              className="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded text-sm font-semibold hover:bg-blue-200 dark:hover:bg-blue-900/50"
+                              className="px-3 py-1 bg-neutral-100 dark:bg-neutral-900/30 text-primary-700 dark:text-primary-400 rounded text-sm font-semibold hover:bg-neutral-200 dark:hover:bg-neutral-900/50"
                             >
                               Quiz
                             </button>

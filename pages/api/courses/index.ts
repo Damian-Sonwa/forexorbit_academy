@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Courses API Route
  * GET: List all courses with filters
@@ -7,7 +8,12 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
+import { ObjectId } from 'mongodb';
+import { decideAccountAccess, decideCourseCreate, isStoredId } from '@/lib/account-access';
+import { isActiveEnrollment } from '@/lib/enrollment-state';
+import { decideSessionBinding, extractToken, verifyToken } from '@/lib/jwt';
 import { stripCourseVisualAidsFields } from '@/lib/strip-visual-aids-html';
+import { presentCourse } from '@/lib/course-response';
 // import { ObjectId } from 'mongodb'; // Reserved for future use
 
 export const config = {
@@ -39,73 +45,109 @@ async function getCourses(req: AuthRequest, res: NextApiResponse) {
     }
 
     const coursesList = await courses.find(query).toArray();
-
-      // Add progress for authenticated users
+    const views = [];
+    for (const course of coursesList) {
+      const description = typeof course.description === 'string'
+        ? String(stripCourseVisualAidsFields({ description: course.description }).description || '')
+        : '';
+      let extras = {};
       if (req.user) {
-        const userId = req.user.userId;
-        for (const course of coursesList) {
-          const courseId = course._id?.toString() || course.id;
-          const userProgress = await progress.findOne({
-            userId,
-            courseId,
-          });
-          course.progress = userProgress?.progress || 0;
-          course.enrolled = !!userProgress;
-        }
+        const courseId = course._id?.toString() || course.id;
+        const userProgress = await progress.findOne({
+          userId: req.user.userId,
+          courseId,
+        });
+        const activeEnrollment = isActiveEnrollment(userProgress);
+        extras = {
+          progress: activeEnrollment ? (userProgress?.progress || 0) : 0,
+          enrolled: activeEnrollment,
+        };
       }
+      views.push(presentCourse({ ...course, description }, extras));
+    }
 
-    res.json(
-      coursesList.map((c) => stripCourseVisualAidsFields(c as Record<string, unknown>))
-    );
+    res.json(views);
   } catch (error: any) {
-    console.error('Get courses error:', error);
-    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+    console.error('Get courses error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 
 // POST create course
 async function createCourse(req: AuthRequest, res: NextApiResponse) {
+  const body = req.body && typeof req.body === 'object' ? req.body : {};
   try {
-    const { title, description, category, difficulty, instructorId, thumbnail } = req.body;
-
-    if (!title || !description || !category || !difficulty) {
-      return res.status(400).json({ message: 'Missing required fields' });
+    const db = await getDb();
+    const requestedId = typeof body.instructorId === 'string' ? body.instructorId.trim() : '';
+    let assignee = null;
+    const assigningOther = (req.user!.role === 'admin' || req.user!.role === 'superadmin')
+      && requestedId
+      && requestedId !== req.user!.userId;
+    if (assigningOther) {
+      if (!isStoredId(requestedId)) {
+        return res.status(400).json({ error: 'Invalid instructor' });
+      }
+      const record = await db.collection('users').findOne(
+        { _id: new ObjectId(requestedId) },
+        { projection: { role: 1, status: 1 } }
+      );
+      assignee = record
+        ? { userId: requestedId, role: record.role, status: record.status }
+        : null;
+    }
+    const decision = decideCourseCreate({
+      member: { userId: req.user!.userId, role: req.user!.role },
+      body,
+      assignee,
+    });
+    if (!decision.ok) {
+      return res.status(decision.status).json({ error: decision.error });
     }
 
-    const db = await getDb();
-    const courses = db.collection('courses');
-
-    const result = await courses.insertOne({
-      title,
-      description,
-      category,
-      difficulty,
-      instructorId: instructorId || req.user!.userId,
-      thumbnail: thumbnail || '',
+    const result = await db.collection('courses').insertOne({
+      ...decision.document,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
 
-    res.status(201).json({
+    return res.status(201).json({
       id: result.insertedId.toString(),
-      ...req.body,
+      ...decision.document,
     });
-  } catch (error: any) {
-    console.error('Create course error:', error);
-    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+  } catch {
+    console.error(JSON.stringify({ event: 'courseCreate', result: 'failed' }));
+    return res.status(500).json(unexpectedBody('api'));
   }
 }
 
 // GET handler - no auth required, but check if user exists
 async function getHandler(req: NextApiRequest, res: NextApiResponse) {
   const authReq = req as AuthRequest;
-  // Try to extract user if token exists, but don't require it
+  // A valid current session may attach this caller's progress. The catalog stays public.
   try {
-    const jwtLib = await import('@/lib/jwt');
-    const token = jwtLib.extractToken(req.headers.authorization || null);
+    const token = extractToken(req.headers.authorization || null);
     if (token) {
-      const payload = jwtLib.verifyToken(token);
-      authReq.user = payload;
+      const payload = verifyToken(token);
+      if (payload?.userId && ObjectId.isValid(payload.userId)) {
+        const record = await (await getDb()).collection('users').findOne(
+          { _id: new ObjectId(payload.userId) },
+          { projection: { email: 1, role: 1, status: 1, sessionGeneration: 1 } }
+        );
+        const account = decideAccountAccess({ userId: payload.userId, record });
+        const session = decideSessionBinding({
+          userId: payload.userId,
+          binding: payload.sv,
+          generation: record?.sessionGeneration,
+          key: process.env.JWT_SECRET || '',
+        });
+        if (account.ok && session.ok) {
+          authReq.user = {
+            userId: account.user.userId,
+            email: account.user.email,
+            role: account.user.role,
+          };
+        }
+      }
     }
   } catch {
     // No token or invalid token - continue without user
@@ -122,9 +164,9 @@ export default async function(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'GET') {
     return getHandler(req, res);
   } else if (req.method === 'POST') {
-    return withAuth(postHandler, ['admin', 'instructor'])(req as AuthRequest, res);
+    return withAuth(postHandler, ['admin', 'instructor', 'superadmin'])(req as AuthRequest, res);
   } else {
-    return res.status(405).json({ message: 'Method not allowed' });
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 }
 

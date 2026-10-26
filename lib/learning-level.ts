@@ -4,6 +4,7 @@
  */
 
 import { getDb } from './mongodb';
+import { courseCountsAsLevelProgress } from '@/lib/enrollment-state';
 import { ObjectId } from 'mongodb';
 
 export type LearningLevel = 'beginner' | 'intermediate' | 'advanced';
@@ -89,24 +90,14 @@ export async function checkLevelCompletion(
         courseId,
       });
 
-      if (!userProgress) {
-        return false; // Course not started
-      }
-
-      // Check if all lessons are completed
-      const completedLessons = userProgress.completedLessons || [];
-      const allLessonsCompleted = courseLessons.every((lesson) =>
-        completedLessons.includes(lesson._id.toString())
-      );
-
-      if (!allLessonsCompleted) {
-        return false; // Not all lessons completed
+      if (!courseCountsAsLevelProgress(userProgress, courseLessons.map((lesson) => lesson._id.toString()))) {
+        return false;
       }
     }
 
     return true; // All courses in level are completed
   } catch (error) {
-    console.error('Error checking level completion:', error);
+    console.error('Error checking level completion:');
     return false;
   }
 }
@@ -164,7 +155,7 @@ export async function updateLearningLevelIfEligible(userId: string): Promise<Lea
 
     return currentLevel;
   } catch (error) {
-    console.error('Error updating learning level:', error);
+    console.error('Error updating learning level:');
     return 'beginner';
   }
 }

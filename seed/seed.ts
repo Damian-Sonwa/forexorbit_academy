@@ -15,18 +15,26 @@ async function seed() {
     const client = await clientPromise;
     const db = client.db('Forex_elearning');
     
-    // Clear existing collections (optional - comment out if you want to keep existing data)
-    console.log('🗑️  Clearing existing collections...');
-    await db.collection('users').deleteMany({});
-    await db.collection('courses').deleteMany({});
-    await db.collection('lessons').deleteMany({});
-    await db.collection('quizzes').deleteMany({});
-    await db.collection('progress').deleteMany({});
-    await db.collection('messages').deleteMany({});
-    await db.collection('quizScores').deleteMany({});
-    
-    // Hash password for demo users
-    const hashedPassword = await bcrypt.hash('password123', 10);
+    const demoPassword = process.env.DEMO_SEED_PASSWORD;
+    if (typeof demoPassword !== 'string' || demoPassword.trim().length < 12) {
+      console.error('DEMO_SEED_PASSWORD is required and must be at least 12 characters. The seed was not started.');
+      process.exit(1);
+    }
+
+    if (process.env.DEMO_SEED_ALLOW_WIPE === 'yes') {
+      console.log('Clearing existing collections because DEMO_SEED_ALLOW_WIPE=yes');
+      await db.collection('users').deleteMany({});
+      await db.collection('courses').deleteMany({});
+      await db.collection('lessons').deleteMany({});
+      await db.collection('quizzes').deleteMany({});
+      await db.collection('progress').deleteMany({});
+      await db.collection('messages').deleteMany({});
+      await db.collection('quizScores').deleteMany({});
+    } else {
+      console.log('Existing collections were left in place.');
+    }
+
+    const hashedPassword = await bcrypt.hash(demoPassword, 10);
     
     // Seed Users
     console.log('👥 Seeding users...');
@@ -257,10 +265,10 @@ async function seed() {
     console.log(`   - Lessons: 6`);
     console.log(`   - Quizzes: 3`);
     console.log(`   - Progress: 1 enrollment`);
-    console.log('\n🔑 Demo Login Credentials:');
-    console.log('   Student: student@demo.com / password123');
-    console.log('   Instructor: instructor@demo.com / password123');
-    console.log('   Admin: admin@demo.com / password123');
+    console.log('\nDemo accounts were prepared. Their password came from DEMO_SEED_PASSWORD and is not printed.');
+    console.log('   Student: student@demo.com');
+    console.log('   Instructor: instructor@demo.com');
+    console.log('   Admin: admin@demo.com');
     
     process.exit(0);
   } catch (error) {

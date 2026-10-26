@@ -3,14 +3,18 @@
  * Generates temporary token for voice/video calls
  * GET /api/consultations/agora-token?channel=<sessionId>
  * 
- * SECURITY: This endpoint MUST run ONLY on Render backend
- * - AGORA_APP_CERTIFICATE must be set in Render environment variables only
- * - This endpoint should NOT be deployed to Vercel (or will return error)
- * - Frontend should call: https://forexorbit-academy.onrender.com/api/consultations/agora-token
+ * SECURITY: The app certificate stays in the server environment.
+ * The browser calls this route on NEXT_PUBLIC_API_BASE_URL, or on the page
+ * origin when that variable is unset.
  */
 
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { unexpectedBody } from '@/lib/public-error';
 import { RtcTokenBuilder, RtcRole } from 'agora-access-token';
+import { ObjectId } from 'mongodb';
+import { withAuth, AuthRequest } from '@/lib/auth-middleware';
+import { getDb } from '@/lib/mongodb';
+import { decideAccountAccess, decideConsultationPublisherToken, consultationLookupId, consultationPublisherResponse } from '@/lib/account-access';
 
 // Agora App ID - check both NEXT_PUBLIC_AGORA_APP_ID (Vercel) and AGORA_APP_ID (Render)
 // App Certificate - MUST be set on Render backend only (NOT in Vercel)
@@ -55,99 +59,69 @@ function setCorsHeaders(res: NextApiResponse, origin?: string) {
   res.setHeader('Access-Control-Max-Age', '86400'); // 24 hours
 }
 
+async function issuePublisherToken(req: AuthRequest, res: NextApiResponse) {
+  const supplied = req.method === 'GET' ? req.query.channel : req.body?.sessionId;
+  const lookupId = consultationLookupId(typeof supplied === 'string' ? supplied : '');
+  if (!lookupId) {
+    return res.status(400).json({ error: 'Invalid session' });
+  }
+
+  try {
+    const db = await getDb();
+    const record = await db.collection('users').findOne(
+      { _id: new ObjectId(req.user!.userId) },
+      { projection: { email: 1, role: 1, status: 1 } }
+    );
+    const account = decideAccountAccess({ userId: req.user!.userId, record });
+    const session = await db.collection('consultationSessions').findOne(
+      { _id: new ObjectId(lookupId) },
+      { projection: { studentId: 1, expertId: 1, status: 1 } }
+    );
+    const decision = decideConsultationPublisherToken({
+      member: account.ok ? { userId: account.user.userId, role: account.user.role } : null,
+      session: session ? {
+        _id: session._id,
+        studentId: session.studentId,
+        expertId: session.expertId,
+        status: typeof session.status === 'string' ? session.status : '',
+      } : null,
+    });
+    const issued = consultationPublisherResponse({
+      decision,
+      appId: AGORA_APP_ID,
+      nowSeconds: Math.floor(Date.now() / 1000),
+      issue: decision.ok ? ({ channel, account: accountName, privilegeExpireTime }) => RtcTokenBuilder.buildTokenWithAccount(
+        AGORA_APP_ID,
+        AGORA_APP_CERTIFICATE,
+        channel,
+        accountName,
+        RtcRole.PUBLISHER,
+        privilegeExpireTime
+      ) : undefined,
+    });
+    if (!issued.ok) {
+      return res.status(issued.status).json({ error: issued.error });
+    }
+    return res.status(200).json(issued.body);
+  } catch (error) {
+    return res.status(500).json(unexpectedBody('agora-token', error));
+  }
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  // Get origin from request headers (browser automatically sends Origin header for CORS requests)
   const origin = req.headers.origin as string | undefined;
-  
-  // Handle preflight OPTIONS request - MUST return 200 with CORS headers
+
   if (req.method === 'OPTIONS') {
     setCorsHeaders(res, origin);
     return res.status(200).end();
   }
 
-  // Set CORS headers for all actual requests (GET, POST) - must be set before any response
   setCorsHeaders(res, origin);
 
-  // CRITICAL: This endpoint must run on Render backend only
-  // AGORA_APP_CERTIFICATE should NEVER be set in Vercel environment
-  if (!AGORA_APP_CERTIFICATE) {
-    console.error('AGORA_APP_CERTIFICATE not configured. This endpoint must run on Render backend.');
-    return res.status(500).json({ message: 'Agora token service unavailable. Please contact support.',
-    });
-  }
-
-  // Support both GET and POST for compatibility
   if (req.method !== 'GET' && req.method !== 'POST') {
-    return res.status(405).json({ message: 'Method not allowed' });
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  try {
-    // Get channel from query (GET) or body (POST)
-    const channel = req.method === 'GET' ? req.query.channel : req.body.sessionId;
-    
-    if (!channel || typeof channel !== 'string') {
-      return res.status(400).json({ message: 'Channel is required' });
-    }
-
-    // Validate Agora credentials
-    if (!AGORA_APP_ID) {
-      console.error('Agora App ID not configured. Set NEXT_PUBLIC_AGORA_APP_ID or AGORA_APP_ID environment variable.');
-      return res.status(500).json({ message: 'Agora token service unavailable. Please contact support.',
-      });
-    }
-
-    // AGORA_APP_CERTIFICATE check is already done above, but double-check for safety
-    if (!AGORA_APP_CERTIFICATE) {
-      console.error('Agora App Certificate not configured. This endpoint must run on Render backend with AGORA_APP_CERTIFICATE set.');
-      return res.status(503).json({ message: 'Agora token service is only available on Render backend. Please contact support.',
-      });
-    }
-
-    // Channel name for this consultation session
-    // If channel doesn't start with 'consultation_', add it
-    const channelName = channel.startsWith('consultation_') ? channel : `consultation_${channel}`;
-    
-    // Get UID from query or default to 0 (let Agora assign automatically)
-    const uid = req.method === 'GET' && req.query.uid 
-      ? parseInt(req.query.uid as string, 10) 
-      : 0;
-    
-    // Token expiration time (1 hour = 3600 seconds)
-    const expireTime = 3600;
-    const currentTime = Math.floor(Date.now() / 1000);
-    const privilegeExpireTime = currentTime + expireTime;
-    
-    // Build token with publisher role (can publish and subscribe)
-    // Using the correct format: privilegeExpireTime instead of expirationTimeInSeconds
-    const token = RtcTokenBuilder.buildTokenWithUid(
-      AGORA_APP_ID,
-      AGORA_APP_CERTIFICATE,
-      channelName,
-      uid,
-      RtcRole.PUBLISHER,
-      privilegeExpireTime
-    );
-
-    console.log('Agora token generated successfully:', {
-      channel: channelName,
-      uid,
-      expireTime,
-      privilegeExpireTime,
-      tokenLength: token.length,
-    });
-
-    // Return token (and additional info for frontend compatibility)
-    return res.status(200).json({
-      token,
-      appId: AGORA_APP_ID,
-      channel: channelName,
-      uid: uid,
-    });
-  } catch (error: any) {
-    console.error('Error generating Agora token:', error);
-    // Don't expose internal errors to frontend - show generic message
-    return res.status(500).json({ message: 'Agora token service unavailable. Please contact support.',
-    });
-  }
+  return withAuth(issuePublisherToken)(req as AuthRequest, res);
 }
 

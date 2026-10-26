@@ -39,41 +39,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    // Check for existing session
+    let cancelled = false;
+    const finish = () => {
+      if (!cancelled) setLoading(false);
+    };
     const token = localStorage.getItem('token');
     const savedUser = localStorage.getItem('user');
 
-    if (token && savedUser) {
-      try {
-        const parsedUser: User = JSON.parse(savedUser);
-        setUser(parsedUser);
-        // Verify token is still valid and fetch latest user data
-        apiClient.get<User>('/auth/me').then((userData) => {
-          // Update user with latest data including onboarding status
-          const updatedUser: User = { ...parsedUser, ...userData };
-          setUser(updatedUser);
-          localStorage.setItem('user', JSON.stringify(updatedUser));
-        }).catch(() => {
-          logout();
-        });
-      } catch (error) {
-        logout();
-      }
+    if (!token || !savedUser) {
+      finish();
+      return;
     }
-    setLoading(false);
+
+    let parsedUser: User;
+    try {
+      parsedUser = JSON.parse(savedUser);
+    } catch {
+      logout();
+      finish();
+      return;
+    }
+
+    apiClient.get<User>('/auth/me').then((userData) => {
+      if (cancelled) return;
+      const updatedUser: User = { ...parsedUser, ...userData };
+      setUser(updatedUser);
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+    }).catch(() => {
+      if (!cancelled) logout();
+    }).finally(finish);
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const login = async (email: string, password: string) => {
     // Normalize email (trim + lowercase)
     const normalizedEmail = email.trim().toLowerCase();
     
-    // Development-only logging
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Login API call for:', normalizedEmail);
-    }
-    
     try {
-      const response = await apiClient.post<{ token?: string; user: User }>('/auth/login', {
+      const response = await apiClient.post<{ token: string; user: User }>('/auth/login', {
         email: normalizedEmail,
         password,
       });
@@ -81,7 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const token =
         response?.token != null && typeof response.token === 'string' ? response.token.trim() : '';
       if (!token) {
-        throw new Error('Login did not return a token. Check the server logs and JWT_SECRET.');
+        throw new Error('Login did not return a session token. Please try again.');
       }
       localStorage.setItem('token', token);
       // Fetch full user data including onboarding status
@@ -94,7 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       let errorMessage = 'Login failed. Please check your credentials.';
       if (error && typeof error === 'object' && 'response' in error) {
         const apiError = error as { response?: { data?: { message?: string; error?: string } }; message?: string };
-        errorMessage = apiError.response?.data?.message || apiError.response?.data?.error || apiError.message || errorMessage;
+        errorMessage = apiError.response?.data?.error || apiError.response?.data?.message || apiError.message || errorMessage;
       } else if (error instanceof Error) {
         errorMessage = error.message || errorMessage;
       }
@@ -103,52 +109,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signup = async (email: string, password: string, name: string, role = 'student', phone = '') => {
+    // Normalize email (trim + lowercase)
     const normalizedEmail = email.trim().toLowerCase();
+    
+    const response = await apiClient.post<{ token: string | null; user: User; message?: string }>('/auth/signup', {
+      email: normalizedEmail,
+      password,
+      name,
+      role,
+      phone: phone.trim(),
+    });
 
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Signup API call for:', normalizedEmail, 'role:', role);
-    }
-
-    try {
-      const response = await apiClient.post<{ token: string | null; user: User; message?: string }>(
-        '/auth/signup',
-        {
-          email: normalizedEmail,
-          password,
-          name: name.trim(),
-          role,
-          phone: phone.trim(),
-        }
-      );
-
-      if (response.token) {
-        localStorage.setItem('token', response.token);
-        try {
-          const userData = await apiClient.get<User>('/auth/me');
-          const fullUser: User = { ...response.user, ...userData };
-          localStorage.setItem('user', JSON.stringify(fullUser));
-          setUser(fullUser);
-        } catch {
-          localStorage.setItem('user', JSON.stringify(response.user));
-          setUser(response.user);
-        }
-      } else {
+    // Only set token if user is approved (students are auto-approved, instructors/admins need approval)
+    if (response.token) {
+      localStorage.setItem('token', response.token);
+      // Fetch full user data including onboarding status for approved users
+      try {
+        const userData = await apiClient.get<User>('/auth/me');
+        const fullUser: User = { ...response.user, ...userData };
+        localStorage.setItem('user', JSON.stringify(fullUser));
+        setUser(fullUser);
+      } catch {
+        // If /auth/me fails, use response.user
         localStorage.setItem('user', JSON.stringify(response.user));
         setUser(response.user);
       }
-
-      if (response.message) {
-        alert(response.message);
-      }
-    } catch (error: unknown) {
-      let errorMessage = 'Signup failed. Please try again.';
-      if (error && typeof error === 'object' && 'response' in error) {
-        const apiError = error as { response?: { data?: { message?: string; error?: string } }; message?: string };
-        errorMessage = apiError.response?.data?.message || apiError.response?.data?.error || apiError.message || errorMessage;
-      } else if (error instanceof Error) {
-        errorMessage = error.message || errorMessage;
-      }
-      throw new Error(errorMessage);
+    } else {
+      localStorage.setItem('user', JSON.stringify(response.user));
+      setUser(response.user);
+    }
+    
+    // Show message if provided (e.g., pending approval message)
+    if (response.message) {
+      alert(response.message);
     }
   };
 

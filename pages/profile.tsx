@@ -101,7 +101,7 @@ export default function Profile() {
         }));
       }
     } catch (error) {
-      console.error('Failed to load profile data:', error);
+      console.error('Failed to load profile data:');
     }
   };
 
@@ -219,18 +219,17 @@ export default function Profile() {
         </div>
 
         <div className="mb-8">
-          <h1 className="text-4xl font-display font-bold text-gray-900 dark:text-white mb-2">
-            My Profile
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Manage your profile information and preferences
+          <p className="page-kicker mb-2">Account</p>
+          <h1 className="page-title">Profile</h1>
+          <p className="mt-2 text-sm text-neutral-600">
+            Your details, learning level, and preferences.
           </p>
         </div>
 
         {/* Success/Error Messages */}
         {success && (
           <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-xl">
-            <p className="text-green-800 dark:text-green-200 text-sm">{success}</p>
+            <p className="text-green-800 dark:text-primary-600 text-sm">{success}</p>
           </div>
         )}
         {error && (
@@ -247,7 +246,7 @@ export default function Profile() {
               
               <div className="flex flex-col items-center">
                 <div className="relative mb-4">
-                  <div className="w-32 h-32 rounded-full overflow-hidden bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center">
+                  <div className="w-32 h-32 rounded-full overflow-hidden bg-primary-600 flex items-center justify-center">
                     {photoPreview ? (
                       <img
                         src={photoPreview}
@@ -528,32 +527,32 @@ export default function Profile() {
                 <div className="space-y-6">
                   {/* Display Mode */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <div className="bg-gradient-to-br from-primary-50 to-primary-100 dark:from-primary-900/20 dark:to-primary-800/20 rounded-xl p-4">
+                    <div className="bg-neutral-50 dark:bg-neutral-800/40 rounded-xl p-4">
                       <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-2">Full Name</h3>
                       <p className="text-lg font-bold text-gray-900 dark:text-white">{formData.fullName || user?.name || 'Not set'}</p>
                     </div>
 
-                    <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-xl p-4">
+                    <div className="bg-neutral-50 dark:bg-neutral-900 rounded-xl p-4">
                       <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-2">Date of Birth</h3>
                       <p className="text-lg font-bold text-gray-900 dark:text-white">{formData.dateOfBirth || 'Not set'}</p>
                     </div>
 
-                    <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-xl p-4">
+                    <div className="bg-neutral-50 dark:bg-neutral-900 rounded-xl p-4">
                       <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-2">Contact Number</h3>
                       <p className="text-lg font-bold text-gray-900 dark:text-white">{formData.contactNumber || 'Not set'}</p>
                     </div>
 
-                    <div className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-xl p-4">
+                    <div className="bg-neutral-50 dark:bg-neutral-900 rounded-xl p-4">
                       <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-2">Education Level</h3>
                       <p className="text-lg font-bold text-gray-900 dark:text-white capitalize">{formData.educationLevel || 'Not set'}</p>
                     </div>
 
-                    <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 dark:from-yellow-900/20 dark:to-yellow-800/20 rounded-xl p-4">
+                    <div className="bg-neutral-50 dark:bg-neutral-900 rounded-xl p-4">
                       <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-2">Trading Level</h3>
                       <p className="text-lg font-bold text-gray-900 dark:text-white capitalize">{formData.tradingLevel || 'Not set'}</p>
                     </div>
 
-                    <div className="bg-gradient-to-br from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/20 rounded-xl p-4">
+                    <div className="bg-neutral-50 dark:bg-neutral-900 rounded-xl p-4">
                       <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-2">Experience</h3>
                       <p className="text-lg font-bold text-gray-900 dark:text-white">{formData.yearsOfExperience || '0'} years</p>
                     </div>

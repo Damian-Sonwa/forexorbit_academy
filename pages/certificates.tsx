@@ -114,7 +114,7 @@ export default function Certificates() {
       const response = await apiClient.get<Certificate[]>(`/certificates${queryString ? `?${queryString}` : ''}`);
       setCertificates(response);
     } catch (error: any) {
-      console.error('Fetch certificates error:', error);
+      console.error('Fetch certificates error:');
     } finally {
       setLoading(false);
     }
@@ -125,7 +125,7 @@ export default function Certificates() {
       const response = await apiClient.get<CertificateTemplate[]>('/certificates/templates');
       setTemplates(response);
     } catch (error: any) {
-      console.error('Fetch templates error:', error);
+      console.error('Fetch templates error:');
     }
   };
 
@@ -236,7 +236,7 @@ export default function Certificates() {
           {certificates.length === 0 ? (
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-12 text-center min-h-[400px] flex items-center justify-center">
               <div>
-                <div className="w-24 h-24 bg-gradient-to-br from-primary-100 to-primary-200 dark:from-primary-900 dark:to-primary-800 rounded-full flex items-center justify-center mx-auto mb-6">
+                <div className="w-24 h-24 bg-primary-50 dark:bg-primary-950 rounded-full flex items-center justify-center mx-auto mb-6">
                   <svg className="w-12 h-12 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
                   </svg>
@@ -256,7 +256,7 @@ export default function Certificates() {
               {certificates.map((cert) => (
                 <div key={cert._id} className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border-2 border-gray-200 dark:border-gray-700 p-4 hover:shadow-xl transition-all group">
                   {/* Enhanced Certificate Preview */}
-                  <div className="bg-gradient-to-br from-primary-500 via-primary-600 to-secondary-600 rounded-xl p-6 mb-4 border-2 border-primary-300 dark:border-primary-700 relative overflow-hidden">
+                  <div className="bg-neutral-950 rounded-xl p-6 mb-4 border-2 border-primary-300 dark:border-primary-700 relative overflow-hidden">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16"></div>
                     <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/10 rounded-full -ml-12 -mb-12"></div>
                     <div className="text-center relative z-10">
@@ -296,7 +296,7 @@ export default function Certificates() {
                   {/* Download Button */}
                   <button
                     onClick={() => handleDownload(cert._id)}
-                    className="w-full px-6 py-3 bg-gradient-to-r from-primary-600 to-secondary-600 hover:from-primary-700 hover:to-secondary-700 text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all flex items-center justify-center"
+                    className="w-full px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all flex items-center justify-center"
                   >
                     <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -463,46 +463,46 @@ export default function Certificates() {
         {/* Summary Stats (Admin only) */}
         {user.role === 'admin' && (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4 flex-shrink-0">
-            <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-4 text-white">
+            <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-sm p-4 text-neutral-900 dark:text-white">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-blue-100 text-xs font-medium mb-1">Total Certificates</p>
+                  <p className="text-neutral-500 text-xs font-medium mb-1">Total Certificates</p>
                   <p className="text-2xl font-bold">{totalCertificates}</p>
                 </div>
-                <svg className="w-8 h-8 text-blue-200 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-8 h-8 text-primary-600 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
                 </svg>
               </div>
             </div>
-            <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-4 text-white">
+            <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-sm p-4 text-neutral-900 dark:text-white">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-green-100 text-xs font-medium mb-1">Unique Students</p>
+                  <p className="text-neutral-500 text-xs font-medium mb-1">Unique Students</p>
                   <p className="text-2xl font-bold">{uniqueStudents}</p>
                 </div>
-                <svg className="w-8 h-8 text-green-200 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-8 h-8 text-primary-600 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                 </svg>
               </div>
             </div>
-            <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg p-4 text-white">
+            <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-sm p-4 text-neutral-900 dark:text-white">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-purple-100 text-xs font-medium mb-1">Unique Courses</p>
+                  <p className="text-neutral-500 text-xs font-medium mb-1">Unique Courses</p>
                   <p className="text-2xl font-bold">{uniqueCourses}</p>
                 </div>
-                <svg className="w-8 h-8 text-purple-200 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-8 h-8 text-primary-600 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                 </svg>
               </div>
             </div>
-            <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl shadow-lg p-4 text-white">
+            <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-sm p-4 text-neutral-900 dark:text-white">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-orange-100 text-xs font-medium mb-1">This Month</p>
+                  <p className="text-neutral-500 text-xs font-medium mb-1">This Month</p>
                   <p className="text-2xl font-bold">{thisMonth}</p>
                 </div>
-                <svg className="w-8 h-8 text-orange-200 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-8 h-8 text-primary-600 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
               </div>

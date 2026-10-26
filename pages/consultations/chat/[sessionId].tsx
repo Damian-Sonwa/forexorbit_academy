@@ -11,6 +11,7 @@ import LoadingSpinner from '@/components/LoadingSpinner';
 import { useAuth } from '@/hooks/useAuth';
 import { useSocket } from '@/hooks/useSocket';
 import { apiClient } from '@/lib/api-client';
+import { resolveApiBaseUrl } from '@/lib/client-origin';
 import { formatDistanceToNow } from 'date-fns';
 import dynamic from 'next/dynamic';
 
@@ -75,6 +76,7 @@ export default function ConsultationChat() {
   const [agoraToken, setAgoraToken] = useState<string | null>(null);
   const [agoraAppId, setAgoraAppId] = useState<string>('');
   const [agoraChannel, setAgoraChannel] = useState<string>('');
+  const [agoraUid, setAgoraUid] = useState<string | number | null>(null);
   const [loadingAgoraToken, setLoadingAgoraToken] = useState(false);
   const [agoraTokenError, setAgoraTokenError] = useState<string | null>(null);
 
@@ -101,7 +103,7 @@ export default function ConsultationChat() {
         setSession(sessionData);
         setMessages(messagesData || []);
       } catch (error) {
-        console.error('Failed to load session:', error);
+        console.error('Failed to load session:');
         alert('Failed to load consultation session');
         router.push('/consultations');
       } finally {
@@ -194,8 +196,8 @@ export default function ConsultationChat() {
         });
       }
     } catch (error: any) {
-      console.error('Failed to send message:', error);
-      alert(error.response?.data?.message || error.response?.data?.error || 'Failed to send message');
+      console.error('Failed to send message');
+      alert(error.response?.data?.error || error.response?.data?.message || 'Failed to send message');
       setInput(messageContent); // Restore input on error
     } finally {
       setSending(false);
@@ -217,11 +219,12 @@ export default function ConsultationChat() {
     setAgoraCallType(callType);
 
     try {
-      // Generate Agora token using GET request
-      // IMPORTANT: Agora token must be generated on Render backend only (not Vercel)
-      // ALWAYS use Render backend for token requests - NO fallbacks
-      const renderBackendUrl = 'https://forexorbit-academy.onrender.com';
-      const tokenUrl = `${renderBackendUrl}/api/consultations/agora-token?channel=${sessionId}`;
+      // The token request uses this build's API origin. Split hosting sets
+      // NEXT_PUBLIC_API_BASE_URL. There is no production-host fallback.
+      const apiBase = resolveApiBaseUrl(
+        process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL
+      );
+      const tokenUrl = `${apiBase}/api/consultations/agora-token?channel=${sessionId}`;
       
       // Get auth token for the request
       const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
@@ -232,7 +235,6 @@ export default function ConsultationChat() {
         headers.Authorization = `Bearer ${token}`;
       }
       
-      // Call Render backend directly for Agora token
       // Include credentials for CORS with credentials support
       const tokenResponse = await fetch(tokenUrl, {
         method: 'GET',
@@ -269,6 +271,7 @@ export default function ConsultationChat() {
       setAgoraToken(response.token);
       setAgoraAppId(response.appId);
       setAgoraChannel(response.channel);
+      setAgoraUid(response.uid);
       setLoadingAgoraToken(false);
     } catch (error: any) {
       // Log token fetch failure (but NOT the token value)
@@ -290,6 +293,7 @@ export default function ConsultationChat() {
       
       setAgoraTokenError(errorMessage);
       setAgoraCallType(null);
+      setAgoraUid(null);
       setLoadingAgoraToken(false);
     }
   };
@@ -297,9 +301,10 @@ export default function ConsultationChat() {
   // End Agora call
   const handleEndAgoraCall = () => {
     setAgoraCallType(null);
-    setAgoraToken(null);
-    setAgoraAppId('');
-    setAgoraChannel('');
+      setAgoraToken(null);
+      setAgoraAppId('');
+      setAgoraChannel('');
+      setAgoraUid(null);
     setAgoraTokenError(null);
   };
 
@@ -369,7 +374,7 @@ export default function ConsultationChat() {
                         <button
                           onClick={() => handleStartAgoraCall('video')}
                           disabled={loadingAgoraToken}
-                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                          className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                           title={loadingAgoraToken ? 'Initializing call...' : 'Start video call'}
                         >
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -393,13 +398,13 @@ export default function ConsultationChat() {
 
           {/* Agora Call Component - Replaces broken WebRTC */}
           {/* Only render if we have a valid token (determined by token API response) */}
-          {session.status === 'active' && agoraCallType && agoraToken && agoraAppId && agoraChannel && (
+          {session.status === 'active' && agoraCallType && agoraToken && agoraAppId && agoraChannel && agoraUid != null && (
             <div className="px-4 pt-4">
               <AgoraCall
                 appId={agoraAppId}
                 channel={agoraChannel}
                 token={agoraToken}
-                uid={user?.id || Date.now()}
+                uid={agoraUid}
                 callType={agoraCallType}
                 onCallEnd={handleEndAgoraCall}
                 onCallConnected={handleAgoraCallConnected}
@@ -434,7 +439,7 @@ export default function ConsultationChat() {
                           <p className="text-xs font-semibold mb-1 opacity-80">{message.senderName}</p>
                         )}
                         <p className="text-sm">{message.content}</p>
-                        <p className={`text-xs mt-1 ${isOwn ? 'text-primary-100' : 'text-gray-500 dark:text-gray-400'}`}>
+                        <p className={`text-xs mt-1 ${isOwn ? 'text-neutral-500' : 'text-gray-500 dark:text-gray-400'}`}>
                           {formatDistanceToNow(new Date(message.createdAt), { addSuffix: true })}
                         </p>
                       </div>

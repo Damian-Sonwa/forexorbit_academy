@@ -5,6 +5,7 @@
 
 import { useState } from 'react';
 import { apiClient } from '@/lib/api-client';
+import { AlertTriangle, BarChart3, Bot, CheckCircle2, Lightbulb } from 'lucide-react';
 
 interface StudentAnalysis {
   summary: string;
@@ -50,7 +51,7 @@ export default function AIAnalytics({ studentId, studentName, onClose }: AIAnaly
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to analyze student performance';
       setError(errorMessage);
-      console.error('AI analytics error:', err);
+      console.error('AI analytics error:');
     } finally {
       setLoading(false);
     }
@@ -61,7 +62,7 @@ export default function AIAnalytics({ studentId, studentName, onClose }: AIAnaly
       <div className="flex items-center justify-between mb-4">
         <div>
           <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center">
-            <span className="mr-2">🤖</span>
+            <Bot className="mr-2 h-4 w-4 shrink-0" aria-hidden />
             AI Performance Analysis
           </h3>
           <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
@@ -87,9 +88,9 @@ export default function AIAnalytics({ studentId, studentName, onClose }: AIAnaly
           </p>
           <button
             onClick={handleAnalyze}
-            className="px-6 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white rounded-lg font-semibold transition-all flex items-center space-x-2 mx-auto"
+            className="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold transition-all flex items-center space-x-2 mx-auto"
           >
-            <span>🤖</span>
+            <Bot className="h-4 w-4 shrink-0" aria-hidden />
             <span>Analyze Student Performance</span>
           </button>
         </div>
@@ -97,7 +98,7 @@ export default function AIAnalytics({ studentId, studentName, onClose }: AIAnaly
 
       {loading && (
         <div className="text-center py-8">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mb-4"></div>
           <p className="text-gray-600 dark:text-gray-400">Analyzing student performance...</p>
         </div>
       )}
@@ -112,9 +113,9 @@ export default function AIAnalytics({ studentId, studentName, onClose }: AIAnaly
         <div className="space-y-6">
           {/* Student Data Summary */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3">
+            <div className="bg-neutral-50 dark:bg-neutral-900/20 rounded-lg p-3">
               <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Total Trades</p>
-              <p className="text-lg font-bold text-blue-600 dark:text-blue-400">{studentData.totalTrades}</p>
+              <p className="text-lg font-bold text-primary-600 dark:text-primary-400">{studentData.totalTrades}</p>
             </div>
             <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-3">
               <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Win Rate</p>
@@ -122,9 +123,9 @@ export default function AIAnalytics({ studentId, studentName, onClose }: AIAnaly
                 {(studentData.winRate * 100).toFixed(1)}%
               </p>
             </div>
-            <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-3">
+            <div className="bg-neutral-50 dark:bg-neutral-900/20 rounded-lg p-3">
               <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Avg Grade</p>
-              <p className="text-lg font-bold text-purple-600 dark:text-purple-400">
+              <p className="text-lg font-bold text-primary-600 dark:text-primary-400">
                 {studentData.averageGrade.toFixed(1)}
               </p>
             </div>
@@ -137,9 +138,9 @@ export default function AIAnalytics({ studentId, studentName, onClose }: AIAnaly
           </div>
 
           {/* AI Summary */}
-          <div className="bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+          <div className="bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-lg p-4">
             <h4 className="text-sm font-bold text-gray-900 dark:text-white mb-2 flex items-center">
-              <span className="mr-2">📊</span>
+              <BarChart3 className="mr-2 h-4 w-4 shrink-0 text-neutral-600" aria-hidden />
               Performance Summary
             </h4>
             <p className="text-sm text-gray-700 dark:text-gray-300">{analysis.summary}</p>
@@ -149,7 +150,7 @@ export default function AIAnalytics({ studentId, studentName, onClose }: AIAnaly
           {analysis.strengths && analysis.strengths.length > 0 && (
             <div>
               <h4 className="text-sm font-bold text-green-700 dark:text-green-400 mb-2 flex items-center">
-                <span className="mr-2">✅</span>
+                <CheckCircle2 className="mr-2 h-4 w-4 shrink-0 text-green-700" aria-hidden />
                 Strengths
               </h4>
               <ul className="list-disc list-inside space-y-1">
@@ -164,7 +165,7 @@ export default function AIAnalytics({ studentId, studentName, onClose }: AIAnaly
           {analysis.concerns && analysis.concerns.length > 0 && (
             <div>
               <h4 className="text-sm font-bold text-orange-700 dark:text-orange-400 mb-2 flex items-center">
-                <span className="mr-2">⚠️</span>
+                <AlertTriangle className="mr-2 h-4 w-4 shrink-0 text-amber-700" aria-hidden />
                 Areas of Concern
               </h4>
               <ul className="list-disc list-inside space-y-1">
@@ -178,8 +179,8 @@ export default function AIAnalytics({ studentId, studentName, onClose }: AIAnaly
           {/* Recommendations */}
           {analysis.recommendations && analysis.recommendations.length > 0 && (
             <div>
-              <h4 className="text-sm font-bold text-blue-700 dark:text-blue-400 mb-2 flex items-center">
-                <span className="mr-2">💡</span>
+              <h4 className="text-sm font-bold text-primary-700 dark:text-primary-400 mb-2 flex items-center">
+                <Lightbulb className="mr-2 h-4 w-4 shrink-0 text-primary-600" aria-hidden />
                 Recommendations
               </h4>
               <ul className="list-disc list-inside space-y-1">

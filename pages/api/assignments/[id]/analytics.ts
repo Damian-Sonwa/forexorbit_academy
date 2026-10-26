@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Assignment Analytics API Route
  * GET: Get analytics for a specific assignment (instructor/admin only)
@@ -7,17 +8,14 @@ import type { NextApiResponse } from 'next';
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
+import { decideAccountAccess, decideAssignmentMutation, isStoredId } from '@/lib/account-access';
+import { activeEnrollmentFilter } from '@/lib/enrollment-state';
 
 async function getAssignmentAnalytics(req: AuthRequest, res: NextApiResponse) {
   try {
-    // Only instructors and admins can access analytics
-    if (req.user!.role !== 'instructor' && req.user!.role !== 'admin' && req.user!.role !== 'superadmin') {
-      return res.status(403).json({ message: 'Instructor/Admin only' });
-    }
-
-    const { id } = req.query;
-    if (!id || typeof id !== 'string') {
-      return res.status(400).json({ message: 'Assignment ID is required' });
+    const id = Array.isArray(req.query.id) ? req.query.id[0] : req.query.id;
+    if (!isStoredId(id)) {
+      return res.status(400).json({ error: 'Assignment ID is required' });
     }
 
     const db = await getDb();
@@ -28,19 +26,36 @@ async function getAssignmentAnalytics(req: AuthRequest, res: NextApiResponse) {
 
     // Get assignment details
     const assignment = await assignments.findOne({ _id: new ObjectId(id) });
-    if (!assignment) {
-      return res.status(404).json({ message: 'Assignment not found' });
+    if (!assignment || !isStoredId(String(assignment.courseId))) {
+      return res.status(404).json({ error: 'Assignment not found' });
+    }
+    const record = await users.findOne(
+      { _id: new ObjectId(req.user!.userId) },
+      { projection: { email: 1, role: 1, status: 1 } }
+    );
+    const account = decideAccountAccess({ userId: req.user!.userId, record });
+    const course = await courses.findOne(
+      { _id: new ObjectId(String(assignment.courseId)) },
+      { projection: { instructorId: 1, title: 1 } }
+    );
+    const decision = decideAssignmentMutation({
+      member: account.ok ? { userId: account.user.userId, role: account.user.role } : null,
+      course: course ? { _id: course._id, instructorId: course.instructorId } : null,
+      assignment: { _id: assignment._id, courseId: assignment.courseId },
+    });
+    if (!decision.ok) {
+      return res.status(decision.status).json({ error: decision.error });
     }
 
     // Get all submissions for this assignment
     const allSubmissions = await submissions.find({ assignmentId: id }).toArray();
 
-    // Get course details
-    const course = await courses.findOne({ _id: new ObjectId(assignment.courseId) });
-
     // Get enrolled students count (approximate by checking progress collection)
     const progress = db.collection('progress');
-    const enrolledStudents = await progress.distinct('userId', { courseId: assignment.courseId });
+    const enrolledStudents = await progress.distinct('userId', {
+      courseId: assignment.courseId,
+      ...activeEnrollmentFilter(),
+    });
 
     // Calculate statistics
     const totalSubmissions = allSubmissions.length;
@@ -158,13 +173,13 @@ async function getAssignmentAnalytics(req: AuthRequest, res: NextApiResponse) {
       submissionTimeline,
       studentSubmissions,
     });
-  } catch (error: any) {
-    console.error('Get assignment analytics error:', error);
-    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+  } catch {
+    console.error(JSON.stringify({ event: 'assignmentAnalytics', result: 'failed' }));
+    res.status(500).json(unexpectedBody('api'));
   }
 }
 
-export default withAuth(getAssignmentAnalytics, ['instructor', 'admin', 'superadmin']);
+export default withAuth(getAssignmentAnalytics);
 
 
 

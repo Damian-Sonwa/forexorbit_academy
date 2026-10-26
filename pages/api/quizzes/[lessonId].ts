@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Quiz API Route
  * GET: Get quiz for a lesson
@@ -8,112 +9,141 @@
 import type { NextApiResponse } from 'next';
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
-import { assertStudentCanAccessLessonContent, isStaffRole } from '@/lib/lesson-monetization';
+import { ObjectId } from 'mongodb';
+import { decideAccountAccess, decideQuizMutation, decideQuizRead, decideQuizSubmit } from '@/lib/account-access';
+import { enrollmentDecisionRecord } from '@/lib/enrollment-state';
+import { assertStudentCanAccessLessonContent } from '@/lib/lesson-monetization';
+
+function routeLessonId(value: string | string[] | undefined): string {
+  if (Array.isArray(value)) return typeof value[0] === 'string' ? value[0] : '';
+  return typeof value === 'string' ? value : '';
+}
+
+async function loadQuizContext(userId: string, lessonId: string) {
+  const db = await getDb();
+  const record = await db.collection('users').findOne(
+    { _id: new ObjectId(userId) },
+    { projection: { email: 1, role: 1, status: 1 } }
+  );
+  const account = decideAccountAccess({ userId, record });
+  const lesson = await db.collection('lessons').findOne(
+    { _id: new ObjectId(lessonId) },
+    { projection: { courseId: 1, requiredLevel: 1 } }
+  );
+  let course = null;
+  let enrollment = null;
+  if (lesson && lesson.courseId != null && ObjectId.isValid(String(lesson.courseId))) {
+    course = await db.collection('courses').findOne(
+      { _id: new ObjectId(String(lesson.courseId)) },
+      { projection: { instructorId: 1, difficulty: 1 } }
+    );
+    if (account.ok && course) {
+      const courseId = String(course._id);
+      enrollment = await db.collection('progress').findOne({
+        userId: account.user.userId,
+        $or: [{ courseId }, { courseId: course._id }],
+      });
+    }
+  }
+  const quiz = await db.collection('quizzes').findOne({ lessonId });
+  return {
+    db,
+    member: account.ok ? account.user : null,
+    lesson: lesson ? {
+      _id: lesson._id,
+      courseId: lesson.courseId,
+      requiredLevel: typeof lesson.requiredLevel === 'string' ? lesson.requiredLevel : null,
+    } : null,
+    course: course ? {
+      _id: course._id,
+      instructorId: course.instructorId,
+      difficulty: typeof course.difficulty === 'string' ? course.difficulty : null,
+    } : null,
+    enrollment: enrollmentDecisionRecord(enrollment),
+    quiz: quiz ? { questions: quiz.questions } : null,
+  };
+}
 
 async function getQuiz(req: AuthRequest, res: NextApiResponse) {
+  const lessonId = routeLessonId(req.query.lessonId);
+  if (!ObjectId.isValid(lessonId)) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
   try {
-    const { lessonId } = req.query;
-    const db = await getDb();
-    const quizzes = db.collection('quizzes');
-
-    if (req.user && !isStaffRole(req.user.role)) {
-      const gate = await assertStudentCanAccessLessonContent(db, req.user, lessonId as string);
+    const loaded = await loadQuizContext(req.user!.userId, lessonId);
+    const decision = decideQuizRead(loaded);
+    if (!decision.ok) {
+      return res.status(decision.status).json({ error: decision.error });
+    }
+    if (loaded.member) {
+      const gate = await assertStudentCanAccessLessonContent(loaded.db, loaded.member, lessonId);
       if (!gate.ok) {
-        if (gate.lockedBody) return res.status(gate.status).json(gate.lockedBody);
-        return res.status(gate.status).json({ access: false as const, message: gate.message });
+        return res.status(gate.status).json(gate.lockedBody || { error: gate.message });
       }
     }
-
-    const quiz = await quizzes.findOne({ lessonId });
-    if (!quiz) {
-      return res.status(404).json({ message: 'Quiz not found' });
-    }
-
-    // Don't send correct answers if not admin/instructor
-    if (req.user!.role !== 'admin' && req.user!.role !== 'instructor') {
-      quiz.questions = quiz.questions.map((q: any) => ({
-        ...q,
-        correctAnswer: undefined,
-      }));
-    }
-
-    res.json(quiz);
-  } catch (error: any) {
-    console.error('Get quiz error:', error);
-    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+    res.json({
+      lessonId: decision.lessonId,
+      courseId: decision.courseId,
+      questions: decision.questions,
+    });
+  } catch {
+    console.error(JSON.stringify({ event: 'quizRead', result: 'lookup_failed' }));
+    res.status(500).json(unexpectedBody('api'));
   }
 }
 
 async function submitQuiz(req: AuthRequest, res: NextApiResponse) {
+  const lessonId = routeLessonId(req.query.lessonId);
+  if (!ObjectId.isValid(lessonId)) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
   try {
-    const { lessonId } = req.query;
-    const { answers } = req.body;
-    const userId = req.user!.userId;
-
-    const db = await getDb();
-    const quizzes = db.collection('quizzes');
-    const progress = db.collection('progress');
-    const quizScores = db.collection('quizScores');
-
-    // Get quiz
-    const quiz = await quizzes.findOne({ lessonId });
-    if (!quiz) {
-      return res.status(404).json({ message: 'Quiz not found' });
+    const loaded = await loadQuizContext(req.user!.userId, lessonId);
+    const decision = decideQuizSubmit({
+      member: loaded.member,
+      lesson: loaded.lesson,
+      course: loaded.course,
+      enrollment: loaded.enrollment,
+      quiz: loaded.quiz,
+      answers: req.body?.answers,
+    });
+    if (!decision.ok) {
+      return res.status(decision.status).json({ error: decision.error });
     }
-
-    if (req.user && !isStaffRole(req.user.role)) {
-      const gate = await assertStudentCanAccessLessonContent(db, req.user, lessonId as string);
+    if (loaded.member) {
+      const gate = await assertStudentCanAccessLessonContent(loaded.db, loaded.member, lessonId);
       if (!gate.ok) {
-        if (gate.lockedBody) return res.status(gate.status).json(gate.lockedBody);
-        return res.status(gate.status).json({ access: false as const, message: gate.message });
+        return res.status(gate.status).json(gate.lockedBody || { error: gate.message });
       }
     }
 
-    // Grade quiz
-    let correct = 0;
-    const results = quiz.questions.map((question: any, index: number) => {
-      const userAnswer = answers[index];
-      const isCorrect = userAnswer === question.correctAnswer;
-      if (isCorrect) correct++;
-      return {
-        question: question.question,
-        userAnswer,
-        correctAnswer: question.correctAnswer,
-        isCorrect,
-      };
-    });
-
-    const score = (correct / quiz.questions.length) * 100;
-
-    // Save score
-    await quizScores.insertOne({
-      userId,
-      lessonId,
-      courseId: quiz.courseId,
-      score,
-      answers,
+    await loaded.db.collection('quizScores').insertOne({
+      userId: decision.userId,
+      lessonId: decision.lessonId,
+      courseId: decision.courseId,
+      score: decision.score,
+      answers: req.body.answers,
       createdAt: new Date(),
     });
 
-    // Update course progress
+    const progress = loaded.db.collection('progress');
     const courseProgress = await progress.findOne({
-      userId,
-      courseId: quiz.courseId,
+      userId: decision.userId,
+      courseId: decision.courseId,
     });
-
     if (courseProgress) {
-      // Mark lesson as completed if not already
-      const completedLessons = courseProgress.completedLessons || [];
-      if (!completedLessons.includes(lessonId as string)) {
-        completedLessons.push(lessonId as string);
+      const completedLessons = Array.isArray(courseProgress.completedLessons)
+        ? courseProgress.completedLessons.slice()
+        : [];
+      if (!completedLessons.includes(decision.lessonId)) {
+        completedLessons.push(decision.lessonId);
       }
-
-      // Calculate overall progress
-      const lessons = await db.collection('lessons').find({ courseId: quiz.courseId }).toArray();
-      const progressPercent = (completedLessons.length / lessons.length) * 100;
-
+      const courseLessons = await loaded.db.collection('lessons').find({ courseId: decision.courseId }).toArray();
+      const progressPercent = courseLessons.length > 0
+        ? (completedLessons.length / courseLessons.length) * 100
+        : 0;
       await progress.updateOne(
-        { userId, courseId: quiz.courseId },
+        { userId: decision.userId, courseId: decision.courseId },
         {
           $set: {
             completedLessons,
@@ -125,51 +155,76 @@ async function submitQuiz(req: AuthRequest, res: NextApiResponse) {
     }
 
     res.json({
-      score,
-      correct,
-      total: quiz.questions.length,
-      results,
+      score: decision.score,
+      correct: decision.correct,
+      total: decision.total,
+      results: decision.results,
     });
-  } catch (error: any) {
-    console.error('Submit quiz error:', error);
-    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+  } catch {
+    console.error(JSON.stringify({ event: 'quizSubmit', result: 'failed' }));
+    res.status(500).json(unexpectedBody('api'));
   }
 }
 
 async function createQuiz(req: AuthRequest, res: NextApiResponse) {
-  try {
-    const { lessonId, courseId, questions } = req.body;
+  const routeLessonId = Array.isArray(req.query.lessonId) ? req.query.lessonId[0] : req.query.lessonId;
+  const lessonId = typeof routeLessonId === 'string' ? routeLessonId : '';
+  if (!ObjectId.isValid(lessonId)) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+  if (typeof req.body?.lessonId === 'string' && req.body.lessonId !== lessonId) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
 
-    if (!lessonId || !courseId || !questions) {
-      return res.status(400).json({ message: 'Missing required fields' });
+  try {
+    const db = await getDb();
+    const record = await db.collection('users').findOne(
+      { _id: new ObjectId(req.user!.userId) },
+      { projection: { email: 1, role: 1, status: 1 } }
+    );
+    const account = decideAccountAccess({ userId: req.user!.userId, record });
+    const lesson = await db.collection('lessons').findOne(
+      { _id: new ObjectId(lessonId) },
+      { projection: { courseId: 1 } }
+    );
+    let course = null;
+    if (lesson && lesson.courseId != null && ObjectId.isValid(String(lesson.courseId))) {
+      course = await db.collection('courses').findOne(
+        { _id: new ObjectId(String(lesson.courseId)) },
+        { projection: { instructorId: 1 } }
+      );
+    }
+    const decision = decideQuizMutation({
+      member: account.ok ? account.user : null,
+      lesson,
+      course,
+      questions: req.body?.questions,
+    });
+    if (!decision.ok) {
+      return res.status(decision.status).json({ error: decision.error });
     }
 
-    const db = await getDb();
     const quizzes = db.collection('quizzes');
-
-    // Check if quiz exists
-    const existing = await quizzes.findOne({ lessonId });
+    const existing = await quizzes.findOne({ lessonId: decision.lessonId });
     if (existing) {
-      // Update
       await quizzes.updateOne(
-        { lessonId },
-        { $set: { questions, updatedAt: new Date() } }
+        { lessonId: decision.lessonId },
+        { $set: { courseId: decision.courseId, questions: decision.questions, updatedAt: new Date() } }
       );
       res.json({ success: true, id: existing._id.toString() });
     } else {
-      // Create
       const result = await quizzes.insertOne({
-        lessonId,
-        courseId,
-        questions,
+        lessonId: decision.lessonId,
+        courseId: decision.courseId,
+        questions: decision.questions,
         createdAt: new Date(),
         updatedAt: new Date(),
       });
       res.status(201).json({ success: true, id: result.insertedId.toString() });
     }
-  } catch (error: any) {
-    console.error('Create quiz error:', error);
-    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+  } catch {
+    console.error(JSON.stringify({ event: 'quizMutation', result: 'lookup_failed' }));
+    res.status(500).json(unexpectedBody('api'));
   }
 }
 
@@ -181,7 +236,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
   } else if (req.method === 'PUT') {
     return createQuiz(req, res);
   } else {
-    return res.status(405).json({ message: 'Method not allowed' });
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 }
 

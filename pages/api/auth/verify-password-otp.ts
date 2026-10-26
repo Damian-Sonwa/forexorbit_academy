@@ -8,13 +8,14 @@ import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import { getDb } from '@/lib/mongodb';
 import { parseToE164, maskPhoneTail } from '@/lib/phone';
-import { findUserByPhoneInput } from '@/lib/user-phone-lookup';
 import { logPasswordResetEvent } from '@/lib/password-reset-log';
 import {
   MAX_OTP_VERIFY_ATTEMPTS,
   PASSWORD_STEP_TTL_MS,
   PASSWORD_PHONE_RESETS_COLLECTION,
 } from '@/lib/password-otp';
+import { unexpectedBody } from '@/lib/public-error';
+import { findUserByPhoneInput } from '@/lib/user-phone-lookup';
 
 function getClientIp(req: NextApiRequest): string | undefined {
   const x = req.headers['x-forwarded-for'];
@@ -26,7 +27,7 @@ function getClientIp(req: NextApiRequest): string | undefined {
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
-    return res.status(405).json({ message: 'Method not allowed' });
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 
   const ip = getClientIp(req);
@@ -34,20 +35,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     const { phone, otp } = req.body;
     if (!phone || typeof phone !== 'string') {
-      return res.status(400).json({ message: 'Phone number is required' });
+      return res.status(400).json({ error: 'Phone number is required' });
     }
     if (!otp || typeof otp !== 'string') {
-      return res.status(400).json({ message: 'Verification code is required' });
+      return res.status(400).json({ error: 'Verification code is required' });
     }
 
     const code = otp.replace(/\s/g, '');
     if (!/^\d{6}$/.test(code)) {
-      return res.status(400).json({ message: 'Enter the 6-digit code from your SMS.' });
+      return res.status(400).json({ error: 'Enter the 6-digit code from your SMS.' });
     }
 
     const parsed = parseToE164(phone);
     if (!parsed) {
-      return res.status(400).json({ message: 'Invalid phone number' });
+      return res.status(400).json({ error: 'Invalid phone number' });
     }
     const phoneE164 = parsed.e164;
 
@@ -57,12 +58,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const user = await findUserByPhoneInput(users, phoneE164, phone);
     if (!user) {
-      return res.status(400).json({ message: 'Invalid or expired code. Request a new code.' });
+      return res.status(400).json({ error: 'Invalid or expired code. Request a new code.' });
     }
 
     const doc = await resets.findOne({ userId: user._id });
     if (!doc?.otpHash) {
-      return res.status(400).json({ message: 'Invalid or expired code. Request a new code.' });
+      return res.status(400).json({ error: 'Invalid or expired code. Request a new code.' });
     }
 
     if (doc.otpExpiresAt && new Date(doc.otpExpiresAt) < new Date()) {
@@ -74,12 +75,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         ip,
         detail: 'expired',
       });
-      return res.status(400).json({ message: 'This code has expired. Request a new one.' });
+      return res.status(400).json({ error: 'Invalid or expired code. Request a new code.' });
     }
 
     if (doc.otpAttempts >= MAX_OTP_VERIFY_ATTEMPTS) {
       await resets.deleteMany({ userId: user._id });
-      return res.status(400).json({ message: 'Too many incorrect attempts. Request a new code.',
+      return res.status(400).json({
+        error: 'Too many incorrect attempts. Request a new code.',
         locked: true,
       });
     }
@@ -107,12 +109,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           phoneE164: maskPhoneTail(phoneE164),
           ip,
         });
-        return res.status(400).json({ message: 'Too many incorrect attempts. Request a new code.',
+        return res.status(400).json({
+          error: 'Too many incorrect attempts. Request a new code.',
           locked: true,
         });
       }
 
-      return res.status(400).json({ message: 'Invalid code. Check the SMS and try again.',
+      return res.status(400).json({
+        error: 'Invalid code. Check the SMS and try again.',
         attemptsRemaining: MAX_OTP_VERIFY_ATTEMPTS - newAttempts,
       });
     }
@@ -150,7 +154,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       resetSecret,
     });
   } catch (error: unknown) {
-    console.error('Verify password OTP error:', error);
-    return res.status(500).json({ message: 'Failed to verify code' });
+    return res.status(500).json(unexpectedBody('verify-password-otp', error));
   }
 }

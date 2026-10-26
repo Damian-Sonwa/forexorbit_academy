@@ -83,7 +83,7 @@ export default function ExpertConsultation() {
       setRequests(data || []);
       setConsultationRequests(data || []);
     } catch (error) {
-      console.error('Failed to load consultation requests:', error);
+      console.error('Failed to load consultation requests:');
       setRequests([]);
       setConsultationRequests([]);
     } finally {
@@ -98,7 +98,7 @@ export default function ExpertConsultation() {
       setSessions(data || []);
       setConsultationSessions(data || []);
     } catch (error) {
-      console.error('Failed to load consultation sessions:', error);
+      console.error('Failed to load consultation sessions:');
       setSessions([]);
       setConsultationSessions([]);
     }
@@ -112,7 +112,7 @@ export default function ExpertConsultation() {
         setExpertAvailable(currentExpert.expertAvailable || false);
       }
     } catch (error) {
-      console.error('Failed to load availability:', error);
+      console.error('Failed to load availability:');
     }
   };
 
@@ -244,7 +244,7 @@ export default function ExpertConsultation() {
                 {/* Consultation Requests Section - REUSED from dashboard */}
                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
                   <div className="flex items-center space-x-3 mb-4">
-                    <svg className="w-6 h-6 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-6 h-6 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                     </svg>
                     <div>
@@ -272,8 +272,8 @@ export default function ExpertConsultation() {
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-2">
                                 <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                                  request.status === 'pending' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
-                                  request.status === 'accepted' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+                                  request.status === 'pending' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-primary-600' :
+                                  request.status === 'accepted' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-primary-600' :
                                   request.status === 'rejected' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' :
                                   'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
                                 }`}>
@@ -363,7 +363,7 @@ export default function ExpertConsultation() {
                 {consultationSessions.filter((s: any) => s.status === 'active').length > 0 && (
                   <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
                     <div className="flex items-center space-x-3 mb-4">
-                      <svg className="w-6 h-6 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-6 h-6 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                       </svg>
                       <div>
@@ -427,7 +427,7 @@ export default function ExpertConsultation() {
                 {/* Active Consultation Sessions - REUSED from dashboard */}
                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
                   <div className="flex items-center space-x-3 mb-4">
-                    <svg className="w-6 h-6 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-6 h-6 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                     </svg>
                     <div>

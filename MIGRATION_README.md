@@ -1,78 +1,9 @@
-# Lesson Content Migration Guide
+# Lesson content migration
 
-This guide explains how to migrate lesson content storage in MongoDB for the Forexorbit app.
+The one-off lesson migration is no longer available.
 
-## Problem
-The lesson content was previously stored in `lessonSummary.overview` or `lessonSummary.summary`, but the application expects it in the `content` field for TinyMCE editors to load properly.
+On 26 October 2026 the public route `POST /api/migrate-lessons` and the script `scripts/migrate-lesson-content.js` were removed. Both could rewrite every lesson document, and both contained a database connection string. Do not restore either one as a public endpoint or with a connection string in source.
 
-## Solution
-The migration script updates all lessons to:
-- Set `content` = `lessonSummary.overview` (or `lessonSummary.summary`)
-- Ensure `description` contains HTML for TinyMCE
-- Create `summary` field if missing
-- Preserve all other fields (videoUrl, pdfUrl, resources, visualAids, etc.)
+The historical migration copied lesson summary text into the `content` field and wrapped plain-text descriptions in HTML. That work is not part of normal application startup. If it ever has to be repeated, it needs a separate operator-only process that reads `MONGO_URI` from the environment, is not exposed as an API route, and is reviewed before it runs. This repository does not include that process.
 
-## Running the Migration
-
-### Option 1: Node.js Script (Recommended)
-```bash
-# Run the migration script
-node scripts/migrate-lesson-content.js
-```
-
-### Option 2: API Endpoint
-```bash
-# Start the Next.js development server
-npm run dev
-
-# Then call the API endpoint
-curl -X POST http://localhost:3000/api/migrate-lessons
-```
-
-Or visit: http://localhost:3000/api/migrate-lessons in your browser and use a tool like Postman to send a POST request.
-
-## What the Migration Does
-
-For each lesson document in the "lessons" collection:
-
-1. **Content Field**: Sets `content` to the detailed summary from `lessonSummary.overview`
-2. **Summary Field**: Creates or ensures the `summary` field exists with the content
-3. **Description Field**: Converts plain text descriptions to HTML format for TinyMCE
-4. **Preservation**: Keeps all other fields intact (videoUrl, pdfUrl, resources, visualAids, order, type, timestamps, etc.)
-
-## Database Connection
-
-The script automatically tries to connect to:
-1. MongoDB Atlas (using the connection string from your task)
-2. Local MongoDB (mongodb://localhost:27017) as fallback
-
-## Expected Output
-
-```
-🚀 Starting lesson content migration...
-📡 Attempting connection to MongoDB Atlas...
-✅ Connected to MongoDB Atlas
-📊 Found X lessons to migrate
-✅ Updated lesson "Lesson Title": [ 'content', 'description' ]
-✅ Updated lesson "Another Lesson": [ 'summary' ]
-
-📈 Migration Summary:
-✅ Lessons updated: X
-⏭️  Lessons skipped: Y
-🎉 Migration completed successfully!
-```
-
-## Verification
-
-After migration, verify that:
-- TinyMCE editors load content correctly in both Instructor and Student dashboards
-- Lesson descriptions display properly
-- No data is lost in other lesson fields
-- The `content` field contains the detailed summary content
-
-## Safety Features
-
-- **No Data Loss**: Only adds/updates specific fields, never deletes data
-- **Idempotent**: Can be run multiple times safely
-- **Logging**: Shows exactly which lessons were updated and why
-- **Error Handling**: Graceful failure with detailed error messages
+Deleting the source files does not revoke a database user that was previously committed. Rotate that user before treating any deployment as safe. Details are in the remediation addendum of `FOREX_ACADEMY_COMPREHENSIVE_AUDIT.md`.

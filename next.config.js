@@ -24,15 +24,14 @@ const nextConfig = {
       },
     ],
   },
-  env: {
-    // Same DB string as .env.local; supports either name (Render/Vercel/Atlas often use MONGODB_URI).
-    MONGO_URI: process.env.MONGO_URI || process.env.MONGODB_URI,
-    JWT_SECRET: process.env.JWT_SECRET,
-    // NOTE: Socket.IO URL is hardcoded in useSocket.ts to always use Render backend
-    // NOTE: NEXT_PUBLIC_AGORA_APP_ID is NOT exposed to client
-    // Frontend determines readiness solely by token API response
-    // CRITICAL: AI_API_KEY is NEVER exposed to frontend - only used on Render backend
-  },
+  // MONGO_URI and JWT_SECRET are read from the process environment at runtime
+  // (server.js, db/mongoClient.ts, lib/jwt.ts). They must not be listed under
+  // `env`: that option inlines values into build output. MONGODB_URI is accepted
+  // as an alias by those server readers.
+  // NEXT_PUBLIC_SOCKET_URL and NEXT_PUBLIC_API_BASE_URL select this build's
+  // backend. Neither falls back to a hard-coded production host.
+  // AI_API_KEY stays server-only.
+  // Agora readiness is determined by the token API response.
   async headers() {
     return [
       {

@@ -5,6 +5,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { BarChart3, CheckCircle2, ClipboardList, Lightbulb, Monitor, Rocket } from 'lucide-react';
 
 export default function SetupGuide() {
   const [activeStep, setActiveStep] = useState<number | null>(null);
@@ -20,9 +21,9 @@ export default function SetupGuide() {
             simulated trading environment that allows you to practice trading with virtual money. It provides access to 
             real-time market data and trading tools without risking any real capital.
           </p>
-          <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded">
-            <h4 className="font-semibold text-blue-900 mb-2">Key Features:</h4>
-            <ul className="list-disc list-inside space-y-1 text-blue-800 text-sm">
+          <div className="bg-neutral-50 border-l-4 border-primary-400 p-4 rounded">
+            <h4 className="font-semibold text-neutral-900 mb-2">Key Features:</h4>
+            <ul className="list-disc list-inside space-y-1 text-neutral-800 text-sm">
               <li><strong>Virtual Money:</strong> Start with a virtual balance (typically $10,000 - $100,000)</li>
               <li><strong>Real Market Data:</strong> Access live prices and market conditions</li>
               <li><strong>Full Trading Tools:</strong> Use all features of the trading platform</li>
@@ -70,16 +71,16 @@ export default function SetupGuide() {
       title: 'Create a Demo Account',
       content: (
         <div className="space-y-6">
-          <div className="bg-gradient-to-r from-blue-50 to-green-50 border-2 border-blue-200 rounded-xl p-6">
-            <h4 className="font-bold text-lg mb-4 text-gray-900">🚀 Quick Start - Create Account Now</h4>
+          <div className="bg-neutral-50 border-2 border-neutral-200 rounded-xl p-6">
+            <h4 className="font-bold text-lg mb-4 text-gray-900"><Rocket className="mr-2 inline h-5 w-5 shrink-0 text-primary-600" aria-hidden />Quick Start - Create Account Now</h4>
             <div className="grid md:grid-cols-2 gap-4">
               <a
                 href="https://hub.oanda.com/apply/demo/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center justify-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-4 rounded-lg font-medium transition-colors shadow-md hover:shadow-lg"
+                className="flex items-center justify-center space-x-2 bg-primary-600 hover:bg-primary-700 text-white px-6 py-4 rounded-lg font-medium transition-colors shadow-md hover:shadow-lg"
               >
-                <span>📊</span>
+                <BarChart3 className="h-4 w-4 shrink-0 text-white" aria-hidden />
                 <span>Create OANDA Demo Account</span>
                 <span>→</span>
               </a>
@@ -89,7 +90,7 @@ export default function SetupGuide() {
                 rel="noopener noreferrer"
                 className="flex items-center justify-center space-x-2 bg-green-600 hover:bg-green-700 text-white px-6 py-4 rounded-lg font-medium transition-colors shadow-md hover:shadow-lg"
               >
-                <span>💻</span>
+                <Monitor className="h-4 w-4 shrink-0 text-white" aria-hidden />
                 <span>Download MetaTrader</span>
                 <span>→</span>
               </a>
@@ -97,9 +98,9 @@ export default function SetupGuide() {
           </div>
 
           <div className="space-y-4">
-            <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded">
-              <h4 className="font-semibold mb-2 text-blue-900">Option A: OANDA Demo Account (Recommended for API Integration)</h4>
-              <ol className="list-decimal list-inside space-y-2 text-sm text-blue-800">
+            <div className="bg-neutral-50 border-l-4 border-primary-400 p-4 rounded">
+              <h4 className="font-semibold mb-2 text-neutral-900">Option A: OANDA Demo Account (Recommended for API Integration)</h4>
+              <ol className="list-decimal list-inside space-y-2 text-sm text-neutral-800">
                 <li>Click the &quot;Create OANDA Demo Account&quot; button above</li>
                 <li>Fill in the registration form with your email and details</li>
                 <li>Verify your email address</li>
@@ -137,7 +138,7 @@ export default function SetupGuide() {
               and you can trade directly in your browser - no download required!
             </p>
             <p className="text-sm text-gray-600 italic">
-              💡 Tip: Contact your instructor if you need help accessing your broker&apos;s WebTrader platform.
+              <Lightbulb className="mr-2 inline h-4 w-4 shrink-0 text-primary-600" aria-hidden />Tip: Contact your instructor if you need help accessing your broker&apos;s WebTrader platform.
             </p>
           </div>
 
@@ -160,13 +161,13 @@ export default function SetupGuide() {
       title: 'Access Tasks & Submit for Review',
       content: (
         <div className="space-y-4">
-          <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-200 rounded-xl p-6">
-            <h4 className="font-bold text-lg mb-4 text-gray-900">📋 How to Access and Submit Tasks</h4>
+          <div className="bg-neutral-50 border-2 border-neutral-200 rounded-xl p-6">
+            <h4 className="font-bold text-lg mb-4 text-gray-900"><ClipboardList className="mr-2 inline h-5 w-5 shrink-0 text-neutral-700" aria-hidden />How to Access and Submit Tasks</h4>
             
             <div className="space-y-4">
-              <div className="bg-white rounded-lg p-4 border border-purple-200">
-                <h5 className="font-semibold mb-2 text-purple-900 flex items-center">
-                  <span className="mr-2">1️⃣</span>
+              <div className="bg-white rounded-lg p-4 border border-neutral-200">
+                <h5 className="font-semibold mb-2 text-neutral-900 flex items-center">
+                  <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary-50 text-xs font-semibold text-primary-800">1</span>
                   Navigate to Trading Dashboard
                 </h5>
                 <p className="text-sm text-gray-700 mb-2">
@@ -177,9 +178,9 @@ export default function SetupGuide() {
                 </p>
               </div>
 
-              <div className="bg-white rounded-lg p-4 border border-purple-200">
-                <h5 className="font-semibold mb-2 text-purple-900 flex items-center">
-                  <span className="mr-2">2️⃣</span>
+              <div className="bg-white rounded-lg p-4 border border-neutral-200">
+                <h5 className="font-semibold mb-2 text-neutral-900 flex items-center">
+                  <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary-50 text-xs font-semibold text-primary-800">2</span>
                   View Your Assigned Tasks
                 </h5>
                 <p className="text-sm text-gray-700 mb-2">
@@ -192,9 +193,9 @@ export default function SetupGuide() {
                 </ul>
               </div>
 
-              <div className="bg-white rounded-lg p-4 border border-purple-200">
-                <h5 className="font-semibold mb-2 text-purple-900 flex items-center">
-                  <span className="mr-2">3️⃣</span>
+              <div className="bg-white rounded-lg p-4 border border-neutral-200">
+                <h5 className="font-semibold mb-2 text-neutral-900 flex items-center">
+                  <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary-50 text-xs font-semibold text-primary-800">3</span>
                   Open Task Details
                 </h5>
                 <p className="text-sm text-gray-700 mb-2">
@@ -210,9 +211,9 @@ export default function SetupGuide() {
                 </ul>
               </div>
 
-              <div className="bg-white rounded-lg p-4 border border-purple-200">
-                <h5 className="font-semibold mb-2 text-purple-900 flex items-center">
-                  <span className="mr-2">4️⃣</span>
+              <div className="bg-white rounded-lg p-4 border border-neutral-200">
+                <h5 className="font-semibold mb-2 text-neutral-900 flex items-center">
+                  <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary-50 text-xs font-semibold text-primary-800">4</span>
                   Complete the Task
                 </h5>
                 <p className="text-sm text-gray-700 mb-2">
@@ -229,9 +230,9 @@ export default function SetupGuide() {
                 </ul>
               </div>
 
-              <div className="bg-white rounded-lg p-4 border border-purple-200">
-                <h5 className="font-semibold mb-2 text-purple-900 flex items-center">
-                  <span className="mr-2">5️⃣</span>
+              <div className="bg-white rounded-lg p-4 border border-neutral-200">
+                <h5 className="font-semibold mb-2 text-neutral-900 flex items-center">
+                  <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary-50 text-xs font-semibold text-primary-800">5</span>
                   Submit Your Work
                 </h5>
                 <p className="text-sm text-gray-700 mb-2">
@@ -246,9 +247,9 @@ export default function SetupGuide() {
                 </p>
               </div>
 
-              <div className="bg-white rounded-lg p-4 border border-purple-200">
-                <h5 className="font-semibold mb-2 text-purple-900 flex items-center">
-                  <span className="mr-2">6️⃣</span>
+              <div className="bg-white rounded-lg p-4 border border-neutral-200">
+                <h5 className="font-semibold mb-2 text-neutral-900 flex items-center">
+                  <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary-50 text-xs font-semibold text-primary-800">6</span>
                   Track Your Submission Status
                 </h5>
                 <p className="text-sm text-gray-700 mb-2">
@@ -256,7 +257,7 @@ export default function SetupGuide() {
                 </p>
                 <div className="flex flex-wrap gap-2 mt-2">
                   <span className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-medium">Submitted</span>
-                  <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">Reviewed</span>
+                  <span className="px-3 py-1 bg-neutral-100 text-neutral-800 rounded-full text-xs font-medium">Reviewed</span>
                   <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">Graded</span>
                 </div>
                 <p className="text-xs text-gray-600 mt-2">
@@ -274,24 +275,24 @@ export default function SetupGuide() {
       content: (
         <div className="space-y-3 text-sm text-gray-700">
           <div className="flex items-start">
-            <span className="mr-2 text-green-600">✅</span>
+            <CheckCircle2 className="mr-2 h-4 w-4 shrink-0 text-green-700" aria-hidden />
             <p><strong>Demo accounts use virtual money</strong> - you cannot lose real money, but you also cannot withdraw profits.</p>
           </div>
           <div className="flex items-start">
-            <span className="mr-2 text-green-600">✅</span>
+            <CheckCircle2 className="mr-2 h-4 w-4 shrink-0 text-green-700" aria-hidden />
             <p><strong>Demo accounts expire</strong> - typically after 30 days. You can create a new one anytime.</p>
           </div>
           <div className="flex items-start">
-            <span className="mr-2 text-green-600">✅</span>
+            <CheckCircle2 className="mr-2 h-4 w-4 shrink-0 text-green-700" aria-hidden />
             <p><strong>Market conditions may differ</strong> - demo accounts sometimes have different spreads and execution speeds than live accounts.</p>
           </div>
           <div className="flex items-start">
-            <span className="mr-2 text-green-600">✅</span>
+            <CheckCircle2 className="mr-2 h-4 w-4 shrink-0 text-green-700" aria-hidden />
             <p><strong>Practice makes perfect</strong> - use demo accounts to test strategies, learn the platform, and build confidence before trading with real money.</p>
           </div>
           <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded mt-4">
             <p className="text-sm text-yellow-800">
-              <strong>💡 Important:</strong> Demo accounts are essential for your ForexOrbit Academy journey. 
+              <strong><Lightbulb className="mr-2 inline h-4 w-4 shrink-0 text-primary-600" aria-hidden />Important:</strong> Demo accounts are essential for your ForexOrbit Academy journey. 
               They allow you to complete practice tasks, log trades in your journal, and demonstrate your 
               understanding of trading concepts without any financial risk.
             </p>
@@ -348,7 +349,7 @@ export default function SetupGuide() {
         ))}
       </div>
 
-      <div className="mt-6 p-4 bg-gradient-to-r from-primary-50 to-blue-50 rounded-lg border border-primary-200">
+      <div className="mt-6 p-4 bg-gradient-to-r from-primary-50 to-neutral-50 rounded-lg border border-primary-200">
         <p className="text-sm text-gray-700">
           <strong>Ready to get started?</strong> Once you&apos;ve set up your demo account, head to the{' '}
           <Link href="/student-dashboard" className="text-primary-600 hover:text-primary-700 font-semibold underline">

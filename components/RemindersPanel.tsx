@@ -6,6 +6,7 @@
 import { useState, useEffect } from 'react';
 import { apiClient } from '@/lib/api-client';
 import { useSocket } from '@/hooks/useSocket';
+import { BookOpen, Clock, FileText, MessageSquare } from 'lucide-react';
 
 interface Reminder {
   _id: string;
@@ -47,7 +48,7 @@ export default function RemindersPanel() {
       const response = await apiClient.get<{ reminders: Reminder[] }>('/reminders?upcoming=true');
       setReminders(response.reminders || []);
     } catch (error) {
-      console.error('Failed to fetch reminders:', error);
+      console.error('Failed to fetch reminders:');
     } finally {
       setLoading(false);
     }
@@ -75,27 +76,28 @@ export default function RemindersPanel() {
     }
   };
 
-  const getReminderIcon = (type: string): string => {
+  const reminderIconClass = 'h-5 w-5 shrink-0';
+  const getReminderIcon = (type: string) => {
     switch (type) {
       case 'live_class':
-        return '📚';
+        return <BookOpen className={reminderIconClass} aria-hidden />;
       case 'task_deadline':
-        return '📝';
+        return <FileText className={reminderIconClass} aria-hidden />;
       case 'consultation':
-        return '💬';
+        return <MessageSquare className={reminderIconClass} aria-hidden />;
       default:
-        return '⏰';
+        return <Clock className={reminderIconClass} aria-hidden />;
     }
   };
 
   const getReminderColor = (type: string): string => {
     switch (type) {
       case 'live_class':
-        return 'bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300';
+        return 'bg-primary-50 dark:bg-primary-950/40 text-primary-800 dark:text-primary-300';
       case 'task_deadline':
-        return 'bg-orange-100 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300';
+        return 'bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-200';
       case 'consultation':
-        return 'bg-purple-100 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300';
+        return 'bg-neutral-100 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-200';
       default:
         return 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300';
     }
@@ -127,7 +129,7 @@ export default function RemindersPanel() {
 
       {upcomingReminders.length === 0 ? (
         <div className="text-center py-8">
-          <div className="text-4xl mb-2">⏰</div>
+          <Clock className="mx-auto mb-2 h-10 w-10 text-neutral-400" aria-hidden />
           <p className="text-sm text-gray-500 dark:text-gray-400">No upcoming reminders</p>
         </div>
       ) : (
@@ -139,7 +141,7 @@ export default function RemindersPanel() {
             >
               <div className="flex items-start justify-between">
                 <div className="flex items-start space-x-2 flex-1">
-                  <span className="text-xl">{getReminderIcon(reminder.type)}</span>
+                  <span className="mt-0.5">{getReminderIcon(reminder.type)}</span>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900 dark:text-white">{reminder.title}</p>
                     {reminder.description && (

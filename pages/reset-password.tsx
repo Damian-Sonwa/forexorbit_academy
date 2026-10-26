@@ -7,6 +7,7 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import { ButtonLoadingState } from '@/components/loading';
 import { apiClient } from '@/lib/api-client';
 
 const PWD_RESET_STORAGE = 'forexorbitPwdReset';
@@ -89,19 +90,19 @@ export default function ResetPassword() {
     <div className="min-h-screen flex flex-col">
       <Header />
 
-      <main className="flex-1 flex items-center justify-center bg-brand-darker py-8 sm:py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+      <main className="flex-1 flex items-center justify-center bg-neutral-50 py-8 sm:py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-48 h-48 sm:w-64 sm:h-64 opacity-10">
           <svg viewBox="0 0 200 200" className="w-full h-full">
-            <path d="M50,50 Q100,0 150,50 T250,50" stroke="#ffffff" strokeWidth="2" fill="none" />
-            <path d="M30,100 Q100,50 170,100 T310,100" stroke="#ffffff" strokeWidth="2" fill="none" />
+            <path d="M50,50 Q100,0 150,50 T250,50" stroke="#E5E5E5" strokeWidth="2" fill="none" />
+            <path d="M30,100 Q100,50 170,100 T310,100" stroke="#E5E5E5" strokeWidth="2" fill="none" />
           </svg>
         </div>
 
         <div className="max-w-md w-full relative z-10 animate-fade-in">
-          <div className="bg-nav-bg rounded-xl sm:rounded-2xl shadow-2xl p-6 sm:p-8 border border-white/10">
+          <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-neutral-200 p-6 sm:p-8 border border-neutral-200">
             <div className="text-center mb-6 sm:mb-8">
-              <h2 className="text-nav-text font-bold text-2xl sm:text-3xl mb-3 sm:mb-4">New password</h2>
-              <p className="text-sm sm:text-base text-nav-muted">Choose a strong password for your account.</p>
+              <h2 className="text-neutral-900 font-bold text-2xl sm:text-3xl mb-3 sm:mb-4">New password</h2>
+              <p className="text-sm sm:text-base text-neutral-500">Choose a strong password for your account.</p>
             </div>
 
             {success ? (
@@ -121,7 +122,7 @@ export default function ResetPassword() {
             ) : sessionError ? (
               <div className="space-y-4">
                 <div className="p-4 bg-yellow-900/30 border border-yellow-700 rounded-xl">
-                  <p className="text-yellow-200 text-sm text-center">
+                  <p className="text-primary-600 text-sm text-center">
                     {sessionError === 'expired'
                       ? 'This step timed out. Verify your code again from Forgot password.'
                       : 'Open Forgot password, verify your SMS code, then you’ll land here automatically.'}
@@ -135,18 +136,18 @@ export default function ResetPassword() {
                 </Link>
               </div>
             ) : !session ? (
-              <p className="text-nav-muted text-sm text-center">Loading…</p>
+              <p className="text-neutral-500 text-sm text-center">Loading…</p>
             ) : (
               <>
                 {error && (
-                  <div className="mb-6 p-4 bg-accent-500/10 border border-accent-500/40 rounded-xl">
-                    <p className="text-accent-200 text-sm">{error}</p>
+                  <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
+                    <p className="text-red-700 text-sm">{error}</p>
                   </div>
                 )}
 
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div>
-                    <label className="block text-sm font-semibold text-nav-muted mb-2">New password</label>
+                    <label className="block text-sm font-semibold text-neutral-500 mb-2">New password</label>
                     <input
                       type="password"
                       value={password}
@@ -154,14 +155,14 @@ export default function ResetPassword() {
                       required
                       minLength={6}
                       autoComplete="new-password"
-                      className="bg-brand-deep border border-white/15 text-nav-text rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary-400/50 focus:border-transparent w-full mb-2 placeholder:text-nav-muted text-base min-h-[48px]"
+                      className="bg-white border border-neutral-300 text-neutral-900 rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary-400/50 focus:border-transparent w-full mb-2 placeholder:text-neutral-400 text-base min-h-[48px]"
                       placeholder="••••••••"
                     />
-                    <p className="text-xs text-nav-muted">At least 6 characters</p>
+                    <p className="text-xs text-neutral-500">At least 6 characters</p>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-semibold text-nav-muted mb-2">Confirm password</label>
+                    <label className="block text-sm font-semibold text-neutral-500 mb-2">Confirm password</label>
                     <input
                       type="password"
                       value={confirmPassword}
@@ -169,7 +170,7 @@ export default function ResetPassword() {
                       required
                       minLength={6}
                       autoComplete="new-password"
-                      className="bg-brand-deep border border-white/15 text-nav-text rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary-400/50 focus:border-transparent w-full placeholder:text-nav-muted text-base min-h-[48px]"
+                      className="bg-white border border-neutral-300 text-neutral-900 rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary-400/50 focus:border-transparent w-full placeholder:text-neutral-400 text-base min-h-[48px]"
                       placeholder="••••••••"
                     />
                   </div>
@@ -177,17 +178,17 @@ export default function ResetPassword() {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="bg-primary-500 hover:bg-primary-600 text-white w-full rounded-xl py-3 font-semibold transition-colors disabled:bg-primary-900/50 disabled:cursor-not-allowed min-h-[48px]"
+                    className="bg-primary-600 hover:bg-primary-700 text-white w-full rounded-xl py-3 font-semibold transition-colors disabled:bg-primary-900/50 disabled:cursor-not-allowed min-h-[48px]"
                   >
-                    {loading ? 'Saving…' : 'Save password'}
+                    {loading ? <ButtonLoadingState loading loadingLabel="Saving password" /> : 'Save password'}
                   </button>
                 </form>
               </>
             )}
 
-            <div className="mt-6 pt-6 border-t border-white/10">
-              <p className="text-center text-sm text-nav-muted">
-                <Link href="/login" className="text-nav-text hover:underline font-semibold">
+            <div className="mt-6 pt-6 border-t border-neutral-200">
+              <p className="text-center text-sm text-neutral-500">
+                <Link href="/login" className="text-neutral-900 hover:underline font-semibold">
                   Back to sign in
                 </Link>
               </p>

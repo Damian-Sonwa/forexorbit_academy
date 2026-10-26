@@ -10,7 +10,8 @@ import { ObjectId } from 'mongodb';
 import formidable from 'formidable';
 import fs from 'fs';
 import path from 'path';
-import { canAccessRoom } from '@/lib/learning-level';
+import { communityMember, decideCommunityMessageAccess, isStoredId } from '@/lib/account-access';
+import { publicUploadFailure } from '@/lib/public-error';
 
 export const config = {
   api: {
@@ -39,7 +40,7 @@ async function uploadMessageFile(req: AuthRequest, res: NextApiResponse) {
     const type = Array.isArray(fields.type) ? fields.type[0] : fields.type;
 
     if (!file || !roomId || !type) {
-      return res.status(400).json({ message: 'File, roomId, and type are required' });
+      return res.status(400).json({ error: 'File, roomId, and type are required' });
     }
 
     // Generate unique filename
@@ -60,57 +61,40 @@ async function uploadMessageFile(req: AuthRequest, res: NextApiResponse) {
     const users = db.collection('users');
 
     // Verify room access
+    if (!isStoredId(roomId)) {
+      fs.unlinkSync(newPath);
+      return res.status(400).json({ error: 'Invalid room ID format' });
+    }
     const room = await rooms.findOne({ _id: new ObjectId(roomId) });
     if (!room) {
-      return res.status(404).json({ message: 'Room not found' });
+      fs.unlinkSync(newPath);
+      return res.status(404).json({ error: 'Room not found' });
     }
 
-    // Get user's learning level
     const user = await users.findOne(
       { _id: new ObjectId(req.user!.userId) },
-      { projection: { learningLevel: 1, role: 1, studentDetails: 1 } }
+      { projection: { learningLevel: 1, role: 1, studentDetails: 1, name: 1, profilePhoto: 1 } }
     );
-
-    // Determine user's learning level
-    // CRITICAL: Use tradingLevel from onboarding if learningLevel is not set
-    let userLevel: 'beginner' | 'intermediate' | 'advanced' = 'beginner';
-    if (user?.role !== 'student') {
-      userLevel = 'advanced';
-    } else {
-      userLevel = (user?.learningLevel as 'beginner' | 'intermediate' | 'advanced') || 
-                  (user?.studentDetails?.tradingLevel as 'beginner' | 'intermediate' | 'advanced') || 
-                  'beginner';
-    }
-
-    // Check access for global rooms - students can ONLY access their exact level room
-    if (room.type === 'global' && ['Beginner', 'Intermediate', 'Advanced'].includes(room.name)) {
-      if (!canAccessRoom(userLevel, room.name, user?.role)) {
-        return res.status(403).json({ message: 'Access denied. You can only access the community room for your current level.' 
-        });
-      }
-    }
-
-    // Check access for direct messages
-    if (room.type === 'direct' && !room.participants.includes(req.user!.userId)) {
-      return res.status(403).json({ message: 'Access denied' });
+    const access = decideCommunityMessageAccess({
+      member: communityMember(req.user!.userId, user),
+      room,
+    });
+    if (!access.ok) {
+      fs.unlinkSync(newPath);
+      return res.status(access.status).json({ error: access.error });
     }
 
     // Get sender info
-    const sender = await users.findOne(
-      { _id: new ObjectId(req.user!.userId) },
-      { projection: { name: 1, profilePhoto: 1 } }
-    );
-
     const message = {
-      roomId,
-      senderId: req.user!.userId,
+      roomId: access.roomId,
+      senderId: access.senderId,
       type,
       content: file.originalFilename || 'File',
       fileUrl,
       fileName: file.originalFilename || 'file',
       fileSize: file.size,
       reactions: [],
-      seenBy: [req.user!.userId],
+      seenBy: [access.senderId],
       delivered: true,
       createdAt: new Date(),
     };
@@ -129,9 +113,9 @@ async function uploadMessageFile(req: AuthRequest, res: NextApiResponse) {
       const messageToEmit = {
         ...message,
         _id: result.insertedId.toString(),
-        senderId: req.user!.userId,
-        senderName: sender?.name || 'Unknown',
-        senderPhoto: sender?.profilePhoto || null,
+        senderId: access.senderId,
+        senderName: user?.name || 'Unknown',
+        senderPhoto: user?.profilePhoto || null,
         roomId: roomIdObj.toString(), // Ensure roomId is included for filtering
       };
       // Broadcast to ALL users in the room (including sender) - like WhatsApp
@@ -149,16 +133,13 @@ async function uploadMessageFile(req: AuthRequest, res: NextApiResponse) {
       message: {
         ...message,
         _id: result.insertedId.toString(),
-        senderName: sender?.name || 'Unknown',
-        senderPhoto: sender?.profilePhoto || null,
+        senderName: user?.name || 'Unknown',
+        senderPhoto: user?.profilePhoto || null,
       },
     });
   } catch (error: any) {
-    console.error('Upload message file error:', error);
-    if (error.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json({ message: 'File size exceeds 50MB limit' });
-    }
-    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+    const failure = publicUploadFailure(error, { limitMessage: 'File size exceeds 50MB limit' });
+    return res.status(failure.status).json(failure.body);
   }
 }
 

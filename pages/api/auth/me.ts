@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Get Current User API Route
  * Returns authenticated user information
@@ -19,12 +20,10 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
     );
 
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      return res.status(404).json({ error: 'User not found' });
     }
 
-    // Determine role (Super Admin gets 'superadmin' role)
-    const isSuperAdmin = user.email === 'madudamian25@gmail.com';
-    const role = isSuperAdmin ? 'superadmin' : user.role;
+    const role = user.role;
 
     // Determine learning level
     // CRITICAL: For students, use tradingLevel from onboarding if learningLevel is not set
@@ -52,8 +51,8 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
       learningLevel, // Include learning level for access control
     });
   } catch (error: any) {
-    console.error('Get user error:', error);
-    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+    console.error('Get user error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 

@@ -1,15 +1,14 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Super Admin Approval API Route
  * Handles fetching pending users and approval/rejection actions
- * Only accessible by Super Admin (email: madudamian25@gmail.com)
+ * Accessible to accounts whose current role is admin or superadmin.
  */
 
 import type { NextApiResponse } from 'next';
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
-
-// const SUPER_ADMIN_EMAIL = 'madudamian25@gmail.com'; // Reserved for future use
 
 /**
  * GET: Fetch pending instructor/admin registrations
@@ -20,7 +19,7 @@ async function getPendingUsers(req: AuthRequest, res: NextApiResponse) {
     // Allow all admins to view pending users (for notifications)
     // Only Super Admin can approve/reject (checked in handleApproval)
     if (req.user!.role !== 'admin' && req.user!.role !== 'superadmin') {
-      return res.status(403).json({ message: 'Admin access required' });
+      return res.status(403).json({ error: 'Admin access required' });
     }
 
     const db = await getDb();
@@ -46,8 +45,8 @@ async function getPendingUsers(req: AuthRequest, res: NextApiResponse) {
       }))
     );
   } catch (error: unknown) {
-    console.error('Get pending users error:', error);
-    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+    console.error('Get pending users error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 
@@ -60,13 +59,13 @@ async function handleApproval(req: AuthRequest, res: NextApiResponse) {
   try {
     // Allow all admins to approve/reject (not just Super Admin)
     if (req.user!.role !== 'admin' && req.user!.role !== 'superadmin') {
-      return res.status(403).json({ message: 'Admin access required' });
+      return res.status(403).json({ error: 'Admin access required' });
     }
 
     const { userId, action } = req.body;
 
     if (!userId || !action || !['approve', 'reject'].includes(action)) {
-      return res.status(400).json({ message: 'Invalid request. userId and action (approve/reject) required.' });
+      return res.status(400).json({ error: 'Invalid request. userId and action (approve/reject) required.' });
     }
 
     const db = await getDb();
@@ -75,7 +74,7 @@ async function handleApproval(req: AuthRequest, res: NextApiResponse) {
     // Find the user
     const user = await users.findOne({ _id: new ObjectId(userId) });
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      return res.status(404).json({ error: 'User not found' });
     }
 
     // Update user status
@@ -104,8 +103,8 @@ async function handleApproval(req: AuthRequest, res: NextApiResponse) {
       },
     });
   } catch (error: unknown) {
-    console.error('Approval action error:', error);
-    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+    console.error('Approval action error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 
@@ -115,7 +114,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
   } else if (req.method === 'POST') {
     return handleApproval(req, res);
   } else {
-    return res.status(405).json({ message: 'Method not allowed' });
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 }
 

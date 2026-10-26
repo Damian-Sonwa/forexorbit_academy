@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Student Onboarding API Route
  * POST: Save/update student onboarding data
@@ -12,7 +13,7 @@ async function saveOnboarding(req: AuthRequest, res: NextApiResponse) {
   try {
     // Only students can access this endpoint
     if (req.user!.role !== 'student') {
-      return res.status(403).json({ message: 'Only students can complete onboarding' });
+      return res.status(403).json({ error: 'Only students can complete onboarding' });
     }
 
     const {
@@ -30,11 +31,11 @@ async function saveOnboarding(req: AuthRequest, res: NextApiResponse) {
 
     // Validate required fields
     if (!fullName || !dateOfBirth || !contactNumber || !educationLevel || !tradingLevel || !yearsOfExperience) {
-      return res.status(400).json({ message: 'Missing required fields' });
+      return res.status(400).json({ error: 'Missing required fields' });
     }
 
     if (!preferredTopics || !Array.isArray(preferredTopics) || preferredTopics.length === 0) {
-      return res.status(400).json({ message: 'Please select at least one preferred learning topic' });
+      return res.status(400).json({ error: 'Please select at least one preferred learning topic' });
     }
 
     const db = await getDb();
@@ -71,7 +72,7 @@ async function saveOnboarding(req: AuthRequest, res: NextApiResponse) {
     );
 
     if (result.matchedCount === 0) {
-      return res.status(404).json({ message: 'User not found' });
+      return res.status(404).json({ error: 'User not found' });
     }
 
     res.json({
@@ -79,8 +80,8 @@ async function saveOnboarding(req: AuthRequest, res: NextApiResponse) {
       message: 'Onboarding data saved successfully',
     });
   } catch (error: any) {
-    console.error('Save onboarding error:', error);
-    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+    console.error('Save onboarding error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 

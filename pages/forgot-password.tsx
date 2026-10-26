@@ -7,6 +7,7 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import { ButtonLoadingState } from '@/components/loading';
 import { apiClient } from '@/lib/api-client';
 
 const PWD_RESET_STORAGE = 'forexorbitPwdReset';
@@ -200,16 +201,16 @@ export default function ForgotPassword() {
     <div className="min-h-screen flex flex-col">
       <Header />
 
-      <main className="flex-1 flex items-center justify-center bg-brand-darker py-8 sm:py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+      <main className="flex-1 flex items-center justify-center bg-neutral-50 py-8 sm:py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-48 h-48 sm:w-64 sm:h-64 opacity-10">
           <svg viewBox="0 0 200 200" className="w-full h-full">
-            <path d="M50,50 Q100,0 150,50 T250,50" stroke="#ffffff" strokeWidth="2" fill="none" />
-            <path d="M30,100 Q100,50 170,100 T310,100" stroke="#ffffff" strokeWidth="2" fill="none" />
+            <path d="M50,50 Q100,0 150,50 T250,50" stroke="#E5E5E5" strokeWidth="2" fill="none" />
+            <path d="M30,100 Q100,50 170,100 T310,100" stroke="#E5E5E5" strokeWidth="2" fill="none" />
           </svg>
         </div>
 
         <div className="max-w-md w-full relative z-10 animate-fade-in">
-          <div className="bg-[#003153] rounded-xl sm:rounded-2xl shadow-2xl p-6 sm:p-8 border border-[#001a2e]">
+          <div className="bg-white rounded-2xl shadow-soft p-6 sm:p-8 border border-neutral-200">
             <div className="text-center mb-6 sm:mb-8">
               <h2 className="text-white font-bold text-2xl sm:text-3xl mb-3 sm:mb-4">
                 {step === 'phone' ? 'Forgot password' : 'Enter verification code'}
@@ -233,20 +234,20 @@ export default function ForgotPassword() {
 
             {info && (
               <div className="mb-4 p-3 bg-primary-900/40 border border-primary-600/50 rounded-xl">
-                <p className="text-primary-100 text-sm text-center">{info}</p>
+                <p className="text-neutral-500 text-sm text-center">{info}</p>
               </div>
             )}
 
             {error && (
-              <div className="mb-4 p-4 bg-accent-500/10 border border-accent-500/40 rounded-xl">
-                <p className="text-accent-200 text-sm">{error}</p>
+              <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl">
+                <p className="text-red-700 text-sm">{error}</p>
               </div>
             )}
 
             {step === 'phone' ? (
               <form onSubmit={handleSendCode} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-semibold text-nav-muted mb-2">Phone number</label>
+                  <label className="block text-sm font-semibold text-neutral-500 mb-2">Phone number</label>
                   <input
                     type="tel"
                     inputMode="tel"
@@ -254,7 +255,7 @@ export default function ForgotPassword() {
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     required
-                    className="bg-brand-deep border border-white/15 text-nav-text rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary-400/50 focus:border-transparent w-full text-base placeholder:text-nav-muted"
+                    className="bg-white border border-neutral-300 text-neutral-900 rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary-400/50 focus:border-transparent w-full text-base placeholder:text-neutral-400"
                     placeholder="+234 801 234 5678"
                   />
                   <p className="text-xs text-gray-400 mt-2">
@@ -264,15 +265,15 @@ export default function ForgotPassword() {
                 <button
                   type="submit"
                   disabled={loading || !phone.trim()}
-                  className="bg-primary-500 hover:bg-primary-600 text-white w-full rounded-xl py-3 font-semibold transition-colors disabled:bg-primary-900/50 disabled:cursor-not-allowed min-h-[48px]"
+                  className="bg-primary-600 hover:bg-primary-700 text-white w-full rounded-xl py-3 font-semibold transition-colors disabled:bg-primary-900/50 disabled:cursor-not-allowed min-h-[48px]"
                 >
-                  {loading ? 'Sending…' : 'Send code'}
+                  {loading ? <ButtonLoadingState loading loadingLabel="Sending code" /> : 'Send code'}
                 </button>
               </form>
             ) : (
               <form onSubmit={handleVerifyOtp} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-semibold text-nav-muted mb-2">6-digit code</label>
+                  <label className="block text-sm font-semibold text-neutral-500 mb-2">6-digit code</label>
                   <input
                     type="text"
                     inputMode="numeric"
@@ -281,7 +282,7 @@ export default function ForgotPassword() {
                     value={otp}
                     onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
                     required
-                    className="bg-brand-deep border border-white/15 text-nav-text rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary-400/50 focus:border-transparent w-full text-center text-2xl tracking-[0.4em] font-mono placeholder:text-nav-muted"
+                    className="bg-white border border-neutral-300 text-neutral-900 rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary-400/50 focus:border-transparent w-full text-center text-2xl tracking-[0.4em] font-mono placeholder:text-neutral-400"
                     placeholder="••••••"
                     autoComplete="one-time-code"
                   />
@@ -289,9 +290,9 @@ export default function ForgotPassword() {
                 <button
                   type="submit"
                   disabled={loading || otp.length !== 6}
-                  className="bg-primary-500 hover:bg-primary-600 text-white w-full rounded-xl py-3 font-semibold transition-colors disabled:bg-primary-900/50 disabled:cursor-not-allowed min-h-[48px]"
+                  className="bg-primary-600 hover:bg-primary-700 text-white w-full rounded-xl py-3 font-semibold transition-colors disabled:bg-primary-900/50 disabled:cursor-not-allowed min-h-[48px]"
                 >
-                  {loading ? 'Checking…' : 'Verify & continue'}
+                  {loading ? <ButtonLoadingState loading loadingLabel="Checking code" /> : 'Verify & continue'}
                 </button>
                 <div className="flex flex-col sm:flex-row gap-2 sm:justify-between sm:items-center pt-2">
                   <button
@@ -310,7 +311,7 @@ export default function ForgotPassword() {
                     type="button"
                     onClick={handleResend}
                     disabled={retryAfterSeconds > 0 || loading}
-                    className="text-sm font-semibold text-primary-300 hover:text-primary-200 disabled:text-gray-500 disabled:cursor-not-allowed"
+                    className="text-sm font-semibold text-primary-300 hover:text-primary-600 disabled:text-gray-500 disabled:cursor-not-allowed"
                   >
                     {retryAfterSeconds > 0 ? `Resend in ${retryAfterSeconds}s` : 'Resend code'}
                   </button>

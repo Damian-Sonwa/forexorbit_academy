@@ -104,7 +104,7 @@ export default function RichTextEditor({
                 quill.insertEmbed(index, 'image', imageUrl);
               } catch (error: unknown) {
                 const message = error instanceof Error ? error.message : 'Image upload failed';
-                console.error('Image upload error:', error);
+                console.error('Image upload error:');
                 alert(message);
               }
             };

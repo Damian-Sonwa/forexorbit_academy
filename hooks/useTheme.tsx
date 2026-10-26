@@ -10,40 +10,35 @@ interface ThemeContextType {
   toggleTheme: () => void;
 }
 
-// Provide default values to prevent SSR errors
+// Black and orange is the default. A saved "light" choice still wins.
 const defaultThemeContext: ThemeContextType = {
-  isDark: false,
+  isDark: true,
   toggleTheme: () => {},
 };
 
 const ThemeContext = createContext<ThemeContextType>(defaultThemeContext);
 
+function applyTheme(isDark: boolean) {
+  const root = document.documentElement;
+  root.classList.toggle('dark', isDark);
+  const themeColor = document.querySelector('meta[name="theme-color"]');
+  if (themeColor) themeColor.setAttribute('content', isDark ? '#07080c' : '#faf8f4');
+}
+
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  // Initialize with false, will be set correctly in useEffect
-  const [isDark, setIsDark] = useState(false);
+  const [isDark, setIsDark] = useState(true);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     // Mark as mounted to avoid hydration mismatch
     setMounted(true);
     
-    // Check for saved theme preference or default to light mode
     if (typeof window !== 'undefined') {
       const savedTheme = localStorage.getItem('theme');
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      
-      // Use saved theme, or system preference, or default to light
-      const shouldBeDark = savedTheme === 'dark' || (!savedTheme && prefersDark);
-      
+      const shouldBeDark = savedTheme !== 'light';
+
       setIsDark(shouldBeDark);
-      
-      // Apply theme immediately
-      const root = document.documentElement;
-      if (shouldBeDark) {
-        root.classList.add('dark');
-      } else {
-        root.classList.remove('dark');
-      }
+      applyTheme(shouldBeDark);
     }
   }, []);
 
@@ -54,14 +49,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       const newTheme = !prev;
       
       // Update DOM immediately
-      const root = document.documentElement;
-      if (newTheme) {
-        root.classList.add('dark');
-        localStorage.setItem('theme', 'dark');
-      } else {
-        root.classList.remove('dark');
-        localStorage.setItem('theme', 'light');
-      }
+      applyTheme(newTheme);
+      localStorage.setItem('theme', newTheme ? 'dark' : 'light');
       
       return newTheme;
     });

@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Consultation Sessions API Route
  * GET: Get consultation sessions (for students: their sessions, for experts: their sessions)
@@ -35,7 +36,7 @@ async function getSessions(req: AuthRequest, res: NextApiResponse) {
         .sort({ createdAt: -1 })
         .toArray();
     } else {
-      return res.status(403).json({ message: 'Access denied' });
+      return res.status(403).json({ error: 'Access denied' });
     }
 
     // Populate user info
@@ -72,8 +73,8 @@ async function getSessions(req: AuthRequest, res: NextApiResponse) {
 
     res.json(sessionsWithUsers);
   } catch (error: any) {
-    console.error('Get consultation sessions error:', error);
-    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+    console.error('Get consultation sessions error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 
@@ -82,7 +83,7 @@ export default withAuth(async (req: AuthRequest, res: NextApiResponse) => {
     return getSessions(req, res);
   } else {
     res.setHeader('Allow', ['GET']);
-    res.status(405).json({ message: `Method ${req.method} not allowed` });
+    res.status(405).json({ error: `Method ${req.method} not allowed` });
   }
 });
 

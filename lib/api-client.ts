@@ -4,10 +4,12 @@
  */
 
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
+import { messageFromUnknown } from '@/lib/public-error';
 
 /**
- * Next.js API routes live under `/api`. If the env is `https://host.onrender.com` without `/api`,
- * axios would call `/auth/login` and get 404 — normalize to `https://host.onrender.com/api`.
+ * Next.js API routes live under `/api`. If the env is a host without `/api`,
+ * axios would call `/auth/login` on the host root and get 404.
+ * There is no production-host fallback.
  */
 function normalizeApiBaseUrl(raw: string): string {
   const t = raw.trim().replace(/\/+$/, '');
@@ -20,7 +22,6 @@ function normalizeApiBaseUrl(raw: string): string {
   return t.startsWith('/') ? t : `/${t}`;
 }
 
-// Use NEXT_PUBLIC_API_BASE_URL if set (for Render backend), otherwise default to relative /api (same-origin)
 const API_URL = normalizeApiBaseUrl(
   process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || '/api'
 );
@@ -51,6 +52,19 @@ class ApiClient {
     this.client.interceptors.response.use(
       (response) => response,
       (error) => {
+        const safe = messageFromUnknown(error);
+        if (safe && error && typeof error === 'object') {
+          error.message = safe;
+          const data = error.response?.data;
+          if (typeof data === 'string') {
+            error.response.data = { error: safe };
+          } else if (data && typeof data === 'object') {
+            data.error = safe;
+            delete data.details;
+            delete data.stack;
+            if (error.response?.status >= 500) delete data.message;
+          }
+        }
         if (error.response?.status === 401) {
           if (typeof window !== 'undefined') {
             // Don't redirect if we're already on the login page (login failed)

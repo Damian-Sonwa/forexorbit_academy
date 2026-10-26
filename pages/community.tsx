@@ -12,6 +12,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useSocket } from '@/hooks/useSocket';
 import { apiClient } from '@/lib/api-client';
 import { format, formatDistanceToNow } from 'date-fns';
+import { Bot, ThumbsUp } from 'lucide-react';
 
 interface Message {
   _id: string;
@@ -51,9 +52,8 @@ interface NewsItem {
   content?: string;
   link?: string;
   createdAt: Date | string;
-  createdBy?: string;
+  createdBy?: string | null;
   isRead?: boolean; // Whether this news item has been read by the current user
-  readBy?: string[]; // Array of user IDs who have read this news
 }
 
 export default function Community() {
@@ -521,7 +521,7 @@ export default function Community() {
         setRooms([]);
       }
     } catch (error: any) {
-      console.error('Failed to load rooms:', error);
+      console.error('Failed to load rooms:');
       // Set empty array on error to prevent blank page
       setRooms([]);
       // Show error message to user
@@ -581,8 +581,8 @@ export default function Community() {
       // Mark messages as read for this room
       await apiClient.post(`/community/messages/read`, { roomId: roomId.toString() });
     } catch (error: any) {
-      console.error('Failed to load messages:', error);
-      const errorMessage = error.response?.data?.message || error.response?.data?.error || 'Failed to load messages';
+      console.error('Failed to load messages');
+      const errorMessage = error.response?.data?.error || error.response?.data?.message || 'Failed to load messages';
       if (error.response?.status === 403) {
         // Access denied - room is locked
         setToastMessage(errorMessage);
@@ -621,7 +621,7 @@ export default function Community() {
         setNewsItems([]);
       }
     } catch (error) {
-      console.error('Failed to load news:', error);
+      console.error('Failed to load news:');
       setNewsItems([]); // Ensure empty array on error
     }
   };
@@ -634,14 +634,14 @@ export default function Community() {
       await Promise.all(
         unreadNews.map((item) =>
           apiClient.post('/community/news/mark-read', { newsId: item._id }).catch((err) => {
-            console.error(`Failed to mark news ${item._id} as read:`, err);
+            console.error(`Failed to mark news ${item._id} as read:`);
           })
         )
       );
       // Reload news to get updated read status
       await loadNews();
     } catch (error) {
-      console.error('Failed to mark news as read:', error);
+      console.error('Failed to mark news as read:');
     }
   };
 
@@ -1013,7 +1013,7 @@ export default function Community() {
       // Message will also appear via Socket.io broadcast to all room members (including sender)
       // The Socket.io event will handle adding it for receivers and updating for sender
     } catch (error: any) {
-      console.error('Failed to send message:', error);
+      console.error('Failed to send message:');
       let errorMessage = 'Failed to send message';
       
       if (error.response) {
@@ -1078,8 +1078,8 @@ export default function Community() {
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
     } catch (error: any) {
-      console.error('Failed to delete message:', error);
-      const errorMessage = error.response?.data?.message || error.response?.data?.error || 'Failed to delete message';
+      console.error('Failed to delete message');
+      const errorMessage = error.response?.data?.error || error.response?.data?.message || 'Failed to delete message';
       setToastMessage(errorMessage);
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
@@ -1172,7 +1172,7 @@ export default function Community() {
       
       // Message will also appear via Socket.io broadcast to all room members (including sender)
     } catch (error) {
-      console.error('Failed to upload file:', error);
+      console.error('Failed to upload file:');
       // Restore file on error
       setSelectedFile(fileToUpload);
       setFileType(fileTypeToUpload);
@@ -1203,7 +1203,7 @@ export default function Community() {
       setMediaRecorder(recorder);
       setRecording(true);
     } catch (error) {
-      console.error('Failed to start recording:', error);
+      console.error('Failed to start recording:');
       alert('Microphone access denied. Please enable microphone permissions.');
     }
   };
@@ -1243,7 +1243,7 @@ export default function Community() {
       setVideoStream(stream);
       setRecordingVideo(true);
     } catch (error) {
-      console.error('Failed to start video recording:', error);
+      console.error('Failed to start video recording:');
       alert('Camera/microphone access denied. Please enable permissions.');
     }
   };
@@ -1279,7 +1279,7 @@ export default function Community() {
         )
       );
     } catch (error) {
-      console.error('Failed to add reaction:', error);
+      console.error('Failed to add reaction:');
     }
   };
 
@@ -1440,7 +1440,7 @@ export default function Community() {
                     setNewsEditForm({ title: '', description: '', category: 'market', content: '', link: '' });
                     console.log('State updated, modal should open');
                   }}
-                  className="px-3 py-1 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-md font-semibold text-sm transition-colors flex items-center space-x-2 shadow-md cursor-pointer z-10 relative"
+                  className="px-3 py-1 bg-primary-600 hover:bg-primary-700 active:bg-neutral-800 text-white rounded-md font-semibold text-sm transition-colors flex items-center space-x-2 shadow-md cursor-pointer z-10 relative"
                   style={{ pointerEvents: 'auto' }}
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1457,14 +1457,14 @@ export default function Community() {
                     await markAllNewsAsRead();
                     setShowNewsModal(true);
                   }}
-                  className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-semibold text-sm transition-colors flex items-center space-x-2 shadow-md"
+                  className="px-3 py-1 bg-primary-600 hover:bg-primary-700 text-white rounded-md font-semibold text-sm transition-colors flex items-center space-x-2 shadow-md"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
                   </svg>
                   <span>View Updates</span>
                   {unreadNewsCount > 0 && (
-                    <span className="bg-white text-blue-600 rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold">
+                    <span className="bg-white text-primary-600 rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold">
                       {unreadNewsCount > 9 ? '9+' : unreadNewsCount}
                     </span>
                   )}
@@ -1536,7 +1536,7 @@ export default function Community() {
                       }}
                     >
                       <div className="flex items-center justify-between mb-4">
-                        <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-white font-bold text-2xl relative">
+                        <div className="w-16 h-16 rounded-full bg-primary-600 flex items-center justify-center text-white font-bold text-2xl relative">
                           {room.name.charAt(0)}
                           {isLocked && (
                             <div className="absolute -top-1 -right-1 bg-gray-600 dark:bg-gray-400 rounded-full p-1">
@@ -1647,15 +1647,15 @@ export default function Community() {
               style={{ position: 'relative', zIndex: 101 }}
             >
               {/* Modal Header */}
-              <div className="p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20">
+              <div className="p-6 border-b border-gray-200 dark:border-gray-700 bg-neutral-50 dark:bg-neutral-900">
                 <div className="flex items-center justify-between">
                   <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center">
                     {editingNews._id ? (
-                      <svg className="w-6 h-6 mr-2 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-6 h-6 mr-2 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                       </svg>
                     ) : (
-                      <svg className="w-6 h-6 mr-2 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-6 h-6 mr-2 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
                       </svg>
                     )}
@@ -1718,7 +1718,7 @@ export default function Community() {
                     value={newsEditForm.title}
                     onChange={(e) => setNewsEditForm({ ...newsEditForm, title: e.target.value })}
                     placeholder="e.g., NFP Results: 200K Jobs Added"
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-600 focus:border-transparent"
                     required
                   />
                 </div>
@@ -1732,7 +1732,7 @@ export default function Community() {
                     onChange={(e) => setNewsEditForm({ ...newsEditForm, description: e.target.value })}
                     placeholder="Brief summary of the news update"
                     rows={3}
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-600 focus:border-transparent"
                     required
                   />
                 </div>
@@ -1744,7 +1744,7 @@ export default function Community() {
                   <select
                     value={newsEditForm.category}
                     onChange={(e) => setNewsEditForm({ ...newsEditForm, category: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-600 focus:border-transparent"
                     required
                   >
                     <option value="market">Market News</option>
@@ -1765,7 +1765,7 @@ export default function Community() {
                     onChange={(e) => setNewsEditForm({ ...newsEditForm, content: e.target.value })}
                     placeholder="Detailed content or analysis"
                     rows={5}
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-600 focus:border-transparent"
                   />
                 </div>
 
@@ -1778,7 +1778,7 @@ export default function Community() {
                     value={newsEditForm.link}
                     onChange={(e) => setNewsEditForm({ ...newsEditForm, link: e.target.value })}
                     placeholder="https://example.com/article"
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-600 focus:border-transparent"
                   />
                 </div>
 
@@ -1796,7 +1796,7 @@ export default function Community() {
                   <button
                     type="submit"
                     disabled={submittingNews}
-                    className={`px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold transition-colors ${
+                    className={`px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-semibold transition-colors ${
                       submittingNews ? 'opacity-50 cursor-not-allowed' : ''
                     }`}
                   >
@@ -1904,7 +1904,7 @@ export default function Community() {
                     >
                       <div className="flex items-center space-x-3">
                         <div className="relative">
-                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-white font-bold">
+                          <div className="w-10 h-10 rounded-full bg-primary-600 flex items-center justify-center text-white font-bold">
                             {room.name.charAt(0)}
                           </div>
                           {onlineCount > 0 && (
@@ -1932,7 +1932,7 @@ export default function Community() {
           <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/30">
             <div className="flex items-center space-x-3">
               <div className="relative">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-white font-bold">
+                <div className="w-10 h-10 rounded-full bg-primary-600 flex items-center justify-center text-white font-bold">
                   {(user as any)?.profilePhoto ? (
                     <img src={(user as any).profilePhoto} alt={user?.name || user?.email || 'User'} className="w-full h-full rounded-full object-cover" />
                   ) : (
@@ -1975,7 +1975,7 @@ export default function Community() {
                   </svg>
                 </button>
                 <div className="relative">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-white font-bold">
+                  <div className="w-10 h-10 rounded-full bg-primary-600 flex items-center justify-center text-white font-bold">
                     {selectedRoom.avatar ? (
                       <img src={selectedRoom.avatar} alt={selectedRoom.name} className="w-full h-full rounded-full object-cover" />
                     ) : (
@@ -2017,7 +2017,7 @@ export default function Community() {
                       setNewsEditForm({ title: '', description: '', category: 'market', content: '', link: '' });
                       console.log('State updated, modal should open (chat header)');
                     }}
-                    className="px-2 sm:px-3 py-1 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-md font-semibold text-xs transition-colors flex items-center space-x-1 sm:space-x-1.5 shadow-md cursor-pointer z-10 relative flex-shrink-0"
+                    className="px-2 sm:px-3 py-1 bg-primary-600 hover:bg-primary-700 active:bg-neutral-800 text-white rounded-md font-semibold text-xs transition-colors flex items-center space-x-1 sm:space-x-1.5 shadow-md cursor-pointer z-10 relative flex-shrink-0"
                     style={{ pointerEvents: 'auto' }}
                     title="Add Update"
                   >
@@ -2035,7 +2035,7 @@ export default function Community() {
                       await markAllNewsAsRead();
                       setShowNewsModal(true);
                     }}
-                    className="px-2 sm:px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-semibold text-xs transition-colors flex items-center space-x-1 sm:space-x-1.5 shadow-md flex-shrink-0"
+                    className="px-2 sm:px-3 py-1 bg-primary-600 hover:bg-primary-700 text-white rounded-md font-semibold text-xs transition-colors flex items-center space-x-1 sm:space-x-1.5 shadow-md flex-shrink-0"
                     title="View Updates from Admin or Instructors"
                   >
                     <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2043,7 +2043,7 @@ export default function Community() {
                     </svg>
                     <span className="hidden sm:inline">View Updates</span>
                     {unreadNewsCount > 0 && (
-                      <span className="bg-white text-blue-600 rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-bold">
+                      <span className="bg-white text-primary-600 rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-bold">
                         {unreadNewsCount > 9 ? '9+' : unreadNewsCount}
                       </span>
                     )}
@@ -2297,12 +2297,12 @@ export default function Community() {
                         onClick={handleAskAI}
                         disabled={askingAI || !connected || !roomConfirmed || !selectedRoom}
                         title="Ask AI Assistant"
-                        className="p-2 sm:p-2.5 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-md flex-shrink-0"
+                        className="p-2 sm:p-2.5 bg-primary-600 hover:bg-primary-700 text-white rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-md flex-shrink-0"
                       >
                         {askingAI ? (
                           <span className="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-white"></span>
                         ) : (
-                          <span className="text-lg">🤖</span>
+                          <Bot className="h-5 w-5" aria-hidden />
                         )}
                       </button>
                     )}
@@ -2338,10 +2338,10 @@ export default function Community() {
         {/* RIGHT COLUMN: Forex Updates Panel */}
         <div className="w-80 lg:w-96 bg-white dark:bg-gray-800 flex flex-col hidden lg:flex">
           {/* Updates Header */}
-          <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 sticky top-0 z-10">
+          <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-neutral-50 dark:bg-neutral-900 sticky top-0 z-10">
             <div className="flex items-center justify-between mb-2">
               <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center">
-                <svg className="w-5 h-5 mr-2 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 mr-2 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
                 </svg>
                 Forex Updates
@@ -2356,7 +2356,7 @@ export default function Community() {
                     setEditingNews({ _id: null });
                     setNewsEditForm({ title: '', description: '', category: 'market', content: '', link: '' });
                   }}
-                  className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-xs transition-colors flex items-center space-x-1.5 shadow-md"
+                  className="px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold text-xs transition-colors flex items-center space-x-1.5 shadow-md"
                   title="Add New Update"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2393,7 +2393,7 @@ export default function Community() {
                         {news.description}
                       </p>
                       <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400">
-                        <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded">
+                        <span className="px-2 py-0.5 bg-neutral-100 dark:bg-neutral-900/30 text-primary-700 dark:text-neutral-300 rounded">
                           {news.category}
                         </span>
                         <span>{formatDistanceToNow(new Date(news.createdAt), { addSuffix: true })}</span>
@@ -2416,7 +2416,7 @@ export default function Community() {
                             link: news.link || '',
                           });
                         }}
-                        className="flex-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-xs font-semibold transition-colors flex items-center justify-center space-x-1"
+                        className="flex-1 px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white rounded-md text-xs font-semibold transition-colors flex items-center justify-center space-x-1"
                         title="Edit this update"
                       >
                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2456,7 +2456,7 @@ export default function Community() {
                         await loadNews();
                         setShowNewsModal(true);
                       }}
-                      className="w-full mt-3 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-xs font-semibold transition-colors"
+                      className="w-full mt-3 px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white rounded-md text-xs font-semibold transition-colors"
                     >
                       View Details
                     </button>
@@ -2486,15 +2486,15 @@ export default function Community() {
             style={{ position: 'relative', zIndex: 101 }}
           >
             {/* Modal Header */}
-            <div className="p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700 bg-neutral-50 dark:bg-neutral-900">
               <div className="flex items-center justify-between">
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center">
                   {editingNews._id ? (
-                    <svg className="w-6 h-6 mr-2 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-6 h-6 mr-2 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                     </svg>
                   ) : (
-                    <svg className="w-6 h-6 mr-2 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-6 h-6 mr-2 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
                     </svg>
                   )}
@@ -2557,7 +2557,7 @@ export default function Community() {
                   value={newsEditForm.title}
                   onChange={(e) => setNewsEditForm({ ...newsEditForm, title: e.target.value })}
                   placeholder="e.g., NFP Results: 200K Jobs Added"
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-600 focus:border-transparent"
                   required
                 />
               </div>
@@ -2571,7 +2571,7 @@ export default function Community() {
                   onChange={(e) => setNewsEditForm({ ...newsEditForm, description: e.target.value })}
                   placeholder="Brief summary of the news update"
                   rows={3}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-600 focus:border-transparent"
                   required
                 />
               </div>
@@ -2583,7 +2583,7 @@ export default function Community() {
                 <select
                   value={newsEditForm.category}
                   onChange={(e) => setNewsEditForm({ ...newsEditForm, category: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-600 focus:border-transparent"
                   required
                 >
                   <option value="market">Market News</option>
@@ -2604,7 +2604,7 @@ export default function Community() {
                   onChange={(e) => setNewsEditForm({ ...newsEditForm, content: e.target.value })}
                   placeholder="Detailed content or analysis"
                   rows={5}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-600 focus:border-transparent"
                 />
               </div>
 
@@ -2617,7 +2617,7 @@ export default function Community() {
                   value={newsEditForm.link}
                   onChange={(e) => setNewsEditForm({ ...newsEditForm, link: e.target.value })}
                   placeholder="https://example.com/article"
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-600 focus:border-transparent"
                 />
               </div>
 
@@ -2635,7 +2635,7 @@ export default function Community() {
                 <button
                   type="submit"
                   disabled={submittingNews}
-                  className={`px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold transition-colors ${
+                  className={`px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-semibold transition-colors ${
                     submittingNews ? 'opacity-50 cursor-not-allowed' : ''
                   }`}
                 >
@@ -2662,10 +2662,10 @@ export default function Community() {
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
             {/* Modal Header */}
-            <div className="p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700 bg-neutral-50 dark:bg-neutral-900">
               <div className="flex items-center justify-between">
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center">
-                  <svg className="w-6 h-6 mr-2 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-6 h-6 mr-2 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
                   </svg>
                   Important Updates
@@ -2679,7 +2679,7 @@ export default function Community() {
                         setEditingNews({ _id: null });
                         setNewsEditForm({ title: '', description: '', category: 'market', content: '', link: '' });
                       }}
-                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-sm transition-colors flex items-center space-x-2"
+                      className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold text-sm transition-colors flex items-center space-x-2"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -2760,7 +2760,7 @@ export default function Community() {
                                     });
                                   }, 100);
                                 }}
-                                className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-xs font-semibold transition-colors flex items-center space-x-1 shadow-sm"
+                                className="px-3 py-1 bg-primary-600 hover:bg-primary-700 text-white rounded-md text-xs font-semibold transition-colors flex items-center space-x-1 shadow-sm"
                                 title="Edit this update"
                               >
                                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2813,7 +2813,7 @@ export default function Community() {
                                     });
                                   }, 100);
                                 }}
-                                className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-xs font-semibold transition-colors flex items-center space-x-1 shadow-sm"
+                                className="px-3 py-1 bg-primary-600 hover:bg-primary-700 text-white rounded-md text-xs font-semibold transition-colors flex items-center space-x-1 shadow-sm"
                                 title="Edit this update"
                               >
                                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2972,7 +2972,7 @@ function MessageBubble({ message, isOwn, onReaction, onDelete }: MessageBubblePr
   return (
     <div className={`flex items-end space-x-2 ${isOwn ? 'justify-end' : 'justify-start'} mb-1 group`}>
       {!isOwn && (
-        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+        <div className="w-8 h-8 rounded-full bg-primary-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
           {message.senderPhoto ? (
             <img src={message.senderPhoto} alt={message.senderName} className="w-full h-full rounded-full object-cover" />
           ) : (
@@ -3115,9 +3115,10 @@ function MessageBubble({ message, isOwn, onReaction, onDelete }: MessageBubblePr
           {/* Reaction button */}
           <button
             onClick={() => setShowReactions(!showReactions)}
-            className="text-[10px] text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity"
+            className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity"
+            aria-label="Add reaction"
           >
-            👍
+            <ThumbsUp className="h-3.5 w-3.5" aria-hidden />
           </button>
           {showReactions && (
             <div className="absolute bottom-full left-0 mb-2 flex space-x-2 bg-white dark:bg-gray-800 rounded-lg shadow-lg p-2 border border-gray-200 dark:border-gray-700">

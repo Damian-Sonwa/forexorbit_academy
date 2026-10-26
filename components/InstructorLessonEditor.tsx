@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { apiClient } from '@/lib/api-client';
 import 'react-quill/dist/quill.snow.css';
+import { Lightbulb } from 'lucide-react';
 
 const ReactQuill = dynamic(
   async () => {
@@ -104,7 +105,7 @@ export default function InstructorLessonEditor({
                 quill.insertEmbed(index, 'image', imageUrl);
               } catch (error: unknown) {
                 const message = error instanceof Error ? error.message : 'Image upload failed';
-                console.error('Image upload error:', error);
+                console.error('Image upload error:');
                 alert(message);
               }
             };
@@ -216,7 +217,7 @@ export default function InstructorLessonEditor({
     } catch (error) {
       setSaveStatus('error');
       setErrorMessage('Error saving lesson content. Please try again.');
-      console.error('Save error:', error);
+      console.error('Save error:');
     } finally {
       setIsSaving(false);
     }
@@ -267,8 +268,8 @@ export default function InstructorLessonEditor({
         <div className="flex items-center gap-2">
           {isSaving && saveStatus === 'saving' && (
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
-              <span className="text-sm text-blue-600 font-medium">Saving...</span>
+              <div className="w-4 h-4 border-2 border-neutral-200 border-t-primary-600 rounded-full animate-spin" />
+              <span className="text-sm text-primary-600 font-medium">Saving...</span>
             </div>
           )}
           {saveStatus === 'saved' && (
@@ -315,16 +316,16 @@ export default function InstructorLessonEditor({
           onClick={handleSave}
           disabled={isSaving}
           className={`px-6 py-2 rounded-lg font-semibold text-white transition-colors ${
-            isSaving ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
+            isSaving ? 'bg-primary-400 cursor-not-allowed' : 'bg-primary-600 hover:bg-primary-700'
           }`}
         >
           {isSaving ? 'Saving...' : 'Save Manually'}
         </button>
       </div>
 
-      <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-        <p className="text-xs sm:text-sm text-blue-700">
-          💡 <strong>Tip:</strong> Your content autosaves every 30 seconds. You can also click
+      <div className="mt-4 p-3 bg-neutral-50 border border-neutral-200 rounded-lg">
+        <p className="text-xs sm:text-sm text-primary-700">
+          <Lightbulb className="mr-2 inline h-4 w-4 shrink-0 text-primary-600" aria-hidden /><strong>Tip:</strong> Your content autosaves every 30 seconds. You can also click
           &quot;Save Manually&quot; to save immediately.
         </p>
       </div>

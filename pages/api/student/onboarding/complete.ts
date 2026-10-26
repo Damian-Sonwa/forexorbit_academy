@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Mark Onboarding as Complete API Route
  * PUT: Mark student onboarding as complete
@@ -12,7 +13,7 @@ async function completeOnboarding(req: AuthRequest, res: NextApiResponse) {
   try {
     // Only students can access this endpoint
     if (req.user!.role !== 'student') {
-      return res.status(403).json({ message: 'Only students can complete onboarding' });
+      return res.status(403).json({ error: 'Only students can complete onboarding' });
     }
 
     const db = await getDb();
@@ -31,7 +32,7 @@ async function completeOnboarding(req: AuthRequest, res: NextApiResponse) {
     );
 
     if (result.matchedCount === 0) {
-      return res.status(404).json({ message: 'User not found' });
+      return res.status(404).json({ error: 'User not found' });
     }
 
     res.json({
@@ -39,8 +40,8 @@ async function completeOnboarding(req: AuthRequest, res: NextApiResponse) {
       message: 'Onboarding completed successfully',
     });
   } catch (error: any) {
-    console.error('Complete onboarding error:', error);
-    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+    console.error('Complete onboarding error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 

@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Student Demo Task Submissions API Route
  * GET: Get student's own submissions (optionally filtered by taskId)
@@ -13,7 +14,7 @@ async function getStudentSubmissions(req: AuthRequest, res: NextApiResponse) {
   try {
     // Only students can view their own submissions
     if (req.user!.role !== 'student') {
-      return res.status(403).json({ message: 'Only students can view their own submissions' });
+      return res.status(403).json({ error: 'Only students can view their own submissions' });
     }
 
     const { taskId } = req.query;
@@ -64,8 +65,8 @@ async function getStudentSubmissions(req: AuthRequest, res: NextApiResponse) {
 
     res.json(submissionsWithDetails);
   } catch (error: unknown) {
-    console.error('Get student submissions error:', error);
-    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+    console.error('Get student submissions error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 

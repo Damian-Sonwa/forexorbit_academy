@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Community Rooms API Route
  * GET: Get all rooms for the authenticated user
@@ -7,7 +8,8 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
-import { canAccessRoom, updateLearningLevelIfEligible } from '@/lib/learning-level';
+import { updateLearningLevelIfEligible } from '@/lib/learning-level';
+import { communityMember, decideCommunityRoomJoin } from '@/lib/account-access';
 
 async function getRooms(req: AuthRequest, res: NextApiResponse) {
   try {
@@ -15,11 +17,9 @@ async function getRooms(req: AuthRequest, res: NextApiResponse) {
     let db;
     try {
       db = await getDb();
-    } catch (dbError: any) {
-      console.error('Database connection error:', dbError);
-      return res.status(500).json({ message: 'Database connection failed',
-        details: process.env.NODE_ENV === 'development' ? dbError.message : 'Please check server logs'
-      });
+    } catch {
+      console.error(JSON.stringify({ event: 'communityRooms', result: 'failed' }));
+      return res.status(500).json(unexpectedBody('api'));
     }
     
     const rooms = db.collection('communityRooms');
@@ -36,33 +36,11 @@ async function getRooms(req: AuthRequest, res: NextApiResponse) {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Check if student has completed onboarding
-    const hasCompletedOnboarding = user.role !== 'student' || 
-      (user.studentDetails && user.studentDetails.completedAt);
-
-    // Determine user's learning level
-    // CRITICAL: Use tradingLevel from onboarding if learningLevel is not set
-    let userLevel: 'beginner' | 'intermediate' | 'advanced' = 'beginner';
-    if (user?.role !== 'student') {
-      // Instructors, admins, and super admins have access to all levels
-      userLevel = 'advanced';
-    } else {
-      // Students must complete onboarding before accessing any room
-      if (!hasCompletedOnboarding) {
-        // Return empty rooms array with a message
-        return res.json([]);
-      }
-      // Use learningLevel if set, otherwise fall back to tradingLevel from onboarding
-      userLevel = (user?.learningLevel as 'beginner' | 'intermediate' | 'advanced') || 
-                  (user?.studentDetails?.tradingLevel as 'beginner' | 'intermediate' | 'advanced') || 
-                  'beginner';
-      // Check and update level if eligible (async, doesn't block) - wrap in try-catch to prevent errors
-      // Only call if function exists (defensive check)
-      if (typeof updateLearningLevelIfEligible === 'function') {
-        updateLearningLevelIfEligible(req.user!.userId).catch((err) => {
-          console.error('Error updating learning level (non-blocking):', err);
-        });
-      }
+    const member = communityMember(req.user!.userId, user);
+    if (user.role === 'student' && (member.learningLevel || member.tradingLevel) && typeof updateLearningLevelIfEligible === 'function') {
+      updateLearningLevelIfEligible(req.user!.userId).catch(() => {
+        console.error(JSON.stringify({ event: 'learningLevel', result: 'failed' }));
+      });
     }
 
     // Ensure three community rooms exist and get them
@@ -139,15 +117,12 @@ async function getRooms(req: AuthRequest, res: NextApiResponse) {
             ]
           });
 
-          // For students, check if room is locked based on their exact level. For instructors/admins, always unlocked.
-          let isLocked = false;
-          try {
-            // Pass user role to canAccessRoom to allow instructors/admins access to all rooms
-            isLocked = user?.role === 'student' ? !canAccessRoom(userLevel, room.name, user.role) : false;
-          } catch (err) {
-            console.error('Error checking room access:', err);
-            isLocked = false; // Default to unlocked on error
-          }
+          const access = decideCommunityRoomJoin({
+            user: member,
+            roomId: roomIdStr,
+            room: { _id: room._id, name: room.name, type: room.type, participants: room.participants },
+          });
+          const isLocked = !access.ok;
           
           return {
             _id: roomIdStr,
@@ -167,19 +142,18 @@ async function getRooms(req: AuthRequest, res: NextApiResponse) {
             unreadCount: isLocked ? 0 : unreadCount,
             isLocked, // Add locked status
           };
-        } catch (roomError) {
-          console.error(`Error processing room ${room._id}:`, roomError);
-          // Return a basic room object even if there's an error
+        } catch {
+          console.error(JSON.stringify({ event: 'communityRoom', result: 'failed' }));
           return {
             _id: room._id.toString(),
             name: room.name,
             description: room.description || descriptions[room.name as keyof typeof descriptions] || '',
             type: room.type,
-            participants: room.participants || [],
+            participants: [],
             avatar: room.avatar || null,
             lastMessage: null,
             unreadCount: 0,
-            isLocked: false,
+            isLocked: true,
           };
         }
       })
@@ -195,9 +169,9 @@ async function getRooms(req: AuthRequest, res: NextApiResponse) {
     }
 
     res.json(roomsWithLastMessage);
-  } catch (error: unknown) {
-    console.error('Get rooms error:', error);
-    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+  } catch {
+    console.error(JSON.stringify({ event: 'communityRooms', result: 'failed' }));
+    res.status(500).json(unexpectedBody('api'));
   }
 }
 

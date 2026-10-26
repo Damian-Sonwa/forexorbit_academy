@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Consultation Session API Route
  * GET: Get session details with messages
@@ -14,7 +15,7 @@ async function getSession(req: AuthRequest, res: NextApiResponse) {
     const { id } = req.query;
 
     if (!id || typeof id !== 'string') {
-      return res.status(400).json({ message: 'Session ID is required' });
+      return res.status(400).json({ error: 'Session ID is required' });
     }
 
     const db = await getDb();
@@ -25,7 +26,7 @@ async function getSession(req: AuthRequest, res: NextApiResponse) {
     const session = await sessions.findOne({ _id: new ObjectId(id) });
 
     if (!session) {
-      return res.status(404).json({ message: 'Session not found' });
+      return res.status(404).json({ error: 'Session not found' });
     }
 
     // Verify user has access to this session
@@ -33,9 +34,9 @@ async function getSession(req: AuthRequest, res: NextApiResponse) {
     if (req.user!.role === 'admin' || req.user!.role === 'superadmin') {
       // Admins can access any session
     } else if (req.user!.role === 'student' && session.studentId !== req.user!.userId) {
-      return res.status(403).json({ message: 'Access denied' });
+      return res.status(403).json({ error: 'Access denied' });
     } else if (req.user!.role === 'instructor' && session.expertId !== req.user!.userId) {
-      return res.status(403).json({ message: 'Access denied' });
+      return res.status(403).json({ error: 'Access denied' });
     }
 
     // Get messages for this session
@@ -92,8 +93,8 @@ async function getSession(req: AuthRequest, res: NextApiResponse) {
       } : null,
     });
   } catch (error: any) {
-    console.error('Get consultation session error:', error);
-    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+    console.error('Get consultation session error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 
@@ -103,7 +104,7 @@ async function updateSession(req: AuthRequest, res: NextApiResponse) {
     const { action } = req.body; // 'end' or other actions
 
     if (!id || typeof id !== 'string') {
-      return res.status(400).json({ message: 'Session ID is required' });
+      return res.status(400).json({ error: 'Session ID is required' });
     }
 
     const db = await getDb();
@@ -112,17 +113,17 @@ async function updateSession(req: AuthRequest, res: NextApiResponse) {
     const session = await sessions.findOne({ _id: new ObjectId(id) });
 
     if (!session) {
-      return res.status(404).json({ message: 'Session not found' });
+      return res.status(404).json({ error: 'Session not found' });
     }
 
     // Verify user has access
     if (req.user!.role === 'student' && session.studentId !== req.user!.userId) {
-      return res.status(403).json({ message: 'Access denied' });
+      return res.status(403).json({ error: 'Access denied' });
     }
 
     if ((req.user!.role === 'instructor' || req.user!.role === 'admin' || req.user!.role === 'superadmin') 
         && session.expertId !== req.user!.userId) {
-      return res.status(403).json({ message: 'Access denied' });
+      return res.status(403).json({ error: 'Access denied' });
     }
 
     if (action === 'end') {
@@ -152,11 +153,11 @@ async function updateSession(req: AuthRequest, res: NextApiResponse) {
 
       res.json({ success: true, message: 'Session ended' });
     } else {
-      res.status(400).json({ message: 'Invalid action' });
+      res.status(400).json({ error: 'Invalid action' });
     }
   } catch (error: any) {
-    console.error('Update consultation session error:', error);
-    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+    console.error('Update consultation session error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 
@@ -167,7 +168,7 @@ export default withAuth(async (req: AuthRequest, res: NextApiResponse) => {
     return updateSession(req, res);
   } else {
     res.setHeader('Allow', ['GET', 'PUT']);
-    res.status(405).json({ message: `Method ${req.method} not allowed` });
+    res.status(405).json({ error: `Method ${req.method} not allowed` });
   }
 });
 

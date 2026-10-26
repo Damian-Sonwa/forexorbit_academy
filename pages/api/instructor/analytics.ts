@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Instructor Analytics API Route
  * Returns comprehensive analytics for instructor's courses
@@ -8,6 +9,7 @@ import type { NextApiResponse } from 'next';
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
+import { isActiveEnrollment } from '@/lib/enrollment-state';
 
 async function handler(req: AuthRequest, res: NextApiResponse) {
   try {
@@ -49,9 +51,9 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
     });
 
     // Get all enrollments for instructor's courses
-    const enrollments = await progress.find({
+    const enrollments = (await progress.find({
       courseId: { $in: courseIds },
-    }).toArray();
+    }).toArray()).filter((row) => isActiveEnrollment(row));
 
     // Get unique students enrolled
     const uniqueStudentIds = Array.from(new Set(enrollments.map((e) => e.userId)));
@@ -91,9 +93,9 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
       completedTasks,
       totalEnrollments: enrollments.length,
     });
-  } catch (error: unknown) {
-    console.error('[Instructor Analytics] Error:', error);
-    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+  } catch (error: any) {
+    console.error('[Instructor Analytics] Error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 

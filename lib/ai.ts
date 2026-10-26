@@ -109,7 +109,7 @@ function getOpenAIClient(): OpenAI | null {
     console.log('[AI] OpenAI client initialized successfully');
     return openaiClient;
   } catch (error) {
-    console.error('[AI] Failed to initialize OpenAI client:', error);
+    console.error('[AI] Failed to initialize OpenAI client:');
     return null;
   }
 }
@@ -299,7 +299,7 @@ export async function getAIResponse(request: AIRequest): Promise<string> {
 
     return aiResponse.content;
   } catch (error) {
-    console.error('AI service error:', error);
+    console.error('AI service error:');
     throw error;
   }
 }
@@ -408,7 +408,7 @@ IMPORTANT: This is educational feedback only. Do not provide real trading advice
       };
     }
   } catch (error) {
-    console.error('AI trade analysis error:', error);
+    console.error('AI trade analysis error:');
     throw error;
   }
 }
@@ -549,7 +549,7 @@ Be constructive and educational.`;
       };
     }
   } catch (error) {
-    console.error('AI student performance analysis error:', error);
+    console.error('AI student performance analysis error:');
     throw error;
   }
 }
@@ -655,7 +655,7 @@ Be constructive and focused on enhancing learning outcomes.`;
       };
     }
   } catch (error) {
-    console.error('AI lesson improvement suggestions error:', error);
+    console.error('AI lesson improvement suggestions error:');
     throw error;
   }
 }

@@ -20,6 +20,7 @@ import { useSocket } from '@/hooks/useSocket';
 import { apiClient } from '@/lib/api-client';
 import { format } from 'date-fns';
 import Image from 'next/image';
+import { AlertTriangle, BarChart3, BookOpen, Bot, Calendar, CheckCircle2, ClipboardList, Clock, FileText, Image as ImageIcon, Lightbulb, MessageSquare, Save, User, Zap } from 'lucide-react';
 
 interface DemoTask {
   _id: string;
@@ -147,11 +148,11 @@ export default function StudentDashboard() {
           }
           setTaskSubmissions(submissionsMap);
         } catch (error) {
-          console.error('Failed to load submissions:', error);
+          console.error('Failed to load submissions:');
         }
       }
     } catch (error) {
-      console.error('Failed to load dashboard data:', error);
+      console.error('Failed to load dashboard data:');
     } finally {
       setLoading(false);
     }
@@ -202,7 +203,7 @@ export default function StudentDashboard() {
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to upload screenshot';
       setUploadError(errorMessage);
-      console.error('Screenshot upload error:', error);
+      console.error('Screenshot upload error:');
     } finally {
       setUploadingScreenshot(false);
     }
@@ -240,7 +241,7 @@ export default function StudentDashboard() {
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to delete trade entry';
       alert(errorMessage);
-      console.error('Delete journal entry error:', error);
+      console.error('Delete journal entry error:');
     }
   };
 
@@ -295,7 +296,7 @@ export default function StudentDashboard() {
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to save trade journal entry';
       alert(errorMessage);
-      console.error('Journal submission error:', error);
+      console.error('Journal submission error:');
     } finally {
       setIsSubmitting(false);
     }
@@ -315,81 +316,67 @@ export default function StudentDashboard() {
   const closedTrades = journalEntries.filter(t => t.result !== 'open');
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50">
+    <div className="min-h-screen flex flex-col">
       <Header />
 
       <div className="flex flex-1 relative overflow-hidden lg:items-start">
         <Sidebar />
 
-        <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:ml-0 pt-14 lg:pt-6 overflow-y-auto w-full">
-          {/* Hero Header Section */}
-          <div className="mb-8">
-            <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 rounded-2xl shadow-2xl p-8 text-white relative overflow-hidden">
-              <div className="absolute inset-0 bg-black opacity-10"></div>
-              <div className="relative z-10">
-                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                  <div>
-                    <h1 className="text-4xl md:text-5xl font-bold mb-3 bg-clip-text text-transparent bg-gradient-to-r from-white to-blue-100">
-                      Trading Dashboard
-                    </h1>
-                    <p className="text-blue-100 text-lg md:text-xl">
-                      Master Forex trading with live practice, instructor tasks, and trade analysis
-                    </p>
-                  </div>
-                  <div className="flex items-center space-x-2 bg-white/20 backdrop-blur-sm rounded-xl px-4 py-3">
-                    <div className={`w-3 h-3 rounded-full ${connected ? 'bg-green-400 animate-pulse' : 'bg-gray-400'}`}></div>
-                    <span className="text-sm font-medium">
-                      {connected ? 'Live Data Connected' : 'Connecting...'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full -mr-32 -mt-32"></div>
-              <div className="absolute bottom-0 left-0 w-48 h-48 bg-white opacity-5 rounded-full -ml-24 -mb-24"></div>
+        <main className="flex-1 max-w-6xl mx-auto w-full overflow-y-auto px-4 py-6 pt-16 sm:px-6 lg:px-8 lg:py-8">
+          <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="page-kicker mb-2">Practice</p>
+              <h1 className="page-title">Trading dashboard</h1>
+              <p className="mt-2 max-w-xl text-sm text-neutral-600">
+                Paper trading, instructor tasks, and a journal. No real money is deposited or withdrawn.
+              </p>
+            </div>
+            <div className="inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-sm text-neutral-700">
+              <span className={`h-2 w-2 rounded-full ${connected ? 'bg-green-600' : 'bg-neutral-400'}`} />
+              {connected ? 'Live data connected' : 'Connecting'}
             </div>
           </div>
 
-          {/* Section Navigation Tabs - Enhanced Design */}
-          <div className="mb-8">
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-2">
-              <nav className="flex space-x-2 overflow-x-auto" aria-label="Sections">
+          <div className="mb-6">
+            <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-neutral-100 p-1">
+              <nav className="flex min-w-max gap-1" aria-label="Sections">
                 <button
                   onClick={() => setActiveSection('guide')}
                   className={`
-                    flex items-center space-x-2 px-6 py-3 rounded-xl font-semibold text-sm transition-all duration-200 whitespace-nowrap
+                    flex items-center space-x-2 px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap
                     ${activeSection === 'guide'
-                      ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg transform scale-105'
-                      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                      ? 'bg-primary-400 text-neutral-900'
+                      : 'text-neutral-600 hover:bg-white hover:text-neutral-900'
                     }
                   `}
                 >
-                  <span className="text-lg">📖</span>
+                  <BookOpen className="h-4 w-4 shrink-0" aria-hidden />
                   <span>Setup Guide</span>
                 </button>
                 <button
                   onClick={() => setActiveSection('live')}
                   className={`
-                    flex items-center space-x-2 px-6 py-3 rounded-xl font-semibold text-sm transition-all duration-200 whitespace-nowrap
+                    flex items-center space-x-2 px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap
                     ${activeSection === 'live'
-                      ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg transform scale-105'
-                      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                      ? 'bg-primary-400 text-neutral-900'
+                      : 'text-neutral-600 hover:bg-white hover:text-neutral-900'
                     }
                   `}
                 >
-                  <span className="text-lg">⚡</span>
+                  <Zap className="h-4 w-4 shrink-0" aria-hidden />
                   <span>Live Trading</span>
                 </button>
                 <button
                   onClick={() => setActiveSection('tasks')}
                   className={`
-                    flex items-center space-x-2 px-6 py-3 rounded-xl font-semibold text-sm transition-all duration-200 whitespace-nowrap relative
+                    flex items-center space-x-2 px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap relative
                     ${activeSection === 'tasks'
-                      ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg transform scale-105'
-                      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                      ? 'bg-primary-400 text-neutral-900'
+                      : 'text-neutral-600 hover:bg-white hover:text-neutral-900'
                     }
                   `}
                 >
-                  <span className="text-lg">📋</span>
+                  <ClipboardList className="h-4 w-4 shrink-0" aria-hidden />
                   <span>Tasks</span>
                   {pendingTasks.length > 0 && (
                     <span className="ml-2 px-2.5 py-0.5 bg-red-500 text-white text-xs font-bold rounded-full animate-pulse">
@@ -400,27 +387,27 @@ export default function StudentDashboard() {
                 <button
                   onClick={() => setActiveSection('journal')}
                   className={`
-                    flex items-center space-x-2 px-6 py-3 rounded-xl font-semibold text-sm transition-all duration-200 whitespace-nowrap
+                    flex items-center space-x-2 px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap
                     ${activeSection === 'journal'
-                      ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg transform scale-105'
-                      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                      ? 'bg-primary-400 text-neutral-900'
+                      : 'text-neutral-600 hover:bg-white hover:text-neutral-900'
                     }
                   `}
                 >
-                  <span className="text-lg">📊</span>
+                  <BarChart3 className="h-4 w-4 shrink-0" aria-hidden />
                   <span>Trade Journal</span>
                 </button>
                 <button
                   onClick={() => setActiveSection('reminders')}
                   className={`
-                    flex items-center space-x-2 px-4 sm:px-6 py-3 rounded-xl font-semibold text-sm transition-all duration-200 whitespace-nowrap
+                    flex items-center space-x-2 px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap
                     ${activeSection === 'reminders'
-                      ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg transform scale-105'
-                      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                      ? 'bg-primary-400 text-neutral-900'
+                      : 'text-neutral-600 hover:bg-white hover:text-neutral-900'
                     }
                   `}
                 >
-                  <span className="text-lg">⏰</span>
+                  <Clock className="h-4 w-4 shrink-0" aria-hidden />
                   <span className="hidden sm:inline">Reminders & To-Do</span>
                   <span className="sm:hidden">Reminders</span>
                 </button>
@@ -440,11 +427,11 @@ export default function StudentDashboard() {
             {/* Live Trading Section */}
             {activeSection === 'live' && (
               <div className="space-y-6 animate-in fade-in duration-300">
-                <div className="bg-gradient-to-r from-red-50 to-orange-50 border-l-4 border-red-500 rounded-xl p-6 shadow-md">
+                <div className="bg-red-50 border-l-4 border-red-500 rounded-xl p-6 shadow-md">
                   <div className="flex items-start">
                     <div className="flex-shrink-0">
                       <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
-                        <span className="text-2xl">⚠️</span>
+                        <AlertTriangle className="h-6 w-6 shrink-0 text-amber-700" aria-hidden />
                       </div>
                     </div>
                     <div className="ml-4 flex-1">
@@ -463,14 +450,8 @@ export default function StudentDashboard() {
                 </div>
 
                 {/* Market Signals */}
-                <div className="transform transition-all hover:scale-[1.01]">
-                  <MarketSignal />
-                </div>
-
-                {/* Trading Interface */}
-                <div className="transform transition-all hover:scale-[1.01]">
-                  <TradingInterface />
-                </div>
+                <MarketSignal />
+                <TradingInterface />
               </div>
             )}
 
@@ -480,7 +461,7 @@ export default function StudentDashboard() {
                 <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6">
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                     <div>
-                      <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
+                      <h2 className="text-3xl font-bold text-neutral-900 dark:text-white mb-2">
                         Demo Trading Tasks
                       </h2>
                       <p className="text-gray-600">Complete tasks assigned by your instructor and submit for review</p>
@@ -501,7 +482,7 @@ export default function StudentDashboard() {
                   {pendingTasks.length > 0 && (
                     <div className="mb-8">
                       <div className="flex items-center space-x-3 mb-6">
-                        <div className="w-1 h-8 bg-gradient-to-b from-yellow-400 to-orange-500 rounded-full"></div>
+                        <div className="w-1 h-8 bg-primary-500 rounded-full"></div>
                         <h3 className="text-xl font-bold text-gray-900">Pending Tasks</h3>
                         <span className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-bold">
                           {pendingTasks.length}
@@ -513,7 +494,7 @@ export default function StudentDashboard() {
                           return (
                             <div 
                               key={task._id} 
-                              className="group bg-gradient-to-br from-white to-gray-50 border-2 border-gray-200 rounded-2xl p-6 hover:shadow-xl hover:border-primary-300 transition-all duration-300 transform hover:-translate-y-1"
+                              className="group bg-white border-2 border-gray-200 rounded-2xl p-6 hover:border-primary-300 transition-colors"
                             >
                               <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
                                 <div className="flex-1">
@@ -536,23 +517,23 @@ export default function StudentDashboard() {
                                   </div>
                                   <p className="text-gray-600 mb-4 leading-relaxed">{task.description}</p>
                                   {task.instructions && (
-                                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-blue-500 rounded-lg p-4 mb-4">
+                                    <div className="bg-neutral-50 border-l-4 border-primary-600 rounded-lg p-4 mb-4">
                                       <p className="text-sm text-gray-700 whitespace-pre-line leading-relaxed">{task.instructions}</p>
                                     </div>
                                   )}
                                   <div className="flex flex-wrap items-center gap-4 text-xs text-gray-500">
                                     <div className="flex items-center space-x-1">
-                                      <span className="text-gray-400">👤</span>
+                                      <User className="h-4 w-4 shrink-0 text-neutral-400" aria-hidden />
                                       <span>Assigned by: <strong>{task.assignedByName || 'Instructor'}</strong></span>
                                     </div>
                                     {task.dueDate && (
                                       <div className="flex items-center space-x-1">
-                                        <span className="text-gray-400">📅</span>
+                                        <Calendar className="h-4 w-4 shrink-0 text-neutral-400" aria-hidden />
                                         <span>Due: <strong>{format(new Date(task.dueDate), 'MMM dd, yyyy')}</strong></span>
                                       </div>
                                     )}
                                     <div className="flex items-center space-x-1">
-                                      <span className="text-gray-400">🕐</span>
+                                      <Clock className="h-4 w-4 shrink-0 text-neutral-400" aria-hidden />
                                       <span>Created: {format(new Date(task.createdAt), 'MMM dd, yyyy')}</span>
                                     </div>
                                   </div>
@@ -560,7 +541,7 @@ export default function StudentDashboard() {
                                 <div className="flex-shrink-0">
                                   <Link
                                     href={`/student-dashboard/tasks/${task._id}`}
-                                    className="inline-flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-primary-600 to-purple-600 hover:from-primary-700 hover:to-purple-700 text-white rounded-xl text-sm font-bold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+                                    className="inline-flex items-center space-x-2 px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-sm font-bold transition-colors"
                                   >
                                     <span>View Task</span>
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -580,7 +561,7 @@ export default function StudentDashboard() {
                   {submittedTasks.length > 0 && (
                     <div className={pendingTasks.length > 0 ? 'mt-8' : ''}>
                       <div className="flex items-center space-x-3 mb-6">
-                        <div className="w-1 h-8 bg-gradient-to-b from-green-400 to-emerald-500 rounded-full"></div>
+                        <div className="w-1 h-8 bg-green-600 rounded-full"></div>
                         <h3 className="text-xl font-bold text-gray-900">Submitted Tasks</h3>
                         <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs font-bold">
                           {submittedTasks.length}
@@ -593,7 +574,7 @@ export default function StudentDashboard() {
                           return (
                             <div 
                               key={task._id} 
-                              className="bg-gradient-to-br from-white to-gray-50 border-2 border-gray-200 rounded-2xl p-6 hover:shadow-xl transition-all duration-300"
+                              className="bg-white border-2 border-gray-200 rounded-2xl p-6 transition-colors"
                             >
                               <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
                                 <div className="flex-1">
@@ -601,7 +582,7 @@ export default function StudentDashboard() {
                                     <h4 className="text-xl font-bold text-gray-900">{task.title}</h4>
                                     <span className={`px-3 py-1 rounded-full text-xs font-bold ${
                                       status === 'graded' ? 'bg-green-100 text-green-700 border border-green-300' :
-                                      status === 'reviewed' ? 'bg-blue-100 text-blue-700 border border-blue-300' :
+                                      status === 'reviewed' ? 'bg-neutral-100 text-primary-700 border border-neutral-300' :
                                       'bg-yellow-100 text-yellow-700 border border-yellow-300'
                                     }`}>
                                       {status.charAt(0).toUpperCase() + status.slice(1)}
@@ -619,14 +600,14 @@ export default function StudentDashboard() {
                                         </div>
                                       )}
                                       {submission.feedback && (
-                                        <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-l-4 border-green-500 rounded-lg p-4">
-                                          <p className="text-sm font-bold text-green-800 mb-2">💬 Instructor Feedback:</p>
+                                        <div className="bg-neutral-50 border-l-4 border-green-500 rounded-lg p-4">
+                                          <p className="text-sm font-bold text-green-800 mb-2"><MessageSquare className="mr-2 inline h-4 w-4 shrink-0 text-neutral-600" aria-hidden />Instructor Feedback:</p>
                                           <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{submission.feedback}</p>
                                         </div>
                                       )}
                                       {submission.reviewedAt && (
                                         <p className="text-xs text-gray-500 flex items-center space-x-1">
-                                          <span>🕐</span>
+                                          <Clock className="h-4 w-4 shrink-0 text-neutral-500" aria-hidden />
                                           <span>Reviewed: {format(new Date(submission.reviewedAt), 'MMM dd, yyyy HH:mm')}</span>
                                         </p>
                                       )}
@@ -654,7 +635,7 @@ export default function StudentDashboard() {
 
                   {tasks.length === 0 && (
                     <div className="text-center py-16 bg-white rounded-2xl border-2 border-dashed border-gray-300">
-                      <div className="text-6xl mb-4">📋</div>
+                      <ClipboardList className="mx-auto mb-4 h-12 w-12 text-neutral-400" aria-hidden />
                       <p className="text-xl font-semibold text-gray-700 mb-2">No tasks assigned yet</p>
                       <p className="text-gray-500">Your instructor will assign practice tasks here.</p>
                     </div>
@@ -669,14 +650,14 @@ export default function StudentDashboard() {
                 <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6">
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                     <div>
-                      <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
+                      <h2 className="text-3xl font-bold text-neutral-900 dark:text-white mb-2">
                         Trade Journal
                       </h2>
                       <p className="text-gray-600">Track your trading performance and learn from each trade</p>
                     </div>
                     <button
                       onClick={() => setShowJournalModal(true)}
-                      className="inline-flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-primary-600 to-purple-600 hover:from-primary-700 hover:to-purple-700 text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+                      className="inline-flex items-center space-x-2 px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-bold transition-colors"
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -689,15 +670,15 @@ export default function StudentDashboard() {
                   {openTrades.length > 0 && (
                     <div className="mb-8">
                       <div className="flex items-center space-x-3 mb-6">
-                        <div className="w-1 h-8 bg-gradient-to-b from-blue-400 to-cyan-500 rounded-full"></div>
+                        <div className="w-1 h-8 bg-primary-500 rounded-full"></div>
                         <h3 className="text-xl font-bold text-gray-900">Open Trades</h3>
-                        <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-bold">
+                        <span className="px-3 py-1 bg-neutral-100 text-neutral-800 rounded-full text-xs font-bold">
                           {openTrades.length}
                         </span>
                       </div>
                       <div className="overflow-x-auto rounded-xl border border-gray-200 shadow-sm">
                         <table className="min-w-full divide-y divide-gray-200">
-                          <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
+                          <thead className="bg-neutral-50">
                             <tr>
                               <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Pair</th>
                               <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Direction</th>
@@ -711,7 +692,7 @@ export default function StudentDashboard() {
                           </thead>
                           <tbody className="bg-white divide-y divide-gray-200">
                             {openTrades.map((trade) => (
-                              <tr key={trade._id} className="hover:bg-blue-50 transition-colors">
+                              <tr key={trade._id} className="hover:bg-neutral-50 transition-colors">
                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">{trade.pair}</td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm">
                                   <span className={`px-3 py-1.5 rounded-full text-xs font-bold ${
@@ -729,7 +710,7 @@ export default function StudentDashboard() {
                                   <div className="flex items-center space-x-2">
                                     <button
                                       onClick={() => handleEditJournalEntry(trade)}
-                                      className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
+                                      className="p-2 text-primary-600 hover:bg-neutral-100 rounded-lg transition-colors"
                                       title="Edit"
                                     >
                                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -759,9 +740,9 @@ export default function StudentDashboard() {
                   {closedTrades.length > 0 && (
                     <div className={openTrades.length > 0 ? 'mt-8' : ''}>
                       <div className="flex items-center space-x-3 mb-6">
-                        <div className="w-1 h-8 bg-gradient-to-b from-purple-400 to-pink-500 rounded-full"></div>
+                        <div className="w-1 h-8 bg-neutral-800 rounded-full"></div>
                         <h3 className="text-xl font-bold text-gray-900">Closed Trades</h3>
-                        <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-xs font-bold">
+                        <span className="px-3 py-1 bg-neutral-100 text-neutral-800 rounded-full text-xs font-bold">
                           {closedTrades.length}
                         </span>
                       </div>
@@ -769,7 +750,7 @@ export default function StudentDashboard() {
                         {closedTrades.map((trade) => (
                           <div 
                             key={trade._id} 
-                            className="bg-gradient-to-br from-white to-gray-50 border-2 border-gray-200 rounded-2xl p-6 hover:shadow-xl transition-all duration-300"
+                            className="bg-white border-2 border-gray-200 rounded-2xl p-6 transition-colors"
                           >
                             <div className="grid md:grid-cols-6 gap-6 items-center mb-4">
                               <div>
@@ -816,13 +797,13 @@ export default function StudentDashboard() {
                               <div className="mt-6 pt-6 border-t-2 border-gray-200">
                                 {trade.notes && (
                                   <div className="mb-4">
-                                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">📝 Notes</p>
+                                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2"><FileText className="mr-2 inline h-4 w-4 shrink-0 text-neutral-500" aria-hidden />Notes</p>
                                     <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed bg-gray-50 rounded-lg p-4">{trade.notes}</p>
                                   </div>
                                 )}
                                 {trade.screenshot && (
                                   <div className="mb-4">
-                                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">📷 Screenshot</p>
+                                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2"><ImageIcon className="mr-2 inline h-4 w-4 shrink-0 text-neutral-500" aria-hidden />Screenshot</p>
                                     <div className="relative w-full max-w-md h-64 rounded-xl overflow-hidden border-2 border-gray-300 shadow-md">
                                       <Image
                                         src={trade.screenshot}
@@ -839,14 +820,14 @@ export default function StudentDashboard() {
                                   </div>
                                 )}
                                 {trade.aiFeedback && (
-                                  <div className="bg-gradient-to-br from-blue-50 to-cyan-50 border border-blue-200 rounded-lg p-4 mb-4">
+                                  <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-4 mb-4">
                                     <div className="flex items-center mb-3">
-                                      <span className="text-lg mr-2">🤖</span>
+                                      <Bot className="mr-2 h-5 w-5 shrink-0 text-primary-700" aria-hidden />
                                       <h4 className="text-sm font-bold text-gray-900">AI Feedback</h4>
                                     </div>
                                     {trade.aiFeedback.strengths && trade.aiFeedback.strengths.length > 0 && (
                                       <div className="mb-3">
-                                        <p className="text-xs font-semibold text-green-700 mb-1">✅ Strengths:</p>
+                                        <p className="text-xs font-semibold text-green-700 mb-1"><CheckCircle2 className="mr-2 inline h-4 w-4 shrink-0 text-green-700" aria-hidden />Strengths:</p>
                                         <ul className="list-disc list-inside space-y-1">
                                           {trade.aiFeedback.strengths.map((strength, idx) => (
                                             <li key={idx} className="text-xs text-gray-700">{strength}</li>
@@ -856,7 +837,7 @@ export default function StudentDashboard() {
                                     )}
                                     {trade.aiFeedback.mistakes && trade.aiFeedback.mistakes.length > 0 && (
                                       <div className="mb-3">
-                                        <p className="text-xs font-semibold text-orange-700 mb-1">⚠️ Areas for Improvement:</p>
+                                        <p className="text-xs font-semibold text-orange-700 mb-1"><AlertTriangle className="mr-1 inline h-4 w-4 shrink-0 text-amber-700" aria-hidden />Areas for Improvement:</p>
                                         <ul className="list-disc list-inside space-y-1">
                                           {trade.aiFeedback.mistakes.map((mistake, idx) => (
                                             <li key={idx} className="text-xs text-gray-700">{mistake}</li>
@@ -866,7 +847,7 @@ export default function StudentDashboard() {
                                     )}
                                     {trade.aiFeedback.suggestions && trade.aiFeedback.suggestions.length > 0 && (
                                       <div className="mb-3">
-                                        <p className="text-xs font-semibold text-blue-700 mb-1">💡 Suggestions:</p>
+                                        <p className="text-xs font-semibold text-primary-700 mb-1"><Lightbulb className="mr-2 inline h-4 w-4 shrink-0 text-primary-600" aria-hidden />Suggestions:</p>
                                         <ul className="list-disc list-inside space-y-1">
                                           {trade.aiFeedback.suggestions.map((suggestion, idx) => (
                                             <li key={idx} className="text-xs text-gray-700">{suggestion}</li>
@@ -876,7 +857,7 @@ export default function StudentDashboard() {
                                     )}
                                     {trade.aiFeedback.riskReward && (
                                       <div>
-                                        <p className="text-xs font-semibold text-purple-700 mb-1">📊 Risk-to-Reward:</p>
+                                        <p className="text-xs font-semibold text-primary-700 mb-1"><BarChart3 className="mr-2 inline h-4 w-4 shrink-0 text-neutral-700" aria-hidden />Risk-to-Reward:</p>
                                         <p className="text-xs text-gray-700">{trade.aiFeedback.riskReward}</p>
                                       </div>
                                     )}
@@ -887,7 +868,7 @@ export default function StudentDashboard() {
                             <div className="mt-4 pt-4 border-t-2 border-gray-200 flex justify-end space-x-2">
                               <button
                                 onClick={() => handleEditJournalEntry(trade)}
-                                className="inline-flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition-all"
+                                className="inline-flex items-center space-x-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-semibold transition-all"
                               >
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -912,12 +893,12 @@ export default function StudentDashboard() {
 
                   {journalEntries.length === 0 && (
                     <div className="text-center py-16 bg-white rounded-2xl border-2 border-dashed border-gray-300">
-                      <div className="text-6xl mb-4">📊</div>
+                      <BarChart3 className="mx-auto mb-4 h-12 w-12 text-neutral-400" aria-hidden />
                       <p className="text-xl font-semibold text-gray-700 mb-2">No trades logged yet</p>
                       <p className="text-gray-500 mb-6">Start tracking your trading performance</p>
                       <button
                         onClick={() => setShowJournalModal(true)}
-                        className="inline-flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-primary-600 to-purple-600 hover:from-primary-700 hover:to-purple-700 text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+                        className="inline-flex items-center space-x-2 px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-bold transition-colors"
                       >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -935,7 +916,7 @@ export default function StudentDashboard() {
               <div className="space-y-6 animate-in fade-in duration-300">
                 {/* Section Header */}
                 <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6">
-                  <h2 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-2">
+                  <h2 className="text-3xl font-bold text-neutral-900 dark:text-white mb-2">
                     Reminders & To-Do List
                   </h2>
                   <p className="text-gray-600">Manage your reminders and track your tasks</p>
@@ -964,11 +945,11 @@ export default function StudentDashboard() {
       {showJournalModal && (
         <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
           <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto transform transition-all animate-in zoom-in-95 duration-200">
-            <div className="sticky top-0 bg-gradient-to-r from-primary-600 to-purple-600 text-white p-6 rounded-t-2xl">
+            <div className="sticky top-0 bg-white border-b border-neutral-200 text-neutral-900 p-6 rounded-t-2xl">
               <div className="flex justify-between items-center">
                 <div>
                   <h2 className="text-2xl font-bold mb-1">{editingJournalEntry ? 'Edit Trade' : 'Log Trade'}</h2>
-                  <p className="text-primary-100 text-sm">{editingJournalEntry ? 'Update your trade entry' : 'Record your trading activity and analysis'}</p>
+                  <p className="text-neutral-500 text-sm">{editingJournalEntry ? 'Update your trade entry' : 'Record your trading activity and analysis'}</p>
                 </div>
                 <button
                   onClick={() => {
@@ -989,7 +970,8 @@ export default function StudentDashboard() {
                     setScreenshotPreview(null);
                     setUploadError(null);
                   }}
-                  className="w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors"
+                  className="w-10 h-10 rounded-full bg-neutral-100 hover:bg-neutral-200 text-neutral-700 flex items-center justify-center transition-colors"
+                  aria-label="Close"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -1130,8 +1112,8 @@ export default function StudentDashboard() {
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 bg-white disabled:opacity-50 disabled:cursor-not-allowed"
                     />
                     {uploadingScreenshot && (
-                      <p className="text-sm text-blue-600 flex items-center">
-                        <span className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></span>
+                      <p className="text-sm text-primary-600 flex items-center">
+                        <span className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-primary-600 mr-2"></span>
                         Uploading screenshot...
                       </p>
                     )}
@@ -1199,7 +1181,7 @@ export default function StudentDashboard() {
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="px-6 py-3 bg-gradient-to-r from-primary-600 to-purple-600 hover:from-primary-700 hover:to-purple-700 text-white rounded-xl font-bold shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 transition-all transform hover:scale-105"
+                    className="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
                   >
                     {isSubmitting ? (
                       <>
@@ -1208,7 +1190,7 @@ export default function StudentDashboard() {
                       </>
                     ) : (
                       <>
-                        <span>💾</span>
+                        <Save className="h-4 w-4 shrink-0" aria-hidden />
                         <span>Save Trade</span>
                       </>
                     )}

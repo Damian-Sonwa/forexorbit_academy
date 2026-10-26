@@ -30,6 +30,6 @@ export async function logPasswordResetEvent(
       createdAt: new Date(),
     });
   } catch (e) {
-    console.error('[password-reset-log]', e);
+    console.error('[password-reset-log]');
   }
 }

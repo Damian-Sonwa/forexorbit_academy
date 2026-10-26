@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Experts API Route
  * GET: Get list of available experts
@@ -47,8 +48,8 @@ async function getExperts(req: AuthRequest, res: NextApiResponse) {
       }))
     );
   } catch (error: any) {
-    console.error('Get experts error:', error);
-    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+    console.error('Get experts error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 
@@ -56,13 +57,13 @@ async function updateAvailability(req: AuthRequest, res: NextApiResponse) {
   try {
     // Only experts can update their availability
     if (req.user!.role !== 'instructor' && req.user!.role !== 'admin' && req.user!.role !== 'superadmin') {
-      return res.status(403).json({ message: 'Only experts can update availability' });
+      return res.status(403).json({ error: 'Only experts can update availability' });
     }
 
     const { available } = req.body;
 
     if (typeof available !== 'boolean') {
-      return res.status(400).json({ message: 'Available must be a boolean' });
+      return res.status(400).json({ error: 'Available must be a boolean' });
     }
 
     const db = await getDb();
@@ -75,7 +76,7 @@ async function updateAvailability(req: AuthRequest, res: NextApiResponse) {
     );
 
     if (!user?.isExpert) {
-      return res.status(403).json({ message: 'You are not marked as an expert' });
+      return res.status(403).json({ error: 'You are not marked as an expert' });
     }
 
     await users.updateOne(
@@ -88,8 +89,8 @@ async function updateAvailability(req: AuthRequest, res: NextApiResponse) {
       message: `Availability updated to ${available ? 'available' : 'unavailable'}`,
     });
   } catch (error: any) {
-    console.error('Update expert availability error:', error);
-    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+    console.error('Update expert availability error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 
@@ -100,7 +101,7 @@ export default withAuth(async (req: AuthRequest, res: NextApiResponse) => {
     return updateAvailability(req, res);
   } else {
     res.setHeader('Allow', ['GET', 'PUT']);
-    res.status(405).json({ message: `Method ${req.method} not allowed` });
+    res.status(405).json({ error: `Method ${req.method} not allowed` });
   }
 });
 

@@ -94,10 +94,10 @@ export default function MarketSignal() {
               <Line 
                 type="monotone" 
                 dataKey="price" 
-                stroke="#197278" 
+                stroke="#B85C0E" 
                 strokeWidth={3} 
                 dot={false}
-                activeDot={{ r: 6, fill: '#197278' }}
+                activeDot={{ r: 6, fill: '#B85C0E' }}
               />
             </LineChart>
           </ResponsiveContainer>

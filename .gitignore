@@ -27,10 +27,18 @@ yarn-error.log*
 
 # local env files
 .env
+.env.*
+!.env.example
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
+
+# logs, webpack packs, and local evidence copies
+*.log
+*.pack
+*.pack.gz
+forexorbit-evidence/
 
 
 # vercel
@@ -40,9 +48,8 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# uploaded files (keep directory structure with .gitkeep)
-/public/uploads/instructors/*
-/public/uploads/certificates/*
+# uploaded files are created at runtime; the app creates these directories when needed
+/public/uploads/**
 !/public/uploads/instructors/.gitkeep
 
 # backups

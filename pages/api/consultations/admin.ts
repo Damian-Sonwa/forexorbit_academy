@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Super Admin Consultation Controls API Route
  * GET: Get consultation settings and logs
@@ -11,9 +12,8 @@ import { ObjectId } from 'mongodb';
 
 async function getSettings(req: AuthRequest, res: NextApiResponse) {
   try {
-    // Only super admin can access
-    if (req.user!.email !== 'madudamian25@gmail.com' || req.user!.role !== 'superadmin') {
-      return res.status(403).json({ message: 'Only super admin can access these settings' });
+    if (req.user!.role !== 'superadmin') {
+      return res.status(403).json({ error: 'Only super admin can access these settings' });
     }
 
     const db = await getDb();
@@ -23,7 +23,7 @@ async function getSettings(req: AuthRequest, res: NextApiResponse) {
 
     // Get super admin settings
     const superAdmin = await users.findOne(
-      { email: 'madudamian25@gmail.com' },
+      { role: 'superadmin', consultationEnabled: false },
       { projection: { consultationEnabled: 1 } }
     );
 
@@ -40,7 +40,7 @@ async function getSettings(req: AuthRequest, res: NextApiResponse) {
     const completedSessions = await sessions.countDocuments({ status: 'completed' });
 
     res.json({
-      consultationEnabled: superAdmin?.consultationEnabled !== false, // Default to true
+      consultationEnabled: !superAdmin,
       experts: experts.map((expert) => ({
         _id: expert._id.toString(),
         name: expert.name,
@@ -57,16 +57,15 @@ async function getSettings(req: AuthRequest, res: NextApiResponse) {
       },
     });
   } catch (error: any) {
-    console.error('Get consultation settings error:', error);
-    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+    console.error('Get consultation settings error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 
 async function updateSettings(req: AuthRequest, res: NextApiResponse) {
   try {
-    // Only super admin can update
-    if (req.user!.email !== 'madudamian25@gmail.com' || req.user!.role !== 'superadmin') {
-      return res.status(403).json({ message: 'Only super admin can update these settings' });
+    if (req.user!.role !== 'superadmin') {
+      return res.status(403).json({ error: 'Only super admin can update these settings' });
     }
 
     const { action, data } = req.body;
@@ -77,8 +76,8 @@ async function updateSettings(req: AuthRequest, res: NextApiResponse) {
     if (action === 'toggleFeature') {
       // Enable/disable consultation feature
       const enabled = data.enabled;
-      await users.updateOne(
-        { email: 'madudamian25@gmail.com' },
+      await users.updateMany(
+        { role: 'superadmin' },
         { $set: { consultationEnabled: enabled } }
       );
       res.json({ success: true, message: `Consultation feature ${enabled ? 'enabled' : 'disabled'}` });
@@ -99,19 +98,18 @@ async function updateSettings(req: AuthRequest, res: NextApiResponse) {
       );
       res.json({ success: true, message: `User ${suspended ? 'suspended' : 'unsuspended'} from consultations` });
     } else {
-      res.status(400).json({ message: 'Invalid action' });
+      res.status(400).json({ error: 'Invalid action' });
     }
   } catch (error: any) {
-    console.error('Update consultation settings error:', error);
-    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+    console.error('Update consultation settings error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 
 async function getLogs(req: AuthRequest, res: NextApiResponse) {
   try {
-    // Only super admin can access
-    if (req.user!.email !== 'madudamian25@gmail.com' || req.user!.role !== 'superadmin') {
-      return res.status(403).json({ message: 'Only super admin can access logs' });
+    if (req.user!.role !== 'superadmin') {
+      return res.status(403).json({ error: 'Only super admin can access logs' });
     }
 
     const db = await getDb();
@@ -188,8 +186,8 @@ async function getLogs(req: AuthRequest, res: NextApiResponse) {
       },
     });
   } catch (error: any) {
-    console.error('Get consultation logs error:', error);
-    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+    console.error('Get consultation logs error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 
@@ -204,9 +202,9 @@ export default withAuth(async (req: AuthRequest, res: NextApiResponse) => {
     return updateSettings(req, res);
   } else {
     res.setHeader('Allow', ['GET', 'PUT']);
-    res.status(405).json({ message: `Method ${req.method} not allowed` });
+    res.status(405).json({ error: `Method ${req.method} not allowed` });
   }
-});
+}, ['superadmin']);
 
 
 

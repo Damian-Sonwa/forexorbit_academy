@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Get Submissions for a Specific Task API Route
  * GET: Get all student submissions for a specific demo task
@@ -13,12 +14,12 @@ async function getTaskSubmissions(req: AuthRequest, res: NextApiResponse) {
   try {
     // Only instructors and admins can view submissions
     if (req.user!.role !== 'instructor' && req.user!.role !== 'admin') {
-      return res.status(403).json({ message: 'Only instructors and admins can view submissions' });
+      return res.status(403).json({ error: 'Only instructors and admins can view submissions' });
     }
 
     const { id } = req.query;
     if (!id || typeof id !== 'string') {
-      return res.status(400).json({ message: 'Task ID is required' });
+      return res.status(400).json({ error: 'Task ID is required' });
     }
 
     const db = await getDb();
@@ -29,12 +30,12 @@ async function getTaskSubmissions(req: AuthRequest, res: NextApiResponse) {
     // Verify task exists
     const task = await tasks.findOne({ _id: new ObjectId(id) });
     if (!task) {
-      return res.status(404).json({ message: 'Task not found' });
+      return res.status(404).json({ error: 'Task not found' });
     }
 
     // For instructors, verify they created this task
     if (req.user!.role === 'instructor' && task.assignedBy !== req.user!.userId) {
-      return res.status(403).json({ message: 'You can only view submissions for your own tasks' });
+      return res.status(403).json({ error: 'You can only view submissions for your own tasks' });
     }
 
     // Get all submissions for this task
@@ -77,8 +78,8 @@ async function getTaskSubmissions(req: AuthRequest, res: NextApiResponse) {
       submissions: submissionsWithDetails,
     });
   } catch (error: unknown) {
-    console.error('Get task submissions error:', error);
-    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+    console.error('Get task submissions error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 

@@ -1,13 +1,17 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Community News API Route
  * GET: Get Forex news feed
  * POST: Create news item (Admin/Super Admin only)
  */
 
-import type { NextApiRequest, NextApiResponse } from 'next';
+import type { NextApiResponse } from 'next';
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
-// import { ObjectId } from 'mongodb'; // Reserved for future use
+import {
+  logCommunityNewsFailure,
+  presentCommunityNews,
+} from '@/lib/community-news';
 
 async function getNews(req: AuthRequest, res: NextApiResponse) {
   try {
@@ -21,27 +25,10 @@ async function getNews(req: AuthRequest, res: NextApiResponse) {
       .limit(50)
       .toArray();
 
-    res.json(
-      newsItems.map((item) => {
-        const readBy = item.readBy || [];
-        const isRead = readBy.includes(userId);
-        
-        return {
-          _id: item._id.toString(),
-          title: item.title,
-          description: item.description,
-          category: item.category,
-          content: item.content || null,
-          link: item.link || null,
-          createdAt: item.createdAt,
-          isRead, // Add read status for current user
-          readBy, // Include readBy array for reference
-        };
-      })
-    );
-  } catch (error: any) {
-    console.error('Get news error:', error);
-    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+    res.json(newsItems.map((item) => presentCommunityNews(item, userId)));
+  } catch {
+    logCommunityNewsFailure('communityNewsRead');
+    res.status(500).json(unexpectedBody('api'));
   }
 }
 
@@ -49,13 +36,13 @@ async function createNews(req: AuthRequest, res: NextApiResponse) {
   try {
     // Only admin, superadmin, and instructors can create news
     if (req.user!.role !== 'admin' && req.user!.role !== 'superadmin' && req.user!.role !== 'instructor') {
-      return res.status(403).json({ message: 'Only admins and instructors can create news' });
+      return res.status(403).json({ error: 'Only admins and instructors can create news' });
     }
 
     const { title, description, category, content, link } = req.body;
 
     if (!title || !description || !category) {
-      return res.status(400).json({ message: 'Title, description, and category are required' });
+      return res.status(400).json({ error: 'Title, description, and category are required' });
     }
 
     const db = await getDb();
@@ -80,9 +67,9 @@ async function createNews(req: AuthRequest, res: NextApiResponse) {
         ...newsItem,
       },
     });
-  } catch (error: any) {
-    console.error('Create news error:', error);
-    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+  } catch {
+    logCommunityNewsFailure('communityNewsCreate');
+    res.status(500).json(unexpectedBody('api'));
   }
 }
 
@@ -93,7 +80,7 @@ export default withAuth(async (req: AuthRequest, res: NextApiResponse) => {
     return createNews(req, res);
   } else {
     res.setHeader('Allow', ['GET', 'POST']);
-    res.status(405).json({ message: `Method ${req.method} not allowed` });
+    res.status(405).json({ error: `Method ${req.method} not allowed` });
   }
 });
 

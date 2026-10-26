@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Lesson Detail API Route
  * GET: Get lesson by ID
@@ -17,209 +18,223 @@ export const config = {
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
+import { decideAccountAccess, decideLessonDelete, decideLessonRead, decideLessonUpdate, decideQuizRead, isStoredId, presentLessonRead } from '@/lib/account-access';
+import { enrollmentDecisionRecord } from '@/lib/enrollment-state';
 import { stripLessonVisualAidsFields } from '@/lib/strip-visual-aids-html';
 import {
   buildLessonLockedBody,
+  flagsToMonetizationPayload,
   getMonetizationForLessonDoc,
-  isLessonLockedForStudent,
   isStaffRole,
 } from '@/lib/lesson-monetization';
 
 async function getLesson(req: AuthRequest, res: NextApiResponse) {
+  const lessonId = Array.isArray(req.query.id) ? req.query.id[0] : req.query.id;
+  if (!isStoredId(lessonId)) {
+    return res.status(400).json({ error: 'Invalid lesson ID' });
+  }
   try {
-    const { id } = req.query;
     const db = await getDb();
-    const lessons = db.collection('lessons');
-    const quizzes = db.collection('quizzes');
-    const progress = db.collection('progress');
-    const courses = db.collection('courses');
-
-    const lesson = await lessons.findOne({ _id: new ObjectId(id as string) });
-    if (!lesson) {
-      return res.status(404).json({ access: false, message: 'Lesson not found' });
+    const record = await db.collection('users').findOne(
+      { _id: new ObjectId(req.user!.userId) },
+      { projection: { email: 1, role: 1, status: 1 } }
+    );
+    const account = decideAccountAccess({ userId: req.user!.userId, record });
+    const lesson = await db.collection('lessons').findOne({ _id: new ObjectId(lessonId) });
+    let course = null;
+    if (lesson && lesson.courseId != null && isStoredId(String(lesson.courseId))) {
+      course = await db.collection('courses').findOne(
+        { _id: new ObjectId(String(lesson.courseId)) },
+        { projection: { instructorId: 1, difficulty: 1 } }
+      );
+    }
+    const courseId = course ? String(course._id) : '';
+    const enrollment = account.ok && course
+      ? await db.collection('progress').findOne({
+          userId: account.user.userId,
+          $or: [{ courseId }, { courseId: course._id }],
+        })
+      : null;
+    const member = account.ok ? { userId: account.user.userId, role: account.user.role, email: account.user.email } : null;
+    const lessonRecord = lesson ? {
+      _id: lesson._id,
+      courseId: lesson.courseId,
+      requiredLevel: typeof lesson.requiredLevel === 'string' ? lesson.requiredLevel : null,
+    } : null;
+    const courseRecord = course ? {
+      _id: course._id,
+      instructorId: course.instructorId,
+      difficulty: typeof course.difficulty === 'string' ? course.difficulty : null,
+    } : null;
+    const enrollmentRecord = enrollmentDecisionRecord(enrollment);
+    const decision = decideLessonRead({
+      member,
+      lesson: lessonRecord,
+      course: courseRecord,
+      enrollment: enrollmentRecord,
+    });
+    if (!decision.ok) {
+      return res.status(decision.status).json({ error: decision.error });
     }
 
-    // Level-based access control: Check if user has required level
-    if (lesson.requiredLevel && req.user) {
-      const course = await courses.findOne({ _id: new ObjectId(lesson.courseId) });
-      if (course) {
-        const levelOrder = { beginner: 1, intermediate: 2, advanced: 3 };
-        const courseLevel = (course.difficulty || 'beginner').toLowerCase();
-        const requiredLevel = lesson.requiredLevel.toLowerCase();
-        
-        if (levelOrder[requiredLevel as keyof typeof levelOrder] > levelOrder[courseLevel as keyof typeof levelOrder]) {
-          // Check user's progress in prerequisite courses
-          const prerequisiteProgress = await progress.findOne({
-            userId: req.user.userId,
-            courseId: course._id.toString(),
-            progress: { $gte: 100 }, // Completed
-          });
-
-          if (!prerequisiteProgress && req.user.role === 'student') {
-            return res.status(403).json({ message: 'This lesson requires completing prerequisite courses',
-              requiredLevel: lesson.requiredLevel,
-            });
-          }
-        }
+    let monetization = null;
+    if (lesson && account.ok) {
+      const { flags } = await getMonetizationForLessonDoc(
+        db,
+        { userId: account.user.userId, role: account.user.role },
+        lesson as { _id: ObjectId; courseId: string }
+      );
+      if (!isStaffRole(account.user.role) && !flags.unlocked) {
+        return res.status(403).json(
+          buildLessonLockedBody(flags, lesson as { _id: ObjectId; title?: string; courseId: string })
+        );
       }
+      monetization = flagsToMonetizationPayload(flags);
     }
 
-    let monetization: Record<string, unknown> | null = null;
-    let locked = false;
-    if (req.user) {
-      const { flags } = await getMonetizationForLessonDoc(db, req.user, lesson as { _id: ObjectId; courseId: string });
-      let levelOk = true;
-      if (req.user.role === 'student' && (lesson as { requiredLevel?: string }).requiredLevel) {
-        const enrollProgress = await progress.findOne({
-          userId: req.user.userId,
-          courseId: lesson.courseId,
-        });
-        levelOk = !!enrollProgress;
-      }
-      locked = isLessonLockedForStudent(flags, levelOk, req.user.role);
-      monetization = {
-        unlocked: flags.unlocked,
-        isFreeTier: flags.isFreeTier,
-        isDemo: flags.isDemo,
-        requiresPayment: flags.requiresPayment,
-        showAds: flags.showAds,
-        amountKobo: flags.amountKobo,
-        currency: flags.currency,
-        paymentsConfigured: flags.paymentsConfigured,
-      };
-      if (!isStaffRole(req.user.role) && !flags.unlocked) {
-        return res
-          .status(403)
-          .json(buildLessonLockedBody(flags, lesson as { _id: ObjectId; title?: string; courseId: string }));
-      }
-    }
-
-    // Get quiz for this lesson (only after monetization gate — no quiz leak for locked students)
-    const quiz = await quizzes.findOne({ lessonId: id });
-    lesson.quiz = quiz;
-
-    // Ensure lessonSummary exists - if summary field exists but lessonSummary doesn't, create it
-    if (lesson.summary && !lesson.lessonSummary) {
-      lesson.lessonSummary = {
+    const quiz = await db.collection('quizzes').findOne(
+      { lessonId: decision.lessonId },
+      { projection: { questions: 1 } }
+    );
+    const quizDecision = decideQuizRead({
+      member,
+      lesson: lessonRecord,
+      course: courseRecord,
+      enrollment: enrollmentRecord,
+      quiz: quiz ? { questions: quiz.questions } : null,
+    });
+    const view = presentLessonRead(lesson as Record<string, unknown>, true, courseId);
+    if (lesson && lesson.summary && !view.lessonSummary) {
+      view.lessonSummary = {
         overview: lesson.summary,
         updatedAt: lesson.updatedAt || lesson.createdAt || new Date(),
       };
     }
-
-    // Get progress if authenticated
-    if (req.user) {
-      const userProgress = await progress.findOne({
-        userId: req.user.userId,
-        courseId: lesson.courseId,
-      });
-      lesson.completed = userProgress?.completedLessons?.includes(id as string) || false;
+    if (quizDecision.ok) {
+      view.quiz = {
+        lessonId: quizDecision.lessonId,
+        courseId: quizDecision.courseId,
+        questions: quizDecision.questions,
+      };
     }
-
-    const lessonOut = stripLessonVisualAidsFields(lesson as Record<string, unknown>) as Record<string, unknown>;
+    view.completed = Boolean(
+      enrollment &&
+      Array.isArray(enrollment.completedLessons) &&
+      enrollment.completedLessons.map(String).includes(decision.lessonId)
+    );
     if (monetization) {
-      lessonOut.monetization = monetization;
+      view.access = true;
+      view.locked = false;
+      view.monetization = monetization;
+      view.isFirstLesson = (lesson as { isFirstLesson?: boolean }).isFirstLesson === true;
+      view.isDemo = (lesson as { isDemo?: boolean }).isDemo === true;
     }
-    lessonOut.access = true;
-    lessonOut.isFirstLesson = (lesson as { isFirstLesson?: boolean }).isFirstLesson === true;
-    lessonOut.isDemo = (lesson as { isDemo?: boolean }).isDemo === true;
-    if (req.user) {
-      lessonOut.locked = locked;
-    }
-    return res.json(lessonOut);
-  } catch (error: any) {
-    console.error('Get lesson error:', error);
-    return res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+
+    res.json(stripLessonVisualAidsFields(view));
+  } catch {
+    console.error(JSON.stringify({ event: 'lessonRead', result: 'failed' }));
+    res.status(500).json(unexpectedBody('api'));
   }
 }
 
 async function updateLesson(req: AuthRequest, res: NextApiResponse) {
+  const lessonId = Array.isArray(req.query.id) ? req.query.id[0] : req.query.id;
+  if (!isStoredId(lessonId)) {
+    return res.status(400).json({ error: 'Invalid lesson ID' });
+  }
   try {
-    const { id } = req.query;
     const db = await getDb();
-    const lessons = db.collection('lessons');
-
-    // Check if lesson exists
-    const lesson = await lessons.findOne({ _id: new ObjectId(id as string) });
-    if (!lesson) {
-      return res.status(404).json({ message: 'Lesson not found' });
+    const record = await db.collection('users').findOne(
+      { _id: new ObjectId(req.user!.userId) },
+      { projection: { email: 1, role: 1, status: 1 } }
+    );
+    const account = decideAccountAccess({ userId: req.user!.userId, record });
+    const lesson = await db.collection('lessons').findOne(
+      { _id: new ObjectId(lessonId) },
+      { projection: { courseId: 1, lessonSummary: 1 } }
+    );
+    let course = null;
+    if (lesson && lesson.courseId != null && isStoredId(String(lesson.courseId))) {
+      course = await db.collection('courses').findOne(
+        { _id: new ObjectId(String(lesson.courseId)) },
+        { projection: { instructorId: 1 } }
+      );
+    }
+    const decision = decideLessonUpdate({
+      member: account.ok ? { userId: account.user.userId, role: account.user.role } : null,
+      lesson: lesson ? { _id: lesson._id, courseId: lesson.courseId } : null,
+      course: course ? { _id: course._id, instructorId: course.instructorId } : null,
+      patch: req.body,
+    });
+    if (!decision.ok) {
+      return res.status(decision.status).json({ error: decision.error });
     }
 
-    // Instructors, admins, and superadmins can edit any lesson (full access)
-    const userRole = req.user!.role;
-    console.log('Update lesson - User role:', userRole, 'User:', req.user!.email);
-    if (userRole !== 'admin' && userRole !== 'instructor' && userRole !== 'superadmin') {
-      console.log('Access denied - Role not authorized:', userRole);
-      return res.status(403).json({ message: 'Not authorized', role: userRole });
-    }
-
-    // Get existing lesson to preserve lessonSummary fields
-    const existingLesson = await lessons.findOne({ _id: new ObjectId(id as string) });
-    const existingLessonSummary = existingLesson?.lessonSummary || {};
-
-    const updateData: any = {
-      ...req.body,
+    const patch: Record<string, unknown> = {
+      ...decision.patch,
       updatedAt: new Date(),
     };
-
-    // Handle lessonSummary updates - preserve existing fields and merge new ones
-    if (req.body.lessonSummary) {
-      updateData.lessonSummary = {
-        ...existingLessonSummary,
-        ...req.body.lessonSummary,
+    if (decision.patch.lessonSummary && typeof decision.patch.lessonSummary === 'object') {
+      const existingSummary = lesson && lesson.lessonSummary && typeof lesson.lessonSummary === 'object'
+        ? lesson.lessonSummary
+        : {};
+      patch.lessonSummary = {
+        ...existingSummary,
+        overview: decision.patch.lessonSummary.overview,
         screenshots: [],
         updatedAt: new Date(),
       };
     }
 
-    // Keep lessonSummary.overview in sync with migrated `content` (rich-text HTML) for legacy readers
-    if (typeof req.body.content === 'string') {
-      updateData.lessonSummary = {
-        ...existingLessonSummary,
-        ...(updateData.lessonSummary || {}),
-        overview: req.body.content,
-        screenshots: [],
-        updatedAt: new Date(),
-      };
-    }
-
-    await lessons.updateOne(
-      { _id: new ObjectId(id as string) },
-      { $set: updateData }
+    await db.collection('lessons').updateOne(
+      { _id: new ObjectId(decision.lessonId) },
+      { $set: patch }
     );
-
     res.json({ success: true });
-  } catch (error: any) {
-    console.error('Update lesson error:', error);
-    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+  } catch {
+    console.error(JSON.stringify({ event: 'lessonUpdate', result: 'failed' }));
+    res.status(500).json(unexpectedBody('api'));
   }
 }
 
 async function deleteLesson(req: AuthRequest, res: NextApiResponse) {
+  const lessonId = Array.isArray(req.query.id) ? req.query.id[0] : req.query.id;
+  if (typeof lessonId !== 'string' || !ObjectId.isValid(lessonId)) {
+    return res.status(400).json({ error: 'Lesson not found' });
+  }
   try {
-    const { id } = req.query;
     const db = await getDb();
-    const lessons = db.collection('lessons');
-    const quizzes = db.collection('quizzes');
-
-    // Check if lesson exists
-    const lesson = await lessons.findOne({ _id: new ObjectId(id as string) });
-    if (!lesson) {
-      return res.status(404).json({ message: 'Lesson not found' });
+    const record = await db.collection('users').findOne(
+      { _id: new ObjectId(req.user!.userId) },
+      { projection: { email: 1, role: 1, status: 1 } }
+    );
+    const account = decideAccountAccess({ userId: req.user!.userId, record });
+    const lesson = await db.collection('lessons').findOne(
+      { _id: new ObjectId(lessonId) },
+      { projection: { courseId: 1 } }
+    );
+    let course = null;
+    if (lesson && lesson.courseId != null && ObjectId.isValid(String(lesson.courseId))) {
+      course = await db.collection('courses').findOne(
+        { _id: new ObjectId(String(lesson.courseId)) },
+        { projection: { instructorId: 1 } }
+      );
+    }
+    const decision = decideLessonDelete({
+      member: account.ok ? account.user : null,
+      lesson: lesson ? { _id: lesson._id, courseId: lesson.courseId } : null,
+      course: course ? { _id: course._id, instructorId: course.instructorId } : null,
+    });
+    if (!decision.ok) {
+      return res.status(decision.status).json({ error: decision.error });
     }
 
-    // Instructors, admins, and superadmins can delete any lesson (full access)
-    if (req.user!.role !== 'admin' && req.user!.role !== 'instructor' && req.user!.role !== 'superadmin') {
-      return res.status(403).json({ message: 'Not authorized' });
-    }
-
-    // Delete lesson and associated quiz
-    await lessons.deleteOne({ _id: new ObjectId(id as string) });
-    await quizzes.deleteOne({ lessonId: id });
-
+    await db.collection('lessons').deleteOne({ _id: new ObjectId(decision.lessonId) });
+    await db.collection('quizzes').deleteOne({ lessonId: decision.lessonId });
     res.json({ success: true });
-  } catch (error: any) {
-    console.error('Delete lesson error:', error);
-    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+  } catch {
+    console.error(JSON.stringify({ event: 'lessonDelete', result: 'failed' }));
+    res.status(500).json(unexpectedBody('api'));
   }
 }
 
@@ -230,17 +245,17 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
   } else if (req.method === 'PUT') {
     // PUT is restricted to instructors, admins, and superadmins
     if (req.user!.role !== 'instructor' && req.user!.role !== 'admin' && req.user!.role !== 'superadmin') {
-      return res.status(403).json({ message: 'Not authorized' });
+      return res.status(403).json({ error: 'Not authorized' });
     }
     return updateLesson(req, res);
   } else if (req.method === 'DELETE') {
     // DELETE is restricted to instructors, admins, and superadmins
     if (req.user!.role !== 'instructor' && req.user!.role !== 'admin' && req.user!.role !== 'superadmin') {
-      return res.status(403).json({ message: 'Not authorized' });
+      return res.status(403).json({ error: 'Not authorized' });
     }
     return deleteLesson(req, res);
   } else {
-    return res.status(405).json({ message: 'Method not allowed' });
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 }
 

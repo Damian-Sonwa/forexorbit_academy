@@ -4,6 +4,7 @@
  */
 
 import { useState, ReactNode, createContext, useContext } from 'react';
+import { ClipboardList, Pencil, Plus } from 'lucide-react';
 
 type TabType = 'create' | 'submissions' | 'review';
 
@@ -34,9 +35,9 @@ export default function DemoTasksTabs({ children }: DemoTasksTabsProps) {
   const [activeTab, setActiveTab] = useState<TabType>('create');
 
   const tabs = [
-    { id: 'create' as const, label: 'Create Task', icon: '➕' },
-    { id: 'submissions' as const, label: 'Submissions', icon: '📋' },
-    { id: 'review' as const, label: 'Review / Feedback', icon: '✏️' },
+    { id: 'create' as const, label: 'Create Task', icon: Plus },
+    { id: 'submissions' as const, label: 'Submissions', icon: ClipboardList },
+    { id: 'review' as const, label: 'Review / Feedback', icon: Pencil },
   ];
 
   return (
@@ -58,7 +59,7 @@ export default function DemoTasksTabs({ children }: DemoTasksTabsProps) {
                   }
                 `}
               >
-                <span className="mr-2">{tab.icon}</span>
+                <tab.icon className="mr-2 inline h-4 w-4 shrink-0" aria-hidden />
                 {tab.label}
               </button>
             ))}

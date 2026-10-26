@@ -9,51 +9,36 @@ const bcrypt = require('bcryptjs');
 const path = require('path');
 const fs = require('fs');
 
-// Load .env.local file manually if dotenv doesn't find it
-const envPath = path.join(__dirname, '..', '.env.local');
-if (fs.existsSync(envPath)) {
-  require('dotenv').config({ path: envPath });
-} else {
-  // Try current directory
-  require('dotenv').config({ path: '.env.local' });
+const envLocal = path.join(__dirname, '..', '.env.local');
+const envFile = path.join(__dirname, '..', '.env');
+if (fs.existsSync(envLocal)) {
+  require('dotenv').config({ path: envLocal });
+} else if (fs.existsSync(envFile)) {
+  require('dotenv').config({ path: envFile });
 }
 
 async function seed() {
   try {
     console.log('🌱 Starting database seed...');
     
-    // Validate MONGO_URI
+    const demoPassword = process.env.DEMO_SEED_PASSWORD;
+    if (typeof demoPassword !== 'string' || demoPassword.trim().length < 12) {
+      console.error('DEMO_SEED_PASSWORD is required and must be at least 12 characters. The seed was not started.');
+      process.exit(1);
+    }
+
     const uri = process.env.MONGO_URI;
     if (!uri) {
-      throw new Error('MONGO_URI not defined in .env.local');
+      throw new Error('MONGO_URI not defined in .env.local or .env');
     }
-    
+
     const client = new MongoClient(uri);
     await client.connect();
     console.log('✓ Connected to MongoDB');
     
     const db = client.db('Forex_elearning');
-    
-    // Clear existing collections (optional - comment out if you want to keep existing data)
-    // WARNING: Uncommenting these will DELETE ALL YOUR DATA!
-    // Only uncomment if you want to start fresh with seed data
-    /*
-    console.log('🗑️  Clearing existing collections...');
-    await db.collection('users').deleteMany({});
-    await db.collection('courses').deleteMany({});
-    await db.collection('lessons').deleteMany({});
-    await db.collection('quizzes').deleteMany({});
-    await db.collection('progress').deleteMany({});
-    await db.collection('messages').deleteMany({});
-    await db.collection('quizScores').deleteMany({});
-    await db.collection('instructors').deleteMany({});
-    await db.collection('communityRooms').deleteMany({});
-    await db.collection('communityMessages').deleteMany({});
-    await db.collection('communityNews').deleteMany({});
-    */
-    
-    // Hash password for demo users
-    const hashedPassword = await bcrypt.hash('password123', 10);
+
+    const hashedPassword = await bcrypt.hash(demoPassword, 10);
     
     // Seed Users with diverse names from different continents (especially Africa)
     console.log('👥 Seeding users...');
@@ -1541,10 +1526,10 @@ async function seed() {
     console.log('   - Points-based rankings (top student: ' + topStudent.name + ' with ' + topStudent.points + ' points)');
     console.log('   - Course completion rankings');
     console.log('   - Quiz score rankings');
-    console.log('\n🔑 Demo Login Credentials:');
-    console.log('   Student: student@demo.com / password123');
-    console.log('   Instructor: instructor@demo.com / password123');
-    console.log('   Admin: admin@demo.com / password123');
+    console.log('\nDemo accounts were prepared. Their password came from DEMO_SEED_PASSWORD and is not printed.');
+    console.log('   Student: student@demo.com');
+    console.log('   Instructor: instructor@demo.com');
+    console.log('   Admin: admin@demo.com');
     
     await client.close();
     process.exit(0);

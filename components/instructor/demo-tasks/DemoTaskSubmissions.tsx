@@ -60,7 +60,7 @@ export default function DemoTaskSubmissions() {
       const tasksData = await apiClient.get<DemoTask[]>('/demo-trading/tasks');
       setTasks(Array.isArray(tasksData) ? tasksData : []);
     } catch (error) {
-      console.error('Failed to load tasks:', error);
+      console.error('Failed to load tasks:');
     } finally {
       setLoading(false);
     }
@@ -72,7 +72,7 @@ export default function DemoTaskSubmissions() {
       const data = await apiClient.get<TaskSubmissions>(`/demo-trading/tasks/${taskId}/submissions`);
       setSubmissions(data);
     } catch (error) {
-      console.error('Failed to load submissions:', error);
+      console.error('Failed to load submissions:');
       setSubmissions(null);
     } finally {
       setLoadingSubmissions(false);

@@ -1,3 +1,4 @@
+import { publicUploadFailure } from '@/lib/public-error';
 /**
  * Instructor Image Upload API
  * Handles file uploads for instructor images using Cloudinary
@@ -37,7 +38,7 @@ async function uploadInstructorImage(req: AuthRequest, res: NextApiResponse) {
     const file = Array.isArray(files.image) ? files.image[0] : files.image;
     
     if (!file) {
-      return res.status(400).json({ message: 'No image file provided' });
+      return res.status(400).json({ error: 'No image file provided' });
     }
 
     // Check if Cloudinary is configured
@@ -50,13 +51,9 @@ async function uploadInstructorImage(req: AuthRequest, res: NextApiResponse) {
           // Ignore cleanup errors
         }
       }
-      const missing = [];
-      if (!process.env.CLOUDINARY_CLOUD_NAME) missing.push('CLOUDINARY_CLOUD_NAME');
-      if (!process.env.CLOUDINARY_API_KEY) missing.push('CLOUDINARY_API_KEY');
-      if (!process.env.CLOUDINARY_API_SECRET) missing.push('CLOUDINARY_API_SECRET');
-      console.error('Cloudinary not configured - missing environment variables:', missing.join(', '));
-      return res.status(500).json({ message: 'Image upload service is not configured. Please contact support.',
-        details: `Missing: ${missing.join(', ')}`
+      console.error('Image upload service is not configured');
+      return res.status(500).json({
+        error: 'Image upload service is not configured. Please contact support.',
       });
     }
 
@@ -76,7 +73,7 @@ async function uploadInstructorImage(req: AuthRequest, res: NextApiResponse) {
           // Ignore cleanup errors
         }
       }
-      return res.status(400).json({ message: validation.error });
+      return res.status(400).json({ error: validation.error });
     }
 
     // Upload to Cloudinary directly from file path (more efficient)
@@ -101,14 +98,8 @@ async function uploadInstructorImage(req: AuthRequest, res: NextApiResponse) {
       filename: uploadResult.publicId.split('/').pop() || 'image',
     });
   } catch (error: any) {
-    console.error('Instructor image upload error:', error);
-    if (error.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json({ message: 'File size exceeds 10MB limit' });
-    }
-    if (error.message?.includes('Cloudinary configuration is missing')) {
-      return res.status(500).json({ message: 'Image upload service is not configured. Please contact support.' });
-    }
-    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+    const failure = publicUploadFailure(error, { limitMessage: 'File size exceeds 10MB limit' });
+    return res.status(failure.status).json(failure.body);
   }
 }
 

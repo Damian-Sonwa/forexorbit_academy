@@ -13,12 +13,12 @@ export default function Footer() {
           {/* Brand */}
           <div>
             <div className="flex items-center space-x-3 mb-6">
-              <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-xl flex items-center justify-center shadow-lg">
+              <div className="w-12 h-12 bg-primary-600 rounded-xl flex items-center justify-center">
                 <span className="text-white font-bold text-lg">FA</span>
               </div>
-              <span className="text-2xl font-display font-bold">
-                <span className="bg-gradient-to-r from-primary-400 to-secondary-400 bg-clip-text text-transparent">ForexOrbit</span>
-                <span className="text-nav-text ml-1">Academy</span>
+              <span className="text-2xl font-display font-bold text-white">
+                ForexOrbit
+                <span className="text-nav-muted ml-1 font-medium">Academy</span>
               </span>
             </div>
             <p className="text-sm text-nav-muted leading-relaxed">

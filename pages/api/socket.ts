@@ -1,37 +1,11 @@
 /**
- * Socket.io API Route Handler
- * This file is required for Next.js to handle Socket.io
+ * Socket.IO is not created here.
+ * `node server.js` attaches the authenticated server at path /api/socket.
+ * A request that reaches this Next.js route must not attach a second server.
  */
 
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { Server as HTTPServer } from 'http';
-import { Server as SocketIOServer } from 'socket.io';
-import { Socket as NetSocket } from 'net';
 
-interface SocketServer extends HTTPServer {
-  io?: SocketIOServer | undefined;
+export default function handler(_req: NextApiRequest, res: NextApiResponse) {
+  res.status(404).json({ error: 'Not found' });
 }
-
-interface SocketWithIO extends NetSocket {
-  server: SocketServer;
-}
-
-interface NextApiResponseWithSocket extends NextApiResponse {
-  socket: SocketWithIO;
-}
-
-export default function handler(
-  req: NextApiRequest,
-  res: NextApiResponseWithSocket
-) {
-  if (res.socket.server.io) {
-    console.log('Socket is already running');
-  } else {
-    console.log('Socket is initializing');
-    const io = new SocketIOServer(res.socket.server);
-    res.socket.server.io = io;
-  }
-  res.end();
-}
-
-

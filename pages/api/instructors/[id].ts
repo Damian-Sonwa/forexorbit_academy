@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Instructor API Route (Single Instructor)
  * GET: Get instructor by ID
@@ -16,7 +17,7 @@ async function getInstructor(req: AuthRequest, res: NextApiResponse) {
     const { id } = req.query;
 
     if (!id || typeof id !== 'string') {
-      return res.status(400).json({ message: 'Invalid instructor ID' });
+      return res.status(400).json({ error: 'Invalid instructor ID' });
     }
 
     const db = await getDb();
@@ -25,13 +26,13 @@ async function getInstructor(req: AuthRequest, res: NextApiResponse) {
     const instructor = await instructors.findOne({ _id: new ObjectId(id) });
 
     if (!instructor) {
-      return res.status(404).json({ message: 'Instructor not found' });
+      return res.status(404).json({ error: 'Instructor not found' });
     }
 
     res.json(instructor);
   } catch (error: any) {
-    console.error('Get instructor error:', error);
-    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+    console.error('Get instructor error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 
@@ -42,7 +43,7 @@ async function updateInstructor(req: AuthRequest, res: NextApiResponse) {
     const { name, title, description, imageUrl } = req.body;
 
     if (!id || typeof id !== 'string') {
-      return res.status(400).json({ message: 'Invalid instructor ID' });
+      return res.status(400).json({ error: 'Invalid instructor ID' });
     }
 
     const db = await getDb();
@@ -63,14 +64,14 @@ async function updateInstructor(req: AuthRequest, res: NextApiResponse) {
     );
 
     if (result.matchedCount === 0) {
-      return res.status(404).json({ message: 'Instructor not found' });
+      return res.status(404).json({ error: 'Instructor not found' });
     }
 
     const updatedInstructor = await instructors.findOne({ _id: new ObjectId(id) });
     res.json(updatedInstructor);
   } catch (error: any) {
-    console.error('Update instructor error:', error);
-    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+    console.error('Update instructor error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 
@@ -80,7 +81,7 @@ async function deleteInstructor(req: AuthRequest, res: NextApiResponse) {
     const { id } = req.query;
 
     if (!id || typeof id !== 'string') {
-      return res.status(400).json({ message: 'Invalid instructor ID' });
+      return res.status(400).json({ error: 'Invalid instructor ID' });
     }
 
     const db = await getDb();
@@ -89,13 +90,13 @@ async function deleteInstructor(req: AuthRequest, res: NextApiResponse) {
     const result = await instructors.deleteOne({ _id: new ObjectId(id) });
 
     if (result.deletedCount === 0) {
-      return res.status(404).json({ message: 'Instructor not found' });
+      return res.status(404).json({ error: 'Instructor not found' });
     }
 
     res.json({ success: true, message: 'Instructor deleted' });
   } catch (error: any) {
-    console.error('Delete instructor error:', error);
-    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+    console.error('Delete instructor error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 
@@ -107,7 +108,7 @@ export default async function(req: NextApiRequest, res: NextApiResponse) {
   } else if (req.method === 'DELETE') {
     return withAuth(deleteInstructor, ['admin', 'superadmin'])(req as AuthRequest, res);
   } else {
-    return res.status(405).json({ message: 'Method not allowed' });
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 }
 

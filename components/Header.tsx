@@ -11,6 +11,9 @@ import { useState, useEffect, useRef } from 'react';
 import { apiClient } from '@/lib/api-client';
 import { useSocket } from '@/hooks/useSocket';
 import { isNavHrefDisabled } from '@/lib/config/features';
+import { notificationDestination } from '@/lib/class-notifications';
+import { InlineLoader } from '@/components/loading';
+import { Languages } from 'lucide-react';
 interface Notification {
   _id: string;
   type: string;
@@ -96,7 +99,7 @@ export default function Header() {
       setNotifications(response.notifications || []);
       setUnreadCount(response.unreadCount || 0);
     } catch (error) {
-      console.error('Failed to fetch notifications:', error);
+      console.error('Failed to fetch notifications:');
       // Don't show error to user, just log it
     } finally {
       setLoadingNotifications(false);
@@ -112,7 +115,7 @@ export default function Header() {
       );
       setUnreadCount((prev) => Math.max(0, prev - 1));
     } catch (error) {
-      console.error('Failed to mark notification as read:', error);
+      console.error('Failed to mark notification as read:');
     }
   };
 
@@ -123,7 +126,7 @@ export default function Header() {
       setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
       setUnreadCount(0);
     } catch (error) {
-      console.error('Failed to mark all as read:', error);
+      console.error('Failed to mark all as read:');
     }
   };
 
@@ -143,12 +146,12 @@ export default function Header() {
   }, []);
 
   const languages = [
-    { code: 'en', name: 'English', flag: '🇬🇧' },
-    { code: 'es', name: 'Español', flag: '🇪🇸' },
-    { code: 'fr', name: 'Français', flag: '🇫🇷' },
-    { code: 'de', name: 'Deutsch', flag: '🇩🇪' },
-    { code: 'pt', name: 'Português', flag: '🇵🇹' },
-    { code: 'ar', name: 'العربية', flag: '🇸🇦' },
+    { code: 'en', name: 'English' },
+    { code: 'es', name: 'Español' },
+    { code: 'fr', name: 'Français' },
+    { code: 'de', name: 'Deutsch' },
+    { code: 'pt', name: 'Português' },
+    { code: 'ar', name: 'العربية' },
   ];
 
   const handleLanguageChange = (langCode: string) => {
@@ -158,17 +161,17 @@ export default function Header() {
   };
 
   return (
-    <header className="bg-nav-bg text-nav-text shadow-md sticky top-0 z-50 border-b border-white/10">
+    <header className="bg-white/95 text-neutral-900 dark:bg-neutral-950 dark:text-white sticky top-0 z-50 border-b border-neutral-200 dark:border-white/10 backdrop-blur-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-14 py-2">
           {/* Logo */}
           <Link href="/" className="flex items-center space-x-2 group">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-lg flex items-center justify-center shadow-md group-hover:shadow-lg transition-shadow">
-              <span className="text-white font-bold text-sm sm:text-base">FA</span>
+            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-primary-400 rounded-lg flex items-center justify-center">
+              <span className="text-neutral-900 font-bold text-sm sm:text-base">FA</span>
             </div>
-            <span className="text-lg sm:text-xl font-display font-bold">
-              <span className="bg-gradient-to-r from-primary-400 to-secondary-400 bg-clip-text text-transparent">ForexOrbit</span>
-              <span className="text-nav-text ml-1 hidden sm:inline">Academy</span>
+            <span className="text-lg sm:text-xl font-display font-semibold tracking-tight text-neutral-900 dark:text-white">
+              ForexOrbit
+              <span className="text-neutral-500 dark:text-neutral-400 ml-1 hidden sm:inline font-medium">Academy</span>
             </span>
           </Link>
 
@@ -179,27 +182,27 @@ export default function Header() {
                 <>
                   {user?.role === 'instructor' && (
                     <>
-                      <Link href="/instructor/dashboard" className="px-4 py-2 text-nav-muted hover:text-nav-text hover:bg-white/10 rounded-lg font-medium transition-all">
+                      <Link href="/instructor/dashboard" className="px-4 py-2 text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:text-white dark:hover:bg-white/10 rounded-lg font-medium transition-all">
                         Instructor
                       </Link>
-                      <Link href="/progress" className="px-4 py-2 text-nav-muted hover:text-nav-text hover:bg-white/10 rounded-lg font-medium transition-all">
+                      <Link href="/progress" className="px-4 py-2 text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:text-white dark:hover:bg-white/10 rounded-lg font-medium transition-all">
                         Progress
                       </Link>
                       {isNavHrefDisabled('/certificates') ? (
-                        <span className="px-4 py-2 text-nav-muted/60 cursor-not-allowed rounded-lg font-medium" title="Coming soon">
+                        <span className="px-4 py-2 text-neutral-400 cursor-not-allowed rounded-lg font-medium" title="Coming soon">
                           Certificates <span className="text-[10px] ml-1 opacity-80">Soon</span>
                         </span>
                       ) : (
-                        <Link href="/certificates" className="px-4 py-2 text-nav-muted hover:text-nav-text hover:bg-white/10 rounded-lg font-medium transition-all">
+                        <Link href="/certificates" className="px-4 py-2 text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:text-white dark:hover:bg-white/10 rounded-lg font-medium transition-all">
                           Certificates
                         </Link>
                       )}
                       {isNavHrefDisabled('/community') ? (
-                        <span className="px-4 py-2 text-nav-muted/60 cursor-not-allowed rounded-lg font-medium" title="Coming soon">
+                        <span className="px-4 py-2 text-neutral-400 cursor-not-allowed rounded-lg font-medium" title="Coming soon">
                           Community <span className="text-[10px] ml-1 opacity-80">Soon</span>
                         </span>
                       ) : (
-                        <Link href="/community" className="px-4 py-2 text-nav-muted hover:text-nav-text hover:bg-white/10 rounded-lg font-medium transition-all">
+                        <Link href="/community" className="px-4 py-2 text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:text-white dark:hover:bg-white/10 rounded-lg font-medium transition-all">
                           Community
                         </Link>
                       )}
@@ -207,18 +210,18 @@ export default function Header() {
                   )}
                   {user?.role === 'admin' && (
                     <>
-                      <Link href="/admin" className="px-4 py-2 text-nav-muted hover:text-nav-text hover:bg-white/10 rounded-lg font-medium transition-all">
+                      <Link href="/admin" className="px-4 py-2 text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:text-white dark:hover:bg-white/10 rounded-lg font-medium transition-all">
                         Admin
                       </Link>
-                      <Link href="/progress" className="px-4 py-2 text-nav-muted hover:text-nav-text hover:bg-white/10 rounded-lg font-medium transition-all">
+                      <Link href="/progress" className="px-4 py-2 text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:text-white dark:hover:bg-white/10 rounded-lg font-medium transition-all">
                         Progress
                       </Link>
                       {isNavHrefDisabled('/certificates') ? (
-                        <span className="px-4 py-2 text-nav-muted/60 cursor-not-allowed rounded-lg font-medium" title="Coming soon">
+                        <span className="px-4 py-2 text-neutral-400 cursor-not-allowed rounded-lg font-medium" title="Coming soon">
                           Certificates <span className="text-[10px] ml-1 opacity-80">Soon</span>
                         </span>
                       ) : (
-                        <Link href="/certificates" className="px-4 py-2 text-nav-muted hover:text-nav-text hover:bg-white/10 rounded-lg font-medium transition-all">
+                        <Link href="/certificates" className="px-4 py-2 text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:text-white dark:hover:bg-white/10 rounded-lg font-medium transition-all">
                           Certificates
                         </Link>
                       )}
@@ -236,10 +239,10 @@ export default function Header() {
               <div className="relative" ref={notificationsRef}>
                 <button
                   onClick={() => setNotificationsOpen(!notificationsOpen)}
-                  className="relative p-1.5 sm:p-2 rounded-lg transition-colors hover:bg-white/10 text-nav-muted"
+                  className="relative p-1.5 sm:p-2 rounded-lg transition-colors hover:bg-neutral-100 dark:hover:bg-white/10 text-neutral-600 dark:text-neutral-300"
                   aria-label="Notifications"
                 >
-                  <svg className="w-4 h-4 sm:w-5 sm:h-5 text-nav-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                   </svg>
                   {unreadCount > 0 && (
@@ -267,18 +270,24 @@ export default function Header() {
                     {/* Notifications List - Scrollable */}
                     <div className="overflow-y-auto flex-1 min-h-0">
                       {loadingNotifications ? (
-                        <div className="px-3 sm:px-4 py-6 sm:py-8 text-center">
-                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600 mx-auto"></div>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Loading...</p>
+                        <div className="space-y-3 px-4 py-4">
+                          <InlineLoader label="Loading notifications" />
+                          <div className="orbit-skeleton h-10 rounded-lg" />
+                          <div className="orbit-skeleton h-10 rounded-lg" />
+                          <div className="orbit-skeleton h-10 rounded-lg" />
                         </div>
                       ) : notifications.length > 0 ? (
                         notifications.map((notification) => (
                           <div
                             key={notification._id}
-                            onClick={() => !notification.read && handleMarkAsRead(notification._id)}
+                            onClick={() => {
+                              if (!notification.read) handleMarkAsRead(notification._id);
+                              const destination = notificationDestination(notification);
+                              if (destination) router.push(destination);
+                            }}
                             className={`px-3 sm:px-4 py-2.5 sm:py-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer border-l-2 ${
                               !notification.read 
-                                ? 'bg-blue-50 dark:bg-blue-900/20 border-primary-500' 
+                                ? 'bg-primary-50 dark:bg-primary-950/40 border-primary-500' 
                                 : 'border-transparent'
                             }`}
                           >
@@ -315,12 +324,10 @@ export default function Header() {
               <div className="relative" ref={languageRef}>
                 <button
                   onClick={() => setLanguageOpen(!languageOpen)}
-                  className="flex items-center space-x-1.5 px-2 py-1 rounded-lg transition-colors hover:bg-white/10 text-nav-muted"
+                  className="flex items-center space-x-1.5 px-2 py-1 rounded-lg transition-colors hover:bg-neutral-100 dark:hover:bg-white/10 text-neutral-600 dark:text-neutral-300"
                   aria-label="Language"
                 >
-                  <span className="text-lg">
-                    {languages.find((l) => l.code === selectedLanguage)?.flag || '🌐'}
-                  </span>
+                  <Languages className="h-5 w-5" aria-hidden />
                   <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
@@ -333,10 +340,9 @@ export default function Header() {
                         key={lang.code}
                         onClick={() => handleLanguageChange(lang.code)}
                         className={`w-full flex items-center space-x-3 px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-left ${
-                          selectedLanguage === lang.code ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+                          selectedLanguage === lang.code ? 'bg-primary-50 dark:bg-primary-950/40' : ''
                         }`}
                       >
-                        <span className="text-xl">{lang.flag}</span>
                         <span className="text-sm text-gray-900 dark:text-white">{lang.name}</span>
                         {selectedLanguage === lang.code && (
                           <svg className="w-4 h-4 text-primary-600 dark:text-primary-400 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -353,15 +359,15 @@ export default function Header() {
             {/* Dark Mode Toggle */}
             <button
               onClick={toggleTheme}
-              className="p-1.5 rounded-lg transition-colors hover:bg-white/10 text-nav-muted"
+              className="p-1.5 rounded-lg transition-colors hover:bg-neutral-100 dark:hover:bg-white/10 text-neutral-600 dark:text-neutral-300"
               aria-label="Toggle dark mode"
             >
               {isDark ? (
-                <svg className="w-5 h-5 text-nav-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
                 </svg>
               ) : (
-                <svg className="w-5 h-5 text-nav-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
                 </svg>
               )}
@@ -371,12 +377,12 @@ export default function Header() {
               <div className="relative">
                 <button
                   onClick={() => setMenuOpen(!menuOpen)}
-                  className="flex items-center space-x-2 px-2 py-1 rounded-lg transition-colors hover:bg-white/10"
+                  className="flex items-center space-x-2 px-2 py-1 rounded-lg transition-colors hover:bg-neutral-100 dark:hover:bg-white/10"
                 >
-                  <div className="w-8 h-8 sm:w-9 sm:h-9 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-full flex items-center justify-center text-white font-bold text-xs sm:text-sm shadow-md">
+                  <div className="w-8 h-8 sm:w-9 sm:h-9 bg-primary-400 rounded-full flex items-center justify-center text-neutral-900 font-bold text-xs sm:text-sm">
                     {user?.name?.charAt(0).toUpperCase()}
                   </div>
-                  <span className="hidden lg:block text-nav-muted text-sm">{user?.name}</span>
+                  <span className="hidden lg:block text-neutral-700 dark:text-neutral-300 text-sm">{user?.name}</span>
                   <svg className="w-4 h-4 text-gray-400 hidden sm:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
@@ -412,10 +418,10 @@ export default function Header() {
               </div>
             ) : (
               <div className="flex items-center space-x-2">
-                <Link href="/login" className="px-3 sm:px-4 py-1.5 sm:py-2 text-sm sm:text-base text-nav-muted hover:text-nav-text border border-white/25 hover:border-white/45 rounded-lg transition-colors">
+                <Link href="/login" className="px-3 sm:px-4 py-1.5 sm:py-2 text-sm sm:text-base text-neutral-700 hover:text-neutral-900 border border-neutral-300 hover:border-neutral-400 rounded-lg transition-colors">
                   Login
                 </Link>
-                <Link href="/signup" className="px-3 sm:px-4 py-1.5 sm:py-2 text-sm sm:text-base bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-colors">
+                <Link href="/signup" className="px-3 sm:px-4 py-1.5 sm:py-2 text-sm sm:text-base bg-primary-400 hover:bg-primary-500 text-neutral-900 rounded-lg transition-colors font-medium">
                   Sign Up
                 </Link>
               </div>

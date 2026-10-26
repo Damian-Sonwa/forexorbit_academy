@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Message Reaction API Route
  * POST: Add reaction to a message
@@ -7,72 +8,50 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
-import { canAccessRoom } from '@/lib/learning-level';
+import { communityMember, decideCommunityMessageAccess, isStoredId } from '@/lib/account-access';
 
 async function addReaction(req: AuthRequest, res: NextApiResponse) {
   try {
     const { id } = req.query;
     const { emoji } = req.body as { emoji?: string };
 
-    if (!id || typeof id !== 'string' || !emoji || typeof emoji !== 'string') {
-      return res.status(400).json({ message: 'Message ID and emoji are required' });
+    if (!isStoredId(id) || !emoji || typeof emoji !== 'string') {
+      return res.status(400).json({ error: 'Message ID and emoji are required' });
     }
 
     const db = await getDb();
     const messages = db.collection('communityMessages');
     const users = db.collection('users');
 
-    // Get user info
-    const user = await users.findOne(
-      { _id: new ObjectId(req.user!.userId) },
-      { projection: { name: 1 } }
-    );
-
-    // Check if user already reacted with this emoji
     const message = await messages.findOne({ _id: new ObjectId(id) });
     if (!message) {
-      return res.status(404).json({ message: 'Message not found' });
+      return res.status(404).json({ error: 'Message not found' });
     }
 
     // Get room info to check access
+    if (!isStoredId(String(message.roomId))) {
+      return res.status(404).json({ error: 'Room not found' });
+    }
     const rooms = db.collection('communityRooms');
-    const room = await rooms.findOne({ _id: new ObjectId(message.roomId) });
+    const room = await rooms.findOne({ _id: new ObjectId(String(message.roomId)) });
     if (!room) {
-      return res.status(404).json({ message: 'Room not found' });
+      return res.status(404).json({ error: 'Room not found' });
     }
 
-    // Get user's learning level
     const userDoc = await users.findOne(
       { _id: new ObjectId(req.user!.userId) },
-      { projection: { learningLevel: 1, role: 1 } }
+      { projection: { learningLevel: 1, role: 1, studentDetails: 1, name: 1 } }
     );
-
-    // Determine user's learning level
-    // CRITICAL: Use tradingLevel from onboarding if learningLevel is not set
-    let userLevel: 'beginner' | 'intermediate' | 'advanced' = 'beginner';
-    if (userDoc?.role !== 'student') {
-      userLevel = 'advanced';
-    } else {
-      userLevel = (userDoc?.learningLevel as 'beginner' | 'intermediate' | 'advanced') || 
-                  (userDoc?.studentDetails?.tradingLevel as 'beginner' | 'intermediate' | 'advanced') || 
-                  'beginner';
-    }
-
-    // Check access for global rooms - students can ONLY access their exact level room
-    if (room.type === 'global' && ['Beginner', 'Intermediate', 'Advanced'].includes(room.name)) {
-      if (!canAccessRoom(userLevel, room.name, userDoc?.role)) {
-        return res.status(403).json({ message: 'Access denied. You can only access the community room for your current level.' 
-        });
-      }
-    }
-
-    // Check access for direct messages
-    if (room.type === 'direct' && !room.participants.includes(req.user!.userId)) {
-      return res.status(403).json({ message: 'Access denied' });
+    const access = decideCommunityMessageAccess({
+      member: communityMember(req.user!.userId, userDoc),
+      room,
+    });
+    if (!access.ok) {
+      return res.status(access.status).json({ error: access.error });
     }
 
     const existingReaction = (message.reactions as Array<{ userId: string; emoji: string }> | undefined)?.find(
-      (r) => r.userId === req.user!.userId && r.emoji === emoji
+      (r) => r.userId === access.senderId && r.emoji === emoji
     );
 
     if (existingReaction) {
@@ -81,7 +60,7 @@ async function addReaction(req: AuthRequest, res: NextApiResponse) {
         { _id: new ObjectId(id) },
         {
           $pull: {
-            reactions: { userId: req.user!.userId, emoji: emoji as string },
+            reactions: { userId: access.senderId, emoji: emoji as string },
           },
         } as any
       );
@@ -93,8 +72,8 @@ async function addReaction(req: AuthRequest, res: NextApiResponse) {
           $push: {
             reactions: {
               emoji: emoji as string,
-              userId: req.user!.userId,
-              userName: (user?.name as string) || 'Unknown',
+              userId: access.senderId,
+              userName: (userDoc?.name as string) || 'Unknown',
             },
           },
         } as any
@@ -102,9 +81,9 @@ async function addReaction(req: AuthRequest, res: NextApiResponse) {
     }
 
     res.json({ success: true });
-  } catch (error: unknown) {
-    console.error('Add reaction error:', error);
-    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+  } catch {
+    console.error(JSON.stringify({ event: 'communityReaction', result: 'failed' }));
+    res.status(500).json(unexpectedBody('api'));
   }
 }
 

@@ -6,6 +6,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { apiClient } from '@/lib/api-client';
 import { format } from 'date-fns';
+import { X } from 'lucide-react';
 
 interface BrokerAccount {
   accountId: string;
@@ -94,7 +95,7 @@ export default function TradingInterface() {
       });
       setPrices(mockPrices);
     } catch (error) {
-      console.error('Failed to load prices:', error);
+      console.error('Failed to load prices:');
     }
   }, []);
 
@@ -119,7 +120,7 @@ export default function TradingInterface() {
         setPerformance(performanceData);
       }
     } catch (error) {
-      console.error('Failed to load trading data:', error);
+      console.error('Failed to load trading data:');
     } finally {
       setLoading(false);
     }
@@ -198,7 +199,7 @@ export default function TradingInterface() {
 
         <div className="grid md:grid-cols-2 gap-4 max-w-2xl mx-auto">
           {/* OANDA Option */}
-          <div className="border-2 border-blue-200 rounded-xl p-6 bg-blue-50 hover:bg-blue-100 transition-colors">
+          <div className="border-2 border-neutral-200 rounded-xl p-6 bg-neutral-50 hover:bg-neutral-100 transition-colors">
             <div className="mb-4">
               <h4 className="text-lg font-bold text-gray-900 mb-2">OANDA Demo Account</h4>
               <p className="text-sm text-gray-600 mb-4">
@@ -209,7 +210,7 @@ export default function TradingInterface() {
               href="https://hub.oanda.com/apply/demo/"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-block w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium text-center transition-colors"
+              className="inline-block w-full px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium text-center transition-colors"
             >
               Create OANDA Demo Account →
             </a>
@@ -278,23 +279,23 @@ export default function TradingInterface() {
   return (
     <div className="space-y-6">
       {/* Account Summary */}
-      <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl p-6 text-white">
+      <div className="bg-primary-600 rounded-xl p-6 text-white">
         <h2 className="text-2xl font-bold mb-4">Account Summary</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div>
-            <p className="text-blue-100 text-sm">Balance</p>
+            <p className="text-neutral-500 text-sm">Balance</p>
             <p className="text-2xl font-bold">{account.currency} {account.balance.toFixed(2)}</p>
           </div>
           <div>
-            <p className="text-blue-100 text-sm">Margin Available</p>
+            <p className="text-neutral-500 text-sm">Margin Available</p>
             <p className="text-2xl font-bold">{account.currency} {(account.marginAvailable || 0).toFixed(2)}</p>
           </div>
           <div>
-            <p className="text-blue-100 text-sm">Margin Used</p>
+            <p className="text-neutral-500 text-sm">Margin Used</p>
             <p className="text-2xl font-bold">{account.currency} {(account.marginUsed || 0).toFixed(2)}</p>
           </div>
           <div>
-            <p className="text-blue-100 text-sm">Open Positions</p>
+            <p className="text-neutral-500 text-sm">Open Positions</p>
             <p className="text-2xl font-bold">{account.openTrades || 0}</p>
           </div>
         </div>
@@ -325,11 +326,11 @@ export default function TradingInterface() {
             </div>
             <div>
               <p className="text-gray-600 text-sm">Consistency</p>
-              <p className="text-2xl font-bold text-blue-600">{performance.consistencyScore.toFixed(0)}</p>
+              <p className="text-2xl font-bold text-primary-600">{performance.consistencyScore.toFixed(0)}</p>
             </div>
             <div>
               <p className="text-gray-600 text-sm">Risk Management</p>
-              <p className="text-2xl font-bold text-purple-600">{performance.riskManagementScore.toFixed(0)}</p>
+              <p className="text-2xl font-bold text-primary-600">{performance.riskManagementScore.toFixed(0)}</p>
             </div>
           </div>
         </div>
@@ -454,8 +455,9 @@ export default function TradingInterface() {
                 <button
                   onClick={() => setShowOrderModal(false)}
                   className="text-gray-400 hover:text-gray-600"
+                  aria-label="Close"
                 >
-                  ✕
+                  <X className="h-5 w-5" aria-hidden />
                 </button>
               </div>
 

@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Reminder Check API Route
  * Checks for due reminders and triggers notifications
@@ -10,19 +11,21 @@ import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 import { createNotification } from '@/lib/notifications';
+import { dueReminderWindow } from '@/lib/class-notifications';
 
 async function checkReminders(req: AuthRequest, res: NextApiResponse) {
   try {
     // Only allow admin/superadmin or system calls
     if (req.user!.role !== 'admin' && req.user!.role !== 'superadmin') {
-      return res.status(403).json({ message: 'Unauthorized' });
+      return res.status(403).json({ error: 'Unauthorized' });
     }
 
     const db = await getDb();
     const reminders = db.collection('reminders');
 
-    const now = new Date();
-    const fifteenMinutesFromNow = new Date(now.getTime() + 15 * 60 * 1000);
+    const window = dueReminderWindow(new Date(), 15);
+    const now = window.start;
+    const fifteenMinutesFromNow = window.end;
 
     // Find reminders that are due within the next 15 minutes and not completed
     const dueReminders = await reminders
@@ -79,7 +82,7 @@ async function checkReminders(req: AuthRequest, res: NextApiResponse) {
           }
         }
       } catch (error) {
-        console.error(`Failed to create notification for reminder ${reminder._id}:`, error);
+        console.error(`Failed to create notification for reminder ${reminder._id}:`);
         // Continue with other reminders
       }
     }
@@ -90,8 +93,8 @@ async function checkReminders(req: AuthRequest, res: NextApiResponse) {
       notificationsCreated: notificationsCreated.length,
     });
   } catch (error: unknown) {
-    console.error('Check reminders error:', error);
-    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+    console.error(JSON.stringify({ event: 'reminders.check', result: 'failed' }));
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 

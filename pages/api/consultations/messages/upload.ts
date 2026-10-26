@@ -1,3 +1,4 @@
+import { publicUploadFailure } from '@/lib/public-error';
 /**
  * Consultation Message File Upload API Route
  * Handles file uploads for consultation messages (images, videos, documents, audio)
@@ -38,7 +39,7 @@ async function uploadMessageFile(req: AuthRequest, res: NextApiResponse) {
     const type = Array.isArray(fields.type) ? fields.type[0] : fields.type;
 
     if (!file || !sessionId || !type) {
-      return res.status(400).json({ message: 'File, sessionId, and type are required' });
+      return res.status(400).json({ error: 'File, sessionId, and type are required' });
     }
 
     // Generate unique filename
@@ -61,20 +62,20 @@ async function uploadMessageFile(req: AuthRequest, res: NextApiResponse) {
     const session = await sessions.findOne({ _id: new ObjectId(sessionId) });
 
     if (!session) {
-      return res.status(404).json({ message: 'Session not found' });
+      return res.status(404).json({ error: 'Session not found' });
     }
 
     if (req.user!.role === 'student' && session.studentId !== req.user!.userId) {
-      return res.status(403).json({ message: 'Access denied' });
+      return res.status(403).json({ error: 'Access denied' });
     }
 
     if ((req.user!.role === 'instructor' || req.user!.role === 'admin' || req.user!.role === 'superadmin') 
         && session.expertId !== req.user!.userId) {
-      return res.status(403).json({ message: 'Access denied' });
+      return res.status(403).json({ error: 'Access denied' });
     }
 
     if (session.status !== 'active') {
-      return res.status(400).json({ message: 'Session is not active' });
+      return res.status(400).json({ error: 'Session is not active' });
     }
 
     // Get sender info
@@ -128,11 +129,8 @@ async function uploadMessageFile(req: AuthRequest, res: NextApiResponse) {
       },
     });
   } catch (error: any) {
-    console.error('Upload consultation message file error:', error);
-    if (error.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json({ message: 'File size exceeds 50MB limit' });
-    }
-    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+    const failure = publicUploadFailure(error, { limitMessage: 'File size exceeds 50MB limit' });
+    return res.status(failure.status).json(failure.body);
   }
 }
 

@@ -15,7 +15,20 @@ const { createServer } = require('http');
 const { parse } = require('url');
 const next = require('next');
 const { Server } = require('socket.io');
-const jwt = require('jsonwebtoken');
+const { verifyToken, decideSessionBinding } = require('./lib/token-core');
+const {
+  decideAccountAccess,
+  decideCommunityRoomJoin,
+  decideCommunityTyping,
+  decideConsultationTyping,
+  decideLessonRoomAccess,
+  decideLessonChat,
+  decideLessonStaffNotify,
+  decideProgressUpdate,
+  decideCommunityPresence,
+  presenceOfflineTargets,
+  canJoinConsultation,
+} = require('./lib/account-access');
 
 // Validate environment variables (same URI as Next API: .env.local)
 const mongoUri = (process.env.MONGO_URI || process.env.MONGODB_URI)?.trim();
@@ -31,23 +44,9 @@ if (!process.env.JWT_SECRET) {
 
 // Log AI configuration status (without exposing the key)
 if (process.env.AI_API_KEY) {
-  const apiKeyPrefix = process.env.AI_API_KEY.substring(0, 7);
-  const apiKeyLength = process.env.AI_API_KEY.length;
-  console.log(`✓ AI_API_KEY configured (${apiKeyPrefix}...${apiKeyLength} chars)`);
-  if (!process.env.AI_API_KEY.startsWith('sk-')) {
-    console.warn('⚠ Warning: AI_API_KEY format may be invalid (should start with "sk-")');
-  }
+  console.log('AI API key is configured');
 } else {
-  console.warn('⚠ Warning: AI_API_KEY not configured. AI features will be disabled.');
-}
-
-// JWT verification for Socket.io
-function verifyToken(token) {
-  try {
-    return jwt.verify(token, process.env.JWT_SECRET);
-  } catch (error) {
-    throw new Error('Invalid or expired token');
-  }
+  console.warn('AI API key is not configured. AI features will be disabled.');
 }
 
 const dev = process.env.NODE_ENV !== 'production';
@@ -67,14 +66,14 @@ app.prepare().then(async () => {
     await seedRooms();
     console.log('✓ Community rooms seeded');
   } catch (error) {
-    console.warn('⚠ Failed to seed rooms (non-critical):', error.message);
+    console.warn('Failed to seed rooms');
   }
   const server = createServer(async (req, res) => {
     try {
       const parsedUrl = parse(req.url, true);
       await handle(req, res, parsedUrl);
     } catch (err) {
-      console.error('Error occurred handling', req.url, err);
+      console.error('Error occurred handling request');
       res.statusCode = 500;
       res.end('internal server error');
     }
@@ -97,6 +96,8 @@ app.prepare().then(async () => {
   
   // CRITICAL: Socket.IO configuration for Render WebSocket support
   // MUST allow polling → websocket upgrade for Render compatibility
+  // Canonical Socket.IO server. The package scripts start this file.
+  // A Next.js API route must not attach another server.
   const io = new Server(server, {
     path: '/api/socket',
     cors: {
@@ -153,7 +154,30 @@ app.prepare().then(async () => {
         return next(new Error('Authentication error'));
       }
       const payload = verifyToken(token);
-      socket.data.user = payload;
+      const { ObjectId } = require('mongodb');
+      if (!payload || !payload.userId || !ObjectId.isValid(payload.userId)) {
+        return next(new Error('Authentication error'));
+      }
+      const { getDb } = require('./lib/mongodb');
+      const db = await getDb();
+      const record = await db.collection('users').findOne(
+        { _id: new ObjectId(payload.userId) },
+        { projection: { email: 1, role: 1, status: 1, sessionGeneration: 1 } }
+      );
+      const decision = decideAccountAccess({ userId: String(payload.userId), record });
+      if (!decision.ok) {
+        return next(new Error('Authentication error'));
+      }
+      const session = decideSessionBinding({
+        userId: decision.user.userId,
+        binding: payload.sv,
+        generation: record.sessionGeneration,
+        key: process.env.JWT_SECRET || '',
+      });
+      if (!session.ok) {
+        return next(new Error('Authentication error'));
+      }
+      socket.data.user = decision.user;
       next();
     } catch (error) {
       next(new Error('Authentication error'));
@@ -163,282 +187,433 @@ app.prepare().then(async () => {
   // Socket.io connection handler
   io.on('connection', async (socket) => {
     const user = socket.data.user;
-    console.log(`User connected: ${user.email}`);
+    console.log('User connected');
     
     // Join user's personal room for targeted notifications
     socket.join(`user:${user.userId}`);
-    console.log(`User ${user.email} joined personal notification room: user:${user.userId}`);
+    console.log(`User joined personal notification room: user:${user.userId}`);
 
-    // Join lesson room
-    socket.on('joinLesson', (lessonId) => {
-      socket.join(`lesson:${lessonId}`);
-    });
-
-    // Leave lesson room
-    socket.on('leaveLesson', (lessonId) => {
-      socket.leave(`lesson:${lessonId}`);
-    });
-
-    // Handle chat messages
-    socket.on('chatMessage', async (data) => {
+    async function loadLessonContext(lessonId) {
       try {
         const { getDb } = require('./lib/mongodb');
-        const db = await getDb();
-        const messages = db.collection('messages');
         const { ObjectId } = require('mongodb');
-        const users = db.collection('users');
-
-        const userDoc = await users.findOne(
+        if (typeof lessonId !== 'string' || !ObjectId.isValid(lessonId)) {
+          return { member: null, lesson: null, course: null, enrollment: null };
+        }
+        const db = await getDb();
+        const record = await db.collection('users').findOne(
           { _id: new ObjectId(user.userId) },
-          { projection: { name: 1 } }
+          { projection: { email: 1, role: 1, status: 1, name: 1 } }
         );
-
-        const message = {
-          lessonId: data.lessonId,
-          userId: user.userId,
-          senderName: userDoc?.name || 'Anonymous',
-          text: data.text,
-          createdAt: new Date(),
+        const account = decideAccountAccess({ userId: user.userId, record });
+        const lesson = await db.collection('lessons').findOne(
+          { _id: new ObjectId(lessonId) },
+          { projection: { courseId: 1, requiredLevel: 1 } }
+        );
+        let course = null;
+        let enrollment = null;
+        if (lesson && lesson.courseId != null && ObjectId.isValid(String(lesson.courseId))) {
+          course = await db.collection('courses').findOne(
+            { _id: new ObjectId(String(lesson.courseId)) },
+            { projection: { instructorId: 1, difficulty: 1 } }
+          );
+          if (account.ok && course) {
+            const courseId = String(course._id);
+            enrollment = await db.collection('progress').findOne({
+              userId: account.user.userId,
+              $or: [{ courseId }, { courseId: course._id }],
+            });
+          }
+        }
+        return {
+          member: account.ok ? {
+            userId: account.user.userId,
+            role: account.user.role,
+            email: account.user.email,
+            name: record && typeof record.name === 'string' ? record.name : '',
+          } : null,
+          lesson,
+          course,
+          enrollment,
         };
+      } catch {
+        console.error(JSON.stringify({ event: 'lessonAccess', result: 'lookup_failed' }));
+        return { lookupError: true };
+      }
+    }
 
-        const result = await messages.insertOne(message);
+    function lessonAccessDecision(loaded) {
+      return decideLessonRoomAccess({
+        member: loaded.member,
+        lesson: loaded.lesson,
+        course: loaded.course,
+        enrollment: loaded.enrollment,
+        lookupError: Boolean(loaded.lookupError),
+      });
+    }
 
-        io.to(`lesson:${data.lessonId}`).emit('chatMessage', {
-          id: result.insertedId.toString(),
-          ...message,
+    // Drop sockets whose enrollment or account is no longer valid before a lesson event is sent.
+    async function dropUnauthorizedLessonMembers(channel, lesson, course) {
+      const sockets = await io.in(channel).fetchSockets();
+      const { getDb } = require('./lib/mongodb');
+      const { ObjectId } = require('mongodb');
+      const db = await getDb();
+      const decisions = new Map();
+      for (const memberSocket of sockets) {
+        const socketUser = memberSocket.data && memberSocket.data.user;
+        const userId = socketUser && socketUser.userId;
+        if (!userId || !ObjectId.isValid(String(userId))) {
+          memberSocket.leave(channel);
+          continue;
+        }
+        if (!decisions.has(String(userId))) {
+          try {
+            const record = await db.collection('users').findOne(
+              { _id: new ObjectId(String(userId)) },
+              { projection: { email: 1, role: 1, status: 1 } }
+            );
+            const account = decideAccountAccess({ userId: String(userId), record });
+            let enrollment = null;
+            if (account.ok && account.user.role === 'student' && course && course._id != null) {
+              const courseId = String(course._id);
+              enrollment = await db.collection('progress').findOne({
+                userId: account.user.userId,
+                $or: [{ courseId }, { courseId: course._id }],
+              });
+            }
+            decisions.set(String(userId), decideLessonRoomAccess({
+              member: account.ok ? account.user : null,
+              lesson,
+              course,
+              enrollment,
+            }));
+          } catch {
+            memberSocket.leave(channel);
+            continue;
+          }
+        }
+        const decision = decisions.get(String(userId));
+        if (!decision || !decision.ok) memberSocket.leave(channel);
+      }
+    }
+
+    // Join lesson room only after the current account can access the stored lesson.
+    socket.on('joinLesson', async (lessonId) => {
+      const loaded = await loadLessonContext(lessonId);
+      const decision = lessonAccessDecision(loaded);
+      if (loaded.lesson && loaded.lesson._id != null && !decision.ok) {
+        socket.leave(`lesson:${String(loaded.lesson._id)}`);
+      }
+      if (!decision.ok) return;
+      socket.join(decision.lessonChannel);
+    });
+
+    // Leave the stored lesson room. A client id is not a room name.
+    socket.on('leaveLesson', async (lessonId) => {
+      const loaded = await loadLessonContext(lessonId);
+      if (loaded.lookupError || !loaded.lesson || loaded.lesson._id == null) return;
+      const channel = `lesson:${String(loaded.lesson._id)}`;
+      if (socket.rooms.has(channel)) socket.leave(channel);
+    });
+
+    // Lesson chat. Sender name and id come from the reloaded account.
+    socket.on('chatMessage', async (data) => {
+      const lessonId = data && typeof data.lessonId === 'string' ? data.lessonId : '';
+      const text = data && typeof data.text === 'string' ? data.text : '';
+      try {
+        const loaded = await loadLessonContext(lessonId);
+        const decision = decideLessonChat({
+          member: loaded.member,
+          lesson: loaded.lesson,
+          course: loaded.course,
+          enrollment: loaded.enrollment,
+          text,
+          lookupError: Boolean(loaded.lookupError),
         });
-      } catch (error) {
-        console.error('Chat message error:', error);
+        if (!decision.ok) return;
+        await dropUnauthorizedLessonMembers(decision.channel, loaded.lesson, loaded.course);
+
+        const { getDb } = require('./lib/mongodb');
+        const db = await getDb();
+        const createdAt = new Date();
+        const result = await db.collection('messages').insertOne({
+          lessonId: decision.lessonId,
+          userId: decision.sender.userId,
+          senderName: decision.sender.senderName,
+          text: decision.text,
+          createdAt,
+        });
+
+        io.to(decision.channel).emit('chatMessage', {
+          id: result.insertedId.toString(),
+          lessonId: decision.lessonId,
+          userId: decision.sender.userId,
+          senderName: decision.sender.senderName,
+          text: decision.text,
+          createdAt,
+        });
+      } catch {
+        console.error(JSON.stringify({ event: 'chatMessage', result: 'failed' }));
       }
     });
 
-    // Handle progress updates
+    // Student progress. The stored lesson and the existing enrollment choose the record.
     socket.on('progressUpdate', async (data) => {
+      const courseId = data && typeof data.courseId === 'string' ? data.courseId : '';
+      const lessonId = data && typeof data.lessonId === 'string' ? data.lessonId : '';
       try {
         const { getDb } = require('./lib/mongodb');
+        const { ObjectId } = require('mongodb');
+        if (!ObjectId.isValid(courseId) || !ObjectId.isValid(lessonId)) return;
         const db = await getDb();
-        const progress = db.collection('progress');
-        const lessons = db.collection('lessons');
-
-        let courseProgress = await progress.findOne({
-          userId: user.userId,
-          courseId: data.courseId,
-        });
-
-        const completedLessons = courseProgress?.completedLessons || [];
-        if (!completedLessons.includes(data.lessonId)) {
-          completedLessons.push(data.lessonId);
-        }
-
-        const courseLessons = await lessons.find({ courseId: data.courseId }).toArray();
-        const progressPercent = courseLessons.length > 0 
-          ? (completedLessons.length / courseLessons.length) * 100 
-          : 0;
-
-        if (courseProgress) {
-          await progress.updateOne(
-            { userId: user.userId, courseId: data.courseId },
-            {
-              $set: {
-                completedLessons,
-                progress: progressPercent,
-                updatedAt: new Date(),
-              },
-            }
-          );
-        } else {
-          await progress.insertOne({
-            userId: user.userId,
-            courseId: data.courseId,
-            completedLessons,
-            progress: progressPercent,
-            createdAt: new Date(),
-            updatedAt: new Date(),
+        const record = await db.collection('users').findOne(
+          { _id: new ObjectId(user.userId) },
+          { projection: { email: 1, role: 1, status: 1 } }
+        );
+        const account = decideAccountAccess({ userId: user.userId, record });
+        const course = await db.collection('courses').findOne(
+          { _id: new ObjectId(courseId) },
+          { projection: { instructorId: 1 } }
+        );
+        const lesson = await db.collection('lessons').findOne(
+          { _id: new ObjectId(lessonId) },
+          { projection: { courseId: 1 } }
+        );
+        let enrollment = null;
+        if (account.ok && course) {
+          enrollment = await db.collection('progress').findOne({
+            userId: account.user.userId,
+            $or: [{ courseId: String(course._id) }, { courseId: course._id }],
           });
         }
+        const decision = decideProgressUpdate({
+          member: account.ok ? account.user : null,
+          course,
+          lesson,
+          enrollment,
+        });
+        if (!decision.ok) return;
 
+        const progress = db.collection('progress');
+        const courseProgress = await progress.findOne({
+          userId: decision.userId,
+          courseId: decision.courseId,
+        });
+        if (!courseProgress) return;
+
+        const completedLessons = Array.isArray(courseProgress.completedLessons)
+          ? courseProgress.completedLessons.slice()
+          : [];
+        if (!completedLessons.includes(decision.lessonId)) {
+          completedLessons.push(decision.lessonId);
+        }
+        const courseLessons = await db.collection('lessons').find({ courseId: decision.courseId }).toArray();
+        const progressPercent = courseLessons.length > 0
+          ? (completedLessons.length / courseLessons.length) * 100
+          : 0;
+
+        await progress.updateOne(
+          { userId: decision.userId, courseId: decision.courseId },
+          {
+            $set: {
+              completedLessons,
+              progress: progressPercent,
+              updatedAt: new Date(),
+            },
+          }
+        );
         socket.emit('progressUpdated', {
-          courseId: data.courseId,
+          courseId: decision.courseId,
           progress: progressPercent,
         });
-      } catch (error) {
-        console.error('Progress update error:', error);
+      } catch {
+        console.error(JSON.stringify({ event: 'progressUpdate', result: 'failed' }));
       }
     });
 
-    // Handle lesson updates (from instructor dashboard)
+    // Client-originated refresh notices from instructor and admin screens.
+    // The stored lesson and course ids choose the rooms.
     socket.on('lessonUpdated', async (data) => {
+      const lessonId = data && typeof data.lessonId === 'string' ? data.lessonId : '';
       try {
-        // Broadcast to all users watching this course/lesson
-        io.to(`course:${data.courseId}`).emit('lessonUpdated', {
-          lessonId: data.lessonId,
-          courseId: data.courseId,
+        const loaded = await loadLessonContext(lessonId);
+        const decision = decideLessonStaffNotify({
+          member: loaded.member,
+          lesson: loaded.lesson,
+          course: loaded.course,
+          lookupError: Boolean(loaded.lookupError),
         });
-        io.to(`lesson:${data.lessonId}`).emit('lessonUpdated', {
-          lessonId: data.lessonId,
-          courseId: data.courseId,
-        });
-        console.log(`Lesson ${data.lessonId} updated in course ${data.courseId}`);
-      } catch (error) {
-        console.error('Lesson update notification error:', error);
+        if (!decision.ok) return;
+        await dropUnauthorizedLessonMembers(decision.lessonChannel, loaded.lesson, loaded.course);
+        await dropUnauthorizedLessonMembers(decision.courseChannel, loaded.lesson, loaded.course);
+        const payload = { lessonId: decision.lessonId, courseId: decision.courseId };
+        io.to(decision.courseChannel).emit('lessonUpdated', payload);
+        io.to(decision.lessonChannel).emit('lessonUpdated', payload);
+      } catch {
+        console.error(JSON.stringify({ event: 'lessonUpdated', result: 'failed' }));
       }
     });
 
-    // Handle quiz updates (from instructor dashboard)
+    // Client-originated quiz refresh. Students cannot emit it.
     socket.on('quizUpdated', async (data) => {
+      const lessonId = data && typeof data.lessonId === 'string' ? data.lessonId : '';
       try {
-        // Broadcast to all users watching this lesson
-        io.to(`lesson:${data.lessonId}`).emit('quizUpdated', {
-          lessonId: data.lessonId,
+        const loaded = await loadLessonContext(lessonId);
+        const decision = decideLessonStaffNotify({
+          member: loaded.member,
+          lesson: loaded.lesson,
+          course: loaded.course,
+          lookupError: Boolean(loaded.lookupError),
         });
-        console.log(`Quiz updated for lesson ${data.lessonId}`);
-      } catch (error) {
-        console.error('Quiz update notification error:', error);
+        if (!decision.ok) return;
+        await dropUnauthorizedLessonMembers(decision.lessonChannel, loaded.lesson, loaded.course);
+        io.to(decision.lessonChannel).emit('quizUpdated', {
+          lessonId: decision.lessonId,
+        });
+      } catch {
+        console.error(JSON.stringify({ event: 'quizUpdated', result: 'failed' }));
       }
     });
 
-    // Community room handlers - Validate room exists and user has access
+    // Community rooms. Level-gated rooms require a successful database lookup.
+    // community_global is the shared public socket room and does not use that lookup.
     socket.on('joinRoom', async (data) => {
-      const { roomId } = data;
+      const roomId = data && typeof data.roomId === 'string' ? data.roomId : '';
       if (!roomId) {
-        console.warn('joinRoom called without roomId');
         socket.emit('error', { message: 'Room ID is required' });
         return;
       }
 
-      try {
-        // Check if room exists in database (skip check for community_global which is a socket room)
-        if (roomId !== 'community_global') {
-          let room = null;
-          let actualRoomId = roomId;
-          
-          // Validate room in database and check user access
-          try {
-            // Use the JavaScript version for server.js (explicitly use .js extension)
-            const { getDb } = require('./lib/mongodb.js');
-            const { ObjectId } = require('mongodb');
-            const db = await getDb();
-            const rooms = db.collection('communityRooms');
-            const users = db.collection('users');
-            
-            // Handle both ObjectId and string roomId
-            if (roomId.match(/^[0-9a-fA-F]{24}$/)) {
-              // Valid ObjectId format
-              room = await rooms.findOne({ _id: new ObjectId(roomId), type: 'global' });
-            } else {
-              // String format - try to find by name or _id as string
-              room = await rooms.findOne({ 
-                $or: [
-                  { _id: roomId },
-                  { name: roomId },
-                  { slug: roomId }
-                ],
-                type: 'global'
-              });
-            }
-            
-            if (!room) {
-              console.warn(`Room not found in database: ${roomId}`);
-              socket.emit('error', { message: 'Room not found' });
-              return;
-            }
-            
-            actualRoomId = room._id.toString();
-            
-            // CRITICAL: Validate room access for students
-            if (user.role === 'student') {
-              // Get user's learning level from database
-              const userDoc = await users.findOne(
-                { _id: new ObjectId(user.userId) },
-                { projection: { learningLevel: 1, studentDetails: 1 } }
-              );
-              
-              const userLevel = userDoc?.learningLevel || 
-                              userDoc?.studentDetails?.tradingLevel;
-              
-              if (!userLevel) {
-                console.warn(`Student ${user.email} has no trading level - access denied`);
-                socket.emit('error', { message: 'Please complete onboarding to access community rooms' });
-                return;
-              }
-              
-              // Map level to room name
-              const levelRoomMap = {
-                'beginner': 'Beginner',
-                'intermediate': 'Intermediate',
-                'advanced': 'Advanced'
-              };
-              
-              const allowedRoomName = levelRoomMap[userLevel.toLowerCase()];
-              
-              // Validate that room matches user's level
-              if (room.name !== allowedRoomName) {
-                console.warn(`Student ${user.email} attempted to join ${room.name} but is assigned to ${allowedRoomName}`);
-                socket.emit('error', { message: 'Access restricted to your learning level' });
-                return;
-              }
-            }
-            // Instructors/admins can access all rooms - no validation needed
-            
-          } catch (dbError) {
-            // DB check failed - log error but allow join (fail-safe for production)
-            // This prevents blocking users if there's a temporary DB issue
-            console.error('Database check failed for room join:', dbError.message);
-            console.warn('Allowing room join without validation due to DB error');
-            // Set room to null to indicate DB validation was skipped
-            room = null;
-            // Don't reject - allow join to proceed but log the error
-            // In production, you may want to reject for security, but for now we'll allow it
-            // to prevent blocking users when DB is temporarily unavailable
-          }
-          
-          // Join room after validation passes (or if DB check was skipped)
-          socket.join(`room:${actualRoomId}`);
-          const roomName = room ? room.name : 'Room';
-          console.log(`User ${user.email} (${user.role}) joined room: ${actualRoomId}${room ? ` (${room.name})` : ' (DB validation skipped)'}`);
-          
-          // Emit confirmation with room ID
-          socket.emit('room_joined', { 
-            roomId: actualRoomId, 
-            roomName: roomName
-          });
-          
-          // Notify others in the room
-          socket.to(`room:${actualRoomId}`).emit('userJoined', {
-            userId: user.userId,
-            userName: user.email,
-            roomId: actualRoomId,
-          });
-        } else {
-          // community_global is a special socket room (not in database)
-          socket.join('room:community_global');
-          console.log(`User ${user.email} joined community_global room`);
-          socket.emit('room_joined', { roomId: 'community_global' });
+      if (roomId === 'community_global') {
+        const decision = decideCommunityRoomJoin({ user, roomId });
+        if (!decision.ok) {
+          socket.emit('error', { message: decision.error });
+          return;
         }
+        socket.join('room:community_global');
+        socket.emit('room_joined', { roomId: 'community_global', roomName: 'community_global' });
+        return;
+      }
+
+      try {
+        const { getDb } = require('./lib/mongodb.js');
+        const { ObjectId } = require('mongodb');
+        const db = await getDb();
+        const identity = await db.collection('users').findOne(
+          { _id: new ObjectId(user.userId) },
+          { projection: { email: 1, role: 1, status: 1, learningLevel: 1, studentDetails: 1 } }
+        );
+        const access = decideAccountAccess({ userId: user.userId, record: identity });
+        if (!access.ok) {
+          socket.emit('error', { message: 'Account is not active' });
+          return;
+        }
+
+        const rooms = db.collection('communityRooms');
+        const room = /^[0-9a-fA-F]{24}$/.test(roomId)
+          ? await rooms.findOne({ _id: new ObjectId(roomId), type: 'global' })
+          : await rooms.findOne({
+              $or: [{ _id: roomId }, { name: roomId }, { slug: roomId }],
+              type: 'global',
+            });
+        const decision = decideCommunityRoomJoin({
+          user: {
+            userId: access.user.userId,
+            role: access.user.role,
+            learningLevel: identity && identity.learningLevel,
+            tradingLevel: identity && identity.studentDetails && identity.studentDetails.tradingLevel,
+          },
+          roomId,
+          room,
+        });
+        if (!decision.ok) {
+          socket.emit('error', { message: decision.error });
+          return;
+        }
+
+        socket.join(`room:${decision.roomId}`);
+        socket.emit('room_joined', { roomId: decision.roomId, roomName: decision.roomName });
+        socket.to(`room:${decision.roomId}`).emit('userJoined', {
+          userId: access.user.userId,
+          userName: access.user.email,
+          roomId: decision.roomId,
+        });
       } catch (error) {
-        // Log detailed error for debugging
-        console.error('Error joining room:', error);
-        console.error('Error details:', {
-          message: error.message,
-          stack: error.stack,
-          roomId: data?.roomId,
-          userId: user?.userId,
-          userEmail: user?.email,
-        });
-        socket.emit('error', { 
-          message: 'Failed to join room',
-          details: process.env.NODE_ENV === 'development' ? error.message : undefined
-        });
+        console.error('Community room join lookup failed');
+        const decision = decideCommunityRoomJoin({ user, roomId, lookupError: true });
+        socket.emit('error', { message: decision.error });
       }
     });
 
-    socket.on('leaveRoom', (data) => {
-      const { roomId } = data;
-      socket.leave(`room:${roomId}`);
-      console.log(`User ${user.email} left room ${roomId}`);
-      socket.to(`room:${roomId}`).emit('userLeft', {
-        userId: user.userId,
-        roomId: roomId,
+    async function authorizeCommunityTyping(roomId) {
+      try {
+        const { getDb } = require('./lib/mongodb.js');
+        const { ObjectId } = require('mongodb');
+        const db = await getDb();
+        const identity = await db.collection('users').findOne(
+          { _id: new ObjectId(user.userId) },
+          { projection: { email: 1, role: 1, status: 1, learningLevel: 1, studentDetails: 1 } }
+        );
+        const access = decideAccountAccess({ userId: user.userId, record: identity });
+        let room = null;
+        if (access.ok && roomId && roomId !== 'community_global') {
+          const rooms = db.collection('communityRooms');
+          room = /^[0-9a-fA-F]{24}$/.test(roomId)
+            ? await rooms.findOne({ _id: new ObjectId(roomId), type: 'global' })
+            : await rooms.findOne({
+                $or: [{ _id: roomId }, { name: roomId }, { slug: roomId }],
+                type: 'global',
+              });
+        }
+        return decideCommunityTyping({
+          member: access.ok ? {
+            userId: access.user.userId,
+            role: access.user.role,
+            email: access.user.email,
+            learningLevel: identity && identity.learningLevel,
+            tradingLevel: identity && identity.studentDetails && identity.studentDetails.tradingLevel,
+          } : null,
+          roomId,
+          room,
+        });
+      } catch {
+        console.error('Typing authorization lookup failed');
+        return decideCommunityTyping({ roomId, lookupError: true });
+      }
+    }
+
+    async function authorizeConsultationTyping(sessionId) {
+      try {
+        const { getDb } = require('./lib/mongodb');
+        const { ObjectId } = require('mongodb');
+        if (!sessionId || !ObjectId.isValid(sessionId)) {
+          return decideConsultationTyping({ member: null, session: null });
+        }
+        const db = await getDb();
+        const record = await db.collection('users').findOne(
+          { _id: new ObjectId(user.userId) },
+          { projection: { email: 1, role: 1, status: 1 } }
+        );
+        const access = decideAccountAccess({ userId: user.userId, record });
+        const session = await db.collection('consultationSessions').findOne({ _id: new ObjectId(sessionId) });
+        return decideConsultationTyping({
+          member: access.ok ? access.user : null,
+          session,
+        });
+      } catch {
+        console.error('Consultation typing authorization lookup failed');
+        return decideConsultationTyping({ lookupError: true });
+      }
+    }
+
+    socket.on('leaveRoom', async (data) => {
+      const roomId = data && typeof data.roomId === 'string' ? data.roomId : '';
+      const decision = await authorizeCommunityTyping(roomId);
+      if (!decision.ok || !socket.rooms.has(decision.channel)) return;
+      socket.leave(decision.channel);
+      socket.to(decision.channel).emit('userLeft', {
+        userId: decision.user.userId,
+        roomId: decision.roomId,
       });
     });
 
@@ -452,68 +627,64 @@ app.prepare().then(async () => {
         return;
       }
 
-      // Always join the room immediately - socket.io creates it if it doesn't exist
-      // This is idempotent - joining an already-joined room is safe
-      socket.join(`consultation:${sessionId}`);
-      console.log(`User ${user.email} joined consultation room: ${sessionId}`);
-      
-      // Emit confirmation that room was joined
-      socket.emit('consultation_room_joined', { sessionId });
-
-      // Validate access asynchronously (non-blocking)
       try {
         const { getDb } = require('./lib/mongodb');
         const { ObjectId } = require('mongodb');
         const db = await getDb();
-        const sessions = db.collection('consultationSessions');
-
-        // Verify session exists and user has access
-        const session = await sessions.findOne({ _id: new ObjectId(sessionId) });
-        if (!session) {
-          console.warn(`Consultation session ${sessionId} not found in database`);
-          // Don't emit error - room is already joined, just log warning
+        const record = await db.collection('users').findOne(
+          { _id: new ObjectId(user.userId) },
+          { projection: { email: 1, role: 1, status: 1 } }
+        );
+        const decision = decideAccountAccess({ userId: user.userId, record });
+        const session = await db.collection('consultationSessions').findOne({ _id: new ObjectId(sessionId) });
+        if (!session || !decision.ok || !canJoinConsultation(decision.user, session)) {
+          console.warn(`User ${user.userId} cannot join consultation ${sessionId}`);
           return;
         }
 
-        // Check access: student can only join their sessions, instructor/admin can join their assigned sessions
-        const hasAccess = 
-          (user.role === 'student' && session.studentId === user.userId) ||
-          ((user.role === 'instructor' || user.role === 'admin' || user.role === 'superadmin') && 
-           (session.expertId === user.userId || user.role === 'admin' || user.role === 'superadmin'));
+        socket.join(`consultation:${sessionId}`);
+        socket.emit('consultation_room_joined', { sessionId });
 
-        if (!hasAccess) {
-          console.warn(`User ${user.email} attempted to join consultation ${sessionId} without access`);
-          // Don't emit error - room is already joined, just log warning
-          // Access control should be enforced at API level for message sending
-          return;
-        }
-
-        // Notify other participant that user joined
-        const otherUserId = user.role === 'student' ? session.expertId : session.studentId;
+        const otherUserId = decision.user.role === 'student' ? session.expertId : session.studentId;
         io.to(`user:${otherUserId}`).emit('consultationUserJoined', {
           sessionId,
           userId: user.userId,
         });
       } catch (error) {
-        console.error('Error validating consultation access:', error);
-        // Don't emit error - room is already joined, just log error
+        console.error('Error validating consultation access');
       }
     });
 
     // Auto-join consultation room when request is accepted
     // This ensures both parties are immediately connected for communication
-    socket.on('join_consultation_room', (data) => {
+    socket.on('join_consultation_room', async (data) => {
       const { sessionId } = data;
       if (!sessionId) {
         console.warn('join_consultation_room called without sessionId');
         return;
       }
 
-      // Join consultation room immediately - room is created automatically
+      try {
+        const { getDb } = require('./lib/mongodb');
+        const { ObjectId } = require('mongodb');
+        const db = await getDb();
+        const record = await db.collection('users').findOne(
+          { _id: new ObjectId(user.userId) },
+          { projection: { email: 1, role: 1, status: 1 } }
+        );
+        const decision = decideAccountAccess({ userId: user.userId, record });
+        const session = await db.collection('consultationSessions').findOne({ _id: new ObjectId(sessionId) });
+        if (!decision.ok || !canJoinConsultation(decision.user, session)) {
+          console.warn(`User ${user.userId} cannot auto-join consultation ${sessionId}`);
+          return;
+        }
+      } catch (error) {
+        console.error('Error validating consultation auto-join');
+        return;
+      }
+
       socket.join(`consultation:${sessionId}`);
-      console.log(`User ${user.email} auto-joined consultation room: ${sessionId}`);
-      
-      // Emit confirmation
+      console.log(`User auto-joined consultation room: ${sessionId}`);
       socket.emit('consultation_room_joined', { sessionId });
     });
 
@@ -521,19 +692,20 @@ app.prepare().then(async () => {
       const { sessionId } = data;
       if (sessionId) {
         socket.leave(`consultation:${sessionId}`);
-        console.log(`User ${user.email} left consultation ${sessionId}`);
+        console.log(`User left consultation ${sessionId}`);
       }
     });
 
     // WebRTC signaling removed - replaced with Agora SDK
 
-    // Typing indicators
-    socket.on('typing', (data) => {
-      const { roomId } = data;
-      socket.to(`room:${roomId}`).emit('typing', {
-        roomId,
-        userId: user.userId,
-        userName: user.email,
+    socket.on('typing', async (data) => {
+      const roomId = data && typeof data.roomId === 'string' ? data.roomId : '';
+      const decision = await authorizeCommunityTyping(roomId);
+      if (!decision.ok) return;
+      socket.to(decision.channel).emit('typing', {
+        roomId: decision.roomId,
+        userId: decision.user.userId,
+        userName: decision.user.email,
       });
     });
 
@@ -546,14 +718,22 @@ app.prepare().then(async () => {
         const sessions = db.collection('consultationSessions');
         const { ObjectId } = require('mongodb');
 
+        const record = await db.collection('users').findOne(
+          { _id: new ObjectId(user.userId) },
+          { projection: { email: 1, role: 1, status: 1 } }
+        );
+        const decision = decideAccountAccess({ userId: user.userId, record });
         const session = await sessions.findOne({ _id: new ObjectId(sessionId) });
+        if (!decision.ok) {
+          socket.emit('error', { message: 'Account is not active' });
+          return;
+        }
         if (!session) {
           socket.emit('error', { message: 'Session not found' });
           return;
         }
 
-        // Verify user has access
-        if (user.userId !== session.studentId && user.userId !== session.expertId) {
+        if (!canJoinConsultation(decision.user, session)) {
           socket.emit('error', { message: 'Access denied' });
           return;
         }
@@ -561,9 +741,9 @@ app.prepare().then(async () => {
         // Join user-specific room and session room
         socket.join(`user:${user.userId}`);
         socket.join(`consultation:${sessionId}`);
-        console.log(`User ${user.email} joined consultation ${sessionId}`);
+        console.log(`User joined consultation ${sessionId}`);
       } catch (error) {
-        console.error('Error joining consultation:', error);
+        console.error('Error joining consultation');
         socket.emit('error', { message: 'Failed to join consultation' });
       }
     });
@@ -571,49 +751,88 @@ app.prepare().then(async () => {
     socket.on('leaveConsultation', (data) => {
       const { sessionId } = data;
       socket.leave(`consultation:${sessionId}`);
-      console.log(`User ${user.email} left consultation ${sessionId}`);
+      console.log(`User left consultation ${sessionId}`);
     });
 
-    socket.on('consultationTyping', (data) => {
-      const { sessionId } = data;
-      socket.to(`consultation:${sessionId}`).emit('consultationTyping', {
-        sessionId,
-        userId: user.userId,
-        userName: user.email,
+    socket.on('consultationTyping', async (data) => {
+      const sessionId = data && typeof data.sessionId === 'string' ? data.sessionId : '';
+      const decision = await authorizeConsultationTyping(sessionId);
+      if (!decision.ok) return;
+      socket.to(decision.channel).emit('consultationTyping', {
+        sessionId: decision.sessionId,
+        userId: decision.user.userId,
+        userName: decision.user.email,
       });
     });
 
-    socket.on('consultationStopTyping', (data) => {
-      const { sessionId } = data;
-      socket.to(`consultation:${sessionId}`).emit('consultationStopTyping', {
-        sessionId,
-        userId: user.userId,
+    socket.on('consultationStopTyping', async (data) => {
+      const sessionId = data && typeof data.sessionId === 'string' ? data.sessionId : '';
+      const decision = await authorizeConsultationTyping(sessionId);
+      if (!decision.ok) return;
+      socket.to(decision.channel).emit('consultationStopTyping', {
+        sessionId: decision.sessionId,
+        userId: decision.user.userId,
       });
     });
 
-    socket.on('stopTyping', (data) => {
-      const { roomId } = data;
-      socket.to(`room:${roomId}`).emit('stopTyping', {
-        roomId,
-        userId: user.userId,
+    socket.on('stopTyping', async (data) => {
+      const roomId = data && typeof data.roomId === 'string' ? data.roomId : '';
+      const decision = await authorizeCommunityTyping(roomId);
+      if (!decision.ok) return;
+      socket.to(decision.channel).emit('stopTyping', {
+        roomId: decision.roomId,
+        userId: decision.user.userId,
       });
     });
 
-    // User online/offline status
-    socket.on('userOnline', () => {
-      // Broadcast to all rooms user is in
-      socket.broadcast.emit('userOnline', {
-        userId: user.userId,
-      });
+    // Community presence is limited to the learning-level rooms this account may open.
+    // Students hear one level. Staff hear every level room. The event payload is only a user id.
+    socket.on('userOnline', async () => {
+      try {
+        const { getDb } = require('./lib/mongodb.js');
+        const { ObjectId } = require('mongodb');
+        const db = await getDb();
+        const identity = await db.collection('users').findOne(
+          { _id: new ObjectId(user.userId) },
+          { projection: { email: 1, role: 1, status: 1, learningLevel: 1, studentDetails: 1 } }
+        );
+        const access = decideAccountAccess({ userId: user.userId, record: identity });
+        const rooms = access.ok
+          ? await db.collection('communityRooms').find(
+              { type: 'global' },
+              { projection: { name: 1 } }
+            ).toArray()
+          : [];
+        const decision = decideCommunityPresence({
+          member: access.ok ? {
+            userId: access.user.userId,
+            role: access.user.role,
+            learningLevel: identity && identity.learningLevel,
+            tradingLevel: identity && identity.studentDetails && identity.studentDetails.tradingLevel,
+          } : null,
+          rooms,
+        });
+        if (!decision.ok) return;
+        for (const channel of decision.channels) {
+          socket.join(channel);
+          socket.to(channel).emit('userOnline', { userId: decision.userId });
+        }
+      } catch {
+        console.error(JSON.stringify({ event: 'userOnline', result: 'lookup_failed' }));
+      }
+    });
+
+    socket.on('disconnecting', () => {
+      for (const room of presenceOfflineTargets(socket.rooms)) {
+        socket.to(room).emit('userOffline', {
+          userId: user.userId,
+          lastSeen: new Date().toISOString(),
+        });
+      }
     });
 
     socket.on('disconnect', () => {
-      console.log(`User disconnected: ${user.email}`);
-      // Broadcast offline status
-      socket.broadcast.emit('userOffline', {
-        userId: user.userId,
-        lastSeen: new Date(),
-      });
+      console.log('User disconnected');
     });
   });
 
@@ -652,7 +871,7 @@ app.prepare().then(async () => {
     console.log('');
   });
 }).catch((err) => {
-  console.error('❌ Failed to prepare Next.js app:', err);
+  console.error('Failed to prepare Next.js app');
   process.exit(1);
 });
 

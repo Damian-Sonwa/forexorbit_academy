@@ -47,7 +47,7 @@ export async function sendPasswordResetEmail(
       <p><strong>This link expires in 1 hour.</strong></p>
       <p style="margin:24px 0;">
         <a href="${escapeHtml(resetUrl)}" style="
-      background:#197278;
+      background:#B85C0E;
       color:white;
       padding:10px 15px;
       text-decoration:none;
@@ -86,13 +86,13 @@ export async function sendPasswordResetEmail(
     });
 
     if (error) {
-      console.error('❌ Resend API error:', error);
+      console.error('❌ Resend API error:');
       throw new Error(error.message || 'Resend send failed');
     }
 
     console.log('✅ Password reset email sent:', { id: data?.id, to: email });
   } catch (err: unknown) {
-    console.error('❌ Error sending password reset email:', err);
+    console.error('❌ Error sending password reset email:');
     console.log('Password reset URL for', email, ':', resetUrl);
     throw err;
   }

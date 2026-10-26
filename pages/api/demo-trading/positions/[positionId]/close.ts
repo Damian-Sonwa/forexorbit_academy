@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Close Position API Route
  * POST: Close an open position
@@ -12,13 +13,13 @@ async function closePosition(req: AuthRequest, res: NextApiResponse) {
   try {
     // Only students can close positions
     if (req.user!.role !== 'student') {
-      return res.status(403).json({ message: 'Only students can close positions' });
+      return res.status(403).json({ error: 'Only students can close positions' });
     }
 
     const { positionId } = req.query;
 
     if (!positionId || typeof positionId !== 'string') {
-      return res.status(400).json({ message: 'Position ID is required' });
+      return res.status(400).json({ error: 'Position ID is required' });
     }
 
     const db = await getDb();
@@ -27,12 +28,12 @@ async function closePosition(req: AuthRequest, res: NextApiResponse) {
     // Get student's demo account
     const account = await accounts.findOne({ studentId: req.user!.userId });
     if (!account) {
-      return res.status(404).json({ message: 'Demo account not found' });
+      return res.status(404).json({ error: 'Demo account not found' });
     }
 
     // CRITICAL: Verify this is a demo account
     if (!account.isDemo) {
-      return res.status(403).json({ message: 'Only demo accounts are allowed' });
+      return res.status(403).json({ error: 'Only demo accounts are allowed' });
     }
 
     const broker = BrokerFactory.createBroker(
@@ -60,8 +61,8 @@ async function closePosition(req: AuthRequest, res: NextApiResponse) {
 
     res.json(closeOrder);
   } catch (error: any) {
-    console.error('Close position error:', error);
-    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+    console.error('Close position error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 

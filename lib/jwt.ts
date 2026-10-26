@@ -3,41 +3,38 @@
  * Handles token generation and verification
  */
 
-import jwt from 'jsonwebtoken';
+import {
+  generateToken as signToken,
+  verifyToken as checkToken,
+  extractToken as readToken,
+  sessionBinding as bindSession,
+  decideSessionBinding as checkSessionBinding,
+  issueAuthToken as signAuthToken,
+} from './token-core';
+import type { TokenPayload } from './token-core';
 
-const JWT_SECRET = process.env.JWT_SECRET || '';
-
-export interface TokenPayload {
-  userId: string;
-  email: string;
-  role: 'superadmin' | 'admin' | 'instructor' | 'student';
-}
+export type { TokenPayload };
+export const sessionBinding = bindSession;
+export const decideSessionBinding = checkSessionBinding;
+export const issueAuthToken = signAuthToken;
 
 /**
  * Generate JWT token
  */
 export function generateToken(payload: TokenPayload): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
+  return signToken(payload);
 }
 
 /**
  * Verify JWT token
  */
 export function verifyToken(token: string): TokenPayload {
-  try {
-    return jwt.verify(token, JWT_SECRET) as TokenPayload;
-  } catch {
-    throw new Error('Invalid or expired token');
-  }
+  return checkToken(token);
 }
 
 /**
  * Extract token from Authorization header
  */
 export function extractToken(authHeader: string | null): string | null {
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return null;
-  }
-  return authHeader.substring(7);
+  return readToken(authHeader);
 }
-

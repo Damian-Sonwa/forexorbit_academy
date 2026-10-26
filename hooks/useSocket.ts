@@ -7,29 +7,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from '@/hooks/useAuth';
+import { resolveSocketUrl } from '@/lib/client-origin';
 
 const SOCKET_PATH = '/api/socket';
-
-const getSocketUrl = (): string => {
-  const fromEnv = process.env.NEXT_PUBLIC_SOCKET_URL?.trim();
-  if (fromEnv) return fromEnv.replace(/\/$/, '');
-
-  const apiBase =
-    process.env.NEXT_PUBLIC_API_BASE_URL?.trim() ||
-    process.env.NEXT_PUBLIC_API_URL?.trim();
-  if (apiBase && /^https?:\/\//i.test(apiBase)) {
-    try {
-      return new URL(apiBase).origin;
-    } catch {
-      /* fall through */
-    }
-  }
-
-  if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'production') {
-    return window.location.origin;
-  }
-  return 'https://forexorbit-academy.onrender.com';
-};
 
 export function useSocket() {
   const { isAuthenticated, loading: authLoading } = useAuth();
@@ -60,8 +40,7 @@ export function useSocket() {
 
     // Wait for page to be fully loaded before connecting (helps with Firefox)
     const connectSocket = () => {
-      // Always connect to Render backend - no fallbacks
-      const socketUrl = getSocketUrl();
+      const socketUrl = resolveSocketUrl(process.env.NEXT_PUBLIC_SOCKET_URL, window.location.origin);
       console.log('Connecting to socket server:', socketUrl);
       
       // Initialize socket connection with production-ready configuration

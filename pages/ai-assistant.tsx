@@ -11,6 +11,7 @@ import Footer from '@/components/Footer';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import AIAssistant from '@/components/AIAssistant';
 import { useAuth } from '@/hooks/useAuth';
+import { AlertTriangle, BookOpen, Lightbulb, Target } from 'lucide-react';
 
 export default function AIAssistantPage() {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
@@ -36,7 +37,7 @@ export default function AIAssistantPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50">
+    <div className="min-h-screen flex flex-col">
       <Header />
 
       <div className="flex flex-1 relative overflow-hidden lg:items-start">
@@ -44,27 +45,17 @@ export default function AIAssistantPage() {
 
         <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:ml-0 pt-14 lg:pt-6 overflow-y-auto w-full">
           {/* Hero Header Section */}
-          <div className="mb-8">
-            <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 rounded-2xl shadow-2xl p-8 text-white relative overflow-hidden">
-              <div className="absolute inset-0 bg-black opacity-10"></div>
-              <div className="relative z-10">
-                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                  <div>
-                    <h1 className="text-4xl md:text-5xl font-bold mb-3 bg-clip-text text-transparent bg-gradient-to-r from-white to-blue-100">
-                      AI Learning Assistant
-                    </h1>
-                    <p className="text-blue-100 text-lg md:text-xl">
-                      Get instant help with Forex concepts, lessons, and trading questions
-                    </p>
-                  </div>
-                  <div className="flex items-center space-x-2 bg-white/20 backdrop-blur-sm rounded-xl px-4 py-3">
-                    <div className="w-3 h-3 rounded-full bg-green-400 animate-pulse"></div>
-                    <span className="text-sm font-medium">AI Assistant Ready</span>
-                  </div>
-                </div>
-              </div>
-              <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full -mr-32 -mt-32"></div>
-              <div className="absolute bottom-0 left-0 w-48 h-48 bg-white opacity-5 rounded-full -ml-24 -mb-24"></div>
+          <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="page-kicker mb-2">Study help</p>
+              <h1 className="page-title">AI learning assistant</h1>
+              <p className="mt-2 max-w-xl text-sm text-neutral-600">
+                Ask about Forex concepts, lessons, and practice questions.
+              </p>
+            </div>
+            <div className="inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-sm text-neutral-700">
+              <span className="h-2 w-2 rounded-full bg-green-600" />
+              Ready
             </div>
           </div>
 
@@ -78,28 +69,28 @@ export default function AIAssistantPage() {
             <h2 className="text-xl font-bold text-gray-900 mb-4">How to Use AI Assistant</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="flex items-start space-x-3">
-                <span className="text-2xl">💡</span>
+                <Lightbulb className="h-6 w-6 shrink-0 text-primary-600" aria-hidden />
                 <div>
                   <h3 className="font-semibold text-gray-900 mb-1">Ask Questions</h3>
                   <p className="text-sm text-gray-600">Ask any question about Forex trading, concepts, or lessons</p>
                 </div>
               </div>
               <div className="flex items-start space-x-3">
-                <span className="text-2xl">📚</span>
+                <BookOpen className="h-6 w-6 shrink-0 text-neutral-700" aria-hidden />
                 <div>
                   <h3 className="font-semibold text-gray-900 mb-1">Get Explanations</h3>
                   <p className="text-sm text-gray-600">Receive clear, level-appropriate explanations</p>
                 </div>
               </div>
               <div className="flex items-start space-x-3">
-                <span className="text-2xl">🎯</span>
+                <Target className="h-6 w-6 shrink-0 text-neutral-700" aria-hidden />
                 <div>
                   <h3 className="font-semibold text-gray-900 mb-1">Learning Guidance</h3>
                   <p className="text-sm text-gray-600">Get suggestions for your next learning steps</p>
                 </div>
               </div>
               <div className="flex items-start space-x-3">
-                <span className="text-2xl">⚠️</span>
+                <AlertTriangle className="h-6 w-6 shrink-0 text-amber-700" aria-hidden />
                 <div>
                   <h3 className="font-semibold text-gray-900 mb-1">Educational Only</h3>
                   <p className="text-sm text-gray-600">AI responses are for educational purposes only</p>

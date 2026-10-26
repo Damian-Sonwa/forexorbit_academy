@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { isFeaturePathBlocked } from '@/lib/config/features';
+import { isFeatureApiBlocked, isFeaturePathBlocked } from '@/lib/config/features';
 import { getAllowedCorsOrigin } from '@/lib/cors-origin';
 
 const STATIC_EXT = /\.(ico|png|jpg|jpeg|gif|webp|svg|woff2?|ttf|eot|txt|xml|json|map)$/i;
@@ -51,6 +51,10 @@ export function middleware(request: NextRequest) {
     STATIC_EXT.test(pathname)
   ) {
     return NextResponse.next();
+  }
+
+  if (pathname.startsWith('/api/') && isFeatureApiBlocked(pathname)) {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 
   if (isFeaturePathBlocked(pathname)) {

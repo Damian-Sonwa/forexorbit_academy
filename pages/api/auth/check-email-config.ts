@@ -4,41 +4,17 @@
  */
 
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getSmsProvider, isSmsConfigured } from '@/lib/sms';
+import { isSmsConfigured } from '@/lib/sms';
+import { unexpectedBody } from '@/lib/public-error';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
-    return res.status(405).json({ message: 'Method not allowed' });
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
-    const provider = getSmsProvider();
-    const configured = isSmsConfigured();
-
-    res.json({
-      configured,
-      smsDeliveryEnabled: configured,
-      provider,
-      passwordResetChannel: 'sms_otp',
-      environment: process.env.NODE_ENV,
-      checks:
-        provider === 'twilio'
-          ? {
-              twilioAccountSid: !!process.env.TWILIO_ACCOUNT_SID?.trim(),
-              twilioAuthToken: !!process.env.TWILIO_AUTH_TOKEN?.trim(),
-              twilioPhoneNumber: !!process.env.TWILIO_PHONE_NUMBER?.trim(),
-            }
-          : {
-              termiiApiKey: !!process.env.TERMII_API_KEY?.trim(),
-              termiiSenderId: process.env.TERMII_SENDER_ID || 'ForexOrbit (default)',
-            },
-      message: configured
-        ? `SMS (${provider}) is configured for password reset OTP`
-        : `Set ${provider === 'twilio' ? 'TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER' : 'TERMII_API_KEY'} (or SMS_PROVIDER=termii|twilio).`,
-      smsDefaultRegion: process.env.SMS_DEFAULT_REGION || 'NG',
-    });
+    res.json({ configured: isSmsConfigured() });
   } catch (error: unknown) {
-    console.error('Check SMS config error:', error);
-    res.status(500).json({ message: 'Failed to check SMS configuration' });
+    res.status(500).json({ ...unexpectedBody('sms-config', error), configured: false });
   }
 }

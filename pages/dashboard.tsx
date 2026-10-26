@@ -11,13 +11,17 @@ import Footer from '@/components/Footer';
 import Sidebar from '@/components/Sidebar';
 import CourseCard from '@/components/CourseCard';
 import LoadingSpinner from '@/components/LoadingSpinner';
+import { CourseCardSkeleton, LoadingStatus, MetricSkeleton } from '@/components/loading';
+import { resolveLoadingPresentation } from '@/lib/loading-presentation';
 import TodoList from '@/components/TodoList';
 import RemindersPanel from '@/components/RemindersPanel';
 import { useAuth } from '@/hooks/useAuth';
 import { useProgress } from '@/hooks/useProgress';
 import { useCourses } from '@/hooks/useCourses';
+import { sumActiveCompletedLessons } from '@/lib/enrollment-state';
 import { apiClient } from '@/lib/api-client';
 import { sanitizeForStudentView, stripHtml } from '@/lib/html-sanitizer';
+import { AlertTriangle, ArrowRight, BarChart3, BookOpen, CandlestickChart, CheckCircle2, Shield, Star, Zap } from 'lucide-react';
 
 
 interface UpcomingLesson {
@@ -31,7 +35,7 @@ interface UpcomingLesson {
 
 export default function Dashboard() {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
-  const { progress, loading: progressLoading } = useProgress();
+  const { progress, loading: progressLoading, error: progressError, refetch: refetchProgress } = useProgress();
   const { courses } = useCourses();
   const router = useRouter();
   const [userPoints, setUserPoints] = useState(0);
@@ -49,7 +53,7 @@ export default function Dashboard() {
         const userData = await apiClient.get<any>('/auth/me');
         setUserPoints(userData.points || 0);
       } catch (error) {
-        console.error('Failed to fetch user points:', error);
+        console.error('Failed to fetch user points:');
         setUserPoints(0);
       }
       
@@ -73,7 +77,7 @@ export default function Dashboard() {
         }
         setUpcomingLessons(lessons.slice(0, 5)); // Next 5 lessons
       } catch (error) {
-        console.error('Failed to fetch upcoming lessons:', error);
+        console.error('Failed to fetch upcoming lessons:');
         setUpcomingLessons([]);
       }
     } finally {
@@ -130,298 +134,291 @@ export default function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, user, progressLoading]);
 
-  if (authLoading || progressLoading || loadingData) {
-    return <LoadingSpinner message="Loading your dashboard..." fullScreen />;
+  const sessionBlocked = authLoading || !isAuthenticated || !user || user.role !== 'student';
+  const progressView = resolveLoadingPresentation({
+    authLoading: false,
+    authorized: true,
+    dataLoading: progressLoading || loadingData,
+    error: progressError,
+    hasData: progress.length > 0,
+  });
+
+  if (sessionBlocked) {
+    return <LoadingSpinner message="Checking your session" fullScreen />;
   }
 
-  if (!isAuthenticated || (user && user.role !== 'student')) {
-    return null;
+  if (progressView === 'skeleton') {
+    const firstName = user?.name?.split(' ')[0] || 'Student';
+    return (
+      <div className="min-h-screen flex flex-col overflow-hidden">
+        <Header />
+        <div className="flex flex-1 relative overflow-hidden lg:items-start">
+          <Sidebar />
+          <main className="flex-1 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8 pt-16 lg:pt-8 w-full">
+            <p className="page-kicker mb-2">Learning home</p>
+            <h1 className="page-title">Welcome back, {firstName}</h1>
+            <div className="mt-8 space-y-8">
+              <LoadingStatus label="Loading your dashboard" />
+              <MetricSkeleton count={3} />
+              <CourseCardSkeleton count={3} />
+            </div>
+          </main>
+        </div>
+      </div>
+    );
   }
 
   const enrolledCourses = courses.filter((c) => c.enrolled);
   // const completedCourses = progress.filter((p) => p.progress >= 100); // Reserved for future use
   // const activeCourses = progress.filter((p) => p.progress > 0 && p.progress < 100); // Reserved for future use
-  const completedModules = progress.reduce((sum, p) => sum + (p.completedLessons?.length || 0), 0);
+  const completedModules = sumActiveCompletedLessons(progress);
   const recommendedCourses = courses.filter((c) => !c.enrolled).slice(0, 3);
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50 overflow-hidden">
+    <div className="min-h-screen flex flex-col overflow-hidden">
       <Header />
 
       <div className="flex flex-1 relative overflow-hidden lg:items-start">
         <Sidebar />
 
-        <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:ml-0 pt-14 lg:pt-6 bg-white lg:bg-gray-50 overflow-y-auto w-full">
-          {/* Welcome Section */}
-          <div className="mb-4 sm:mb-6 bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
-              <div className="flex-1">
-                <h1 className="text-2xl sm:text-3xl md:text-4xl font-display font-bold text-gray-900 mb-2">
-                  Welcome back, {user?.name?.split(' ')[0] || 'Student'}!
-                </h1>
-                <p className="text-sm sm:text-base text-gray-600">Continue your learning journey</p>
-                {(user?.learningLevel || (user as any)?.studentDetails?.tradingLevel) && (
-                  <div className="mt-3 flex items-center space-x-2">
-                    <span className="text-sm text-gray-500">Current Level:</span>
-                    <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-semibold capitalize">
-                      {user?.learningLevel || (user as any)?.studentDetails?.tradingLevel || 'Beginner'}
-                    </span>
-                  </div>
-                )}
-              </div>
-              <Link
-                href="/onboarding"
-                className="w-full sm:w-auto px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-semibold transition-colors text-sm shadow-md hover:shadow-lg whitespace-nowrap flex-shrink-0 text-center"
-              >
-                Edit Profile
-              </Link>
-            </div>
-          </div>
-
-          {/* Course Benefits Card */}
-          <div className="mb-4 sm:mb-6 bg-white rounded-xl shadow-lg border-l-4 border-blue-700 p-4 sm:p-6 hover:shadow-xl transition-shadow">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <h2 className="text-xl sm:text-2xl md:text-3xl font-bold mb-3 sm:mb-4 flex items-center text-gray-900">
-                  <span className="mr-2 sm:mr-3 text-2xl sm:text-3xl md:text-4xl">📈</span>
-                  <span className="break-words">Forex Training – What You Will Gain</span>
-                </h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mt-4 sm:mt-6">
-                  <div className="flex items-start space-x-3">
-                    <span className="text-2xl">💹</span>
-                    <div>
-                      <h3 className="font-semibold mb-1 text-gray-900">Understanding Forex Markets</h3>
-                      <p className="text-gray-700 text-sm">Master the fundamentals of currency trading and market dynamics</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start space-x-3">
-                    <span className="text-2xl">⚡</span>
-                    <div>
-                      <h3 className="font-semibold mb-1 text-gray-900">Executing Trades</h3>
-                      <p className="text-gray-700 text-sm">Learn to place and manage trades with confidence</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start space-x-3">
-                    <span className="text-2xl">🛡️</span>
-                    <div>
-                      <h3 className="font-semibold mb-1 text-gray-900">Risk Management</h3>
-                      <p className="text-gray-700 text-sm">Protect your capital with proven risk management strategies</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start space-x-3">
-                    <span className="text-2xl">📊</span>
-                    <div>
-                      <h3 className="font-semibold mb-1 text-gray-900">Chart Analysis</h3>
-                      <p className="text-gray-700 text-sm">Analyze price charts and identify profitable trading opportunities</p>
-                    </div>
-                  </div>
+        <main className="flex-1 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8 pt-16 lg:pt-8 overflow-y-auto w-full">
+          <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="page-kicker mb-2">Learning home</p>
+              <h1 className="page-title">
+                Welcome back, {user?.name?.split(' ')[0] || 'Student'}
+              </h1>
+              <p className="mt-2 text-sm sm:text-base text-neutral-600">Pick up where you left off.</p>
+              {progressView === 'refresh' && (
+                <div className="mt-3">
+                  <LoadingStatus label="Updating your dashboard" compact />
                 </div>
-              </div>
+              )}
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              {(user?.learningLevel || (user as any)?.studentDetails?.tradingLevel) && (
+                <span className="inline-flex items-center rounded-full border border-neutral-200 bg-white px-3 py-1 text-sm font-medium capitalize text-neutral-800">
+                  {user?.learningLevel || (user as any)?.studentDetails?.tradingLevel}
+                </span>
+              )}
+              <Link href="/onboarding" className="text-sm font-medium text-neutral-600 underline-offset-4 hover:text-neutral-900 hover:underline">
+                Edit profile
+              </Link>
             </div>
           </div>
 
-          {/* Trading Dashboard Section */}
-          <div className="mb-4 sm:mb-6 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl shadow-lg border border-gray-100 p-4 sm:p-6 text-white">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div className="flex-1">
-                <h2 className="text-xl sm:text-2xl font-bold mb-2 flex items-center">
-                  <span className="mr-2 text-2xl sm:text-3xl">📈</span>
-                  Trading Dashboard
-                </h2>
-                <p className="text-blue-100 text-sm sm:text-base mb-3">
-                  Access Live Trading, Demo Tasks, and Trade Journal all in one place.
-                </p>
-                <ul className="text-sm text-blue-100 space-y-1 mb-4">
-                  <li>✓ Live market prices and charts</li>
-                  <li>✓ Practice tasks from instructors</li>
-                  <li>✓ Track your trades in a journal</li>
-                  <li>✓ Real-time market signals</li>
-                </ul>
+          {upcomingLessons[0] ? (
+            <section className="mb-6 rounded-2xl border border-neutral-200 bg-white p-5 shadow-soft sm:p-6">
+              <p className="page-kicker">Next lesson</p>
+              <h2 className="mt-2 font-display text-xl font-semibold tracking-tight text-neutral-900 sm:text-2xl" dangerouslySetInnerHTML={{ __html: sanitizeForStudentView(upcomingLessons[0].lessonTitle) }} />
+              <p className="mt-2 text-sm text-neutral-600">{upcomingLessons[0].courseTitle}</p>
+              <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
+                <Link
+                  href={`/courses/${upcomingLessons[0].courseId}/lessons/${upcomingLessons[0].lessonId}`}
+                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary-400 px-4 py-2.5 text-sm font-semibold text-neutral-900 hover:bg-primary-500"
+                >
+                  Continue lesson
+                  <ArrowRight className="h-4 w-4" aria-hidden />
+                </Link>
+                <Link href="/student-dashboard" className="text-sm font-medium text-neutral-600 hover:text-neutral-900">
+                  Open trading practice
+                </Link>
               </div>
-              <Link
-                href="/student-dashboard"
-                className="w-full sm:w-auto px-6 py-3 bg-white text-blue-600 hover:bg-blue-50 rounded-xl font-semibold transition-colors text-sm shadow-md hover:shadow-lg whitespace-nowrap flex-shrink-0 text-center"
-              >
-                Open Trading Dashboard →
-              </Link>
-            </div>
-            <div className="mt-4 pt-4 border-t border-blue-400 border-opacity-30">
-              <p className="text-xs text-blue-100">
-                ⚠️ <strong>Disclaimer:</strong> Demo trading is for educational purposes only. ForexOrbit Academy does not provide brokerage services or financial advice.
+            </section>
+          ) : enrolledCourses.length > 0 ? (
+            <section className="mb-6 rounded-2xl border border-neutral-200 bg-white p-5 shadow-soft sm:p-6">
+              <p className="page-kicker">Practice</p>
+              <h2 className="mt-2 font-display text-xl font-semibold tracking-tight text-neutral-900 sm:text-2xl">Work through a demo trade</h2>
+              <p className="mt-2 max-w-2xl text-sm text-neutral-600">
+                Live prices, instructor tasks, and your trade journal are in the trading dashboard. Demo trading uses virtual money only.
               </p>
+              <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
+                <Link
+                  href="/student-dashboard"
+                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary-400 px-4 py-2.5 text-sm font-semibold text-neutral-900 hover:bg-primary-500"
+                >
+                  Open trading dashboard
+                  <ArrowRight className="h-4 w-4" aria-hidden />
+                </Link>
+              </div>
+              <p className="mt-4 flex items-start gap-2 text-xs text-neutral-500">
+                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-700" aria-hidden />
+                <span>Demo trading is for education only. ForexOrbit Academy does not provide brokerage services or financial advice.</span>
+              </p>
+            </section>
+          ) : progressError ? (
+            <section className="mb-6 rounded-2xl border border-neutral-200 bg-white p-5 shadow-soft sm:p-6">
+              <p className="page-kicker">Progress</p>
+              <h2 className="mt-2 font-display text-xl font-semibold tracking-tight text-neutral-900 sm:text-2xl">Progress could not be loaded</h2>
+              <p className="mt-2 max-w-2xl text-sm text-neutral-600">Your enrollments are unchanged. Try again before treating this as an empty enrollment list.</p>
+              <button type="button" onClick={() => refetchProgress()} className="mt-5 inline-flex items-center justify-center gap-2 rounded-lg bg-primary-400 px-4 py-2.5 text-sm font-semibold text-neutral-900 hover:bg-primary-500">Try again</button>
+            </section>
+          ) : (
+            <section className="mb-6 rounded-2xl border border-neutral-200 bg-white p-5 shadow-soft sm:p-6">
+              <p className="page-kicker">Get started</p>
+              <h2 className="mt-2 font-display text-xl font-semibold tracking-tight text-neutral-900 sm:text-2xl">Choose a course to begin</h2>
+              <p className="mt-2 max-w-2xl text-sm text-neutral-600">Your enrolled courses, lessons, and practice tools will show up here once you join a course.</p>
+              <Link
+                href="/courses"
+                className="mt-5 inline-flex items-center justify-center gap-2 rounded-lg bg-primary-400 px-4 py-2.5 text-sm font-semibold text-neutral-900 hover:bg-primary-500"
+              >
+                Browse courses
+                <ArrowRight className="h-4 w-4" aria-hidden />
+              </Link>
+            </section>
+          )}
+
+          <section className="mb-8 grid grid-cols-1 divide-y divide-neutral-200 overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-soft sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+            <div className="flex items-center gap-3 px-5 py-4">
+              <BookOpen className="h-4 w-4 shrink-0 text-primary-600" aria-hidden />
+              <div>
+                <p className="text-2xl font-semibold tracking-tight text-neutral-900">{enrolledCourses.length}</p>
+                <p className="text-xs text-neutral-500">Enrolled courses</p>
+              </div>
             </div>
-          </div>
-
-          {/* Overview Section */}
-          <div className="mb-4 sm:mb-6">
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">Overview</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
-              {/* Enrolled Courses Card */}
-              <div className="bg-white rounded-xl shadow-md border border-gray-100 p-6 hover:shadow-lg transition-shadow flex flex-col h-full">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <span className="text-2xl">📚</span>
-                  </div>
-                </div>
-                <div className="text-4xl font-bold mb-1 text-gray-900">{enrolledCourses.length}</div>
-                <div className="text-gray-600 text-sm font-medium">Enrolled Courses</div>
-              </div>
-
-              {/* Completed Modules Card */}
-              <div className="bg-white rounded-xl shadow-md border border-gray-100 p-6 hover:shadow-lg transition-shadow flex flex-col h-full">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <span className="text-2xl">✅</span>
-                  </div>
-                </div>
-                <div className="text-4xl font-bold mb-1 text-gray-900">{completedModules}</div>
-                <div className="text-gray-600 text-sm font-medium">Completed Modules</div>
-              </div>
-
-              {/* Points Card */}
-              <div className="bg-white rounded-xl shadow-md border border-gray-100 p-6 hover:shadow-lg transition-shadow flex flex-col h-full">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <span className="text-2xl">⭐</span>
-                  </div>
-                </div>
-                <div className="text-4xl font-bold mb-1 text-gray-900">{userPoints}</div>
-                <div className="text-gray-600 text-sm font-medium">Points Earned</div>
+            <div className="flex items-center gap-3 px-5 py-4">
+              <CheckCircle2 className="h-4 w-4 shrink-0 text-green-700" aria-hidden />
+              <div>
+                <p className="text-2xl font-semibold tracking-tight text-neutral-900">{progressError ? '—' : completedModules}</p>
+                <p className="text-xs text-neutral-500">Completed modules</p>
               </div>
             </div>
-          </div>
+            <div className="flex items-center gap-3 px-5 py-4">
+              <Star className="h-4 w-4 shrink-0 text-primary-600" aria-hidden />
+              <div>
+                <p className="text-2xl font-semibold tracking-tight text-neutral-900">{userPoints}</p>
+                <p className="text-xs text-neutral-500">Points earned</p>
+              </div>
+            </div>
+          </section>
 
-          {/* My Enrolled Courses */}
-          <div className="mb-4 sm:mb-6 bg-white rounded-xl shadow-md border border-gray-100 p-4 sm:p-6">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 sm:mb-6 gap-2">
-              <h2 className="text-xl sm:text-2xl font-bold text-gray-900">My Enrolled Courses</h2>
-              <Link href="/courses" className="text-primary-600 hover:text-primary-700 font-medium text-sm">
-                Browse All →
+          <section className="mb-8">
+            <div className="mb-4 flex items-end justify-between gap-3">
+              <h2 className="font-display text-lg font-semibold tracking-tight text-neutral-900">Enrolled courses</h2>
+              <Link href="/courses" className="text-sm font-medium text-neutral-600 hover:text-neutral-900">
+                Browse all
               </Link>
             </div>
             {enrolledCourses.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {enrolledCourses.map((course) => (
                   <CourseCard key={course._id || course.id} course={course} />
                 ))}
               </div>
             ) : (
-              <div className="text-center py-12">
-                <p className="text-gray-500 mb-4">You haven't enrolled in any courses yet.</p>
-                <Link href="/courses" className="inline-block px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-semibold transition-colors shadow-md hover:shadow-lg">
-                  Browse Courses
+              <div className="rounded-2xl border border-dashed border-neutral-300 bg-white px-6 py-10 text-center">
+                <p className="text-sm text-neutral-600">You have not enrolled in a course yet.</p>
+                <Link href="/courses" className="mt-4 inline-flex rounded-lg bg-primary-400 px-4 py-2 text-sm font-semibold text-neutral-900 hover:bg-primary-500">
+                  Browse courses
                 </Link>
               </div>
             )}
-          </div>
+          </section>
 
-          {/* Upcoming Classes */}
-          <div className="mb-4 sm:mb-6 bg-white rounded-xl shadow-md border border-gray-100 p-4 sm:p-6">
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">Upcoming Classes</h2>
-            <div className="space-y-4">
-              {upcomingLessons.length > 0 ? (
-                upcomingLessons.map((lesson, index) => (
+          {upcomingLessons.length > 0 && (
+            <section className="mb-8 rounded-2xl border border-neutral-200 bg-white p-5 shadow-soft sm:p-6">
+              <h2 className="mb-4 font-display text-lg font-semibold tracking-tight text-neutral-900">Upcoming lessons</h2>
+              <div className="divide-y divide-neutral-200">
+                {upcomingLessons.map((lesson) => (
                   <Link
                     key={`${lesson.courseId}-${lesson.lessonId}`}
                     href={`/courses/${lesson.courseId}/lessons/${lesson.lessonId}`}
-                    className="block p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors border border-gray-200"
+                    className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0"
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-gray-900 mb-1" dangerouslySetInnerHTML={{ __html: sanitizeForStudentView(lesson.lessonTitle) }} />
-                        <p className="text-sm text-gray-600 mb-2">{lesson.courseTitle}</p>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div
-                            className="bg-gradient-to-r from-primary-500 to-primary-600 h-2 rounded-full"
-                            style={{ width: `${(index + 1) * 20}%` }}
-                          />
-                        </div>
-                      </div>
-                      <div className="ml-4 text-right">
-                        <div className="text-sm text-gray-500">Lesson {lesson.order}</div>
-                        {lesson.date && (
-                          <div className="text-xs text-gray-400 mt-1">{lesson.date}</div>
-                        )}
-                      </div>
+                    <div className="min-w-0">
+                      <h3 className="truncate font-medium text-neutral-900" dangerouslySetInnerHTML={{ __html: sanitizeForStudentView(lesson.lessonTitle) }} />
+                      <p className="truncate text-sm text-neutral-500">{lesson.courseTitle}</p>
                     </div>
+                    <span className="shrink-0 text-xs text-neutral-500">Lesson {lesson.order}</span>
                   </Link>
-                ))
-              ) : (
-                <div className="text-center py-8">
-                  <p className="text-gray-500">No upcoming lessons. Enroll in a course to get started!</p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Course Recommendations */}
-          <div className="mb-4 sm:mb-6 bg-white rounded-xl shadow-md border border-gray-100 p-4 sm:p-6">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 sm:mb-6 gap-2">
-              <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Course Recommendations</h2>
-              <Link href="/courses" className="text-primary-600 hover:text-primary-700 font-medium text-sm">
-                View All →
-              </Link>
-            </div>
-            {recommendedCourses.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                {recommendedCourses.map((course) => (
-                  <div key={course._id || course.id} className="bg-gray-50 rounded-xl p-6 border border-gray-200 hover:shadow-lg transition-shadow flex flex-col h-full">
-                    <h3 className="font-bold text-gray-900 mb-2" dangerouslySetInnerHTML={{ __html: sanitizeForStudentView(course.title) }} />
-                    <p className="text-sm text-gray-600 mb-4 line-clamp-2 flex-grow">
-                      {stripHtml(sanitizeForStudentView(course.description || ''))}
-                    </p>
-                    <Link
-                      href={`/courses/${course._id || course.id}`}
-                      className="inline-block px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold text-sm transition-colors self-start"
-                    >
-                      Start Course
-                    </Link>
-                  </div>
                 ))}
               </div>
-            ) : (
-              <p className="text-gray-500 text-center py-8">No course recommendations available at the moment.</p>
-            )}
-          </div>
+            </section>
+          )}
 
-          {/* Reminders & To-Do List Section */}
-          <div className="mb-4 sm:mb-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Reminders & To-Do</h2>
-              <Link href="/student-dashboard?section=reminders" className="text-primary-600 hover:text-primary-700 font-medium text-sm">
-                View Full →
-              </Link>
-            </div>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-              <div className="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden">
-                <RemindersPanel />
+          <section className="mb-8 grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-soft">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <h2 className="font-display text-lg font-semibold tracking-tight text-neutral-900">Recommended</h2>
+                <Link href="/courses" className="text-sm font-medium text-neutral-600 hover:text-neutral-900">View all</Link>
               </div>
-              <div className="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden">
-                <TodoList />
+              {recommendedCourses.length > 0 ? (
+                <div className="space-y-4">
+                  {recommendedCourses.map((course) => (
+                    <div key={course._id || course.id} className="border-t border-neutral-200 pt-4 first:border-0 first:pt-0">
+                      <h3 className="font-medium text-neutral-900" dangerouslySetInnerHTML={{ __html: sanitizeForStudentView(course.title) }} />
+                      <p className="mt-1 line-clamp-2 text-sm text-neutral-600">
+                        {stripHtml(sanitizeForStudentView(course.description || ''))}
+                      </p>
+                      <Link href={`/courses/${course._id || course.id}`} className="mt-2 inline-flex text-sm font-semibold text-primary-700 hover:text-primary-800">
+                        View course
+                      </Link>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-neutral-500">No recommendations right now.</p>
+              )}
+            </div>
+            <div>
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <h2 className="font-display text-lg font-semibold tracking-tight text-neutral-900">Reminders</h2>
+                <Link href="/student-dashboard?section=reminders" className="text-sm font-medium text-neutral-600 hover:text-neutral-900">
+                  View all
+                </Link>
+              </div>
+              <div className="space-y-4">
+                <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-soft">
+                  <RemindersPanel />
+                </div>
+                <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-soft">
+                  <TodoList />
+                </div>
               </div>
             </div>
-          </div>
+          </section>
 
-          {/* Leaderboard Link Card */}
-          <div className="mb-4 sm:mb-6 bg-gradient-to-r from-primary-600 to-purple-600 rounded-xl shadow-lg border border-gray-100 p-4 sm:p-6 text-white">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div className="flex-1">
-                <h2 className="text-xl sm:text-2xl font-bold mb-2 flex items-center">
-                  <span className="mr-2 text-2xl sm:text-3xl">🏆</span>
-                  Leaderboard
-                </h2>
-                <p className="text-primary-100 text-sm sm:text-base">
-                  See how you rank against other students and track your progress.
-                </p>
+          <section className="mb-8 rounded-2xl border border-neutral-200 bg-white p-5 shadow-soft sm:p-6">
+            <h2 className="font-display text-lg font-semibold tracking-tight text-neutral-900">What this training covers</h2>
+            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="flex gap-3">
+                <CandlestickChart className="mt-0.5 h-4 w-4 shrink-0 text-neutral-500" aria-hidden />
+                <div>
+                  <h3 className="text-sm font-semibold text-neutral-900">Understanding Forex markets</h3>
+                  <p className="text-sm text-neutral-600">Currency pairs, sessions, and how prices move.</p>
+                </div>
               </div>
-              <Link
-                href="/leaderboard"
-                className="w-full sm:w-auto px-6 py-3 bg-white text-primary-600 hover:bg-primary-50 rounded-xl font-semibold transition-colors text-sm shadow-md hover:shadow-lg whitespace-nowrap flex-shrink-0 text-center"
-              >
-                View Leaderboard →
-              </Link>
+              <div className="flex gap-3">
+                <Zap className="mt-0.5 h-4 w-4 shrink-0 text-neutral-500" aria-hidden />
+                <div>
+                  <h3 className="text-sm font-semibold text-neutral-900">Executing trades</h3>
+                  <p className="text-sm text-neutral-600">How orders are placed and managed in practice.</p>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <Shield className="mt-0.5 h-4 w-4 shrink-0 text-neutral-500" aria-hidden />
+                <div>
+                  <h3 className="text-sm font-semibold text-neutral-900">Risk management</h3>
+                  <p className="text-sm text-neutral-600">Position size, stops, and protecting capital.</p>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <BarChart3 className="mt-0.5 h-4 w-4 shrink-0 text-neutral-500" aria-hidden />
+                <div>
+                  <h3 className="text-sm font-semibold text-neutral-900">Chart analysis</h3>
+                  <p className="text-sm text-neutral-600">Reading price charts without treating any setup as certain.</p>
+                </div>
+              </div>
             </div>
-          </div>
+          </section>
+
+          <Link href="/leaderboard" className="mb-4 flex items-center justify-between rounded-2xl border border-neutral-200 bg-white px-5 py-4 text-sm shadow-soft hover:border-neutral-300">
+            <span>
+              <span className="block font-semibold text-neutral-900">Leaderboard</span>
+              <span className="text-neutral-500">See how your points compare with other learners.</span>
+            </span>
+            <ArrowRight className="h-4 w-4 shrink-0 text-neutral-500" aria-hidden />
+          </Link>
 
         </main>
       </div>

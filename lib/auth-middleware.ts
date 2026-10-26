@@ -1,84 +1,107 @@
 /**
  * Authentication Middleware
- * Protects API routes with JWT verification
+ * Protects API routes with JWT verification and the current user record.
  */
 
 import { NextApiRequest, NextApiResponse } from 'next';
-import { verifyToken, extractToken } from './jwt';
+import { verifyToken, extractToken, decideSessionBinding } from './jwt';
 import { getSocketServer } from './socket-server';
 import { Server } from 'socket.io';
-import { apiForbidden, apiUnauthorized } from './api-response';
+import { ObjectId } from 'mongodb';
+import { getDb } from './mongodb';
+import { decideAccountAccess, clientSafeAuthError } from './account-access';
+import type { AppRole } from './account-access';
 
 export interface AuthRequest extends NextApiRequest {
   user?: {
     userId: string;
     email: string;
-    role: 'superadmin' | 'admin' | 'instructor' | 'student';
+    role: AppRole;
   };
   io?: Server;
 }
 
+function preserveCors(res: NextApiResponse, existingCorsOrigin: string | number | string[] | undefined) {
+  if (existingCorsOrigin) {
+    res.setHeader('Access-Control-Allow-Origin', existingCorsOrigin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+  }
+}
+
 /**
- * Middleware to verify JWT token
+ * Middleware to verify JWT token and the live account role.
+ * The role inside the token is not used for authorization.
  */
 export function withAuth(
   handler: (req: AuthRequest, res: NextApiResponse) => Promise<void>,
-  allowedRoles?: ('superadmin' | 'admin' | 'instructor' | 'student')[]
+  allowedRoles?: AppRole[]
 ) {
   return async (req: AuthRequest, res: NextApiResponse) => {
-    // Preserve any existing CORS headers that were set before calling withAuth
-    // This ensures 401/403 responses include CORS headers for cross-origin requests
     const existingCorsOrigin = res.getHeader('Access-Control-Allow-Origin');
-    
+
     try {
-      // Extract token from Authorization header
-      const authHeader = req.headers.authorization || req.headers.Authorization as string || null;
+      const authHeader = req.headers.authorization || (req.headers.Authorization as string) || null;
       const token = extractToken(authHeader);
-      
+
       if (!token) {
-        console.error('No token found in request headers');
-        // Preserve CORS headers if they were set
-        if (existingCorsOrigin) {
-          res.setHeader('Access-Control-Allow-Origin', existingCorsOrigin);
-          res.setHeader('Access-Control-Allow-Credentials', 'true');
-        }
-        apiUnauthorized(res);
+        preserveCors(res, existingCorsOrigin);
+        res.status(401).json({ error: 'Authentication required' });
         return;
       }
 
       const payload = verifyToken(token);
-      
-      // Log for debugging
-      console.log('Auth check - User:', payload.email, 'Role:', payload.role, 'Allowed roles:', allowedRoles);
-      
-      // Check role if specified
-      if (allowedRoles && !allowedRoles.includes(payload.role)) {
-        console.error('Role check failed - User role:', payload.role, 'Allowed:', allowedRoles);
-        // Preserve CORS headers if they were set
-        if (existingCorsOrigin) {
-          res.setHeader('Access-Control-Allow-Origin', existingCorsOrigin);
-          res.setHeader('Access-Control-Allow-Credentials', 'true');
-        }
-        apiForbidden(res);
+      if (!payload?.userId || !ObjectId.isValid(payload.userId)) {
+        preserveCors(res, existingCorsOrigin);
+        res.status(401).json({ error: 'Invalid or expired token' });
         return;
       }
 
-      req.user = payload;
-      // Attach Socket.io instance if available
+      const db = await getDb();
+      const record = await db.collection('users').findOne(
+        { _id: new ObjectId(payload.userId) },
+        { projection: { email: 1, role: 1, status: 1, sessionGeneration: 1 } }
+      );
+      const decision = decideAccountAccess({
+        userId: payload.userId,
+        record,
+        allowedRoles,
+      });
+
+      if (!decision.ok) {
+        preserveCors(res, existingCorsOrigin);
+        res.status(decision.status).json({ error: decision.error });
+        return;
+      }
+
+      const session = decideSessionBinding({
+        userId: decision.user.userId,
+        binding: payload.sv,
+        generation: record?.sessionGeneration,
+        key: process.env.JWT_SECRET || '',
+      });
+      if (!session.ok) {
+        preserveCors(res, existingCorsOrigin);
+        res.status(session.status).json({ error: session.error });
+        return;
+      }
+
+      req.user = {
+        userId: decision.user.userId,
+        email: decision.user.email,
+        role: decision.user.role,
+      };
       const io = getSocketServer();
       if (io) {
         req.io = io;
       }
       return handler(req, res);
     } catch (error: unknown) {
-      console.error('Auth middleware error:', error);
-      // Preserve CORS headers if they were set
-      if (existingCorsOrigin) {
-        res.setHeader('Access-Control-Allow-Origin', existingCorsOrigin);
-        res.setHeader('Access-Control-Allow-Credentials', 'true');
+      const safe = clientSafeAuthError(error instanceof Error ? error : null);
+      preserveCors(res, existingCorsOrigin);
+      if (safe.status === 500) {
+        console.error('Auth middleware error');
       }
-      apiUnauthorized(res);
+      res.status(safe.status).json({ error: safe.error });
     }
   };
 }
-

@@ -1,3 +1,4 @@
+import { publicUploadFailure } from '@/lib/public-error';
 /**
  * Certificate Upload API Route (Admin Only)
  * POST: Upload certificate template for a course level using Cloudinary
@@ -20,7 +21,7 @@ export const config = {
 async function uploadCertificate(req: AuthRequest, res: NextApiResponse) {
   try {
     if (req.user!.role !== 'admin' && req.user!.role !== 'superadmin') {
-      return res.status(403).json({ message: 'Admin only' });
+      return res.status(403).json({ error: 'Admin only' });
     }
 
     // Use /tmp for temporary file storage (works in both serverless and regular environments)
@@ -42,7 +43,7 @@ async function uploadCertificate(req: AuthRequest, res: NextApiResponse) {
     const level = Array.isArray(fields.level) ? fields.level[0] : fields.level;
 
     if (!file) {
-      return res.status(400).json({ message: 'No certificate file provided' });
+      return res.status(400).json({ error: 'No certificate file provided' });
     }
 
     if (!level || !['beginner', 'intermediate', 'advanced'].includes(level as string)) {
@@ -54,7 +55,7 @@ async function uploadCertificate(req: AuthRequest, res: NextApiResponse) {
           // Ignore cleanup errors
         }
       }
-      return res.status(400).json({ message: 'Invalid level. Must be beginner, intermediate, or advanced' });
+      return res.status(400).json({ error: 'Invalid level. Must be beginner, intermediate, or advanced' });
     }
 
     // Check if Cloudinary is configured
@@ -67,13 +68,9 @@ async function uploadCertificate(req: AuthRequest, res: NextApiResponse) {
           // Ignore cleanup errors
         }
       }
-      const missing = [];
-      if (!process.env.CLOUDINARY_CLOUD_NAME) missing.push('CLOUDINARY_CLOUD_NAME');
-      if (!process.env.CLOUDINARY_API_KEY) missing.push('CLOUDINARY_API_KEY');
-      if (!process.env.CLOUDINARY_API_SECRET) missing.push('CLOUDINARY_API_SECRET');
-      console.error('Cloudinary not configured - missing environment variables:', missing.join(', '));
-      return res.status(500).json({ message: 'Image upload service is not configured. Please contact support.',
-        details: `Missing: ${missing.join(', ')}`
+      console.error('Image upload service is not configured');
+      return res.status(500).json({
+        error: 'Image upload service is not configured. Please contact support.',
       });
     }
 
@@ -117,14 +114,8 @@ async function uploadCertificate(req: AuthRequest, res: NextApiResponse) {
       level: level,
     });
   } catch (error: any) {
-    console.error('Certificate upload error:', error);
-    if (error.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json({ message: 'File size exceeds 10MB limit' });
-    }
-    if (error.message?.includes('Cloudinary configuration is missing')) {
-      return res.status(500).json({ message: 'Image upload service is not configured. Please contact support.' });
-    }
-    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+    const failure = publicUploadFailure(error, { limitMessage: 'File size exceeds 10MB limit' });
+    return res.status(failure.status).json(failure.body);
   }
 }
 

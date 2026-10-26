@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Certificate Templates API Route
  * GET: Get certificate templates by level (for students to see available certificates)
@@ -23,8 +24,8 @@ async function getTemplates(req: AuthRequest, res: NextApiResponse) {
 
     res.json(templates);
   } catch (error: any) {
-    console.error('Get templates error:', error);
-    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+    console.error('Get templates error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 

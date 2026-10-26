@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Admin Analytics API Route
  * GET: Get real-time analytics (admin only)
@@ -6,10 +7,11 @@
 import type { NextApiResponse } from 'next';
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
+import { activeEnrollmentFilter } from '@/lib/enrollment-state';
 
 async function handler(req: AuthRequest, res: NextApiResponse) {
   if (req.user!.role !== 'admin' && req.user!.role !== 'superadmin') {
-    return res.status(403).json({ message: 'Admin only' });
+    return res.status(403).json({ error: 'Admin only' });
   }
 
   try {
@@ -28,7 +30,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
     ] = await Promise.all([
       users.countDocuments(),
       courses.countDocuments(),
-      progress.countDocuments(),
+      progress.countDocuments(activeEnrollmentFilter()),
       messages.countDocuments({ createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } }),
     ]);
 
@@ -36,6 +38,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const activeUsers = await progress.distinct('userId', {
       updatedAt: { $gte: sevenDaysAgo },
+      ...activeEnrollmentFilter(),
     });
 
     // Get users by role
@@ -77,10 +80,14 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
     const courseCompletion = await Promise.all(
       allCoursesList.slice(0, 5).map(async (course) => {
         const courseId = course._id.toString();
-        const enrolled = await progress.countDocuments({ courseId });
+        const enrolled = await progress.countDocuments({
+          courseId,
+          ...activeEnrollmentFilter(),
+        });
         const completed = await progress.countDocuments({
           courseId,
           progress: { $gte: 100 },
+          ...activeEnrollmentFilter(),
         });
         return {
           course: course.title.length > 15 ? course.title.substring(0, 15) + '...' : course.title,
@@ -102,8 +109,8 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
       courseCompletion,
     });
   } catch (error: unknown) {
-    console.error('Get analytics error:', error);
-    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+    console.error('Get analytics error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 

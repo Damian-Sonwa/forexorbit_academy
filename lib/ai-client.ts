@@ -5,9 +5,12 @@
  */
 
 import axios, { AxiosInstance } from 'axios';
+import { resolveApiBaseUrl } from '@/lib/client-origin';
 
-// CRITICAL: AI endpoints MUST call Render backend directly
-const RENDER_BACKEND_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://forexorbit-academy.onrender.com';
+// Same origin unless NEXT_PUBLIC_API_BASE_URL or NEXT_PUBLIC_API_URL is set.
+const RENDER_BACKEND_URL = resolveApiBaseUrl(
+  process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL
+);
 
 class AIClient {
   private client: AxiosInstance;

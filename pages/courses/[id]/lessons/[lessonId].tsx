@@ -5,6 +5,7 @@
 
 import { useRouter } from 'next/router';
 import Link from 'next/link';
+import { useCallback, useEffect, useState } from 'react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import Sidebar from '@/components/Sidebar';
@@ -19,7 +20,7 @@ import { useAuth } from '@/hooks/useAuth';
 import InstructorLessonEditor from '@/components/InstructorLessonEditor';
 import { sanitizeForStudentView } from '@/lib/html-sanitizer';
 import { getLessonDescriptionHtml, hasVisibleHtml } from '@/lib/lesson-html';
-import { useState, useEffect, useCallback } from 'react';
+import { LessonSkeleton } from '@/components/loading';
 import { ContentAdBanner } from '@/components/ads/ContentAdBanner';
 import { ContentAdInterstitial } from '@/components/ads/ContentAdInterstitial';
 import { PaystackLessonUnlock } from '@/components/monetization/PaystackLessonUnlock';
@@ -108,16 +109,27 @@ export default function LessonPage() {
 
   if (lessonLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p>Loading lesson...</p>
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <main className="flex-1 max-w-3xl mx-auto w-full px-4 py-8">
+          <LessonSkeleton />
+        </main>
       </div>
     );
   }
 
   if (lessonError && !accessDenied) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4">
-        <p className="text-center text-gray-700">{lessonError}</p>
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <main className="flex-1 flex items-center justify-center px-6">
+          <div className="max-w-md text-center">
+            <p className="text-lg font-semibold text-neutral-900">{lessonError ? 'This lesson could not be loaded' : 'Lesson not found'}</p>
+            {lessonError && (
+              <button type="button" onClick={() => refetchLesson()} className="mt-4 inline-flex rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white">Try again</button>
+            )}
+          </div>
+        </main>
       </div>
     );
   }

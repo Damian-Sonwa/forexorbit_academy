@@ -1,12 +1,14 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Mark News as Read API Route
  * POST: Mark a news item as read by the current user
  */
 
-import type { NextApiRequest, NextApiResponse } from 'next';
+import type { NextApiResponse } from 'next';
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
+import { logCommunityNewsFailure } from '@/lib/community-news';
 
 async function markNewsAsRead(req: AuthRequest, res: NextApiResponse) {
   try {
@@ -14,7 +16,7 @@ async function markNewsAsRead(req: AuthRequest, res: NextApiResponse) {
     const userId = req.user!.userId;
 
     if (!newsId) {
-      return res.status(400).json({ message: 'News ID is required' });
+      return res.status(400).json({ error: 'News ID is required' });
     }
 
     const db = await getDb();
@@ -29,13 +31,13 @@ async function markNewsAsRead(req: AuthRequest, res: NextApiResponse) {
     );
 
     if (result.matchedCount === 0) {
-      return res.status(404).json({ message: 'News item not found' });
+      return res.status(404).json({ error: 'News item not found' });
     }
 
     res.json({ success: true, message: 'News marked as read' });
-  } catch (error: any) {
-    console.error('Mark news as read error:', error);
-    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+  } catch {
+    logCommunityNewsFailure('communityNewsMarkRead');
+    res.status(500).json(unexpectedBody('api'));
   }
 }
 

@@ -8,12 +8,14 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
+import LoadingSpinner from '@/components/LoadingSpinner';
 import { useAuth } from '@/hooks/useAuth';
 import { useSocket } from '@/hooks/useSocket';
 import { apiClient } from '@/lib/api-client';
 import { sanitizeHtml } from '@/lib/html-sanitizer';
 import { getLessonDescriptionHtml, hasVisibleHtml } from '@/lib/lesson-html';
 import { useCourses } from '@/hooks/useCourses';
+import { canReadCourseLessons } from '@/lib/course-response';
 
 interface Lesson {
   _id: string;
@@ -42,6 +44,7 @@ interface Course {
   description: string;
   difficulty: 'beginner' | 'intermediate' | 'advanced';
   category: string;
+  instructorId?: string;
 }
 
 export default function InstructorQuizzes() {
@@ -103,18 +106,22 @@ export default function InstructorQuizzes() {
     try {
       setAllCourses(courses as Course[]);
     } catch (error) {
-      console.error('Failed to load courses:', error);
+      console.error('Failed to load courses:');
     }
   };
 
   const loadCourseLessons = async (courseId: string) => {
+    const selected = allCourses.find((item) => (item._id || item.id) === courseId);
+    if (!canReadCourseLessons(user?.role, user?.id, selected?.instructorId)) {
+      setCourseLessons([]);
+      return;
+    }
     try {
       setLoading(true);
       const lessons = await apiClient.get<Lesson[]>(`/lessons?courseId=${courseId}`);
       setCourseLessons(lessons.sort((a, b) => a.order - b.order));
-    } catch (error: any) {
-      console.error('Failed to load lessons:', error);
-      alert(error.message || 'Failed to load lessons');
+    } catch {
+      setCourseLessons([]);
     } finally {
       setLoading(false);
     }
@@ -190,13 +197,7 @@ export default function InstructorQuizzes() {
   };
 
   if (authLoading) {
-    return (
-      <div className="h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 dark:border-primary-400 mx-auto"></div>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner message="Checking your session" fullScreen />;
   }
 
   return (
@@ -468,7 +469,7 @@ export default function InstructorQuizzes() {
                             <div className="flex gap-2 ml-4">
                               <button
                                 onClick={() => handleEditQuiz(lesson._id)}
-                                className="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded text-sm font-semibold hover:bg-blue-200 dark:hover:bg-blue-900/50"
+                                className="px-3 py-1 bg-neutral-100 dark:bg-neutral-900/30 text-primary-700 dark:text-primary-400 rounded text-sm font-semibold hover:bg-neutral-200 dark:hover:bg-neutral-900/50"
                               >
                                 {editingQuiz === lesson._id ? 'Editing...' : 'Edit Quiz'}
                               </button>

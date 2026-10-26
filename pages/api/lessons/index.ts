@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Lessons API Route
  * GET: List lessons for a course
@@ -15,66 +16,144 @@ export const config = {
 };
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
+import { ObjectId } from 'mongodb';
+import { decideAccountAccess, decideLessonCatalog, decideLessonCreate, decideLessonRead, isStoredId, presentLessonRead } from '@/lib/account-access';
+import { enrollmentDecisionRecord } from '@/lib/enrollment-state';
+import { stripLessonVisualAidsFields } from '@/lib/strip-visual-aids-html';
 import { buildLessonsListForCourse } from '@/lib/build-course-lessons-list';
 
 async function getLessons(req: AuthRequest, res: NextApiResponse) {
+  const requestedId = Array.isArray(req.query.courseId) ? req.query.courseId[0] : req.query.courseId;
+  if (!isStoredId(requestedId)) {
+    return res.status(400).json({ error: 'Invalid course ID' });
+  }
   try {
-    const { courseId } = req.query;
-    if (!courseId) {
-      return res.status(400).json({ message: 'courseId required' });
+    const db = await getDb();
+    const record = await db.collection('users').findOne(
+      { _id: new ObjectId(req.user!.userId) },
+      { projection: { email: 1, role: 1, status: 1 } }
+    );
+    const account = decideAccountAccess({ userId: req.user!.userId, record });
+    const course = await db.collection('courses').findOne(
+      { _id: new ObjectId(requestedId) },
+      { projection: { instructorId: 1, difficulty: 1 } }
+    );
+    const courseId = course ? String(course._id) : '';
+    const enrollment = account.ok && course
+      ? await db.collection('progress').findOne({
+          userId: account.user.userId,
+          $or: [{ courseId }, { courseId: course._id }],
+        })
+      : null;
+    const member = account.ok ? { userId: account.user.userId, role: account.user.role, email: account.user.email } : null;
+    const enrollmentRecord = enrollmentDecisionRecord(enrollment);
+    const catalog = decideLessonCatalog({
+      member,
+      course: course ? { _id: course._id, instructorId: course.instructorId } : null,
+      enrollment: enrollmentRecord,
+    });
+    if (!catalog.ok) {
+      return res.status(catalog.status).json({ error: catalog.error });
     }
 
-    const db = await getDb();
-    const list = await buildLessonsListForCourse(db, courseId as string, req.user);
-    return res.json(list);
-  } catch (error: any) {
-    console.error('Get lessons error:', error);
-    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+    const lessonsList = await db.collection('lessons')
+      .find({ courseId: catalog.courseId })
+      .sort({ order: 1 })
+      .toArray();
+    const courseRecord = {
+      _id: course!._id,
+      instructorId: course!.instructorId,
+      difficulty: typeof course!.difficulty === 'string' ? course!.difficulty : null,
+    };
+    const priced = await buildLessonsListForCourse(
+      db,
+      catalog.courseId,
+      account.ok ? { userId: account.user.userId, role: account.user.role } : undefined
+    );
+    const pricedById = new Map(priced.map((item) => [String(item._id), item]));
+    const views = lessonsList.map((lesson) => {
+      const read = decideLessonRead({
+        member,
+        lesson: {
+          _id: lesson._id,
+          courseId: lesson.courseId,
+          requiredLevel: typeof lesson.requiredLevel === 'string' ? lesson.requiredLevel : null,
+        },
+        course: courseRecord,
+        enrollment: enrollmentRecord,
+      });
+      const view = presentLessonRead(lesson as Record<string, unknown>, read.ok, catalog.courseId);
+      if (read.ok) {
+        view.completed = Boolean(
+          enrollment &&
+          Array.isArray(enrollment.completedLessons) &&
+          enrollment.completedLessons.map(String).includes(String(lesson._id))
+        );
+      }
+      const price = pricedById.get(String(lesson._id));
+      if (price) {
+        view.locked = price.locked === true;
+        view.isFirstLesson = price.isFirstLesson === true;
+        view.isDemo = price.isDemo === true;
+        view.monetization = price.monetization;
+        if (price.locked === true) {
+          view.content = null;
+          view.description = null;
+          view.summary = null;
+          view.lessonSummary = null;
+          view.videoUrl = null;
+          view.pdfUrl = null;
+          view.resources = [];
+        }
+      }
+      return stripLessonVisualAidsFields(view);
+    });
+    res.json(views);
+  } catch {
+    console.error(JSON.stringify({ event: 'lessonList', result: 'failed' }));
+    res.status(500).json(unexpectedBody('api'));
   }
 }
 
 async function createLesson(req: AuthRequest, res: NextApiResponse) {
+  const courseId = req.body && typeof req.body.courseId === 'string' ? req.body.courseId : '';
+  if (!isStoredId(courseId)) {
+    return res.status(400).json({ error: 'Invalid course ID' });
+  }
   try {
-    // Instructors, admins, and superadmins can create lessons
-    const userRole = req.user!.role;
-    console.log('Create lesson - User role:', userRole, 'User:', req.user!.email);
-    if (userRole !== 'admin' && userRole !== 'instructor' && userRole !== 'superadmin') {
-      console.log('Access denied - Role not authorized:', userRole);
-      return res.status(403).json({ message: 'Not authorized', role: userRole });
-    }
-
-    const { courseId, title, description, summary, videoUrl, pdfUrl, order, content, type, requiredLevel, resources } = req.body;
-
-    if (!courseId || !title) {
-      return res.status(400).json({ message: 'Missing required fields' });
-    }
-
     const db = await getDb();
-    const lessons = db.collection('lessons');
+    const record = await db.collection('users').findOne(
+      { _id: new ObjectId(req.user!.userId) },
+      { projection: { email: 1, role: 1, status: 1 } }
+    );
+    const account = decideAccountAccess({ userId: req.user!.userId, record });
+    const course = await db.collection('courses').findOne(
+      { _id: new ObjectId(courseId) },
+      { projection: { instructorId: 1 } }
+    );
+    const decision = decideLessonCreate({
+      member: account.ok ? { userId: account.user.userId, role: account.user.role } : null,
+      course: course ? { _id: course._id, instructorId: course.instructorId } : null,
+      body: req.body,
+    });
+    if (!decision.ok) {
+      return res.status(decision.status).json({ error: decision.error });
+    }
 
-    const result = await lessons.insertOne({
-      courseId,
-      title,
-      description,
-      summary: summary || null, // Short text overview for the topic
-      videoUrl: videoUrl || null,
-      pdfUrl: pdfUrl || null, // Support PDF lessons
-      type: type || 'video', // 'video', 'pdf', 'interactive'
-      order: order || 0,
-      content,
-      resources: resources || [], // Array of resources: { type: 'pdf'|'link'|'slide', url: string, title: string }
-      requiredLevel: requiredLevel || null, // Level-based access control
+    const result = await db.collection('lessons').insertOne({
+      ...decision.document,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
 
     res.status(201).json({
       id: result.insertedId.toString(),
-      ...req.body,
+      courseId: decision.courseId,
+      title: decision.document.title,
     });
-  } catch (error: any) {
-    console.error('Create lesson error:', error);
-    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+  } catch {
+    console.error(JSON.stringify({ event: 'lessonCreate', result: 'failed' }));
+    res.status(500).json(unexpectedBody('api'));
   }
 }
 
@@ -84,7 +163,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
   } else if (req.method === 'POST') {
     return createLesson(req, res);
   } else {
-    return res.status(405).json({ message: 'Method not allowed' });
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 }
 

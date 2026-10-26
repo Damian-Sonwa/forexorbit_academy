@@ -8,7 +8,6 @@ import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import { getDb } from '@/lib/mongodb';
 import { parseToE164, maskPhoneTail } from '@/lib/phone';
-import { findUserByPhoneInput } from '@/lib/user-phone-lookup';
 import { sendPasswordResetOtpSms, isSmsConfigured } from '@/lib/sms';
 import { logPasswordResetEvent } from '@/lib/password-reset-log';
 import {
@@ -17,6 +16,8 @@ import {
   MAX_SMS_REQUESTS_PER_HOUR,
   PASSWORD_PHONE_RESETS_COLLECTION,
 } from '@/lib/password-otp';
+import { unexpectedBody } from '@/lib/public-error';
+import { findUserByPhoneInput } from '@/lib/user-phone-lookup';
 
 function getClientIp(req: NextApiRequest): string | undefined {
   const x = req.headers['x-forwarded-for'];
@@ -28,22 +29,21 @@ function getClientIp(req: NextApiRequest): string | undefined {
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
-    return res.status(405).json({ message: 'Method not allowed' });
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 
   const ip = getClientIp(req);
   const genericMsg = 'If an account exists for that number, a verification code was sent.';
-  const smsDeliveryEnabled = isSmsConfigured();
 
   try {
     const { phone } = req.body;
     if (!phone || typeof phone !== 'string') {
-      return res.status(400).json({ message: 'Phone number is required' });
+      return res.status(400).json({ error: 'Phone number is required' });
     }
 
     const parsed = parseToE164(phone);
     if (!parsed) {
-      return res.status(400).json({ message: 'Invalid phone number' });
+      return res.status(400).json({ error: 'Invalid phone number' });
     }
     const phoneE164 = parsed.e164;
 
@@ -63,10 +63,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     if (!user) {
-      return res.status(200).json({
-        message: genericMsg,
-        smsDeliveryEnabled,
-      });
+      return res.status(200).json({ message: genericMsg });
     }
 
     const hourAgo = new Date(Date.now() - 60 * 60 * 1000);
@@ -77,19 +74,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     if (sentLastHour >= MAX_SMS_REQUESTS_PER_HOUR) {
-      const oldest = await logs.findOne(
-        { event: 'otp_sent', userId: user._id, createdAt: { $gte: hourAgo } },
-        { sort: { createdAt: 1 } }
-      );
-      const retryAfterSeconds = oldest
-        ? Math.max(1, Math.ceil((oldest.createdAt.getTime() + 60 * 60 * 1000 - Date.now()) / 1000))
-        : 3600;
-      return res.status(200).json({
-        message: genericMsg,
-        cooldown: retryAfterSeconds,
-        rateLimited: true,
-        smsDeliveryEnabled,
-      });
+      return res.status(200).json({ message: genericMsg });
     }
 
     const lastSent = await logs.findOne(
@@ -97,20 +82,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       { sort: { createdAt: -1 } }
     );
     if (lastSent && Date.now() - lastSent.createdAt.getTime() < SMS_COOLDOWN_MS) {
-      const retryAfterSeconds = Math.ceil(
-        (SMS_COOLDOWN_MS - (Date.now() - lastSent.createdAt.getTime())) / 1000
-      );
-      return res.status(200).json({
-        message: genericMsg,
-        cooldown: retryAfterSeconds,
-        smsDeliveryEnabled,
-      });
+      return res.status(200).json({ message: genericMsg });
     }
 
-    if (!smsDeliveryEnabled) {
-      console.warn(
-        '[forgot-password] SMS not configured. Set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER (or TERMII_API_KEY) on the server that handles /api (e.g. Render if NEXT_PUBLIC_API_BASE_URL points there).'
-      );
+    if (!isSmsConfigured()) {
+      console.warn('[forgot-password] SMS is not configured');
       await logPasswordResetEvent(db, {
         event: 'otp_send_failed',
         userId: user._id,
@@ -118,52 +94,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         ip,
         detail: 'sms_not_configured',
       });
-      return res.status(200).json({
-        message: genericMsg,
-        smsDeliveryEnabled: false,
-        ...(process.env.NODE_ENV === 'development'
-          ? {
-              _devNote:
-                'SMS not configured — set TWILIO_* or TERMII_API_KEY on this API host. No code was sent.',
-            }
-          : {}),
-      });
+      return res.status(200).json({ message: genericMsg });
     }
 
     const otp = crypto.randomInt(0, 1_000_000).toString().padStart(6, '0');
     const otpHash = await bcrypt.hash(otp, 8);
     const otpExpiresAt = new Date(Date.now() + OTP_TTL_MS);
 
-    await logPasswordResetEvent(db, {
-      event: 'otp_generated',
-      userId: user._id,
-      phoneE164: maskPhoneTail(phoneE164),
-      ip,
-    });
-
-    await logPasswordResetEvent(db, {
-      event: 'otp_sms_attempt',
-      userId: user._id,
-      phoneE164: maskPhoneTail(phoneE164),
-      ip,
-    });
-
     try {
       await sendPasswordResetOtpSms(phoneE164, otp);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.error('[forgot-password] SMS send failed:', msg, err);
+    } catch {
+      console.error('[forgot-password] SMS send failed');
       await logPasswordResetEvent(db, {
         event: 'otp_send_failed',
         userId: user._id,
         phoneE164: maskPhoneTail(phoneE164),
         ip,
-        detail: msg.slice(0, 500),
+        detail: 'sms_send_failed',
       });
-      return res.status(200).json({
-        message: genericMsg,
-        smsDeliveryEnabled: true,
-      });
+      return res.status(200).json({ message: genericMsg });
     }
 
     await resets.deleteMany({ userId: user._id });
@@ -188,12 +137,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       ip,
     });
 
-    return res.status(200).json({
-      message: genericMsg,
-      smsDeliveryEnabled: true,
-    });
+    return res.status(200).json({ message: genericMsg });
   } catch (error: unknown) {
-    console.error('Forgot password error:', error);
-    return res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+    return res.status(500).json(unexpectedBody('forgot-password', error));
   }
 }

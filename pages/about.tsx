@@ -82,24 +82,24 @@ export default function About() {
         </section>
 
         {/* Stats */}
-        <section className="bg-gradient-to-br from-primary-600 to-primary-700 rounded-xl shadow-md p-8 mb-8 text-white">
+        <section className="bg-neutral-950 rounded-xl shadow-md p-8 mb-8 text-white">
           <h2 className="text-2xl font-bold mb-6 text-center">Our Impact</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
             <div>
               <div className="text-3xl font-bold mb-2">500+</div>
-              <div className="text-primary-100">Active Users</div>
+              <div className="text-neutral-500">Active Users</div>
             </div>
             <div>
               <div className="text-3xl font-bold mb-2">50+</div>
-              <div className="text-primary-100">Expert Courses</div>
+              <div className="text-neutral-500">Expert Courses</div>
             </div>
             <div>
               <div className="text-3xl font-bold mb-2">95%</div>
-              <div className="text-primary-100">Success Rate</div>
+              <div className="text-neutral-500">Success Rate</div>
             </div>
             <div>
               <div className="text-3xl font-bold mb-2">24/7</div>
-              <div className="text-primary-100">Support Available</div>
+              <div className="text-neutral-500">Support Available</div>
             </div>
           </div>
         </section>

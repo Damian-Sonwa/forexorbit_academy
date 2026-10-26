@@ -9,12 +9,14 @@ import { useRouter } from 'next/router';
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
 import RichTextEditor from '@/components/RichTextEditor';
+import LoadingSpinner from '@/components/LoadingSpinner';
 import { useAuth } from '@/hooks/useAuth';
 import { useSocket } from '@/hooks/useSocket';
 import { apiClient } from '@/lib/api-client';
 import { sanitizeHtml } from '@/lib/html-sanitizer';
 import { getLessonDescriptionHtml, hasVisibleHtml } from '@/lib/lesson-html';
 import { useCourses } from '@/hooks/useCourses';
+import { canReadCourseLessons } from '@/lib/course-response';
 
 interface Lesson {
   _id: string;
@@ -93,18 +95,22 @@ export default function InstructorLessons() {
     try {
       setAllCourses(courses as Course[]);
     } catch (error) {
-      console.error('Failed to load courses:', error);
+      console.error('Failed to load courses:');
     }
   };
 
   const loadCourseLessons = async (courseId: string) => {
+    const selected = allCourses.find((item) => (item._id || item.id) === courseId);
+    if (!canReadCourseLessons(user?.role, user?.id, selected?.instructorId)) {
+      setCourseLessons([]);
+      return;
+    }
     try {
       setLoading(true);
       const lessons = await apiClient.get<Lesson[]>(`/lessons?courseId=${courseId}`);
       setCourseLessons(lessons.sort((a, b) => a.order - b.order));
-    } catch (error: any) {
-      console.error('Failed to load lessons:', error);
-      alert(error.message || 'Failed to load lessons');
+    } catch {
+      setCourseLessons([]);
     } finally {
       setLoading(false);
     }
@@ -322,13 +328,7 @@ export default function InstructorLessons() {
   };
 
   if (authLoading) {
-    return (
-      <div className="h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 dark:border-primary-400 mx-auto"></div>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner message="Checking your session" fullScreen />;
   }
 
   return (
@@ -830,7 +830,7 @@ export default function InstructorLessons() {
                               <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700 space-y-2">
                                 <div className="flex items-center gap-3 text-xs">
                                   {lesson.videoUrl && (
-                                    <span className="flex items-center gap-1 text-blue-600 dark:text-blue-400">
+                                    <span className="flex items-center gap-1 text-primary-600 dark:text-primary-400">
                                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
                                       </svg>

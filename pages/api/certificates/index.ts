@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Certificates API Route
  * GET: List certificates (role-based)
@@ -8,6 +9,7 @@ import type { NextApiResponse } from 'next';
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
+import { isActiveEnrollment } from '@/lib/enrollment-state';
 
 // GET certificates - role-based
 async function getCertificates(req: AuthRequest, res: NextApiResponse) {
@@ -103,8 +105,8 @@ async function getCertificates(req: AuthRequest, res: NextApiResponse) {
 
     res.json(enrichedCertificates);
   } catch (error: any) {
-    console.error('Get certificates error:', error);
-    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+    console.error('Get certificates error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 
@@ -115,7 +117,7 @@ async function generateCertificate(req: AuthRequest, res: NextApiResponse) {
     const userId = req.user!.userId;
 
     if (!courseId) {
-      return res.status(400).json({ message: 'Course ID required' });
+      return res.status(400).json({ error: 'Course ID required' });
     }
 
     const db = await getDb();
@@ -127,19 +129,19 @@ async function generateCertificate(req: AuthRequest, res: NextApiResponse) {
     // Check if course exists
     const course = await courses.findOne({ _id: new ObjectId(courseId) });
     if (!course) {
-      return res.status(404).json({ message: 'Course not found' });
+      return res.status(404).json({ error: 'Course not found' });
     }
 
     // Check if user has completed the course (100% progress)
     const userProgress = await progress.findOne({ userId, courseId });
-    if (!userProgress || userProgress.progress < 100) {
-      return res.status(400).json({ message: 'Course not completed. Complete all lessons to earn a certificate.' });
+    if (!userProgress || !isActiveEnrollment(userProgress) || userProgress.progress < 100) {
+      return res.status(400).json({ error: 'Course not completed. Complete all lessons to earn a certificate.' });
     }
 
     // Check if certificate already exists
     const existingCert = await certificates.findOne({ userId, courseId });
     if (existingCert) {
-      return res.status(400).json({ message: 'Certificate already issued' });
+      return res.status(400).json({ error: 'Certificate already issued' });
     }
 
     // Get total lessons count
@@ -164,8 +166,8 @@ async function generateCertificate(req: AuthRequest, res: NextApiResponse) {
       _id: result.insertedId.toString(),
     });
   } catch (error: any) {
-    console.error('Generate certificate error:', error);
-    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+    console.error('Generate certificate error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 
@@ -175,7 +177,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
   } else if (req.method === 'POST') {
     return generateCertificate(req, res);
   } else {
-    return res.status(405).json({ message: 'Method not allowed' });
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 }
 

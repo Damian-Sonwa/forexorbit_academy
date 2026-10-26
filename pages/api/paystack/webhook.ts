@@ -11,6 +11,7 @@ import { getDb } from '@/lib/mongodb';
 import { isPaystackConfigured } from '@/lib/lesson-monetization';
 import { unlockCourseFromWebhookPayload } from '@/lib/paystack-course-unlock';
 import type { PaystackVerifyData } from '@/lib/paystack-server';
+import { unexpectedBody } from '@/lib/public-error';
 
 export const config = {
   api: {
@@ -113,8 +114,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
     return res.status(200).json({ received: true });
   } catch (e: unknown) {
-    const err = e instanceof Error ? e : new Error(String(e));
-    console.error('[paystack-webhook] handler error', err);
-    return res.status(500).json({ error: 'Internal server error', details: err.message });
+    console.error('[paystack-webhook] handler error');
+    return res.status(500).json(unexpectedBody('paystack-webhook', e));
   }
 }

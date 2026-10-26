@@ -7,7 +7,7 @@ import { Html, Head, Main, NextScript } from 'next/document';
 
 export default function Document() {
   return (
-    <Html lang="en">
+    <Html lang="en" className="dark">
       <Head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -15,7 +15,12 @@ export default function Document() {
         <link rel="alternate icon" href="/favicon.ico" />
         <link rel="manifest" href="/manifest.json" />
         <link rel="apple-touch-icon" href="/icons/icon-192.png" />
-        <meta name="theme-color" content="#197278" />
+        <meta name="theme-color" content="#07080c" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var light=localStorage.getItem('theme')==='light';var root=document.documentElement;root.classList.toggle('dark',!light);var meta=document.querySelector('meta[name="theme-color"]');if(meta)meta.setAttribute('content',light?'#faf8f4':'#07080c');}catch(e){}})();`,
+          }}
+        />
         <meta name="application-name" content="ForexOrbit Academy" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />

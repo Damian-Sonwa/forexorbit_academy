@@ -1,74 +1,80 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Lesson Summary API Route
- * PUT: Update lesson summary (instructors only)
+ * PUT: Update lesson summary for the assigned instructor, an admin, or a superadmin.
  */
 
-import type { NextApiRequest, NextApiResponse } from 'next';
+import type { NextApiResponse } from 'next';
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
+import { decideAccountAccess, decideLessonUpdate, isStoredId } from '@/lib/account-access';
 
 async function updateLessonSummary(req: AuthRequest, res: NextApiResponse) {
+  const lessonId = Array.isArray(req.query.id) ? req.query.id[0] : req.query.id;
+  if (!isStoredId(lessonId)) {
+    return res.status(400).json({ error: 'Invalid lesson ID' });
+  }
+
   try {
-    // Only instructors can update lesson summaries
-    if (req.user!.role !== 'instructor') {
-      return res.status(403).json({ message: 'Only instructors can update lesson summaries' });
-    }
-
-    const { id } = req.query;
-    const { lessonSummary } = req.body;
-
-    if (!id || typeof id !== 'string') {
-      return res.status(400).json({ message: 'Invalid lesson ID' });
-    }
-
     const db = await getDb();
-    const lessons = db.collection('lessons');
-
-    const existing = await lessons.findOne({ _id: new ObjectId(id) });
-    if (!existing) {
-      return res.status(404).json({ message: 'Lesson not found' });
+    const record = await db.collection('users').findOne(
+      { _id: new ObjectId(req.user!.userId) },
+      { projection: { email: 1, role: 1, status: 1 } }
+    );
+    const account = decideAccountAccess({ userId: req.user!.userId, record });
+    const lesson = await db.collection('lessons').findOne(
+      { _id: new ObjectId(lessonId) },
+      { projection: { courseId: 1, lessonSummary: 1 } }
+    );
+    let course = null;
+    if (lesson && lesson.courseId != null && isStoredId(String(lesson.courseId))) {
+      course = await db.collection('courses').findOne(
+        { _id: new ObjectId(String(lesson.courseId)) },
+        { projection: { instructorId: 1 } }
+      );
+    }
+    const decision = decideLessonUpdate({
+      member: account.ok ? { userId: account.user.userId, role: account.user.role } : null,
+      lesson: lesson ? { _id: lesson._id, courseId: lesson.courseId } : null,
+      course: course ? { _id: course._id, instructorId: course.instructorId } : null,
+      patch: { lessonSummary: req.body?.lessonSummary },
+    });
+    if (!decision.ok) {
+      return res.status(decision.status).json({ error: decision.error });
     }
 
-    const existingSummary = (existing as any).lessonSummary || {};
-    const mergedSummary = {
-      ...existingSummary,
-      ...lessonSummary,
-      screenshots: [],
-      updatedAt: new Date(),
-    };
-
+    const existingSummary = lesson && lesson.lessonSummary && typeof lesson.lessonSummary === 'object'
+      ? lesson.lessonSummary
+      : {};
     const $set: Record<string, unknown> = {
-      lessonSummary: mergedSummary,
       updatedAt: new Date(),
     };
-
-    // Keep top-level `content` in sync with overview (HTML / migration)
-    if (lessonSummary && typeof (lessonSummary as any).overview === 'string') {
-      $set.content = (lessonSummary as any).overview;
+    if (decision.patch.lessonSummary && typeof decision.patch.lessonSummary === 'object') {
+      $set.lessonSummary = {
+        ...existingSummary,
+        overview: decision.patch.lessonSummary.overview,
+        screenshots: [],
+        updatedAt: new Date(),
+      };
+      if (typeof decision.patch.lessonSummary.overview === 'string') {
+        $set.content = decision.patch.lessonSummary.overview;
+      }
     }
 
-    const result = await lessons.updateOne({ _id: new ObjectId(id) }, { $set });
-
-    if (result.matchedCount === 0) {
-      return res.status(404).json({ message: 'Lesson not found' });
-    }
+    await db.collection('lessons').updateOne(
+      { _id: new ObjectId(decision.lessonId) },
+      { $set }
+    );
 
     res.json({
       success: true,
       message: 'Lesson summary updated successfully',
     });
-  } catch (error: any) {
-    console.error('Update lesson summary error:', error);    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+  } catch {
+    console.error(JSON.stringify({ event: 'lessonSummaryUpdate', result: 'failed' }));
+    res.status(500).json(unexpectedBody('api'));
   }
 }
 
-export default withAuth(updateLessonSummary, ['instructor']);
-
-
-
-
-
-
-
-
+export default withAuth(updateLessonSummary);

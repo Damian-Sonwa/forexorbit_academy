@@ -1,77 +1,53 @@
 /**
- * Mark All Notifications as Read API Route
+ * Mark the caller's notification copies as read.
  * POST /api/notifications/mark-all-read
  */
 
-import type { NextApiRequest, NextApiResponse } from 'next';
-import { withAuth, AuthRequest } from '@/lib/auth-middleware';
-import { getDb } from '@/lib/mongodb';
+import type { NextApiResponse } from 'next';
 import { ObjectId } from 'mongodb';
+import { withAuth, AuthRequest } from '@/lib/auth-middleware';
+import { communityMember } from '@/lib/account-access';
+import { getDb } from '@/lib/mongodb';
+import {
+  authorizedCommunityRoomIds,
+  logNotificationFailure,
+  notificationErrorBody,
+  ownedNotificationQuery,
+} from '@/lib/notification-access';
 
 async function markAllAsRead(req: AuthRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
-    return res.status(405).json({ message: 'Method not allowed' });
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
     const db = await getDb();
-    const notifications = db.collection('notifications');
-    const users = db.collection('users');
-
-    const user = await users.findOne(
+    const user = await db.collection('users').findOne(
       { _id: new ObjectId(req.user!.userId) },
       { projection: { role: 1, learningLevel: 1, studentDetails: 1 } }
     );
-
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      return res.status(404).json({ error: 'User not found' });
     }
 
-    // Build query based on role (same as getNotifications)
-    let query: any = { read: false };
+    const member = communityMember(req.user!.userId, user);
+    const rooms = await db.collection('communityRooms')
+      .find({}, { projection: { name: 1, type: 1, participants: 1 } })
+      .toArray();
+    const roomIds = authorizedCommunityRoomIds(member, rooms);
+    const result = await db.collection('notifications').updateMany(
+      ownedNotificationQuery(req.user!.userId, roomIds, { unreadOnly: true }),
+      { $set: { read: true } }
+    );
 
-    if (user.role === 'superadmin') {
-      query = { read: false };
-    } else if (user.role === 'admin') {
-      query = {
-        read: false,
-        $or: [
-          { roleTarget: 'admin' },
-          { roleTarget: 'all' },
-          { userId: req.user!.userId },
-        ]
-      };
-    } else if (user.role === 'instructor') {
-      query = {
-        read: false,
-        $or: [
-          { roleTarget: 'instructor' },
-          { roleTarget: 'all' },
-          { userId: req.user!.userId },
-        ]
-      };
-    } else if (user.role === 'student') {
-      query = {
-        read: false,
-        $or: [
-          { roleTarget: 'student' },
-          { roleTarget: 'all' },
-          { userId: req.user!.userId },
-        ]
-      };
-    }
-
-    const result = await notifications.updateMany(query, { $set: { read: true } });
-
-    res.json({ 
+    return res.json({
       success: true,
-      updatedCount: result.modifiedCount 
+      updatedCount: result.modifiedCount,
     });
-  } catch (error: unknown) {
-    console.error('Mark all as read error:', error);
-    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+  } catch {
+    logNotificationFailure('notification-read-all');
+    return res.status(500).json(notificationErrorBody('readAll'));
   }
 }
 
 export default withAuth(markAllAsRead);
-

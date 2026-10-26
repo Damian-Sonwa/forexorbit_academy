@@ -5,9 +5,11 @@
   "scripts": {
     "dev": "node server.js",
     "build": "next build",
-    "start": "node server.js",
-    "start:prod": "NODE_ENV=production node server.js",
+    "start": "node scripts/start-production.js",
+    "start:prod": "node scripts/start-production.js",
     "lint": "next lint",
+    "test": "node --test tests/security-remediation.test.js tests/account-access.test.js tests/community-room-access.test.js tests/typing-authorization.test.js tests/lesson-socket-access.test.js tests/lesson-message-access.test.js tests/quiz-mutation.test.js tests/progress-update.test.js tests/quiz-access.test.js tests/lesson-delete.test.js tests/socket-entry-points.test.js tests/lesson-update.test.js tests/community-presence.test.js tests/agora-token.test.js tests/lesson-read.test.js tests/session-binding.test.js tests/course-create.test.js tests/assignment-access.test.js tests/community-http-access.test.js tests/lesson-outline.test.js tests/community-news.test.js tests/course-response.test.js tests/socket-host.test.js tests/notification-access.test.js tests/enrollment-state.test.js tests/sprint-3.test.js tests/loading-presentation.test.js tests/request-status.test.js tests/public-error.test.js tests/error-closure.test.js",
+    "prepare": "node scripts/install-git-hooks.js",
     "seed": "node seed/seed.js"
   },
   "dependencies": {
@@ -15,7 +17,7 @@
     "agora-access-token": "^2.0.4",
     "agora-rtc-sdk-ng": "^4.24.2",
     "agora-token": "^2.0.5",
-    "axios": "^1.6.0",
+    "axios": "1.20.0",
     "bcryptjs": "^2.4.3",
     "cloudinary": "^2.8.0",
     "date-fns": "^2.30.0",
@@ -23,17 +25,18 @@
     "formidable": "^3.5.4",
     "jsonwebtoken": "^9.0.2",
     "libphonenumber-js": "^1.12.40",
+    "lucide-react": "^1.61.0",
     "mongodb": "^6.3.0",
-    "next": "^14.0.0",
+    "next": "15.5.28",
     "openai": "^6.15.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-player": "^2.13.0",
     "react-quill": "^2.0.0",
     "recharts": "^2.10.0",
-    "resend": "^6.9.4",
-    "socket.io": "^4.6.0",
-    "socket.io-client": "^4.6.0",
+    "resend": "6.13.0",
+    "socket.io": "4.8.4",
+    "socket.io-client": "4.8.4",
     "twilio": "^5.13.0"
   },
   "devDependencies": {
@@ -44,9 +47,32 @@
     "@types/react-dom": "^18.2.0",
     "autoprefixer": "^10.4.16",
     "eslint": "^8.54.0",
-    "eslint-config-next": "^14.0.0",
-    "postcss": "^8.4.32",
+    "eslint-config-next": "15.5.28",
+    "postcss": "8.5.31",
     "tailwindcss": "^3.3.6",
     "typescript": "5.9.3"
+  },
+  "overrides": {
+    "socket.io-parser": "4.2.7",
+    "ws": "8.22.0",
+    "engine.io": "6.6.11",
+    "postcss": "8.5.31",
+    "ajv": "6.15.0",
+    "baseline-browser-mapping": "2.11.33",
+    "brace-expansion": "1.1.21",
+    "browserslist": "4.29.4",
+    "flatted": "3.4.4",
+    "js-yaml": "4.3.2",
+    "lodash": "4.18.1",
+    "minimatch": "3.1.5",
+    "picomatch": "2.3.2",
+    "qs": "6.16.1",
+    "@typescript-eslint/typescript-estree": {
+      "brace-expansion": "2.1.7",
+      "minimatch": "9.0.9"
+    },
+    "tinyglobby": {
+      "picomatch": "4.0.7"
+    }
   }
 }

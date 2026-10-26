@@ -68,7 +68,7 @@ export function sanitizeHtml(
       );
       return doc.body.innerHTML;
     } catch (error) {
-      console.error('Error parsing HTML:', error);
+      console.error('Error parsing HTML:');
       return escapeHtml(html);
     }
   }

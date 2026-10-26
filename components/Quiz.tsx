@@ -53,15 +53,15 @@ export default function Quiz({ lessonId, quiz }: QuizProps) {
   if (submitted && results) {
     const scoreColor = results.score >= 70 ? 'green' : results.score >= 50 ? 'yellow' : 'red';
     const scoreBg = {
-      green: 'from-green-500 to-green-600',
-      yellow: 'from-yellow-500 to-yellow-600',
-      red: 'from-red-500 to-red-600',
+      green: 'bg-green-700',
+      yellow: 'bg-amber-700',
+      red: 'bg-red-700',
     }[scoreColor];
 
     return (
       <div className="space-y-6">
         {/* Score Card */}
-        <div className={`bg-gradient-to-br ${scoreBg} rounded-2xl p-8 text-white text-center shadow-lg`}>
+        <div className={`${scoreBg} rounded-2xl p-8 text-white text-center`}>
           <div className="text-6xl font-bold mb-2">{results.score.toFixed(0)}%</div>
           <p className="text-xl font-semibold mb-1">Quiz Score</p>
           <p className="text-white/90">

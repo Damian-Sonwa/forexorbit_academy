@@ -5,10 +5,12 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { apiClient } from '@/lib/api-client';
+import { resolveApiBaseUrl } from '@/lib/client-origin';
 import { useAuth } from '@/hooks/useAuth';
+import { AlertTriangle, Bot } from 'lucide-react';
 
-// CRITICAL: AI endpoints must call Render backend directly
-// Use apiClient which routes to Render backend via NEXT_PUBLIC_API_BASE_URL
+// AI calls stay on this build's API origin. Split hosting sets
+// NEXT_PUBLIC_API_BASE_URL. There is no production-host fallback.
 
 interface AIConfigStatus {
   configured: boolean;
@@ -47,13 +49,12 @@ export default function AIAssistant() {
   }, [messages]);
 
   useEffect(() => {
-    // Check if AI is configured
-    // CRITICAL: Must call Render backend directly, not Vercel
-    // Vercel doesn't have AI_API_KEY, so we must hit Render backend
+    // Ask this build's API whether AI is configured.
     const checkAIConfig = async () => {
       try {
-        // Always call Render backend for AI config check
-        const renderBackendUrl = 'https://forexorbit-academy.onrender.com';
+        const renderBackendUrl = resolveApiBaseUrl(
+          process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL
+        );
         const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
         
         const response = await fetch(`${renderBackendUrl}/api/ai/check-config`, {
@@ -74,7 +75,7 @@ export default function AIAssistant() {
           setAiConfigured(false);
         }
       } catch (error) {
-        console.error('[AI Assistant] Error checking AI config:', error);
+        console.error('[AI Assistant] Error checking AI config:');
         setAiConfigured(false);
       }
     };
@@ -99,9 +100,9 @@ export default function AIAssistant() {
     setError(null);
 
     try {
-      // CRITICAL: Must call Render backend directly for AI requests
-      // Vercel doesn't have AI_API_KEY, so all AI calls must go to Render
-      const renderBackendUrl = 'https://forexorbit-academy.onrender.com';
+      const renderBackendUrl = resolveApiBaseUrl(
+        process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL
+      );
       const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
       const userLevel = user?.learningLevel || (user as any)?.studentDetails?.tradingLevel || 'beginner';
       
@@ -154,15 +155,15 @@ export default function AIAssistant() {
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 flex flex-col h-[500px] sm:h-[600px]">
       {/* Header */}
-      <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-primary-600 to-purple-600 text-white rounded-t-xl">
+      <div className="px-4 py-3 border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900 text-neutral-900 dark:text-white rounded-t-xl">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
-              <span className="text-lg">🤖</span>
+            <div className="w-8 h-8 bg-primary-50 text-primary-700 rounded-full flex items-center justify-center">
+              <Bot className="h-5 w-5 shrink-0" aria-hidden />
             </div>
             <div>
               <h3 className="text-sm font-bold">AI Learning Assistant</h3>
-              <p className="text-xs text-primary-100">Ask me anything about Forex trading</p>
+              <p className="text-xs text-neutral-500">Ask me anything about Forex trading</p>
             </div>
           </div>
           {aiConfigured === false && (
@@ -189,7 +190,7 @@ export default function AIAssistant() {
             >
               <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
               <p className={`text-xs mt-1 ${
-                message.role === 'user' ? 'text-primary-100' : 'text-gray-500 dark:text-gray-400'
+                message.role === 'user' ? 'text-neutral-500' : 'text-gray-500 dark:text-gray-400'
               }`}>
                 {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </p>
@@ -219,8 +220,8 @@ export default function AIAssistant() {
       <form onSubmit={handleSend} className="border-t border-gray-200 dark:border-gray-700 p-4">
         {aiConfigured === false && (
           <div className="mb-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-            <p className="text-xs text-yellow-800 dark:text-yellow-200">
-              ⚠️ AI service is not configured. Please contact your administrator to enable AI features.
+            <p className="text-xs text-amber-800 dark:text-amber-200">
+              <AlertTriangle className="mr-1 inline h-4 w-4 shrink-0 text-amber-700" aria-hidden />AI service is not configured. Please contact your administrator to enable AI features.
             </p>
           </div>
         )}

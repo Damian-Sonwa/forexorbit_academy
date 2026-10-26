@@ -6,6 +6,7 @@
 
 import { useAuth } from '@/hooks/useAuth';
 import { getLearningLevelContent, type LearningLevel } from '@/lib/learning-level-content';
+import { TrendingUp } from 'lucide-react';
 
 export default function WhatYouWillGain() {
   const { user } = useAuth();
@@ -15,11 +16,11 @@ export default function WhatYouWillGain() {
   const content = getLearningLevelContent(userLevel);
 
   return (
-    <div className="mb-4 sm:mb-6 bg-white rounded-xl shadow-lg border-l-4 border-blue-700 p-4 sm:p-6 hover:shadow-xl transition-shadow">
+    <div className="mb-4 sm:mb-6 bg-white rounded-xl shadow-lg border-l-4 border-primary-700 p-4 sm:p-6 hover:shadow-xl transition-shadow">
       <div className="flex items-start justify-between">
         <div className="flex-1">
           <h2 className="text-xl sm:text-2xl md:text-3xl font-bold mb-3 sm:mb-4 flex items-center text-gray-900">
-            <span className="mr-2 sm:mr-3 text-2xl sm:text-3xl md:text-4xl">📈</span>
+            <TrendingUp className="mr-2 h-7 w-7 shrink-0 text-primary-600 sm:mr-3 sm:h-8 sm:w-8" aria-hidden />
             <span className="break-words">Forex Training – What You Will Gain</span>
           </h2>
           <p className="text-sm text-gray-600 mb-4 sm:mb-6">

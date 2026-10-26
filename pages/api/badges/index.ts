@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Badges API Route
  * GET: List badges (all users or user-specific)
@@ -41,21 +42,21 @@ async function getBadges(req: AuthRequest, res: NextApiResponse) {
       res.json(badgesList);
     }
   } catch (error: any) {
-    console.error('Get badges error:', error);
-    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+    console.error('Get badges error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 
 async function createBadge(req: AuthRequest, res: NextApiResponse) {
   try {
     if (req.user!.role !== 'admin') {
-      return res.status(403).json({ message: 'Admin only' });
+      return res.status(403).json({ error: 'Admin only' });
     }
 
     const { name, description, icon, pointsRequired, category } = req.body;
 
     if (!name || !description || pointsRequired === undefined) {
-      return res.status(400).json({ message: 'Missing required fields' });
+      return res.status(400).json({ error: 'Missing required fields' });
     }
 
     const db = await getDb();
@@ -76,8 +77,8 @@ async function createBadge(req: AuthRequest, res: NextApiResponse) {
       ...req.body,
     });
   } catch (error: any) {
-    console.error('Create badge error:', error);
-    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+    console.error('Create badge error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 
@@ -87,7 +88,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
   } else if (req.method === 'POST') {
     return createBadge(req, res);
   } else {
-    return res.status(405).json({ message: 'Method not allowed' });
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 }
 

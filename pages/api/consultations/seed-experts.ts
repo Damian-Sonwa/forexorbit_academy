@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Seed Experts API Route
  * POST: Automatically mark instructors and admins as experts
@@ -14,8 +15,8 @@ import { ObjectId } from 'mongodb';
 async function seedExperts(req: AuthRequest, res: NextApiResponse) {
   try {
     // Only admins can trigger seeding
-    if (req.user!.role !== 'admin' && req.user!.email !== 'madudamian25@gmail.com') {
-      return res.status(403).json({ message: 'Admin access required' });
+    if (req.user!.role !== 'admin' && req.user!.role !== 'superadmin') {
+      return res.status(403).json({ error: 'Admin access required' });
     }
 
     const db = await getDb();
@@ -45,7 +46,7 @@ async function seedExperts(req: AuthRequest, res: NextApiResponse) {
         $or: [
           { role: 'instructor' },
           { role: 'admin' },
-          { email: 'madudamian25@gmail.com' } // Super admin
+          { role: 'superadmin' }
         ],
         isExpert: { $ne: true } // Only update if not already an expert
       },
@@ -94,12 +95,12 @@ async function seedExperts(req: AuthRequest, res: NextApiResponse) {
       },
     });
   } catch (error: any) {
-    console.error('Seed experts error:', error);
-    res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+    console.error('Seed experts error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 
-export default withAuth(seedExperts, ['admin']);
+export default withAuth(seedExperts, ['admin', 'superadmin']);
 
 
 

@@ -14,6 +14,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { apiClient } from '@/lib/api-client';
 import { format } from 'date-fns';
 import Image from 'next/image';
+import { Bot, Lightbulb } from 'lucide-react';
 
 interface DemoTask {
   _id: string;
@@ -117,7 +118,7 @@ export default function TaskDetail() {
         console.log('No submission found for this task');
       }
     } catch (error) {
-      console.error('Failed to load task data:', error);
+      console.error('Failed to load task data:');
       alert('Failed to load task. Please try again.');
       router.push('/student-dashboard');
     } finally {
@@ -162,7 +163,7 @@ export default function TaskDetail() {
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to upload screenshot';
       setSubmissionUploadError(errorMessage);
-      console.error('Screenshot upload error:', error);
+      console.error('Screenshot upload error:');
     } finally {
       setUploadingScreenshot(false);
     }
@@ -192,7 +193,7 @@ export default function TaskDetail() {
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to submit task';
       alert(errorMessage);
-      console.error('Task submission error:', error);
+      console.error('Task submission error:');
     } finally {
       setIsSubmitting(false);
     }
@@ -212,7 +213,7 @@ export default function TaskDetail() {
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to delete submission';
       alert(errorMessage);
-      console.error('Delete submission error:', error);
+      console.error('Delete submission error:');
     }
   };
 
@@ -264,7 +265,7 @@ export default function TaskDetail() {
                   {hasSubmission && (
                     <span className={`px-3 py-1 rounded text-sm font-medium ${
                       isGraded ? 'bg-green-100 text-green-800' :
-                      isReviewed ? 'bg-blue-100 text-blue-800' :
+                      isReviewed ? 'bg-neutral-100 text-neutral-800' :
                       'bg-yellow-100 text-yellow-800'
                     }`}>
                       {isGraded ? 'Graded' : isReviewed ? 'Reviewed' : 'Submitted'}
@@ -285,7 +286,7 @@ export default function TaskDetail() {
 
           {/* Task Instructions */}
           {task.instructions && (
-            <div className="mb-6 bg-blue-50 border-l-4 border-blue-400 rounded-lg p-6">
+            <div className="mb-6 bg-neutral-50 border-l-4 border-primary-400 rounded-lg p-6">
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-lg font-semibold text-gray-900">Instructions</h2>
                 <button
@@ -298,14 +299,14 @@ export default function TaskDetail() {
                       });
                       setAiHint(response.hint);
                     } catch (error) {
-                      console.error('Failed to get AI hint:', error);
+                      console.error('Failed to get AI hint:');
                       alert('Failed to get AI hint. Please try again later.');
                     } finally {
                       setLoadingHint(false);
                     }
                   }}
                   disabled={loadingHint}
-                  className="px-3 py-1.5 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white rounded-lg text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                  className="px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
                 >
                   {loadingHint ? (
                     <>
@@ -314,7 +315,7 @@ export default function TaskDetail() {
                     </>
                   ) : (
                     <>
-                      <span>🤖</span>
+                      <Bot className="h-4 w-4 shrink-0" aria-hidden />
                       <span>Ask AI for Hint</span>
                     </>
                   )}
@@ -324,10 +325,10 @@ export default function TaskDetail() {
                 <p className="text-gray-700 whitespace-pre-line">{task.instructions}</p>
               </div>
               {aiHint && (
-                <div className="mt-4 p-4 bg-white rounded-lg border border-blue-200">
+                <div className="mt-4 p-4 bg-white rounded-lg border border-neutral-200">
                   <div className="flex items-start justify-between mb-2">
                     <h3 className="text-sm font-semibold text-gray-900 flex items-center">
-                      <span className="mr-2">💡</span>
+                      <Lightbulb className="mr-2 h-4 w-4 shrink-0 text-primary-600" aria-hidden />
                       AI Hint
                     </h3>
                     <button
@@ -476,8 +477,8 @@ export default function TaskDetail() {
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 bg-white disabled:opacity-50 disabled:cursor-not-allowed"
                     />
                     {uploadingScreenshot && (
-                      <p className="text-sm text-blue-600 flex items-center">
-                        <span className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></span>
+                      <p className="text-sm text-primary-600 flex items-center">
+                        <span className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-primary-600 mr-2"></span>
                         Uploading screenshot...
                       </p>
                     )}

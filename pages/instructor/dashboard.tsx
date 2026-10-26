@@ -18,6 +18,9 @@ import Sidebar from '@/components/Sidebar';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import RichTextEditor from '@/components/RichTextEditor';
 import { useAuth } from '@/hooks/useAuth';
+import { FEATURES } from '@/lib/config/features';
+import { isAbortedRequest } from '@/lib/request-status';
+import { canReadCourseLessons } from '@/lib/course-response';
 import { useSocket } from '@/hooks/useSocket';
 import { apiClient } from '@/lib/api-client';
 import { sanitizeHtml } from '@/lib/html-sanitizer';
@@ -111,6 +114,7 @@ export default function InstructorDashboard() {
     date: '',
     time: '',
     meetingLink: '',
+    courseId: '',
   });
   const [submittingClass, setSubmittingClass] = useState(false);
   const [showClassForm, setShowClassForm] = useState(false);
@@ -219,16 +223,21 @@ export default function InstructorDashboard() {
       // Load ALL courses for instructors (full access)
       setAllCourses(courses as Course[]);
     } catch (error) {
-      console.error('Failed to load courses:', error);
+      console.error('Failed to load courses:');
     }
   };
 
   const loadNews = async () => {
+    if (!FEATURES.COMMUNITY) {
+      setNewsItems([]);
+      return;
+    }
     try {
       const data = await apiClient.get('/community/news');
       setNewsItems(data as any[]);
     } catch (error) {
-      console.error('Failed to load news:', error);
+      if (isAbortedRequest(error)) return;
+      console.error('Failed to load news');
     }
   };
 
@@ -238,7 +247,7 @@ export default function InstructorDashboard() {
       const data = await apiClient.get<any[]>('/classes');
       setUpcomingClasses(data || []);
     } catch (error) {
-      console.error('Failed to load upcoming classes:', error);
+      console.error('Failed to load upcoming classes:');
       setUpcomingClasses([]);
     }
   };
@@ -250,7 +259,7 @@ export default function InstructorDashboard() {
       const data = await apiClient.get<any[]>('/demo-trading/submissions');
       setDemoSubmissions(data || []);
     } catch (error) {
-      console.error('Failed to load demo submissions:', error);
+      console.error('Failed to load demo submissions:');
       setDemoSubmissions([]);
     } finally {
       setLoadingSubmissions(false);
@@ -263,7 +272,7 @@ export default function InstructorDashboard() {
     setSubmittingClass(true);
     try {
       await apiClient.post('/classes', classForm);
-      setClassForm({ title: '', description: '', date: '', time: '', meetingLink: '' });
+      setClassForm({ title: '', description: '', date: '', time: '', meetingLink: '', courseId: '' });
       setShowClassForm(false);
       setEditingClass(null);
       await loadUpcomingClasses();
@@ -284,6 +293,7 @@ export default function InstructorDashboard() {
       date: cls.date,
       time: cls.time,
       meetingLink: cls.meetingLink || '',
+      courseId: cls.courseId || '',
     });
     setShowClassForm(true);
   };
@@ -295,7 +305,7 @@ export default function InstructorDashboard() {
     setSubmittingClass(true);
     try {
       await apiClient.put(`/classes?id=${editingClass._id}`, classForm);
-      setClassForm({ title: '', description: '', date: '', time: '', meetingLink: '' });
+      setClassForm({ title: '', description: '', date: '', time: '', meetingLink: '', courseId: '' });
       setShowClassForm(false);
       setEditingClass(null);
       await loadUpcomingClasses();
@@ -324,20 +334,24 @@ export default function InstructorDashboard() {
       const data = await apiClient.get('/instructor/analytics');
       setAnalytics(data as any);
     } catch (error: any) {
-      console.error('[Instructor Dashboard] Failed to load analytics:', error);
+      console.error('[Instructor Dashboard] Failed to load analytics:');
       // Don't set fallback zeros - analytics will remain null and show loading/error state
       setAnalytics(null);
     }
   };
 
   const loadCourseLessons = async (courseId: string) => {
+    const selected = allCourses.find((item) => (item._id || item.id) === courseId);
+    if (!canReadCourseLessons(user?.role, user?.id, selected?.instructorId)) {
+      setCourseLessons([]);
+      return;
+    }
     try {
       setLoading(true);
       const lessons = await apiClient.get<Lesson[]>(`/lessons?courseId=${courseId}`);
       setCourseLessons(lessons.sort((a, b) => a.order - b.order));
-    } catch (error: any) {
-      console.error('Failed to load lessons:', error);
-      alert(error.message || 'Failed to load lessons');
+    } catch {
+      setCourseLessons([]);
     } finally {
       setLoading(false);
     }
@@ -684,10 +698,10 @@ export default function InstructorDashboard() {
           <p className="text-gray-600 dark:text-gray-400 text-xs sm:text-sm">Manage your courses, lessons, and track student progress</p>
         </div>
 
-        {/* Forex News Posting Section */}
+        {FEATURES.COMMUNITY && (
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4 mb-3 sm:mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 flex-shrink-0">
           <div className="flex items-center space-x-3">
-            <svg className="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-6 h-6 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
             </svg>
             <div>
@@ -697,7 +711,7 @@ export default function InstructorDashboard() {
           </div>
           <button
             onClick={() => setShowNewsModal(true)}
-            className="w-full sm:w-auto px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-sm transition-colors flex items-center justify-center space-x-2"
+            className="w-full sm:w-auto px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold text-sm transition-colors flex items-center justify-center space-x-2"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -705,6 +719,7 @@ export default function InstructorDashboard() {
             <span>Post News</span>
           </button>
         </div>
+        )}
 
         {/* Consultation removed from dashboard - now only in sidebar page (/consultations/expert) */}
 
@@ -801,13 +816,30 @@ export default function InstructorDashboard() {
                   />
                 </div>
               </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                  Course for enrolled students
+                </label>
+                <select
+                  value={classForm.courseId}
+                  onChange={(e) => setClassForm({ ...classForm, courseId: e.target.value })}
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                >
+                  <option value="">No course notification</option>
+                  {courses.filter((course) => canReadCourseLessons(user?.role, user?.id, course.instructorId)).map((course) => (
+                    <option key={course._id || course.id} value={course._id || course.id}>
+                      {course.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <div className="flex gap-3">
                 {editingClass && (
                   <button
                     type="button"
                     onClick={() => {
                       setEditingClass(null);
-                      setClassForm({ title: '', description: '', date: '', time: '', meetingLink: '' });
+                      setClassForm({ title: '', description: '', date: '', time: '', meetingLink: '', courseId: '' });
                       setShowClassForm(false);
                     }}
                     className="flex-1 px-6 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-xl font-semibold transition-colors"
@@ -860,7 +892,7 @@ export default function InstructorDashboard() {
                         {/* FIX: Edit and Delete buttons */}
                         <button
                           onClick={() => handleEditClass(cls)}
-                          className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-sm transition-colors flex items-center space-x-1"
+                          className="px-3 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold text-sm transition-colors flex items-center space-x-1"
                           title="Edit Class"
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -935,7 +967,7 @@ export default function InstructorDashboard() {
                           </p>
                         </div>
                         <span className={`px-3 py-1 rounded text-xs font-medium ${
-                          submission.result === 'win' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+                          submission.result === 'win' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-primary-600' :
                           submission.result === 'loss' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' :
                           'bg-gray-100 text-gray-800 dark:bg-gray-600 dark:text-gray-200'
                         }`}>
@@ -1022,65 +1054,65 @@ export default function InstructorDashboard() {
 
         {/* Statistics Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 mb-3 sm:mb-4 flex-shrink-0">
-          <div className="bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl shadow-lg p-4 text-white">
+          <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-sm p-4 text-neutral-900 dark:text-white">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-primary-100 text-xs font-medium mb-1">All Courses</p>
+                <p className="text-neutral-500 text-xs font-medium mb-1">All Courses</p>
                 {analytics === null ? (
                   <div className="h-8 w-16 bg-primary-400/50 rounded animate-pulse"></div>
                 ) : (
                   <p className="text-2xl font-bold">{analytics?.totalCourses ?? allCourses.length}</p>
                 )}
               </div>
-              <svg className="w-8 h-8 text-primary-200 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-8 h-8 text-primary-600 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
               </svg>
             </div>
           </div>
 
-          <div className="bg-gradient-to-br from-secondary-500 to-secondary-600 rounded-xl shadow-lg p-4 text-white">
+          <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-sm p-4 text-neutral-900 dark:text-white">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-secondary-100 text-xs font-medium mb-1">Total Lessons</p>
+                <p className="text-neutral-500 text-xs font-medium mb-1">Total Lessons</p>
                 {analytics === null ? (
                   <div className="h-8 w-16 bg-secondary-400/50 rounded animate-pulse"></div>
                 ) : (
                   <p className="text-2xl font-bold">{analytics?.totalLessons ?? 0}</p>
                 )}
               </div>
-              <svg className="w-8 h-8 text-secondary-200 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-8 h-8 text-primary-600 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
               </svg>
             </div>
           </div>
 
-          <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-4 text-white">
+          <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-sm p-4 text-neutral-900 dark:text-white">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-green-100 text-xs font-medium mb-1">Total Students</p>
+                <p className="text-neutral-500 text-xs font-medium mb-1">Total Students</p>
                 {analytics === null ? (
                   <div className="h-8 w-16 bg-green-400/50 rounded animate-pulse"></div>
                 ) : (
                   <p className="text-2xl font-bold">{analytics?.totalStudents ?? 0}</p>
                 )}
               </div>
-              <svg className="w-8 h-8 text-green-200 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-8 h-8 text-primary-600 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
               </svg>
             </div>
           </div>
 
-          <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-xl shadow-lg p-4 text-white">
+          <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-sm p-4 text-neutral-900 dark:text-white">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-yellow-100 text-xs font-medium mb-1">Enrollments</p>
+                <p className="text-neutral-500 text-xs font-medium mb-1">Enrollments</p>
                 {analytics === null ? (
                   <div className="h-8 w-16 bg-yellow-400/50 rounded animate-pulse"></div>
                 ) : (
                   <p className="text-2xl font-bold">{analytics?.totalEnrollments ?? analytics?.enrolledStudents ?? 0}</p>
                 )}
               </div>
-              <svg className="w-8 h-8 text-yellow-200 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-8 h-8 text-primary-600 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
@@ -1122,6 +1154,7 @@ export default function InstructorDashboard() {
                             : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
                         }`}
                       >
+                        {canReadCourseLessons(user?.role, user?.id, course.instructorId) ? (
                         <Link
                           href={`/instructor/courses/${course._id || course.id}`}
                           className="w-full text-left p-3 block hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded transition-colors"
@@ -1129,6 +1162,12 @@ export default function InstructorDashboard() {
                           <p className="font-semibold text-sm text-gray-900 dark:text-white">{course.title}</p>
                           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">{course.description}</p>
                         </Link>
+                        ) : (
+                        <div className="w-full text-left p-3 block rounded">
+                          <p className="font-semibold text-sm text-gray-900 dark:text-white">{course.title}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">{course.description}</p>
+                        </div>
+                        )}
                         <div className="px-3 pb-2 flex gap-1">
                           <button
                             onClick={(e) => {
@@ -1162,6 +1201,7 @@ export default function InstructorDashboard() {
                             : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
                         }`}
                       >
+                        {canReadCourseLessons(user?.role, user?.id, course.instructorId) ? (
                         <Link
                           href={`/instructor/courses/${course._id || course.id}`}
                           className="w-full text-left p-3 block hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded transition-colors"
@@ -1169,6 +1209,12 @@ export default function InstructorDashboard() {
                           <p className="font-semibold text-sm text-gray-900 dark:text-white">{course.title}</p>
                           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">{course.description}</p>
                         </Link>
+                        ) : (
+                        <div className="w-full text-left p-3 block rounded">
+                          <p className="font-semibold text-sm text-gray-900 dark:text-white">{course.title}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">{course.description}</p>
+                        </div>
+                        )}
                         <div className="px-3 pb-2 flex gap-1">
                           <button
                             onClick={(e) => {
@@ -1202,6 +1248,7 @@ export default function InstructorDashboard() {
                             : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
                         }`}
                       >
+                        {canReadCourseLessons(user?.role, user?.id, course.instructorId) ? (
                         <Link
                           href={`/instructor/courses/${course._id || course.id}`}
                           className="w-full text-left p-3 block hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded transition-colors"
@@ -1209,6 +1256,12 @@ export default function InstructorDashboard() {
                           <p className="font-semibold text-sm text-gray-900 dark:text-white">{course.title}</p>
                           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">{course.description}</p>
                         </Link>
+                        ) : (
+                        <div className="w-full text-left p-3 block rounded">
+                          <p className="font-semibold text-sm text-gray-900 dark:text-white">{course.title}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">{course.description}</p>
+                        </div>
+                        )}
                         <div className="px-3 pb-2 flex gap-1">
                           <button
                             onClick={(e) => {
@@ -1659,7 +1712,7 @@ export default function InstructorDashboard() {
                                 </button>
                                 <button
                                   onClick={() => handleEditQuiz(lesson._id)}
-                                  className="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded text-sm font-semibold hover:bg-blue-200 dark:hover:bg-blue-900/50"
+                                  className="px-3 py-1 bg-neutral-100 dark:bg-neutral-900/30 text-primary-700 dark:text-primary-400 rounded text-sm font-semibold hover:bg-neutral-200 dark:hover:bg-neutral-900/50"
                                 >
                                   Quiz
                                 </button>
@@ -1675,7 +1728,7 @@ export default function InstructorDashboard() {
                               {/* Lesson Type and Media */}
                               <div className="flex items-center gap-3 text-xs">
                                 {lesson.videoUrl && (
-                                  <span className="flex items-center gap-1 text-blue-600 dark:text-blue-400">
+                                  <span className="flex items-center gap-1 text-primary-600 dark:text-primary-400">
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
                                     </svg>
@@ -1746,10 +1799,10 @@ export default function InstructorDashboard() {
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-2 sm:p-4">
           <div className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-2xl max-w-4xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col">
             {/* Modal Header */}
-            <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20">
+            <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700 bg-neutral-50 dark:bg-neutral-900">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                 <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white flex items-center">
-                  <svg className="w-6 h-6 mr-2 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-6 h-6 mr-2 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
                   </svg>
                   Important Updates
@@ -1761,7 +1814,7 @@ export default function InstructorDashboard() {
                       setEditingNews({ _id: null });
                       setNewsEditForm({ title: '', description: '', category: 'market', content: '', link: '' });
                     }}
-                    className="flex-1 sm:flex-none px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-sm transition-colors flex items-center justify-center space-x-2"
+                    className="flex-1 sm:flex-none px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold text-sm transition-colors flex items-center justify-center space-x-2"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -1836,7 +1889,7 @@ export default function InstructorDashboard() {
                                 link: news.link || '',
                               });
                             }}
-                            className="p-1.5 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded transition-colors"
+                            className="p-1.5 text-primary-600 hover:bg-neutral-100 dark:hover:bg-neutral-900/30 rounded transition-colors"
                             title="Edit"
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1877,15 +1930,15 @@ export default function InstructorDashboard() {
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-2 sm:p-4">
           <div className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-2xl max-w-2xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col">
             {/* Modal Header */}
-            <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20">
+            <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700 bg-neutral-50 dark:bg-neutral-900">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 dark:text-white flex items-center">
                   {editingNews._id ? (
-                    <svg className="w-6 h-6 mr-2 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-6 h-6 mr-2 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                     </svg>
                   ) : (
-                    <svg className="w-6 h-6 mr-2 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-6 h-6 mr-2 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
                     </svg>
                   )}
@@ -1942,7 +1995,7 @@ export default function InstructorDashboard() {
                   value={newsEditForm.title}
                   onChange={(e) => setNewsEditForm({ ...newsEditForm, title: e.target.value })}
                   placeholder="e.g., NFP Results: 200K Jobs Added"
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-600 focus:border-transparent"
                   required
                 />
               </div>
@@ -1956,7 +2009,7 @@ export default function InstructorDashboard() {
                   onChange={(e) => setNewsEditForm({ ...newsEditForm, description: e.target.value })}
                   placeholder="Brief summary of the news update"
                   rows={3}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-600 focus:border-transparent"
                   required
                 />
               </div>
@@ -1968,7 +2021,7 @@ export default function InstructorDashboard() {
                 <select
                   value={newsEditForm.category}
                   onChange={(e) => setNewsEditForm({ ...newsEditForm, category: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-600 focus:border-transparent"
                   required
                 >
                   <option value="market">Market News</option>
@@ -1989,7 +2042,7 @@ export default function InstructorDashboard() {
                   onChange={(e) => setNewsEditForm({ ...newsEditForm, content: e.target.value })}
                   placeholder="Detailed content or analysis"
                   rows={5}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-600 focus:border-transparent"
                 />
               </div>
 
@@ -2002,7 +2055,7 @@ export default function InstructorDashboard() {
                   value={newsEditForm.link}
                   onChange={(e) => setNewsEditForm({ ...newsEditForm, link: e.target.value })}
                   placeholder="https://example.com/article"
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-600 focus:border-transparent"
                 />
               </div>
 
@@ -2020,7 +2073,7 @@ export default function InstructorDashboard() {
                 <button
                   type="submit"
                   disabled={submittingNews}
-                  className={`w-full sm:w-auto px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold transition-colors ${
+                  className={`w-full sm:w-auto px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-semibold transition-colors ${
                     submittingNews ? 'opacity-50 cursor-not-allowed' : ''
                   }`}
                 >
