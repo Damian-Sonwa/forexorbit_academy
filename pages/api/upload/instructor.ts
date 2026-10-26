@@ -1,3 +1,4 @@
+import { publicUploadFailure } from '@/lib/public-error';
 /**
  * Instructor Image Upload API
  * Handles file uploads for instructor images using Cloudinary
@@ -50,14 +51,9 @@ async function uploadInstructorImage(req: AuthRequest, res: NextApiResponse) {
           // Ignore cleanup errors
         }
       }
-      const missing = [];
-      if (!process.env.CLOUDINARY_CLOUD_NAME) missing.push('CLOUDINARY_CLOUD_NAME');
-      if (!process.env.CLOUDINARY_API_KEY) missing.push('CLOUDINARY_API_KEY');
-      if (!process.env.CLOUDINARY_API_SECRET) missing.push('CLOUDINARY_API_SECRET');
-      console.error('Cloudinary not configured - missing environment variables:', missing.join(', '));
-      return res.status(500).json({ 
+      console.error('Image upload service is not configured');
+      return res.status(500).json({
         error: 'Image upload service is not configured. Please contact support.',
-        details: `Missing: ${missing.join(', ')}`
       });
     }
 
@@ -102,14 +98,8 @@ async function uploadInstructorImage(req: AuthRequest, res: NextApiResponse) {
       filename: uploadResult.publicId.split('/').pop() || 'image',
     });
   } catch (error: any) {
-    console.error('Instructor image upload error:', error);
-    if (error.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json({ error: 'File size exceeds 10MB limit' });
-    }
-    if (error.message?.includes('Cloudinary configuration is missing')) {
-      return res.status(500).json({ error: 'Image upload service is not configured. Please contact support.' });
-    }
-    res.status(500).json({ error: error.message || 'Failed to upload instructor image' });
+    const failure = publicUploadFailure(error, { limitMessage: 'File size exceeds 10MB limit' });
+    return res.status(failure.status).json(failure.body);
   }
 }
 

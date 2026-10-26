@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Super Admin Consultation Controls API Route
  * GET: Get consultation settings and logs
@@ -56,8 +57,8 @@ async function getSettings(req: AuthRequest, res: NextApiResponse) {
       },
     });
   } catch (error: any) {
-    console.error('Get consultation settings error:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    console.error('Get consultation settings error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 
@@ -100,8 +101,8 @@ async function updateSettings(req: AuthRequest, res: NextApiResponse) {
       res.status(400).json({ error: 'Invalid action' });
     }
   } catch (error: any) {
-    console.error('Update consultation settings error:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    console.error('Update consultation settings error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 
@@ -185,8 +186,8 @@ async function getLogs(req: AuthRequest, res: NextApiResponse) {
       },
     });
   } catch (error: any) {
-    console.error('Get consultation logs error:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    console.error('Get consultation logs error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 

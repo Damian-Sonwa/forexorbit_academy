@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Instructors API Route
  * GET: List all instructors
@@ -18,8 +19,8 @@ async function getInstructors(req: AuthRequest, res: NextApiResponse) {
 
     res.json(instructorsList);
   } catch (error: any) {
-    console.error('Get instructors error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Get instructors error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 
@@ -52,8 +53,8 @@ async function createInstructor(req: AuthRequest, res: NextApiResponse) {
       imageUrl: imageUrl || '',
     });
   } catch (error: any) {
-    console.error('Create instructor error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Create instructor error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 

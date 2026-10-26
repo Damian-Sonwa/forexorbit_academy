@@ -34,7 +34,7 @@ export default function Chat({ lessonId }: ChatProps) {
         const data = await apiClient.get<Message[]>(`/messages?lessonId=${lessonId}`);
         setMessages(data);
       } catch (error) {
-        console.error('Failed to load messages:', error);
+        console.error('Failed to load messages:');
       } finally {
         setLoading(false);
       }

@@ -1,3 +1,4 @@
+import { publicUploadFailure } from '@/lib/public-error';
 /**
  * Profile Photo Upload API Route
  * Handles profile photo uploads for users
@@ -51,20 +52,9 @@ async function uploadProfilePhoto(req: AuthRequest, res: NextApiResponse) {
           // Ignore cleanup errors
         }
       }
-      const missing = [];
-      if (!process.env.CLOUDINARY_CLOUD_NAME) missing.push('CLOUDINARY_CLOUD_NAME');
-      if (!process.env.CLOUDINARY_API_KEY) missing.push('CLOUDINARY_API_KEY');
-      if (!process.env.CLOUDINARY_API_SECRET) missing.push('CLOUDINARY_API_SECRET');
-      console.error('Cloudinary not configured - missing environment variables:', missing.join(', '));
-      console.error('Environment check:', {
-        nodeEnv: process.env.NODE_ENV,
-        hasCloudName: !!process.env.CLOUDINARY_CLOUD_NAME,
-        hasApiKey: !!process.env.CLOUDINARY_API_KEY,
-        hasApiSecret: !!process.env.CLOUDINARY_API_SECRET,
-      });
-      return res.status(500).json({ 
+      console.error('Image upload service is not configured');
+      return res.status(500).json({
         error: 'Image upload service is not configured. Please contact support.',
-        details: `Missing: ${missing.join(', ')}`
       });
     }
 
@@ -122,7 +112,7 @@ async function uploadProfilePhoto(req: AuthRequest, res: NextApiResponse) {
     // Delete old profile photo from Cloudinary asynchronously (don't block response)
     if (oldProfilePhotoPublicId) {
       deleteImage(oldProfilePhotoPublicId).catch((error) => {
-        console.error('Failed to delete old profile photo from Cloudinary:', error);
+        console.error('Failed to delete old profile photo from Cloudinary:');
         // Don't fail the request if deletion fails
       });
     }
@@ -133,14 +123,8 @@ async function uploadProfilePhoto(req: AuthRequest, res: NextApiResponse) {
       message: 'Profile photo uploaded successfully',
     });
   } catch (error: any) {
-    console.error('Profile photo upload error:', error);
-    if (error.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json({ error: 'File size exceeds 10MB limit' });
-    }
-    if (error.message?.includes('Cloudinary configuration is missing')) {
-      return res.status(500).json({ error: 'Image upload service is not configured. Please contact support.' });
-    }
-    res.status(500).json({ error: error.message || 'Failed to upload profile photo' });
+    const failure = publicUploadFailure(error, { limitMessage: 'File size exceeds 10MB limit' });
+    return res.status(failure.status).json(failure.body);
   }
 }
 

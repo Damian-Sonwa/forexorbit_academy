@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Assignment Grading API Route
  * POST: Grade a submission on a course the caller owns
@@ -66,7 +67,7 @@ async function gradeAssignment(req: AuthRequest, res: NextApiResponse) {
     return res.json({ success: true, message: 'Assignment graded successfully' });
   } catch {
     console.error(JSON.stringify({ event: 'assignmentGrade', result: 'failed' }));
-    return res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json(unexpectedBody('api'));
   }
 }
 

@@ -18,6 +18,8 @@ import Sidebar from '@/components/Sidebar';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import RichTextEditor from '@/components/RichTextEditor';
 import { useAuth } from '@/hooks/useAuth';
+import { FEATURES } from '@/lib/config/features';
+import { isAbortedRequest } from '@/lib/request-status';
 import { canReadCourseLessons } from '@/lib/course-response';
 import { useSocket } from '@/hooks/useSocket';
 import { apiClient } from '@/lib/api-client';
@@ -221,16 +223,21 @@ export default function InstructorDashboard() {
       // Load ALL courses for instructors (full access)
       setAllCourses(courses as Course[]);
     } catch (error) {
-      console.error('Failed to load courses:', error);
+      console.error('Failed to load courses:');
     }
   };
 
   const loadNews = async () => {
+    if (!FEATURES.COMMUNITY) {
+      setNewsItems([]);
+      return;
+    }
     try {
       const data = await apiClient.get('/community/news');
       setNewsItems(data as any[]);
     } catch (error) {
-      console.error('Failed to load news:', error);
+      if (isAbortedRequest(error)) return;
+      console.error('Failed to load news');
     }
   };
 
@@ -240,7 +247,7 @@ export default function InstructorDashboard() {
       const data = await apiClient.get<any[]>('/classes');
       setUpcomingClasses(data || []);
     } catch (error) {
-      console.error('Failed to load upcoming classes:', error);
+      console.error('Failed to load upcoming classes:');
       setUpcomingClasses([]);
     }
   };
@@ -252,7 +259,7 @@ export default function InstructorDashboard() {
       const data = await apiClient.get<any[]>('/demo-trading/submissions');
       setDemoSubmissions(data || []);
     } catch (error) {
-      console.error('Failed to load demo submissions:', error);
+      console.error('Failed to load demo submissions:');
       setDemoSubmissions([]);
     } finally {
       setLoadingSubmissions(false);
@@ -327,7 +334,7 @@ export default function InstructorDashboard() {
       const data = await apiClient.get('/instructor/analytics');
       setAnalytics(data as any);
     } catch (error: any) {
-      console.error('[Instructor Dashboard] Failed to load analytics:', error);
+      console.error('[Instructor Dashboard] Failed to load analytics:');
       // Don't set fallback zeros - analytics will remain null and show loading/error state
       setAnalytics(null);
     }
@@ -691,7 +698,7 @@ export default function InstructorDashboard() {
           <p className="text-gray-600 dark:text-gray-400 text-xs sm:text-sm">Manage your courses, lessons, and track student progress</p>
         </div>
 
-        {/* Forex News Posting Section */}
+        {FEATURES.COMMUNITY && (
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4 mb-3 sm:mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 flex-shrink-0">
           <div className="flex items-center space-x-3">
             <svg className="w-6 h-6 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -712,6 +719,7 @@ export default function InstructorDashboard() {
             <span>Post News</span>
           </button>
         </div>
+        )}
 
         {/* Consultation removed from dashboard - now only in sidebar page (/consultations/expert) */}
 

@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Demo Trading Tasks API Route
  * GET: Get tasks for student (or all tasks for instructor)
@@ -80,8 +81,8 @@ async function getTasks(req: AuthRequest, res: NextApiResponse) {
       return res.status(403).json({ error: 'Access denied' });
     }
   } catch (error: any) {
-    console.error('Get tasks error:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    console.error('Get tasks error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 
@@ -183,8 +184,8 @@ async function createTask(req: AuthRequest, res: NextApiResponse) {
       ...task,
     });
   } catch (error: any) {
-    console.error('Create task error:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    console.error('Create task error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 

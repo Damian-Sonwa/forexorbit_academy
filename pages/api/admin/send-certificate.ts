@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Admin Send Certificate API Route
  * Allows admins to send certificates to students by ID or email
@@ -162,8 +163,8 @@ async function sendCertificate(req: AuthRequest, res: NextApiResponse) {
       },
     });
   } catch (error: unknown) {
-    console.error('Send certificate error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Send certificate error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 

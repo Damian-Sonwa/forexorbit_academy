@@ -66,7 +66,7 @@ export default function TodoList() {
       const response = await apiClient.get<{ todos: TodoItem[] }>('/todos');
       setTodos(response.todos || []);
     } catch (error) {
-      console.error('Failed to fetch todos:', error);
+      console.error('Failed to fetch todos:');
     } finally {
       setLoading(false);
     }
@@ -85,7 +85,7 @@ export default function TodoList() {
       setNewTodoTitle('');
       setShowAddForm(false);
     } catch (error) {
-      console.error('Failed to create todo:', error);
+      console.error('Failed to create todo:');
     }
   };
 
@@ -96,7 +96,7 @@ export default function TodoList() {
       });
       // Socket will handle the update
     } catch (error) {
-      console.error('Failed to update todo:', error);
+      console.error('Failed to update todo:');
     }
   };
 
@@ -105,7 +105,7 @@ export default function TodoList() {
       await apiClient.delete(`/todos?todoId=${todoId}`);
       // Socket will handle the deletion
     } catch (error) {
-      console.error('Failed to delete todo:', error);
+      console.error('Failed to delete todo:');
     }
   };
 

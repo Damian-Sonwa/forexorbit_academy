@@ -27,7 +27,7 @@ export default function Home() {
         const data = await apiClient.get('/instructors');
         setInstructors(data as any[]);
       } catch (error) {
-        console.error('Failed to load instructors:', error);
+        console.error('Failed to load instructors:');
         // Fallback to default instructors if API fails
         setInstructors([
           {

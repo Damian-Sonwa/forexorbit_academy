@@ -16,6 +16,7 @@ import {
   MAX_SMS_REQUESTS_PER_HOUR,
   PASSWORD_PHONE_RESETS_COLLECTION,
 } from '@/lib/password-otp';
+import { unexpectedBody } from '@/lib/public-error';
 
 function getClientIp(req: NextApiRequest): string | undefined {
   const x = req.headers['x-forwarded-for'];
@@ -72,18 +73,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     if (sentLastHour >= MAX_SMS_REQUESTS_PER_HOUR) {
-      const oldest = await logs.findOne(
-        { event: 'otp_sent', userId: user._id, createdAt: { $gte: hourAgo } },
-        { sort: { createdAt: 1 } }
-      );
-      const retryAfterSeconds = oldest
-        ? Math.max(1, Math.ceil((oldest.createdAt.getTime() + 60 * 60 * 1000 - Date.now()) / 1000))
-        : 3600;
-      return res.status(200).json({
-        message: genericMsg,
-        cooldown: retryAfterSeconds,
-        rateLimited: true,
-      });
+      return res.status(200).json({ message: genericMsg });
     }
 
     const lastSent = await logs.findOne(
@@ -91,20 +81,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       { sort: { createdAt: -1 } }
     );
     if (lastSent && Date.now() - lastSent.createdAt.getTime() < SMS_COOLDOWN_MS) {
-      const retryAfterSeconds = Math.ceil(
-        (SMS_COOLDOWN_MS - (Date.now() - lastSent.createdAt.getTime())) / 1000
-      );
-      return res.status(200).json({
-        message: genericMsg,
-        cooldown: retryAfterSeconds,
-      });
+      return res.status(200).json({ message: genericMsg });
     }
 
     if (!isSmsConfigured()) {
-      console.warn('[forgot-password] SMS not configured (set Twilio or Termii env vars).');
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[DEV] Would send OTP to', phoneE164, '(SMS disabled)');
-      }
+      console.warn('[forgot-password] SMS is not configured');
       await logPasswordResetEvent(db, {
         event: 'otp_send_failed',
         userId: user._id,
@@ -112,15 +93,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         ip,
         detail: 'sms_not_configured',
       });
-      return res.status(200).json({
-        message: genericMsg,
-        ...(process.env.NODE_ENV === 'development'
-          ? {
-              _devNote:
-                'SMS not configured — set TWILIO_* or TERMII_API_KEY. No code was sent.',
-            }
-          : {}),
-      });
+      return res.status(200).json({ message: genericMsg });
     }
 
     const otp = crypto.randomInt(0, 1_000_000).toString().padStart(6, '0');
@@ -129,14 +102,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     try {
       await sendPasswordResetOtpSms(phoneE164, otp);
-    } catch (err: unknown) {
-      console.error('[forgot-password] SMS send failed:', err);
+    } catch {
+      console.error('[forgot-password] SMS send failed');
       await logPasswordResetEvent(db, {
         event: 'otp_send_failed',
         userId: user._id,
         phoneE164: maskPhoneTail(phoneE164),
         ip,
-        detail: err instanceof Error ? err.message : 'send_error',
+        detail: 'sms_send_failed',
       });
       return res.status(200).json({ message: genericMsg });
     }
@@ -165,7 +138,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     return res.status(200).json({ message: genericMsg });
   } catch (error: unknown) {
-    console.error('Forgot password error:', error);
-    return res.status(500).json({ error: 'Failed to process request' });
+    return res.status(500).json(unexpectedBody('forgot-password', error));
   }
 }

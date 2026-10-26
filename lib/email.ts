@@ -86,13 +86,13 @@ export async function sendPasswordResetEmail(
     });
 
     if (error) {
-      console.error('❌ Resend API error:', error);
+      console.error('❌ Resend API error:');
       throw new Error(error.message || 'Resend send failed');
     }
 
     console.log('✅ Password reset email sent:', { id: data?.id, to: email });
   } catch (err: unknown) {
-    console.error('❌ Error sending password reset email:', err);
+    console.error('❌ Error sending password reset email:');
     console.log('Password reset URL for', email, ':', resetUrl);
     throw err;
   }

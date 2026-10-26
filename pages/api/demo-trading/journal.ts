@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Trade Journal API Route
  * GET: Get trade journal entries for student
@@ -57,8 +58,8 @@ async function getJournal(req: AuthRequest, res: NextApiResponse) {
 
     res.json(entriesWithTasks);
   } catch (error: any) {
-    console.error('Get journal error:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    console.error('Get journal error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 
@@ -199,8 +200,8 @@ async function createJournalEntry(req: AuthRequest, res: NextApiResponse) {
 
     res.status(201).json(createdEntry);
   } catch (error: any) {
-    console.error('Create journal entry error:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    console.error('Create journal entry error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 

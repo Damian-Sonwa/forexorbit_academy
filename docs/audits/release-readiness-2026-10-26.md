@@ -109,3 +109,12 @@ The initial commit and any push need explicit approval. Do not push to `main`. B
 ## Local build credential
 
 A boolean read of the local environment, without printing the URI, reports: dedicated user `forexorbit_app` yes, `Damian25` no, database name `Forex_elearning` yes, scheme `mongodb+srv` yes. That is the local file. It does not prove the Render process.
+
+## Error-handling pass
+
+Recorded in `docs/audits/error-handling-security-audit.md`. Unexpected API failures that previously returned `error.message` now return a generic message, `INTERNAL_ERROR`, and a request id. Login no longer logs the submitted email, and the two 401 sentences are the same. This does not close any release gate above. `npm test` after this pass: 183 passed, 0 failed, exit 0. `npx tsc --noEmit --incremental false --pretty false`: exit 0. `node --check server.js`: exit 0. `npm run build` was not run while the dev server is using `.next`. Release decision remains **BLOCKED**.
+
+## Error-handling closure
+
+Recorded in `docs/audits/error-handling-security-audit.md`. Signup no longer says which of the email or phone is already registered. Unexpected API catch blocks now return a request id through `lib/public-error.js`. Configuration routes no longer name Cloudinary or SMS environment variables. This does not close any release gate. `npm test`: 189 passed, 0 failed, exit 0. `npx tsc --noEmit --incremental false --pretty false`: exit 0. `node --check server.js`: exit 0. `npm run build` was not run while the dev server is using `.next`. Release decision remains **BLOCKED**.
+

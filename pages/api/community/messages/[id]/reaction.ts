@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Message Reaction API Route
  * POST: Add reaction to a message
@@ -82,7 +83,7 @@ async function addReaction(req: AuthRequest, res: NextApiResponse) {
     res.json({ success: true });
   } catch {
     console.error(JSON.stringify({ event: 'communityReaction', result: 'failed' }));
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json(unexpectedBody('api'));
   }
 }
 

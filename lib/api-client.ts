@@ -4,6 +4,7 @@
  */
 
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
+import { messageFromUnknown } from '@/lib/public-error';
 
 // Same-origin /api unless this build sets NEXT_PUBLIC_API_BASE_URL or
 // NEXT_PUBLIC_API_URL. There is no production-host fallback. Split hosting
@@ -36,6 +37,19 @@ class ApiClient {
     this.client.interceptors.response.use(
       (response) => response,
       (error) => {
+        const safe = messageFromUnknown(error);
+        if (safe && error && typeof error === 'object') {
+          error.message = safe;
+          const data = error.response?.data;
+          if (typeof data === 'string') {
+            error.response.data = { error: safe };
+          } else if (data && typeof data === 'object') {
+            data.error = safe;
+            delete data.details;
+            delete data.stack;
+            if (error.response?.status >= 500) delete data.message;
+          }
+        }
         if (error.response?.status === 401) {
           if (typeof window !== 'undefined') {
             // Don't redirect if we're already on the login page (login failed)

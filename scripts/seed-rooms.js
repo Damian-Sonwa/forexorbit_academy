@@ -61,7 +61,7 @@ async function seedRooms() {
     });
     
   } catch (error) {
-    console.error('❌ Error seeding rooms:', error);
+    console.error('Error seeding rooms');
     // Don't exit process if called from server.js (non-critical)
     if (require.main === module) {
       process.exit(1);

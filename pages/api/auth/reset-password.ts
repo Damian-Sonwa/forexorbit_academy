@@ -10,6 +10,7 @@ import { getDb } from '@/lib/mongodb';
 import { logPasswordResetEvent } from '@/lib/password-reset-log';
 import { maskPhoneTail } from '@/lib/phone';
 import { PASSWORD_PHONE_RESETS_COLLECTION } from '@/lib/password-otp';
+import { unexpectedBody } from '@/lib/public-error';
 
 function getClientIp(req: NextApiRequest): string | undefined {
   const x = req.headers['x-forwarded-for'];
@@ -66,7 +67,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const user = await users.findOne({ _id: doc.userId as ObjectId });
     if (!user) {
       await resets.deleteMany({ userId: doc.userId });
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(400).json({
+        error: 'This reset link is invalid or expired. Start again from Forgot password.',
+      });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -92,7 +95,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       message: 'Password has been reset successfully. You can now sign in with your new password.',
     });
   } catch (error: unknown) {
-    console.error('Reset password error:', error);
-    return res.status(500).json({ error: 'Failed to reset password' });
+    return res.status(500).json(unexpectedBody('reset-password', error));
   }
 }

@@ -43,14 +43,9 @@ if (!process.env.JWT_SECRET) {
 
 // Log AI configuration status (without exposing the key)
 if (process.env.AI_API_KEY) {
-  const apiKeyPrefix = process.env.AI_API_KEY.substring(0, 7);
-  const apiKeyLength = process.env.AI_API_KEY.length;
-  console.log(`✓ AI_API_KEY configured (${apiKeyPrefix}...${apiKeyLength} chars)`);
-  if (!process.env.AI_API_KEY.startsWith('sk-')) {
-    console.warn('⚠ Warning: AI_API_KEY format may be invalid (should start with "sk-")');
-  }
+  console.log('AI API key is configured');
 } else {
-  console.warn('⚠ Warning: AI_API_KEY not configured. AI features will be disabled.');
+  console.warn('AI API key is not configured. AI features will be disabled.');
 }
 
 const dev = process.env.NODE_ENV !== 'production';
@@ -70,14 +65,14 @@ app.prepare().then(async () => {
     await seedRooms();
     console.log('✓ Community rooms seeded');
   } catch (error) {
-    console.warn('⚠ Failed to seed rooms (non-critical):', error.message);
+    console.warn('Failed to seed rooms');
   }
   const server = createServer(async (req, res) => {
     try {
       const parsedUrl = parse(req.url, true);
       await handle(req, res, parsedUrl);
     } catch (err) {
-      console.error('Error occurred handling', req.url, err);
+      console.error('Error occurred handling request');
       res.statusCode = 500;
       res.end('internal server error');
     }
@@ -192,11 +187,11 @@ app.prepare().then(async () => {
   // Socket.io connection handler
   io.on('connection', async (socket) => {
     const user = socket.data.user;
-    console.log(`User connected: ${user.email}`);
+    console.log('User connected');
     
     // Join user's personal room for targeted notifications
     socket.join(`user:${user.userId}`);
-    console.log(`User ${user.email} joined personal notification room: user:${user.userId}`);
+    console.log(`User joined personal notification room: user:${user.userId}`);
 
     async function loadLessonContext(lessonId) {
       try {
@@ -689,7 +684,7 @@ app.prepare().then(async () => {
       }
 
       socket.join(`consultation:${sessionId}`);
-      console.log(`User ${user.email} auto-joined consultation room: ${sessionId}`);
+      console.log(`User auto-joined consultation room: ${sessionId}`);
       socket.emit('consultation_room_joined', { sessionId });
     });
 
@@ -697,7 +692,7 @@ app.prepare().then(async () => {
       const { sessionId } = data;
       if (sessionId) {
         socket.leave(`consultation:${sessionId}`);
-        console.log(`User ${user.email} left consultation ${sessionId}`);
+        console.log(`User left consultation ${sessionId}`);
       }
     });
 
@@ -746,7 +741,7 @@ app.prepare().then(async () => {
         // Join user-specific room and session room
         socket.join(`user:${user.userId}`);
         socket.join(`consultation:${sessionId}`);
-        console.log(`User ${user.email} joined consultation ${sessionId}`);
+        console.log(`User joined consultation ${sessionId}`);
       } catch (error) {
         console.error('Error joining consultation');
         socket.emit('error', { message: 'Failed to join consultation' });
@@ -756,7 +751,7 @@ app.prepare().then(async () => {
     socket.on('leaveConsultation', (data) => {
       const { sessionId } = data;
       socket.leave(`consultation:${sessionId}`);
-      console.log(`User ${user.email} left consultation ${sessionId}`);
+      console.log(`User left consultation ${sessionId}`);
     });
 
     socket.on('consultationTyping', async (data) => {
@@ -837,7 +832,7 @@ app.prepare().then(async () => {
     });
 
     socket.on('disconnect', () => {
-      console.log(`User disconnected: ${user.email}`);
+      console.log('User disconnected');
     });
   });
 
@@ -876,7 +871,7 @@ app.prepare().then(async () => {
     console.log('');
   });
 }).catch((err) => {
-  console.error('❌ Failed to prepare Next.js app:', err);
+  console.error('Failed to prepare Next.js app');
   process.exit(1);
 });
 

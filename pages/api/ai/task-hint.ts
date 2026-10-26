@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * AI API: Get Task Hint
  * Provides AI-powered hints for demo tasks
@@ -52,9 +53,8 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 
     res.json({ hint });
   } catch (error: unknown) {
-    console.error('AI task hint error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Failed to get AI hint';
-    res.status(500).json({ error: errorMessage });
+    console.error('AI task hint error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 

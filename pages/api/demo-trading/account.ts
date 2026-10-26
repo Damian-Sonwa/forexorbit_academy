@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Demo Trading Account API Route
  * GET: Get student's demo account
@@ -57,17 +58,16 @@ async function getAccount(req: AuthRequest, res: NextApiResponse) {
         marginUsed: brokerAccount.marginUsed,
         openTrades: brokerAccount.openTrades,
       });
-    } catch (brokerError: any) {
-      // If broker API fails, return cached account data
-      console.error('Broker API error:', brokerError);
+    } catch {
+      console.error('Broker API error');
       return res.json({
         ...account,
         _id: account._id.toString(),
       });
     }
   } catch (error: any) {
-    console.error('Get account error:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    console.error('Get account error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 
@@ -137,10 +137,8 @@ async function createAccount(req: AuthRequest, res: NextApiResponse) {
       ...account,
     });
   } catch (error: any) {
-    console.error('Create account error:', error);
-    res.status(500).json({ 
-      error: error.message || 'Failed to create demo account. Please ensure broker API is configured correctly.' 
-    });
+    console.error('Create account error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 

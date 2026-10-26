@@ -105,7 +105,7 @@ export default function AssignmentAnalytics() {
       const data = await apiClient.get(`/assignments/${assignmentId}/analytics`);
       setAnalytics(data as AnalyticsData);
     } catch (err: any) {
-      console.error('Failed to load analytics:', err);
+      console.error('Failed to load analytics:');
       setError(err.response?.data?.error || 'Failed to load analytics');
     } finally {
       setLoading(false);

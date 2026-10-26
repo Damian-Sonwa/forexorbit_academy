@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Lesson Summary API Route
  * PUT: Update lesson summary for the assigned instructor, an admin, or a superadmin.
@@ -72,7 +73,7 @@ async function updateLessonSummary(req: AuthRequest, res: NextApiResponse) {
     });
   } catch {
     console.error(JSON.stringify({ event: 'lessonSummaryUpdate', result: 'failed' }));
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json(unexpectedBody('api'));
   }
 }
 

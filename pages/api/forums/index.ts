@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Forums API Route
  * GET: List forum posts for a course/lesson
@@ -56,8 +57,8 @@ async function getForumPosts(req: AuthRequest, res: NextApiResponse) {
 
     res.json(enrichedPosts);
   } catch (error: any) {
-    console.error('Get forum posts error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Get forum posts error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 
@@ -95,8 +96,8 @@ async function createForumPost(req: AuthRequest, res: NextApiResponse) {
       ...req.body,
     });
   } catch (error: any) {
-    console.error('Create forum post error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Create forum post error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 

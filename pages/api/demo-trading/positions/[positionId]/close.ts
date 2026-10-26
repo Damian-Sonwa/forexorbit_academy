@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Close Position API Route
  * POST: Close an open position
@@ -60,8 +61,8 @@ async function closePosition(req: AuthRequest, res: NextApiResponse) {
 
     res.json(closeOrder);
   } catch (error: any) {
-    console.error('Close position error:', error);
-    res.status(500).json({ error: error.message || 'Failed to close position' });
+    console.error('Close position error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 

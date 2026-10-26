@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Performance Metrics API Route
  * GET: Get student's trading performance metrics
@@ -43,8 +44,8 @@ async function getPerformance(req: AuthRequest, res: NextApiResponse) {
 
     res.json(metrics);
   } catch (error: any) {
-    console.error('Get performance error:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    console.error('Get performance error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 

@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * AI API: Draft Feedback
  * Provides AI-drafted feedback for student submissions (editable by instructor)
@@ -72,9 +73,8 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 
     res.json({ feedback });
   } catch (error: unknown) {
-    console.error('AI draft feedback error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Failed to draft feedback';
-    res.status(500).json({ error: errorMessage });
+    console.error('AI draft feedback error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 

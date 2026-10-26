@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Progress API Route
  * GET: Get user progress for all courses
@@ -54,8 +55,8 @@ async function getProgress(req: AuthRequest, res: NextApiResponse) {
 
     res.json(enrichedProgress);
   } catch (error: any) {
-    console.error('Get progress error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Get progress error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 
@@ -135,7 +136,7 @@ async function updateProgress(req: AuthRequest, res: NextApiResponse) {
     res.json({ success: true, progress: progressPercent });
   } catch {
     console.error(JSON.stringify({ event: 'progressUpdate', result: 'failed' }));
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json(unexpectedBody('api'));
   }
 }
 

@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * AI API: Community Answer
  * Provides AI-powered answers to questions in community chat (on-demand only)
@@ -27,9 +28,8 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 
     res.json({ answer });
   } catch (error: unknown) {
-    console.error('AI community answer error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Failed to get AI answer';
-    res.status(500).json({ error: errorMessage });
+    console.error('AI community answer error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 

@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Courses API Route
  * GET: List all courses with filters
@@ -67,8 +68,8 @@ async function getCourses(req: AuthRequest, res: NextApiResponse) {
 
     res.json(views);
   } catch (error: any) {
-    console.error('Get courses error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Get courses error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 
@@ -115,7 +116,7 @@ async function createCourse(req: AuthRequest, res: NextApiResponse) {
     });
   } catch {
     console.error(JSON.stringify({ event: 'courseCreate', result: 'failed' }));
-    return res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json(unexpectedBody('api'));
   }
 }
 

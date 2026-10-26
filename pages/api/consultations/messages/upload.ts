@@ -1,3 +1,4 @@
+import { publicUploadFailure } from '@/lib/public-error';
 /**
  * Consultation Message File Upload API Route
  * Handles file uploads for consultation messages (images, videos, documents, audio)
@@ -128,11 +129,8 @@ async function uploadMessageFile(req: AuthRequest, res: NextApiResponse) {
       },
     });
   } catch (error: any) {
-    console.error('Upload consultation message file error:', error);
-    if (error.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json({ error: 'File size exceeds 50MB limit' });
-    }
-    res.status(500).json({ error: error.message || 'Failed to upload file' });
+    const failure = publicUploadFailure(error, { limitMessage: 'File size exceeds 50MB limit' });
+    return res.status(failure.status).json(failure.body);
   }
 }
 

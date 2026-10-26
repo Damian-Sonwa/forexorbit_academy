@@ -75,7 +75,7 @@ export default function AIAssistant() {
           setAiConfigured(false);
         }
       } catch (error) {
-        console.error('[AI Assistant] Error checking AI config:', error);
+        console.error('[AI Assistant] Error checking AI config:');
         setAiConfigured(false);
       }
     };

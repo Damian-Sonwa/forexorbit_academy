@@ -160,5 +160,6 @@ test('the lesson messages route checks read and write and does not log raw error
   assert.equal(source.includes('req.body.senderName'), false);
   assert.equal(source.includes('Get messages error:'), false);
   assert.equal(source.includes('Send message error:'), false);
-  assert.equal(source.includes('Internal server error'), true);
+  assert.equal(source.includes('unexpectedBody'), true);
+  assert.equal(source.includes('error.message'), false);
 });

@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Student Onboarding API Route
  * POST: Save/update student onboarding data
@@ -79,8 +80,8 @@ async function saveOnboarding(req: AuthRequest, res: NextApiResponse) {
       message: 'Onboarding data saved successfully',
     });
   } catch (error: any) {
-    console.error('Save onboarding error:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    console.error('Save onboarding error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 

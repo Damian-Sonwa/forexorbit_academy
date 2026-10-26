@@ -9,6 +9,7 @@
  */
 
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { unexpectedBody } from '@/lib/public-error';
 import { RtcTokenBuilder, RtcRole } from 'agora-access-token';
 import { ObjectId } from 'mongodb';
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
@@ -102,9 +103,8 @@ async function issuePublisherToken(req: AuthRequest, res: NextApiResponse) {
       return res.status(issued.status).json({ error: issued.error });
     }
     return res.status(200).json(issued.body);
-  } catch {
-    console.error(JSON.stringify({ event: 'agoraToken', result: 'failed' }));
-    return res.status(500).json({ error: 'Unable to start the call' });
+  } catch (error) {
+    return res.status(500).json(unexpectedBody('agora-token', error));
   }
 }
 

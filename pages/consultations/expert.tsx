@@ -83,7 +83,7 @@ export default function ExpertConsultation() {
       setRequests(data || []);
       setConsultationRequests(data || []);
     } catch (error) {
-      console.error('Failed to load consultation requests:', error);
+      console.error('Failed to load consultation requests:');
       setRequests([]);
       setConsultationRequests([]);
     } finally {
@@ -98,7 +98,7 @@ export default function ExpertConsultation() {
       setSessions(data || []);
       setConsultationSessions(data || []);
     } catch (error) {
-      console.error('Failed to load consultation sessions:', error);
+      console.error('Failed to load consultation sessions:');
       setSessions([]);
       setConsultationSessions([]);
     }
@@ -112,7 +112,7 @@ export default function ExpertConsultation() {
         setExpertAvailable(currentExpert.expertAvailable || false);
       }
     } catch (error) {
-      console.error('Failed to load availability:', error);
+      console.error('Failed to load availability:');
     }
   };
 

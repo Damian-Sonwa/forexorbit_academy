@@ -11,6 +11,7 @@ import formidable from 'formidable';
 import fs from 'fs';
 import path from 'path';
 import { communityMember, decideCommunityMessageAccess, isStoredId } from '@/lib/account-access';
+import { publicUploadFailure } from '@/lib/public-error';
 
 export const config = {
   api: {
@@ -137,11 +138,8 @@ async function uploadMessageFile(req: AuthRequest, res: NextApiResponse) {
       },
     });
   } catch (error: any) {
-    console.error(JSON.stringify({ event: 'communityUpload', result: 'failed' }));
-    if (error && error.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json({ error: 'File size exceeds 50MB limit' });
-    }
-    res.status(500).json({ error: 'Failed to upload file' });
+    const failure = publicUploadFailure(error, { limitMessage: 'File size exceeds 50MB limit' });
+    return res.status(failure.status).json(failure.body);
   }
 }
 

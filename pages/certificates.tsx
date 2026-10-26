@@ -114,7 +114,7 @@ export default function Certificates() {
       const response = await apiClient.get<Certificate[]>(`/certificates${queryString ? `?${queryString}` : ''}`);
       setCertificates(response);
     } catch (error: any) {
-      console.error('Fetch certificates error:', error);
+      console.error('Fetch certificates error:');
     } finally {
       setLoading(false);
     }
@@ -125,7 +125,7 @@ export default function Certificates() {
       const response = await apiClient.get<CertificateTemplate[]>('/certificates/templates');
       setTemplates(response);
     } catch (error: any) {
-      console.error('Fetch templates error:', error);
+      console.error('Fetch templates error:');
     }
   };
 

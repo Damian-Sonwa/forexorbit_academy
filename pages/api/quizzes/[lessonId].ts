@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Quiz API Route
  * GET: Get quiz for a lesson
@@ -80,7 +81,7 @@ async function getQuiz(req: AuthRequest, res: NextApiResponse) {
     });
   } catch {
     console.error(JSON.stringify({ event: 'quizRead', result: 'lookup_failed' }));
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json(unexpectedBody('api'));
   }
 }
 
@@ -148,7 +149,7 @@ async function submitQuiz(req: AuthRequest, res: NextApiResponse) {
     });
   } catch {
     console.error(JSON.stringify({ event: 'quizSubmit', result: 'failed' }));
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json(unexpectedBody('api'));
   }
 }
 
@@ -210,7 +211,7 @@ async function createQuiz(req: AuthRequest, res: NextApiResponse) {
     }
   } catch {
     console.error(JSON.stringify({ event: 'quizMutation', result: 'lookup_failed' }));
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json(unexpectedBody('api'));
   }
 }
 

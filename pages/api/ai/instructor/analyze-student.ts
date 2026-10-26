@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * AI API: Analyze Student Performance
  * Provides AI-powered insights for instructors about student performance
@@ -106,9 +107,8 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 
     res.json({ analysis, studentData });
   } catch (error: unknown) {
-    console.error('AI analyze student error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Failed to analyze student performance';
-    res.status(500).json({ error: errorMessage });
+    console.error('AI analyze student error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 

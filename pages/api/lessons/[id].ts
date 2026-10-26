@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Lesson Detail API Route
  * GET: Get lesson by ID
@@ -104,7 +105,7 @@ async function getLesson(req: AuthRequest, res: NextApiResponse) {
     res.json(stripLessonVisualAidsFields(view));
   } catch {
     console.error(JSON.stringify({ event: 'lessonRead', result: 'failed' }));
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json(unexpectedBody('api'));
   }
 }
 
@@ -164,7 +165,7 @@ async function updateLesson(req: AuthRequest, res: NextApiResponse) {
     res.json({ success: true });
   } catch {
     console.error(JSON.stringify({ event: 'lessonUpdate', result: 'failed' }));
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json(unexpectedBody('api'));
   }
 }
 
@@ -205,7 +206,7 @@ async function deleteLesson(req: AuthRequest, res: NextApiResponse) {
     res.json({ success: true });
   } catch {
     console.error(JSON.stringify({ event: 'lessonDelete', result: 'failed' }));
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json(unexpectedBody('api'));
   }
 }
 

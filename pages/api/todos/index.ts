@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * To-Do List API Route
  * GET: Get user's to-do items
@@ -68,8 +69,8 @@ async function getTodos(req: AuthRequest, res: NextApiResponse) {
 
     res.json({ todos: result });
   } catch (error: unknown) {
-    console.error('Get todos error:', error);
-    res.status(500).json({ error: 'Failed to fetch todos', message: error instanceof Error ? error.message : 'Internal server error' });
+    console.error('Get todos error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 
@@ -123,8 +124,8 @@ async function createTodo(req: AuthRequest, res: NextApiResponse) {
       },
     });
   } catch (error: unknown) {
-    console.error('Create todo error:', error);
-    res.status(500).json({ error: 'Failed to create todo', message: error instanceof Error ? error.message : 'Internal server error' });
+    console.error('Create todo error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 
@@ -183,8 +184,8 @@ async function updateTodo(req: AuthRequest, res: NextApiResponse) {
 
     res.json({ success: true });
   } catch (error: unknown) {
-    console.error('Update todo error:', error);
-    res.status(500).json({ error: 'Failed to update todo', message: error instanceof Error ? error.message : 'Internal server error' });
+    console.error('Update todo error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 
@@ -218,8 +219,8 @@ async function deleteTodo(req: AuthRequest, res: NextApiResponse) {
 
     res.json({ success: true });
   } catch (error: unknown) {
-    console.error('Delete todo error:', error);
-    res.status(500).json({ error: 'Failed to delete todo', message: error instanceof Error ? error.message : 'Internal server error' });
+    console.error('Delete todo error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 

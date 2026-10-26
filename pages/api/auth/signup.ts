@@ -8,6 +8,8 @@ import bcrypt from 'bcryptjs';
 import { getDb } from '@/lib/mongodb';
 import { issueAuthToken } from '@/lib/jwt';
 import { parseToE164 } from '@/lib/phone';
+import { unexpectedBody } from '@/lib/public-error';
+import { isDuplicateKey, signupConflict } from '@/lib/signup-conflict';
 
 export default async function handler(
   req: NextApiRequest,
@@ -42,13 +44,10 @@ export default async function handler(
 
     // Check if user exists
     const existingUser = await users.findOne({ email: emailNorm });
-    if (existingUser) {
-      return res.status(400).json({ error: 'User already exists' });
-    }
-
     const existingPhone = await users.findOne({ phoneE164 });
-    if (existingPhone) {
-      return res.status(400).json({ error: 'This phone number is already registered' });
+    const conflict = signupConflict(existingUser, existingPhone);
+    if (conflict) {
+      return res.status(conflict.status).json(conflict.body);
     }
 
     // Hash password
@@ -96,8 +95,10 @@ export default async function handler(
         : 'Registration successful!',
     });
   } catch (error: any) {
-    console.error('Signup error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    if (isDuplicateKey(error)) {
+      return res.status(400).json(signupConflict(true, false)!.body);
+    }
+    res.status(500).json(unexpectedBody('signup', error));
   }
 }
 

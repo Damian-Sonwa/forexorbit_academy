@@ -46,7 +46,7 @@ export default function Badges() {
       const response = await apiClient.get<Badge[]>('/badges');
       setBadges(response);
     } catch (error: any) {
-      console.error('Fetch badges error:', error);
+      console.error('Fetch badges error:');
     } finally {
       setLoading(false);
     }
@@ -57,7 +57,7 @@ export default function Badges() {
       const response = await apiClient.get<{ points?: number; [key: string]: unknown }>('/auth/me');
       setUserPoints(response.points || 0);
     } catch (error: unknown) {
-      console.error('Fetch user points error:', error);
+      console.error('Fetch user points error:');
     }
   };
 

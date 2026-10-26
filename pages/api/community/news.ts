@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Community News API Route
  * GET: Get Forex news feed
@@ -8,7 +9,6 @@ import type { NextApiResponse } from 'next';
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
 import {
-  COMMUNITY_NEWS_CLIENT_ERROR,
   logCommunityNewsFailure,
   presentCommunityNews,
 } from '@/lib/community-news';
@@ -28,7 +28,7 @@ async function getNews(req: AuthRequest, res: NextApiResponse) {
     res.json(newsItems.map((item) => presentCommunityNews(item, userId)));
   } catch {
     logCommunityNewsFailure('communityNewsRead');
-    res.status(500).json({ error: COMMUNITY_NEWS_CLIENT_ERROR });
+    res.status(500).json(unexpectedBody('api'));
   }
 }
 
@@ -69,7 +69,7 @@ async function createNews(req: AuthRequest, res: NextApiResponse) {
     });
   } catch {
     logCommunityNewsFailure('communityNewsCreate');
-    res.status(500).json({ error: COMMUNITY_NEWS_CLIENT_ERROR });
+    res.status(500).json(unexpectedBody('api'));
   }
 }
 

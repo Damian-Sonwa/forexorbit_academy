@@ -6,13 +6,14 @@
  * - Admin: All students and all courses
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Header from '@/components/Header';
 // import Footer from '@/components/Footer'; // Reserved for future use
 import BackButton from '@/components/BackButton';
 import LoadingSpinner from '@/components/LoadingSpinner';
+import { CourseCardSkeleton, LoadingStatus, MetricSkeleton, TableSkeleton } from '@/components/loading';
 import { useAuth } from '@/hooks/useAuth';
 import { useSocket } from '@/hooks/useSocket';
 import { apiClient } from '@/lib/api-client';
@@ -56,6 +57,8 @@ export default function Progress() {
     totals: { students: number; courses: number; completed: number; inProgress: number };
   } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const hasContent = useRef(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [filter, setFilter] = useState<{ difficulty?: string; courseId?: string; userId?: string }>({});
 
@@ -98,13 +101,16 @@ export default function Progress() {
   }, [socket, connected, user]);
 
   const fetchProgress = async () => {
+    const background = hasContent.current;
     try {
-      setLoading(true);
+      if (background) setRefreshing(true);
+      else setLoading(true);
       let response;
       
       if (user?.role === 'student') {
         response = await apiClient.get<ProgressItem[]>('/progress');
         setProgress(response);
+        hasContent.current = response.length > 0;
       } else {
         const params = new URLSearchParams();
         if (filter.difficulty) params.append('difficulty', filter.difficulty);
@@ -112,22 +118,37 @@ export default function Progress() {
         const queryString = params.toString();
         response = await apiClient.get<{ courses: Array<{ courseId: string; title: string; difficulty: string; activeEnrollments: number; completed: number; inProgress: number }>; totals: { students: number; courses: number; completed: number; inProgress: number } }>(`/progress/all${queryString ? `?${queryString}` : ''}`);
         setStaffSummary(response);
+        hasContent.current = true;
       }
       setLoadError(null);
     } catch (error: any) {
-      console.error('Fetch progress error:', error);
+      console.error('Fetch progress error:');
       setLoadError('Progress could not be loaded.');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
-  if (authLoading || loading) {
-    return <LoadingSpinner message="Loading progress..." fullScreen />;
+  if (authLoading || !isAuthenticated || !user) {
+    return <LoadingSpinner message="Checking your session" fullScreen />;
   }
 
-  if (!isAuthenticated || !user) {
-    return null;
+  if (loading && !loadError && progress.length === 0 && !staffSummary) {
+    return (
+      <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
+        <Header />
+        <main className="flex-1 max-w-6xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6">
+          <div className="mb-6">
+            <LoadingStatus label={user.role === 'student' ? 'Loading your progress' : 'Loading course progress'} />
+          </div>
+          <MetricSkeleton count={user.role === 'student' ? 4 : 3} />
+          <div className="mt-6">
+            {user.role === 'student' ? <CourseCardSkeleton count={3} /> : <TableSkeleton rows={6} />}
+          </div>
+        </main>
+      </div>
+    );
   }
 
   // Student View - Enhanced Design
@@ -153,6 +174,11 @@ export default function Progress() {
           {/* Header Section */}
           <div className="mb-4 flex-shrink-0">
             <h1 className="page-title">My progress</h1>
+            {refreshing && (
+              <div className="mt-2">
+                <LoadingStatus label="Updating progress" compact />
+              </div>
+            )}
             <p className="text-gray-600 dark:text-gray-400 text-sm">Track your learning journey and quiz scores</p>
           </div>
 
@@ -351,6 +377,11 @@ export default function Progress() {
           <h1 className="page-title">
             {user.role === 'admin' ? 'All student progress' : 'Student progress'}
           </h1>
+          {refreshing && (
+            <div className="mt-2">
+              <LoadingStatus label="Updating progress" compact />
+            </div>
+          )}
           <p className="text-gray-600 dark:text-gray-400 text-sm">
             {user.role === 'admin' 
               ? 'Monitor progress across all courses and students'

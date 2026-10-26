@@ -14,6 +14,7 @@ import {
   PASSWORD_STEP_TTL_MS,
   PASSWORD_PHONE_RESETS_COLLECTION,
 } from '@/lib/password-otp';
+import { unexpectedBody } from '@/lib/public-error';
 
 function getClientIp(req: NextApiRequest): string | undefined {
   const x = req.headers['x-forwarded-for'];
@@ -73,7 +74,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         ip,
         detail: 'expired',
       });
-      return res.status(400).json({ error: 'This code has expired. Request a new one.' });
+      return res.status(400).json({ error: 'Invalid or expired code. Request a new code.' });
     }
 
     if (doc.otpAttempts >= MAX_OTP_VERIFY_ATTEMPTS) {
@@ -152,7 +153,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       resetSecret,
     });
   } catch (error: unknown) {
-    console.error('Verify password OTP error:', error);
-    return res.status(500).json({ error: 'Failed to verify code' });
+    return res.status(500).json(unexpectedBody('verify-password-otp', error));
   }
 }

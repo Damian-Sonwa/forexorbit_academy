@@ -2,6 +2,7 @@
 import type { AppProps } from 'next/app';
 import { InstallPwaPrompt } from '@/components/InstallPwaPrompt';
 import { RegisterPwa } from '@/components/RegisterPwa';
+import { RouteProgress } from '@/components/loading/RouteProgress';
 import { AuthProvider } from '@/hooks/useAuth';
 import { ThemeProvider } from '@/hooks/useTheme';
 import '@/styles/globals.css';
@@ -10,6 +11,7 @@ export default function App({ Component, pageProps }: AppProps) {
   return (
     <ThemeProvider>
       <AuthProvider>
+        <RouteProgress />
         <RegisterPwa />
         <InstallPwaPrompt />
         <Component {...pageProps} />

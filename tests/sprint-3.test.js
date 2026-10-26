@@ -63,16 +63,25 @@ test('staff progress is an assigned-course aggregate and hides student records f
   assert.equal(admin.courses.length, 2);
 });
 
-test('disabled feature flags block the matching APIs and leave consultation admin available', () => {
-  assert.equal(isFeatureApiBlocked('/api/community/rooms'), true);
+test('community and expert consultation are open and certificates stay blocked', () => {
+  assert.equal(FEATURES.COMMUNITY, true);
+  assert.equal(FEATURES.EXPERT_CONSULTATION, true);
+  assert.equal(FEATURES.CERTIFICATES, false);
+  assert.equal(isFeatureApiBlocked('/api/community/rooms'), false);
+  assert.equal(isFeaturePathBlocked('/community'), false);
+  assert.equal(isFeatureApiBlocked('/api/consultations/sessions'), false);
+  assert.equal(isFeaturePathBlocked('/consultations'), false);
+  assert.equal(isFeaturePathBlocked('/consultations/expert'), false);
   assert.equal(isFeatureApiBlocked('/api/certificates'), true);
-  assert.equal(isFeatureApiBlocked('/api/consultations/sessions'), true);
+  assert.equal(isFeaturePathBlocked('/certificates'), true);
   assert.equal(isFeatureApiBlocked('/api/consultations/admin'), false);
   assert.equal(isFeaturePathBlocked('/consultations/admin'), false);
   assert.equal(isFeatureApiBlocked('/api/courses'), false);
-  const enabled = { ...FEATURES, COMMUNITY: true, CERTIFICATES: true, EXPERT_CONSULTATION: true };
-  assert.equal(isFeatureApiBlocked('/api/community/rooms', enabled), false);
-  assert.equal(isFeatureApiBlocked('/api/progress'), false);
+  const disabled = { ...FEATURES, COMMUNITY: false, CERTIFICATES: false, EXPERT_CONSULTATION: false };
+  assert.equal(isFeatureApiBlocked('/api/community/rooms', disabled), true);
+  assert.equal(isFeatureApiBlocked('/api/consultations/sessions', disabled), true);
+  assert.equal(isFeatureApiBlocked('/api/consultations/admin', disabled), false);
+  assert.equal(isFeatureApiBlocked('/api/progress', disabled), false);
 });
 
 test('class notifications use active enrolled students and a class without a course has no audience', () => {

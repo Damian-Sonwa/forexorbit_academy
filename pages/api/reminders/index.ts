@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Reminders API Route
  * GET: Get user's reminders
@@ -68,9 +69,8 @@ async function getReminders(req: AuthRequest, res: NextApiResponse) {
 
     res.json({ reminders: result });
   } catch (error: unknown) {
-    console.error('Get reminders error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
-    res.status(500).json({ error: 'Failed to fetch reminders', message: errorMessage });
+    console.error('Get reminders error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 
@@ -139,9 +139,8 @@ async function createReminder(req: AuthRequest, res: NextApiResponse) {
       },
     });
   } catch (error: unknown) {
-    console.error('Create reminder error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
-    res.status(500).json({ error: 'Failed to create reminder', message: errorMessage });
+    console.error('Create reminder error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 
@@ -188,9 +187,8 @@ async function updateReminder(req: AuthRequest, res: NextApiResponse) {
 
     res.json({ success: true });
   } catch (error: unknown) {
-    console.error('Update reminder error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
-    res.status(500).json({ error: 'Failed to update reminder', message: errorMessage });
+    console.error('Update reminder error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 
@@ -219,9 +217,8 @@ async function deleteReminder(req: AuthRequest, res: NextApiResponse) {
 
     res.json({ success: true });
   } catch (error: unknown) {
-    console.error('Delete reminder error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
-    res.status(500).json({ error: 'Failed to delete reminder', message: errorMessage });
+    console.error('Delete reminder error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 

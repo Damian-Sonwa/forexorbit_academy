@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Assignment Submission API Route
  * POST: Submit the authenticated student's own work
@@ -104,7 +105,7 @@ async function submitAssignment(req: AuthRequest, res: NextApiResponse) {
     return res.json({ success: true, message: 'Assignment submitted successfully' });
   } catch {
     console.error(JSON.stringify({ event: 'assignmentSubmit', result: 'failed' }));
-    return res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json(unexpectedBody('api'));
   }
 }
 
@@ -136,7 +137,7 @@ async function getSubmission(req: AuthRequest, res: NextApiResponse) {
     return res.json(presentSubmission(submission));
   } catch {
     console.error(JSON.stringify({ event: 'assignmentSubmissionRead', result: 'failed' }));
-    return res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json(unexpectedBody('api'));
   }
 }
 

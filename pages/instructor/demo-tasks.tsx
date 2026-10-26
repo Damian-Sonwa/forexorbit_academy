@@ -58,7 +58,7 @@ export default function InstructorDemoTasks() {
         setStudents([]);
       }
     } catch (error) {
-      console.error('Failed to load students:', error);
+      console.error('Failed to load students:');
     } finally {
       setLoading(false);
     }

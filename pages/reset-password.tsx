@@ -7,6 +7,7 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import { ButtonLoadingState } from '@/components/loading';
 import { apiClient } from '@/lib/api-client';
 
 const PWD_RESET_STORAGE = 'forexorbitPwdReset';
@@ -179,7 +180,7 @@ export default function ResetPassword() {
                     disabled={loading}
                     className="bg-primary-600 hover:bg-primary-700 text-white w-full rounded-xl py-3 font-semibold transition-colors disabled:bg-primary-900/50 disabled:cursor-not-allowed min-h-[48px]"
                   >
-                    {loading ? 'Saving…' : 'Save password'}
+                    {loading ? <ButtonLoadingState loading loadingLabel="Saving password" /> : 'Save password'}
                   </button>
                 </form>
               </>

@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Task Submission API Route (Single Submission)
  * DELETE: Delete task submission (only if not reviewed yet)
@@ -43,9 +44,8 @@ async function deleteSubmission(req: AuthRequest, res: NextApiResponse) {
 
     res.json({ success: true, message: 'Submission deleted successfully' });
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
-    console.error('Delete submission error:', errorMessage);
-    res.status(500).json({ error: errorMessage });
+    console.error('Delete submission error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 

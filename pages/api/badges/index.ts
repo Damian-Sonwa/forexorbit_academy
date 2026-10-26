@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Badges API Route
  * GET: List badges (all users or user-specific)
@@ -41,8 +42,8 @@ async function getBadges(req: AuthRequest, res: NextApiResponse) {
       res.json(badgesList);
     }
   } catch (error: any) {
-    console.error('Get badges error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Get badges error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 
@@ -76,8 +77,8 @@ async function createBadge(req: AuthRequest, res: NextApiResponse) {
       ...req.body,
     });
   } catch (error: any) {
-    console.error('Create badge error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Create badge error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 

@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Daily Challenges API Route
  * GET: Get daily challenges
@@ -53,8 +54,8 @@ async function getChallenges(req: AuthRequest, res: NextApiResponse) {
 
     res.json(challengesList);
   } catch (error: any) {
-    console.error('Get challenges error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Get challenges error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 
@@ -122,8 +123,8 @@ async function completeChallenge(req: AuthRequest, res: NextApiResponse) {
       pointsEarned: isCorrect ? challenge.points : 0,
     });
   } catch (error: any) {
-    console.error('Complete challenge error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Complete challenge error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 

@@ -72,16 +72,12 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
     const configured = isAIConfigured();
     
     // Log for debugging (only on server-side)
-    if (typeof window === 'undefined') {
-      console.log('[AI Config Check] AI configured:', configured, 'Environment:', process.env.NODE_ENV);
-    }
-    
     res.json({ 
       configured,
       // Do NOT expose any API key information
     });
   } catch (error: unknown) {
-    console.error('[AI Config Check] Error:', error instanceof Error ? error.message : 'Unknown error');
+    console.error('[AI Config Check] Error');
     res.json({ configured: false });
   }
 }

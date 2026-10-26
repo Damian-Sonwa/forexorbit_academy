@@ -11,6 +11,8 @@ import Footer from '@/components/Footer';
 import Sidebar from '@/components/Sidebar';
 import CourseCard from '@/components/CourseCard';
 import LoadingSpinner from '@/components/LoadingSpinner';
+import { CourseCardSkeleton, LoadingStatus, MetricSkeleton } from '@/components/loading';
+import { resolveLoadingPresentation } from '@/lib/loading-presentation';
 import TodoList from '@/components/TodoList';
 import RemindersPanel from '@/components/RemindersPanel';
 import { useAuth } from '@/hooks/useAuth';
@@ -51,7 +53,7 @@ export default function Dashboard() {
         const userData = await apiClient.get<any>('/auth/me');
         setUserPoints(userData.points || 0);
       } catch (error) {
-        console.error('Failed to fetch user points:', error);
+        console.error('Failed to fetch user points:');
         setUserPoints(0);
       }
       
@@ -75,7 +77,7 @@ export default function Dashboard() {
         }
         setUpcomingLessons(lessons.slice(0, 5)); // Next 5 lessons
       } catch (error) {
-        console.error('Failed to fetch upcoming lessons:', error);
+        console.error('Failed to fetch upcoming lessons:');
         setUpcomingLessons([]);
       }
     } finally {
@@ -132,12 +134,38 @@ export default function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, user, progressLoading]);
 
-  if (authLoading || progressLoading || loadingData) {
-    return <LoadingSpinner message="Loading your dashboard..." fullScreen />;
+  const sessionBlocked = authLoading || !isAuthenticated || !user || user.role !== 'student';
+  const progressView = resolveLoadingPresentation({
+    authLoading: false,
+    authorized: true,
+    dataLoading: progressLoading || loadingData,
+    error: progressError,
+    hasData: progress.length > 0,
+  });
+
+  if (sessionBlocked) {
+    return <LoadingSpinner message="Checking your session" fullScreen />;
   }
 
-  if (!isAuthenticated || (user && user.role !== 'student')) {
-    return null;
+  if (progressView === 'skeleton') {
+    const firstName = user?.name?.split(' ')[0] || 'Student';
+    return (
+      <div className="min-h-screen flex flex-col overflow-hidden">
+        <Header />
+        <div className="flex flex-1 relative overflow-hidden lg:items-start">
+          <Sidebar />
+          <main className="flex-1 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8 pt-16 lg:pt-8 w-full">
+            <p className="page-kicker mb-2">Learning home</p>
+            <h1 className="page-title">Welcome back, {firstName}</h1>
+            <div className="mt-8 space-y-8">
+              <LoadingStatus label="Loading your dashboard" />
+              <MetricSkeleton count={3} />
+              <CourseCardSkeleton count={3} />
+            </div>
+          </main>
+        </div>
+      </div>
+    );
   }
 
   const enrolledCourses = courses.filter((c) => c.enrolled);
@@ -161,6 +189,11 @@ export default function Dashboard() {
                 Welcome back, {user?.name?.split(' ')[0] || 'Student'}
               </h1>
               <p className="mt-2 text-sm sm:text-base text-neutral-600">Pick up where you left off.</p>
+              {progressView === 'refresh' && (
+                <div className="mt-3">
+                  <LoadingStatus label="Updating your dashboard" compact />
+                </div>
+              )}
             </div>
             <div className="flex flex-wrap items-center gap-3">
               {(user?.learningLevel || (user as any)?.studentDetails?.tradingLevel) && (

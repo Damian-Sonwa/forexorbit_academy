@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Messages API Route
  * GET: Get messages for a lesson room
@@ -86,7 +87,7 @@ async function getMessages(req: AuthRequest, res: NextApiResponse) {
     res.json(messagesList);
   } catch {
     console.error(JSON.stringify({ event: 'lessonMessages', result: 'lookup_failed' }));
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json(unexpectedBody('api'));
   }
 }
 
@@ -134,7 +135,7 @@ async function sendMessage(req: AuthRequest, res: NextApiResponse) {
     });
   } catch {
     console.error(JSON.stringify({ event: 'lessonMessages', result: 'failed' }));
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json(unexpectedBody('api'));
   }
 }
 

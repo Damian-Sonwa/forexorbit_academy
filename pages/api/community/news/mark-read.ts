@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Mark News as Read API Route
  * POST: Mark a news item as read by the current user
@@ -7,7 +8,7 @@ import type { NextApiResponse } from 'next';
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
-import { COMMUNITY_NEWS_CLIENT_ERROR, logCommunityNewsFailure } from '@/lib/community-news';
+import { logCommunityNewsFailure } from '@/lib/community-news';
 
 async function markNewsAsRead(req: AuthRequest, res: NextApiResponse) {
   try {
@@ -36,7 +37,7 @@ async function markNewsAsRead(req: AuthRequest, res: NextApiResponse) {
     res.json({ success: true, message: 'News marked as read' });
   } catch {
     logCommunityNewsFailure('communityNewsMarkRead');
-    res.status(500).json({ error: COMMUNITY_NEWS_CLIENT_ERROR });
+    res.status(500).json(unexpectedBody('api'));
   }
 }
 

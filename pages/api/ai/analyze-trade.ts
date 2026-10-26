@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * AI API: Analyze Trade
  * Provides AI-powered feedback for demo trades
@@ -40,9 +41,8 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 
     res.json({ analysis });
   } catch (error: unknown) {
-    console.error('AI analyze trade error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Failed to analyze trade';
-    res.status(500).json({ error: errorMessage });
+    console.error('AI analyze trade error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 

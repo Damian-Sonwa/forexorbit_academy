@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Assignment API Route (Single Assignment)
  * GET: Get assignment details for an authorized course member
@@ -77,7 +78,7 @@ async function getAssignment(req: AuthRequest, res: NextApiResponse) {
     return res.json(presentAssignment(loaded.assignment, false, submission));
   } catch {
     console.error(JSON.stringify({ event: 'assignmentRead', result: 'failed' }));
-    return res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json(unexpectedBody('api'));
   }
 }
 
@@ -110,7 +111,7 @@ async function updateAssignment(req: AuthRequest, res: NextApiResponse) {
     return res.json({ success: true });
   } catch {
     console.error(JSON.stringify({ event: 'assignmentUpdate', result: 'failed' }));
-    return res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json(unexpectedBody('api'));
   }
 }
 
@@ -134,7 +135,7 @@ async function deleteAssignment(req: AuthRequest, res: NextApiResponse) {
     return res.json({ success: true });
   } catch {
     console.error(JSON.stringify({ event: 'assignmentDelete', result: 'failed' }));
-    return res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json(unexpectedBody('api'));
   }
 }
 

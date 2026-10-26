@@ -46,7 +46,7 @@ export default function ReviewSubmission() {
       const data = await apiClient.get<Submission[]>('/demo-trading/submissions');
       setSubmissions(Array.isArray(data) ? data : []);
     } catch (error) {
-      console.error('Failed to load submissions:', error);
+      console.error('Failed to load submissions:');
       setSubmissions([]);
     } finally {
       setLoading(false);
@@ -106,7 +106,7 @@ export default function ReviewSubmission() {
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to draft feedback';
       setError(errorMessage);
-      console.error('AI draft feedback error:', err);
+      console.error('AI draft feedback error:');
     } finally {
       setDraftingFeedback(null);
     }

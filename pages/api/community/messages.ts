@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Community Messages API Route
  * GET: Get messages for a room
@@ -91,7 +92,7 @@ async function getMessages(req: AuthRequest, res: NextApiResponse) {
     res.json(enrichedMessages.reverse());
   } catch {
     console.error(JSON.stringify({ event: 'communityMessagesRead', result: 'failed' }));
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json(unexpectedBody('api'));
   }
 }
 
@@ -233,7 +234,7 @@ async function sendMessage(req: AuthRequest, res: NextApiResponse) {
     });
   } catch {
     console.error(JSON.stringify({ event: 'communityMessageSend', result: 'failed' }));
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json(unexpectedBody('api'));
   }
 }
 

@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Assignment Analytics API Route
  * GET: Get analytics for a specific assignment (instructor/admin only)
@@ -174,7 +175,7 @@ async function getAssignmentAnalytics(req: AuthRequest, res: NextApiResponse) {
     });
   } catch {
     console.error(JSON.stringify({ event: 'assignmentAnalytics', result: 'failed' }));
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json(unexpectedBody('api'));
   }
 }
 

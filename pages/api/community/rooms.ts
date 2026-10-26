@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Community Rooms API Route
  * GET: Get all rooms for the authenticated user
@@ -18,7 +19,7 @@ async function getRooms(req: AuthRequest, res: NextApiResponse) {
       db = await getDb();
     } catch {
       console.error(JSON.stringify({ event: 'communityRooms', result: 'failed' }));
-      return res.status(500).json({ error: 'Internal server error' });
+      return res.status(500).json(unexpectedBody('api'));
     }
     
     const rooms = db.collection('communityRooms');
@@ -170,7 +171,7 @@ async function getRooms(req: AuthRequest, res: NextApiResponse) {
     res.json(roomsWithLastMessage);
   } catch {
     console.error(JSON.stringify({ event: 'communityRooms', result: 'failed' }));
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json(unexpectedBody('api'));
   }
 }
 

@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Get Submissions for a Specific Task API Route
  * GET: Get all student submissions for a specific demo task
@@ -77,9 +78,8 @@ async function getTaskSubmissions(req: AuthRequest, res: NextApiResponse) {
       submissions: submissionsWithDetails,
     });
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
-    console.error('Get task submissions error:', errorMessage);
-    res.status(500).json({ error: errorMessage });
+    console.error('Get task submissions error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 

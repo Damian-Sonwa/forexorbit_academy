@@ -117,7 +117,7 @@ export default function DemoTrading() {
       setTasks(Array.isArray(tasksData) ? tasksData : []);
       setJournalEntries(Array.isArray(journalData) ? journalData : []);
     } catch (error) {
-      console.error('Failed to load demo trading data:', error);
+      console.error('Failed to load demo trading data:');
     } finally {
       setLoading(false);
     }
@@ -177,7 +177,7 @@ export default function DemoTrading() {
     } catch (error: any) {
       const errorMessage = error.response?.data?.error || error.message || 'Failed to upload screenshot';
       setSubmissionUploadError(errorMessage);
-      console.error('Screenshot upload error:', error);
+      console.error('Screenshot upload error:');
     } finally {
       setUploadingSubmissionScreenshot(false);
     }
@@ -214,7 +214,7 @@ export default function DemoTrading() {
     } catch (error: any) {
       const errorMessage = error.response?.data?.error || 'Failed to submit task';
       alert(errorMessage);
-      console.error('Task submission error:', error);
+      console.error('Task submission error:');
     } finally {
       setIsSubmittingTask(false);
     }
@@ -261,7 +261,7 @@ export default function DemoTrading() {
     } catch (error: any) {
       const errorMessage = error.response?.data?.error || error.message || 'Failed to upload screenshot';
       setUploadError(errorMessage);
-      console.error('Screenshot upload error:', error);
+      console.error('Screenshot upload error:');
     } finally {
       setUploadingScreenshot(false);
     }
@@ -314,7 +314,7 @@ export default function DemoTrading() {
     } catch (error: any) {
       const errorMessage = error.response?.data?.error || 'Failed to save trade journal entry';
       alert(errorMessage);
-      console.error('Journal submission error:', error);
+      console.error('Journal submission error:');
     } finally {
       setIsSubmitting(false);
     }

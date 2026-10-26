@@ -17,6 +17,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useEffect, useState } from 'react';
 import { apiClient } from '@/lib/api-client';
 import { isNavHrefDisabled } from '@/lib/config/features';
+import { isAbortedRequest } from '@/lib/request-status';
 
 interface SidebarProps {
   courseId?: string;
@@ -238,7 +239,8 @@ export default function Sidebar({ }: SidebarProps) {
       const data = await apiClient.get('/auth/me');
       setProfileData(data);
     } catch (error) {
-      console.error('Failed to load profile data:', error);
+      if (isAbortedRequest(error)) return;
+      console.error('Failed to load profile data');
     }
   };
 

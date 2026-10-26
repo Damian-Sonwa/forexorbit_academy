@@ -95,7 +95,7 @@ export default function TradingInterface() {
       });
       setPrices(mockPrices);
     } catch (error) {
-      console.error('Failed to load prices:', error);
+      console.error('Failed to load prices:');
     }
   }, []);
 
@@ -120,7 +120,7 @@ export default function TradingInterface() {
         setPerformance(performanceData);
       }
     } catch (error) {
-      console.error('Failed to load trading data:', error);
+      console.error('Failed to load trading data:');
     } finally {
       setLoading(false);
     }

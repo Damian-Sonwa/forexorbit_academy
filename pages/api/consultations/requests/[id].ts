@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Consultation Request Actions API Route
  * PUT: Accept or reject a consultation request (experts only)
@@ -131,8 +132,8 @@ async function updateRequest(req: AuthRequest, res: NextApiResponse) {
       });
     }
   } catch (error: any) {
-    console.error('Update consultation request error:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    console.error('Update consultation request error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 

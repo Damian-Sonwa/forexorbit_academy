@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Instructor Analytics API Route
  * Returns comprehensive analytics for instructor's courses
@@ -93,11 +94,8 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
       totalEnrollments: enrollments.length,
     });
   } catch (error: any) {
-    console.error('[Instructor Analytics] Error:', error);
-    res.status(500).json({ 
-      error: 'Internal server error',
-      details: error.message 
-    });
+    console.error('[Instructor Analytics] Error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 

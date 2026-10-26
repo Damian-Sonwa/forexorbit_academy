@@ -9,6 +9,7 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import BackButton from '@/components/BackButton';
 import LoadingSpinner from '@/components/LoadingSpinner';
+import { ButtonLoadingState, LessonSkeleton } from '@/components/loading';
 import { useCourse } from '@/hooks/useCourses';
 import { useSocket } from '@/hooks/useSocket';
 import { useAuth } from '@/hooks/useAuth';
@@ -20,7 +21,7 @@ import { getLessonDescriptionHtml, hasVisibleHtml } from '@/lib/lesson-html';
 export default function CourseDetailPage() {
   const router = useRouter();
   const { id } = router.query;
-  const { course, loading, refetch: refetchCourse } = useCourse(id) as any;
+  const { course, loading, error, refetch: refetchCourse } = useCourse(id) as any;
   const { socket, connected } = useSocket();
   const { isAuthenticated, user } = useAuth();
   const [enrolling, setEnrolling] = useState(false);
@@ -66,20 +67,35 @@ export default function CourseDetailPage() {
       }
       router.reload();
     } catch (error) {
-      console.error('Enrollment error:', error);
+      console.error('Enrollment error:');
     } finally {
       setEnrolling(false);
     }
   };
 
-  if (loading) {
-    return <LoadingSpinner message="Loading course..." fullScreen />;
+  if (loading && !course) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <main className="flex-1 max-w-3xl mx-auto w-full px-4 py-8">
+          <LessonSkeleton />
+        </main>
+      </div>
+    );
   }
 
   if (!course) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p>Course not found</p>
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <main className="flex-1 flex items-center justify-center px-6">
+          <div className="max-w-md text-center">
+            <p className="text-lg font-semibold text-neutral-900">{error ? 'This course could not be loaded' : 'Course not found'}</p>
+            {error && (
+              <button type="button" onClick={() => refetchCourse()} className="mt-4 inline-flex rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white">Try again</button>
+            )}
+          </div>
+        </main>
       </div>
     );
   }
@@ -216,7 +232,7 @@ export default function CourseDetailPage() {
                           : 'bg-primary-600 hover:bg-primary-700 text-white hover:shadow-xl transform hover:scale-105'
                       } disabled:opacity-50 disabled:cursor-not-allowed`}
                     >
-                      {enrolling ? 'Processing...' : course.enrolled ? 'Unenroll' : 'Enroll Now'}
+                      {enrolling ? <ButtonLoadingState loading loadingLabel={course.enrolled ? 'Leaving course' : 'Enrolling'} /> : course.enrolled ? 'Unenroll' : 'Enroll Now'}
                     </button>
                   ) : (
                     <Link href="/login" className="block w-full px-6 py-4 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-bold text-lg text-center transition-colors shadow-lg hover:shadow-xl">

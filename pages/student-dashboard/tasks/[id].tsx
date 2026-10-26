@@ -118,7 +118,7 @@ export default function TaskDetail() {
         console.log('No submission found for this task');
       }
     } catch (error) {
-      console.error('Failed to load task data:', error);
+      console.error('Failed to load task data:');
       alert('Failed to load task. Please try again.');
       router.push('/student-dashboard');
     } finally {
@@ -163,7 +163,7 @@ export default function TaskDetail() {
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to upload screenshot';
       setSubmissionUploadError(errorMessage);
-      console.error('Screenshot upload error:', error);
+      console.error('Screenshot upload error:');
     } finally {
       setUploadingScreenshot(false);
     }
@@ -193,7 +193,7 @@ export default function TaskDetail() {
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to submit task';
       alert(errorMessage);
-      console.error('Task submission error:', error);
+      console.error('Task submission error:');
     } finally {
       setIsSubmitting(false);
     }
@@ -213,7 +213,7 @@ export default function TaskDetail() {
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to delete submission';
       alert(errorMessage);
-      console.error('Delete submission error:', error);
+      console.error('Delete submission error:');
     }
   };
 
@@ -299,7 +299,7 @@ export default function TaskDetail() {
                       });
                       setAiHint(response.hint);
                     } catch (error) {
-                      console.error('Failed to get AI hint:', error);
+                      console.error('Failed to get AI hint:');
                       alert('Failed to get AI hint. Please try again later.');
                     } finally {
                       setLoadingHint(false);

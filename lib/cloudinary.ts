@@ -32,14 +32,7 @@ export function isCloudinaryConfigured(): boolean {
   const hasApiSecret = !!process.env.CLOUDINARY_API_SECRET;
   
   if (!hasCloudName || !hasApiKey || !hasApiSecret) {
-    console.error('Cloudinary configuration check:', {
-      hasCloudName,
-      hasApiKey,
-      hasApiSecret,
-      cloudNameLength: process.env.CLOUDINARY_CLOUD_NAME?.length || 0,
-      apiKeyLength: process.env.CLOUDINARY_API_KEY?.length || 0,
-      apiSecretLength: process.env.CLOUDINARY_API_SECRET?.length || 0,
-    });
+    console.error('Cloudinary is not configured');
   }
   
   return hasCloudName && hasApiKey && hasApiSecret;
@@ -79,7 +72,7 @@ export async function uploadImage(
       },
       (error, result) => {
         if (error) {
-          console.error('Cloudinary upload error:', error);
+          console.error('Cloudinary upload error:');
           reject(new Error(`Failed to upload image: ${error.message}`));
         } else if (!result) {
           reject(new Error('Cloudinary upload returned no result'));
@@ -140,7 +133,7 @@ export async function uploadImageFromPath(
       },
       (error, result) => {
         if (error) {
-          console.error('Cloudinary upload error:', error);
+          console.error('Cloudinary upload error:');
           reject(new Error(`Failed to upload image: ${error.message}`));
         } else if (!result) {
           reject(new Error('Cloudinary upload returned no result'));
@@ -172,7 +165,7 @@ export async function deleteImage(publicId: string): Promise<void> {
     await cloudinary.uploader.destroy(publicId);
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('Cloudinary delete error:', error);
+    console.error('Cloudinary delete error:');
     throw new Error(`Failed to delete image: ${errorMessage}`);
   }
 }

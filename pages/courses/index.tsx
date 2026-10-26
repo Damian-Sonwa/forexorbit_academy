@@ -8,11 +8,12 @@ import { BookOpen } from 'lucide-react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import CourseCard from '@/components/CourseCard';
+import { CourseCardSkeleton, LoadingStatus } from '@/components/loading';
 import { useCourses } from '@/hooks/useCourses';
 
 export default function CoursesPage() {
   const [filters, setFilters] = useState({ category: '', difficulty: '', search: '' });
-  const { courses, loading, enroll, unenroll } = useCourses(filters);
+  const { courses, loading, error, enroll, unenroll, refetch } = useCourses(filters);
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -68,10 +69,16 @@ export default function CoursesPage() {
         </div>
 
         {/* Courses Grid */}
-        {loading ? (
-          <div className="text-center py-20">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mb-4"></div>
-            <p className="text-gray-500 text-lg">Loading courses...</p>
+        {loading && courses.length === 0 && !error ? (
+          <div className="space-y-4">
+            <LoadingStatus label="Loading courses" />
+            <CourseCardSkeleton count={6} />
+          </div>
+        ) : error && courses.length === 0 ? (
+          <div className="rounded-2xl border border-neutral-200 bg-white px-6 py-16 text-center">
+            <p className="text-lg font-semibold text-neutral-900">Courses could not be loaded</p>
+            <p className="mt-2 text-sm text-neutral-600">Check the connection and try again.</p>
+            <button type="button" onClick={() => refetch()} className="mt-6 inline-flex rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary-700">Try again</button>
           </div>
         ) : courses.length === 0 ? (
           <div className="text-center py-20 bg-white rounded-2xl shadow-sm border border-gray-100">
@@ -81,6 +88,7 @@ export default function CoursesPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {loading && <div className="sm:col-span-2 lg:col-span-3"><LoadingStatus label="Updating courses" compact /></div>}
             {courses.map((course) => (
               <CourseCard
                 key={course._id || course.id}

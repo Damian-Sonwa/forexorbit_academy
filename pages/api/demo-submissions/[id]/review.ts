@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Review Demo Task Submission API Route
  * PUT: Add grade and feedback to a submission
@@ -129,9 +130,8 @@ async function reviewSubmission(req: AuthRequest, res: NextApiResponse) {
       },
     });
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
-    console.error('Review submission error:', errorMessage);
-    res.status(500).json({ error: errorMessage });
+    console.error('Review submission error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 

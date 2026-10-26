@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Certificate Download API Route
  * Generates and returns certificate as PDF/image
@@ -53,8 +54,8 @@ async function downloadCertificate(req: AuthRequest, res: NextApiResponse) {
     res.setHeader('Content-Disposition', `attachment; filename="certificate-${certificate.certificateId}.json"`);
     res.json(certificateData);
   } catch (error: any) {
-    console.error('Download certificate error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Download certificate error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 

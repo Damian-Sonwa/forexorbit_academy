@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Consultation Messages API Route
  * GET: Get messages for a session
@@ -62,8 +63,8 @@ async function getMessages(req: AuthRequest, res: NextApiResponse) {
 
     res.json(messagesWithSenders);
   } catch (error: any) {
-    console.error('Get consultation messages error:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    console.error('Get consultation messages error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 
@@ -152,8 +153,8 @@ async function sendMessage(req: AuthRequest, res: NextApiResponse) {
       },
     });
   } catch (error: any) {
-    console.error('Send consultation message error:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    console.error('Send consultation message error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 

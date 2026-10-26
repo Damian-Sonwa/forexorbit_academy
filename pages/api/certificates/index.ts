@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Certificates API Route
  * GET: List certificates (role-based)
@@ -104,8 +105,8 @@ async function getCertificates(req: AuthRequest, res: NextApiResponse) {
 
     res.json(enrichedCertificates);
   } catch (error: any) {
-    console.error('Get certificates error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Get certificates error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 
@@ -165,8 +166,8 @@ async function generateCertificate(req: AuthRequest, res: NextApiResponse) {
       _id: result.insertedId.toString(),
     });
   } catch (error: any) {
-    console.error('Generate certificate error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Generate certificate error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 

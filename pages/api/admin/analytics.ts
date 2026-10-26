@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Admin Analytics API Route
  * GET: Get real-time analytics (admin only)
@@ -108,8 +109,8 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
       courseCompletion,
     });
   } catch (error: unknown) {
-    console.error('Get analytics error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Get analytics error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 

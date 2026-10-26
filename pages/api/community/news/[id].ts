@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Community News API Route - Edit/Delete
  * PUT: Update news item (Instructor/Admin/Super Admin only)
@@ -8,7 +9,7 @@ import type { NextApiResponse } from 'next';
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
-import { COMMUNITY_NEWS_CLIENT_ERROR, logCommunityNewsFailure } from '@/lib/community-news';
+import { logCommunityNewsFailure } from '@/lib/community-news';
 
 async function updateNews(req: AuthRequest, res: NextApiResponse) {
   try {
@@ -63,7 +64,7 @@ async function updateNews(req: AuthRequest, res: NextApiResponse) {
     });
   } catch {
     logCommunityNewsFailure('communityNewsUpdate');
-    res.status(500).json({ error: COMMUNITY_NEWS_CLIENT_ERROR });
+    res.status(500).json(unexpectedBody('api'));
   }
 }
 
@@ -102,7 +103,7 @@ async function deleteNews(req: AuthRequest, res: NextApiResponse) {
     });
   } catch {
     logCommunityNewsFailure('communityNewsDelete');
-    res.status(500).json({ error: COMMUNITY_NEWS_CLIENT_ERROR });
+    res.status(500).json(unexpectedBody('api'));
   }
 }
 

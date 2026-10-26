@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Instructor API Route (Single Instructor)
  * GET: Get instructor by ID
@@ -30,8 +31,8 @@ async function getInstructor(req: AuthRequest, res: NextApiResponse) {
 
     res.json(instructor);
   } catch (error: any) {
-    console.error('Get instructor error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Get instructor error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 
@@ -69,8 +70,8 @@ async function updateInstructor(req: AuthRequest, res: NextApiResponse) {
     const updatedInstructor = await instructors.findOne({ _id: new ObjectId(id) });
     res.json(updatedInstructor);
   } catch (error: any) {
-    console.error('Update instructor error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Update instructor error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 
@@ -94,8 +95,8 @@ async function deleteInstructor(req: AuthRequest, res: NextApiResponse) {
 
     res.json({ success: true, message: 'Instructor deleted' });
   } catch (error: any) {
-    console.error('Delete instructor error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Delete instructor error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 

@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Mark Onboarding as Complete API Route
  * PUT: Mark student onboarding as complete
@@ -39,8 +40,8 @@ async function completeOnboarding(req: AuthRequest, res: NextApiResponse) {
       message: 'Onboarding completed successfully',
     });
   } catch (error: any) {
-    console.error('Complete onboarding error:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    console.error('Complete onboarding error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 

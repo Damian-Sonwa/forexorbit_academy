@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Admin User API Route (Single User)
  * PUT: Update user role
@@ -53,9 +54,8 @@ async function updateUser(req: AuthRequest, res: NextApiResponse) {
 
     res.json({ success: true, message: `User role updated to ${role} successfully` });
   } catch (error: unknown) {
-    console.error('Update user error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
-    res.status(500).json({ error: errorMessage });
+    console.error('Update user error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 
@@ -99,9 +99,8 @@ async function deleteUser(req: AuthRequest, res: NextApiResponse) {
 
     res.json({ success: true, message: 'User deleted successfully' });
   } catch (error: unknown) {
-    console.error('Delete user error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
-    res.status(500).json({ error: errorMessage });
+    console.error('Delete user error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 

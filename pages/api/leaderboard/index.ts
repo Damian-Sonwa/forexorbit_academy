@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Leaderboard API Route
  * GET: Get leaderboard rankings
@@ -124,8 +125,8 @@ async function getLeaderboard(req: AuthRequest, res: NextApiResponse) {
 
     res.json(rankings);
   } catch (error: any) {
-    console.error('Get leaderboard error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Get leaderboard error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 

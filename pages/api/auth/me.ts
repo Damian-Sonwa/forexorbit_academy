@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Get Current User API Route
  * Returns authenticated user information
@@ -50,8 +51,8 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
       learningLevel, // Include learning level for access control
     });
   } catch (error: any) {
-    console.error('Get user error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Get user error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 

@@ -105,7 +105,7 @@ export default function InstructorLessonEditor({
                 quill.insertEmbed(index, 'image', imageUrl);
               } catch (error: unknown) {
                 const message = error instanceof Error ? error.message : 'Image upload failed';
-                console.error('Image upload error:', error);
+                console.error('Image upload error:');
                 alert(message);
               }
             };
@@ -217,7 +217,7 @@ export default function InstructorLessonEditor({
     } catch (error) {
       setSaveStatus('error');
       setErrorMessage('Error saving lesson content. Please try again.');
-      console.error('Save error:', error);
+      console.error('Save error:');
     } finally {
       setIsSaving(false);
     }

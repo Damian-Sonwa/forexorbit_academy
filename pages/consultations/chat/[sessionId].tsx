@@ -103,7 +103,7 @@ export default function ConsultationChat() {
         setSession(sessionData);
         setMessages(messagesData || []);
       } catch (error) {
-        console.error('Failed to load session:', error);
+        console.error('Failed to load session:');
         alert('Failed to load consultation session');
         router.push('/consultations');
       } finally {
@@ -196,7 +196,7 @@ export default function ConsultationChat() {
         });
       }
     } catch (error: any) {
-      console.error('Failed to send message:', error);
+      console.error('Failed to send message:');
       alert(error.response?.data?.error || 'Failed to send message');
       setInput(messageContent); // Restore input on error
     } finally {

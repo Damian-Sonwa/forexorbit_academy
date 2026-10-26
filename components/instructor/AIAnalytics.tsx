@@ -51,7 +51,7 @@ export default function AIAnalytics({ studentId, studentName, onClose }: AIAnaly
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to analyze student performance';
       setError(errorMessage);
-      console.error('AI analytics error:', err);
+      console.error('AI analytics error:');
     } finally {
       setLoading(false);
     }

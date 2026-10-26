@@ -11,6 +11,8 @@ import Footer from '@/components/Footer';
 import Sidebar from '@/components/Sidebar';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { useAuth } from '@/hooks/useAuth';
+import { FEATURES } from '@/lib/config/features';
+import { isAbortedRequest } from '@/lib/request-status';
 import { apiClient } from '@/lib/api-client';
 import { useCourses } from '@/hooks/useCourses';
 import {
@@ -29,7 +31,6 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { formatDistanceToNow } from 'date-fns';
-import { FEATURES } from '@/lib/config/features';
 
 interface Analytics {
   totalCourses?: number;
@@ -191,7 +192,7 @@ export default function AdminPanel() {
       const data = await apiClient.get<any[]>('/consultations/requests');
       setConsultationRequests(data || []);
     } catch (error) {
-      console.error('Failed to load consultation requests:', error);
+      console.error('Failed to load consultation requests');
       setConsultationRequests([]);
     } finally {
       setLoadingConsultations(false);
@@ -205,7 +206,7 @@ export default function AdminPanel() {
       const data = await apiClient.get<any[]>('/consultations/sessions');
       setConsultationSessions(data || []);
     } catch (error) {
-      console.error('Failed to load consultation sessions:', error);
+      console.error('Failed to load consultation sessions');
       setConsultationSessions([]);
     }
   };
@@ -245,15 +246,7 @@ export default function AdminPanel() {
       const data = await apiClient.get<Analytics>('/admin/analytics');
       setAnalytics(data);
     } catch (error: unknown) {
-      console.error('Failed to load analytics:', error);
-      let errorDetails: string | undefined;
-      if (error && typeof error === 'object' && 'response' in error) {
-        const apiError = error as { response?: { data?: unknown }; message?: string };
-        errorDetails = apiError.response?.data ? String(apiError.response.data) : apiError.message;
-      } else if (error instanceof Error) {
-        errorDetails = error.message;
-      }
-      console.error('Error details:', errorDetails);
+      console.error('Failed to load analytics');
       // Set default analytics on error
       setAnalytics({
         totalUsers: 0,
@@ -270,11 +263,16 @@ export default function AdminPanel() {
   };
 
   const loadNews = async () => {
+    if (!FEATURES.COMMUNITY) {
+      setNewsItems([]);
+      return;
+    }
     try {
       const data = await apiClient.get<NewsItem[]>('/community/news');
       setNewsItems(data);
     } catch (error) {
-      console.error('Failed to load news:', error);
+      if (isAbortedRequest(error)) return;
+      console.error('Failed to load news');
     }
   };
 
@@ -283,15 +281,7 @@ export default function AdminPanel() {
       const data = await apiClient.get<User[]>('/admin/users');
       setUsers(data || []);
     } catch (error: unknown) {
-      console.error('Failed to load users:', error);
-      let errorDetails: string | undefined;
-      if (error && typeof error === 'object' && 'response' in error) {
-        const apiError = error as { response?: { data?: unknown }; message?: string };
-        errorDetails = apiError.response?.data ? String(apiError.response.data) : apiError.message;
-      } else if (error instanceof Error) {
-        errorDetails = error.message;
-      }
-      console.error('Error details:', errorDetails);
+      console.error('Failed to load users');
       // Set empty array on error to prevent undefined issues
       setUsers([]);
     }
@@ -316,7 +306,7 @@ export default function AdminPanel() {
         errorMessage = error.message || errorMessage;
       }
       alert(errorMessage);
-      console.error('Update user role error:', error);
+      console.error('Update user role error');
       // Reload users to revert the UI change if update failed
       await loadUsers();
     }
@@ -339,7 +329,7 @@ export default function AdminPanel() {
     } catch (error: any) {
       const errorMessage = error.response?.data?.error || error.message || 'Failed to delete user';
       alert(errorMessage);
-      console.error('Delete user error:', error);
+      console.error('Delete user error');
     }
   };
 
@@ -348,7 +338,7 @@ export default function AdminPanel() {
       const data = await apiClient.get<User[]>('/instructors');
       setInstructors(data);
     } catch (error) {
-      console.error('Failed to load instructors:', error);
+      console.error('Failed to load instructors');
     }
   };
 
@@ -358,7 +348,7 @@ export default function AdminPanel() {
       const data = await apiClient.get<any[]>('/classes');
       setUpcomingClasses(data || []);
     } catch (error) {
-      console.error('Failed to load upcoming classes:', error);
+      console.error('Failed to load upcoming classes');
       setUpcomingClasses([]);
     }
   };
@@ -428,7 +418,7 @@ export default function AdminPanel() {
       const data = await apiClient.get<User[]>('/admin/approvals');
       setPendingUsers(data);
     } catch (error) {
-      console.error('Failed to load pending users:', error);
+      console.error('Failed to load pending users');
     }
   };
 
@@ -524,7 +514,7 @@ export default function AdminPanel() {
       // Force router refresh to ensure UI updates
       router.replace(router.asPath, undefined, { shallow: true });
     } catch (error: any) {
-      console.error('Failed to delete course:', error);
+      console.error('Failed to delete course');
       alert(error.message || 'Failed to delete course');
       // Refetch on error to ensure UI is in sync
       await refetch();
@@ -576,7 +566,7 @@ export default function AdminPanel() {
 
       return imageUrl;
     } catch (error: any) {
-      console.error('Upload error:', error);
+      console.error('Upload error');
       const errorMessage = error.response?.data?.error || error.message || 'Failed to upload image';
       throw new Error(errorMessage);
     } finally {
@@ -1351,7 +1341,7 @@ export default function AdminPanel() {
               </div>
             </div>
 
-            {/* Forex News Posting Section */}
+            {FEATURES.COMMUNITY && (
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 mt-6">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-bold text-gray-900 dark:text-white">Forex News Updates</h3>
@@ -1369,6 +1359,7 @@ export default function AdminPanel() {
                 Share important Forex updates, market news, and announcements with the community
               </p>
             </div>
+            )}
           </div>
         )}
 

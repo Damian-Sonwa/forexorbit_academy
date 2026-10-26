@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Consultation Requests API Route
  * GET: Get consultation requests (for students: their requests, for experts: pending requests)
@@ -122,8 +123,8 @@ async function getRequests(req: AuthRequest, res: NextApiResponse) {
       res.status(403).json({ error: 'Access denied' });
     }
   } catch (error: any) {
-    console.error('Get consultation requests error:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    console.error('Get consultation requests error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 
@@ -193,8 +194,8 @@ async function createRequest(req: AuthRequest, res: NextApiResponse) {
       },
     });
   } catch (error: any) {
-    console.error('Create consultation request error:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    console.error('Create consultation request error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 

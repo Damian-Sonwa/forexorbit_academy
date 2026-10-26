@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Assignments API Route
  * GET: List assignments for a course the caller can open
@@ -92,7 +93,7 @@ async function getAssignments(req: AuthRequest, res: NextApiResponse) {
     return res.json(views);
   } catch {
     console.error(JSON.stringify({ event: 'assignmentList', result: 'failed' }));
-    return res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json(unexpectedBody('api'));
   }
 }
 
@@ -133,7 +134,7 @@ async function createAssignment(req: AuthRequest, res: NextApiResponse) {
     });
   } catch {
     console.error(JSON.stringify({ event: 'assignmentCreate', result: 'failed' }));
-    return res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json(unexpectedBody('api'));
   }
 }
 

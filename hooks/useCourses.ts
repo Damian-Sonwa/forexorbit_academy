@@ -3,7 +3,7 @@
  * Manages course data and enrollment
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { apiClient } from '@/lib/api-client';
 
 export interface Course {
@@ -39,8 +39,10 @@ export function useCourses(filters?: { category?: string; difficulty?: string; s
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const requestId = useRef(0);
 
   const fetchCourses = async () => {
+    const current = ++requestId.current;
     try {
       setLoading(true);
       const params = new URLSearchParams();
@@ -49,12 +51,14 @@ export function useCourses(filters?: { category?: string; difficulty?: string; s
       if (filters?.search) params.append('search', filters.search);
 
       const data = await apiClient.get<Course[]>(`/courses?${params.toString()}`);
+      if (requestId.current !== current) return;
       setCourses(data);
       setError(null);
     } catch (err: any) {
+      if (requestId.current !== current) return;
       setError(err.message || 'Failed to fetch courses');
     } finally {
-      setLoading(false);
+      if (requestId.current === current) setLoading(false);
     }
   };
 
@@ -112,7 +116,6 @@ export function useCourse(courseId: string | string[] | undefined) {
   const refetch = async () => {
     if (!courseId || Array.isArray(courseId)) return;
     try {
-      setLoading(true);
       const data = await apiClient.get<Course>(`/courses/${courseId}`);
       setCourse(data);
       setError(null);

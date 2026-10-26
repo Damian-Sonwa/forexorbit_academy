@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * AI API: Answer Question
  * Provides AI-powered answers to general questions
@@ -64,9 +65,8 @@ async function handler(req: AuthRequest, res: NextApiResponse): Promise<void> {
 
     res.json({ answer });
   } catch (error: unknown) {
-    console.error('AI answer question error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Failed to get AI response';
-    res.status(500).json({ error: errorMessage });
+    console.error('AI answer question error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 

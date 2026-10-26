@@ -48,7 +48,7 @@ export default function RemindersPanel() {
       const response = await apiClient.get<{ reminders: Reminder[] }>('/reminders?upcoming=true');
       setReminders(response.reminders || []);
     } catch (error) {
-      console.error('Failed to fetch reminders:', error);
+      console.error('Failed to fetch reminders:');
     } finally {
       setLoading(false);
     }

@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * AI API: Explain Lesson
  * Provides AI-powered explanations for lessons
@@ -32,9 +33,8 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 
     res.json({ explanation });
   } catch (error: unknown) {
-    console.error('AI explain lesson error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Failed to get AI explanation';
-    res.status(500).json({ error: errorMessage });
+    console.error('AI explain lesson error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 

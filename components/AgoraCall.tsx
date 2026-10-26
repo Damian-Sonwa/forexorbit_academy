@@ -161,7 +161,7 @@ export default function AgoraCall({ appId, channel, token, uid, callType, onCall
               return [...prev, { uid: user.uid, audioTrack: user.audioTrack, videoTrack: user.videoTrack }];
             });
           } catch (err) {
-            console.error('AgoraCall: Error handling user-published event:', err);
+            console.error('AgoraCall: Error handling user-published event:');
             // Don't throw - allow other media types to continue
           }
         });
@@ -224,26 +224,19 @@ export default function AgoraCall({ appId, channel, token, uid, callType, onCall
           clearTimeout(initTimeoutRef.current);
           initTimeoutRef.current = null;
         }
-        console.error('AgoraCall: Initialization error:', err);
-        console.error('AgoraCall: Error details:', {
-          name: err.name,
-          message: err.message,
-          code: err.code,
-          stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
-        });
+        console.error('AgoraCall: Initialization error');
         
-        // Provide user-friendly error messages
         let errorMessage = 'Failed to initialize call. ';
         if (err.name === 'NotAllowedError' || err.message?.includes('permission')) {
           errorMessage += 'Please allow microphone/camera access and try again.';
         } else if (err.message?.includes('token') || err.code === 'DYNAMIC_KEY_TIMEOUT') {
-          errorMessage += 'Token expired or invalid. Please try starting the call again.';
+          errorMessage += 'The call session expired. Please try starting the call again.';
         } else if (err.message?.includes('network') || err.code === 'NETWORK_ERROR') {
           errorMessage += 'Network error. Please check your connection and try again.';
         } else if (err.code === 'INVALID_APP_ID' || err.message?.includes('appId')) {
-          errorMessage += 'Invalid Agora configuration. Please contact support.';
+          errorMessage += 'The call service is not available. Please contact support.';
         } else {
-          errorMessage += err.message || 'Please try again.';
+          errorMessage += 'Please try again.';
         }
         
         setError(errorMessage);
@@ -256,7 +249,7 @@ export default function AgoraCall({ appId, channel, token, uid, callType, onCall
             clientRef.current = null;
           }
         } catch (cleanupErr) {
-          console.error('AgoraCall: Cleanup error:', cleanupErr);
+          console.error('AgoraCall: Cleanup error');
         }
       }
     };
@@ -303,7 +296,7 @@ export default function AgoraCall({ appId, channel, token, uid, callType, onCall
           setRemoteUsers([]);
           console.log('AgoraCall: Cleanup complete');
         } catch (err) {
-          console.error('AgoraCall: Cleanup error:', err);
+          console.error('AgoraCall: Cleanup error:');
         }
       };
 
@@ -401,7 +394,7 @@ export default function AgoraCall({ appId, channel, token, uid, callType, onCall
       setIsVideoOff(false);
       setVideoError(null);
     } catch (err: any) {
-      console.error('AgoraCall: Error enabling video:', err);
+      console.error('AgoraCall: Error enabling video');
       
       // Handle camera failure gracefully - don't crash the call
       let errorMessage = 'Failed to enable camera. ';
@@ -414,7 +407,7 @@ export default function AgoraCall({ appId, channel, token, uid, callType, onCall
       } else if (err.message?.includes('zero dimensions') || err.message?.includes('container not found')) {
         errorMessage += 'Video container not ready. Please try enabling video again.';
       } else {
-        errorMessage += err.message || 'Unknown error. You can continue the call with audio only.';
+        errorMessage += 'You can continue the call with audio only.';
       }
       
       setVideoError(errorMessage);

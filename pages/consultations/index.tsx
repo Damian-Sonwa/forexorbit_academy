@@ -134,7 +134,7 @@ export default function Consultations() {
       const data = await apiClient.get<Expert[]>('/consultations/experts');
       setExperts(data.filter((expert) => expert.expertAvailable));
     } catch (error) {
-      console.error('Failed to load experts:', error);
+      console.error('Failed to load experts:');
     }
   };
 
@@ -143,7 +143,7 @@ export default function Consultations() {
       const data = await apiClient.get<ConsultationRequest[]>('/consultations/requests');
       setRequests(data);
     } catch (error) {
-      console.error('Failed to load requests:', error);
+      console.error('Failed to load requests:');
     }
   };
 
@@ -152,7 +152,7 @@ export default function Consultations() {
       const data = await apiClient.get<ConsultationSession[]>('/consultations/sessions');
       setSessions(data);
     } catch (error) {
-      console.error('Failed to load sessions:', error);
+      console.error('Failed to load sessions:');
     }
   };
 

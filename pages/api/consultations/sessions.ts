@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Consultation Sessions API Route
  * GET: Get consultation sessions (for students: their sessions, for experts: their sessions)
@@ -72,8 +73,8 @@ async function getSessions(req: AuthRequest, res: NextApiResponse) {
 
     res.json(sessionsWithUsers);
   } catch (error: any) {
-    console.error('Get consultation sessions error:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    console.error('Get consultation sessions error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 

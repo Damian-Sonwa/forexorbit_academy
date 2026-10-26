@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 import type { NextApiResponse } from 'next';
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
@@ -79,6 +80,6 @@ export default withAuth(async (req: AuthRequest, res: NextApiResponse) => {
     }
     return res.status(200).json({ success: true, enrolled: false });
   } catch {
-    return res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json(unexpectedBody('api'));
   }
 }, ['student']);

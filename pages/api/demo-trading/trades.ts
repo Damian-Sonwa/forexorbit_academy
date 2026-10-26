@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Demo Trading Trades API Route
  * GET: Get open positions and order history
@@ -47,8 +48,8 @@ async function getTrades(req: AuthRequest, res: NextApiResponse) {
       orderHistory,
     });
   } catch (error: any) {
-    console.error('Get trades error:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    console.error('Get trades error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 
@@ -171,10 +172,8 @@ async function placeOrder(req: AuthRequest, res: NextApiResponse) {
 
     res.status(201).json(brokerOrder);
   } catch (error: any) {
-    console.error('Place order error:', error);
-    res.status(500).json({ 
-      error: error.message || 'Failed to place order. Please check your order parameters.' 
-    });
+    console.error('Place order error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 

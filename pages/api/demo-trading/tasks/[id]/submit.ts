@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Submit Demo Task API Route
  * POST: Submit a demo task with screenshot and reasoning
@@ -131,9 +132,8 @@ async function submitTask(req: AuthRequest, res: NextApiResponse) {
       });
     }
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
-    console.error('Submit task error:', errorMessage);
-    res.status(500).json({ error: errorMessage });
+    console.error('Submit task error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 

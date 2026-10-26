@@ -97,7 +97,7 @@ export async function checkLevelCompletion(
 
     return true; // All courses in level are completed
   } catch (error) {
-    console.error('Error checking level completion:', error);
+    console.error('Error checking level completion:');
     return false;
   }
 }
@@ -155,7 +155,7 @@ export async function updateLearningLevelIfEligible(userId: string): Promise<Lea
 
     return currentLevel;
   } catch (error) {
-    console.error('Error updating learning level:', error);
+    console.error('Error updating learning level:');
     return 'beginner';
   }
 }

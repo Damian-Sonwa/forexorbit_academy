@@ -39,38 +39,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    // Check for existing session
+    let cancelled = false;
+    const finish = () => {
+      if (!cancelled) setLoading(false);
+    };
     const token = localStorage.getItem('token');
     const savedUser = localStorage.getItem('user');
 
-    if (token && savedUser) {
-      try {
-        const parsedUser: User = JSON.parse(savedUser);
-        setUser(parsedUser);
-        // Verify token is still valid and fetch latest user data
-        apiClient.get<User>('/auth/me').then((userData) => {
-          // Update user with latest data including onboarding status
-          const updatedUser: User = { ...parsedUser, ...userData };
-          setUser(updatedUser);
-          localStorage.setItem('user', JSON.stringify(updatedUser));
-        }).catch(() => {
-          logout();
-        });
-      } catch (error) {
-        logout();
-      }
+    if (!token || !savedUser) {
+      finish();
+      return;
     }
-    setLoading(false);
+
+    let parsedUser: User;
+    try {
+      parsedUser = JSON.parse(savedUser);
+    } catch {
+      logout();
+      finish();
+      return;
+    }
+
+    apiClient.get<User>('/auth/me').then((userData) => {
+      if (cancelled) return;
+      const updatedUser: User = { ...parsedUser, ...userData };
+      setUser(updatedUser);
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+    }).catch(() => {
+      if (!cancelled) logout();
+    }).finally(finish);
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const login = async (email: string, password: string) => {
     // Normalize email (trim + lowercase)
     const normalizedEmail = email.trim().toLowerCase();
-    
-    // Development-only logging
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Login API call for:', normalizedEmail);
-    }
     
     try {
       const response = await apiClient.post<{ token: string; user: User }>('/auth/login', {
@@ -100,11 +106,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signup = async (email: string, password: string, name: string, role = 'student', phone = '') => {
     // Normalize email (trim + lowercase)
     const normalizedEmail = email.trim().toLowerCase();
-    
-    // Development-only logging
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Signup API call for:', normalizedEmail, 'role:', role);
-    }
     
     const response = await apiClient.post<{ token: string | null; user: User; message?: string }>('/auth/signup', {
       email: normalizedEmail,

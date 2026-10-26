@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Super Admin Approval API Route
  * Handles fetching pending users and approval/rejection actions
@@ -44,8 +45,8 @@ async function getPendingUsers(req: AuthRequest, res: NextApiResponse) {
       }))
     );
   } catch (error: unknown) {
-    console.error('Get pending users error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Get pending users error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 
@@ -102,8 +103,8 @@ async function handleApproval(req: AuthRequest, res: NextApiResponse) {
       },
     });
   } catch (error: unknown) {
-    console.error('Approval action error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Approval action error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 

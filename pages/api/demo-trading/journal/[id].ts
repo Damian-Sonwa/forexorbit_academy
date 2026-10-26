@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Trade Journal Entry API Route (Single Entry)
  * PUT: Update trade journal entry
@@ -94,9 +95,8 @@ async function updateJournalEntry(req: AuthRequest, res: NextApiResponse) {
       updatedAt: updatedEntry!.updatedAt.toISOString(),
     });
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
-    console.error('Update journal entry error:', errorMessage);
-    res.status(500).json({ error: errorMessage });
+    console.error('Update journal entry error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 
@@ -129,9 +129,8 @@ async function deleteJournalEntry(req: AuthRequest, res: NextApiResponse) {
 
     res.json({ success: true, message: 'Journal entry deleted successfully' });
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
-    console.error('Delete journal entry error:', errorMessage);
-    res.status(500).json({ error: errorMessage });
+    console.error('Delete journal entry error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 

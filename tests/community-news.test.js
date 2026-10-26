@@ -54,7 +54,7 @@ test('news failures return a stable client error and the feed does not return re
   for (const relativePath of ROUTES) {
     const source = fs.readFileSync(path.join(__dirname, '..', relativePath), 'utf8');
     assert.equal(source.includes('error.message'), false, relativePath);
-    assert.equal(source.includes('COMMUNITY_NEWS_CLIENT_ERROR'), true, relativePath);
+    assert.equal(source.includes('unexpectedBody'), true, relativePath);
   }
   const feed = fs.readFileSync(path.join(__dirname, '..', 'pages/api/community/news.ts'), 'utf8');
   assert.equal(feed.includes('readBy'), false);

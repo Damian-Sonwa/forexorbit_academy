@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Certificate API Route (Single Certificate)
  * GET: Get certificate by ID
@@ -47,8 +48,8 @@ async function getCertificate(req: AuthRequest, res: NextApiResponse) {
       } : null,
     });
   } catch (error: any) {
-    console.error('Get certificate error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Get certificate error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 
@@ -70,8 +71,8 @@ async function deleteCertificate(req: AuthRequest, res: NextApiResponse) {
 
     res.json({ success: true, message: 'Certificate deleted' });
   } catch (error: any) {
-    console.error('Delete certificate error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Delete certificate error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 

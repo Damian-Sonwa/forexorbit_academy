@@ -9,6 +9,7 @@ import { useRouter } from 'next/router';
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
 import RichTextEditor from '@/components/RichTextEditor';
+import LoadingSpinner from '@/components/LoadingSpinner';
 import { useAuth } from '@/hooks/useAuth';
 import { useSocket } from '@/hooks/useSocket';
 import { apiClient } from '@/lib/api-client';
@@ -94,7 +95,7 @@ export default function InstructorLessons() {
     try {
       setAllCourses(courses as Course[]);
     } catch (error) {
-      console.error('Failed to load courses:', error);
+      console.error('Failed to load courses:');
     }
   };
 
@@ -327,13 +328,7 @@ export default function InstructorLessons() {
   };
 
   if (authLoading) {
-    return (
-      <div className="h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 dark:border-primary-400 mx-auto"></div>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner message="Checking your session" fullScreen />;
   }
 
   return (

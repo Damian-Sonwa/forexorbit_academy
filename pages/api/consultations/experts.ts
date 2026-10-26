@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Experts API Route
  * GET: Get list of available experts
@@ -47,8 +48,8 @@ async function getExperts(req: AuthRequest, res: NextApiResponse) {
       }))
     );
   } catch (error: any) {
-    console.error('Get experts error:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    console.error('Get experts error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 
@@ -88,8 +89,8 @@ async function updateAvailability(req: AuthRequest, res: NextApiResponse) {
       message: `Availability updated to ${available ? 'available' : 'unavailable'}`,
     });
   } catch (error: any) {
-    console.error('Update expert availability error:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    console.error('Update expert availability error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 

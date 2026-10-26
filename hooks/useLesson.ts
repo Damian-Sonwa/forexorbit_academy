@@ -3,7 +3,7 @@
  * Manages lesson data and navigation
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { apiClient } from '@/lib/api-client';
 
 export interface Lesson {
@@ -24,26 +24,44 @@ export function useLesson(lessonId: string | string[] | undefined) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!lessonId || Array.isArray(lessonId)) return;
+  const requestId = useRef(0);
 
-    const fetchLesson = async () => {
-      try {
-        setLoading(true);
-        const data = await apiClient.get<Lesson>(`/lessons/${lessonId}`);
-        setLesson(data);
-        setError(null);
-      } catch (err: any) {
-        setError(err.message || 'Failed to fetch lesson');
-      } finally {
+  const load = async (id: string) => {
+    const current = ++requestId.current;
+    try {
+      setLoading(true);
+      const data = await apiClient.get<Lesson>(`/lessons/${id}`);
+      if (requestId.current !== current) return;
+      setLesson(data);
+      setError(null);
+    } catch (err: any) {
+      if (requestId.current !== current) return;
+      setError(err.message || 'Failed to fetch lesson');
+    } finally {
+      if (requestId.current === current) setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!lessonId || Array.isArray(lessonId)) {
+      if (Array.isArray(lessonId)) {
+        setError('Failed to fetch lesson');
         setLoading(false);
       }
-    };
-
-    fetchLesson();
+      return;
+    }
+    load(lessonId);
   }, [lessonId]);
 
-  return { lesson, loading, error };
+  return {
+    lesson,
+    loading,
+    error,
+    refetch: () => {
+      if (!lessonId || Array.isArray(lessonId)) return;
+      return load(lessonId);
+    },
+  };
 }
 
 export function useLessons(courseId: string | string[] | undefined) {

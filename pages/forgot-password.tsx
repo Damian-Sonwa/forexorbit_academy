@@ -7,6 +7,7 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import { ButtonLoadingState } from '@/components/loading';
 import { apiClient } from '@/lib/api-client';
 
 const PWD_RESET_STORAGE = 'forexorbitPwdReset';
@@ -213,7 +214,7 @@ export default function ForgotPassword() {
                   disabled={loading || !phone.trim()}
                   className="bg-primary-600 hover:bg-primary-700 text-white w-full rounded-xl py-3 font-semibold transition-colors disabled:bg-primary-900/50 disabled:cursor-not-allowed min-h-[48px]"
                 >
-                  {loading ? 'Sending…' : 'Send code'}
+                  {loading ? <ButtonLoadingState loading loadingLabel="Sending code" /> : 'Send code'}
                 </button>
               </form>
             ) : (
@@ -238,7 +239,7 @@ export default function ForgotPassword() {
                   disabled={loading || otp.length !== 6}
                   className="bg-primary-600 hover:bg-primary-700 text-white w-full rounded-xl py-3 font-semibold transition-colors disabled:bg-primary-900/50 disabled:cursor-not-allowed min-h-[48px]"
                 >
-                  {loading ? 'Checking…' : 'Verify & continue'}
+                  {loading ? <ButtonLoadingState loading loadingLabel="Checking code" /> : 'Verify & continue'}
                 </button>
                 <div className="flex flex-col sm:flex-row gap-2 sm:justify-between sm:items-center pt-2">
                   <button

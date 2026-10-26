@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Complete Demo Task API Route
  * POST: Mark a task as completed by student
@@ -56,9 +57,8 @@ async function completeTask(req: AuthRequest, res: NextApiResponse) {
 
     res.json({ success: true, message: 'Task marked as completed' });
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
-    console.error('Complete task error:', errorMessage);
-    res.status(500).json({ error: errorMessage });
+    console.error('Complete task error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 

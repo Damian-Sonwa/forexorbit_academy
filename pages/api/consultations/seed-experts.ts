@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Seed Experts API Route
  * POST: Automatically mark instructors and admins as experts
@@ -94,8 +95,8 @@ async function seedExperts(req: AuthRequest, res: NextApiResponse) {
       },
     });
   } catch (error: any) {
-    console.error('Seed experts error:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    console.error('Seed experts error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 

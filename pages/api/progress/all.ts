@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Staff progress aggregate.
  * Instructors see their assigned courses. Admins and superadmins see every course.
@@ -47,7 +48,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
     }
     return res.status(200).json({ courses: summary.courses, totals: summary.totals });
   } catch {
-    return res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json(unexpectedBody('api'));
   }
 }
 

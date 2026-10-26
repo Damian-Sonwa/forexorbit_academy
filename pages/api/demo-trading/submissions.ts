@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Demo Trading Submissions API Route
  * GET: Get student demo task submissions for instructor
@@ -72,9 +73,8 @@ async function getSubmissions(req: AuthRequest, res: NextApiResponse) {
 
     res.json(submissionsWithDetails);
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
-    console.error('Get submissions error:', errorMessage);
-    res.status(500).json({ error: errorMessage });
+    console.error('Get submissions error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 

@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Admin Users API Route
  * GET: List all users (admin only)
@@ -17,8 +18,8 @@ async function getUsers(req: AuthRequest, res: NextApiResponse) {
 
     res.json(usersList);
   } catch (error: unknown) {
-    console.error('Get users error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Get users error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 

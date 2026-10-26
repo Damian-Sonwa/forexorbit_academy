@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Mark Messages as Read API Route
  * POST: Mark all messages in a room as read
@@ -54,7 +55,7 @@ async function markAsRead(req: AuthRequest, res: NextApiResponse) {
     res.json({ success: true });
   } catch {
     console.error(JSON.stringify({ event: 'communityMessagesReadState', result: 'failed' }));
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json(unexpectedBody('api'));
   }
 }
 

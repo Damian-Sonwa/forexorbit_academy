@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Reminder Check API Route
  * Checks for due reminders and triggers notifications
@@ -81,7 +82,7 @@ async function checkReminders(req: AuthRequest, res: NextApiResponse) {
           }
         }
       } catch (error) {
-        console.error(`Failed to create notification for reminder ${reminder._id}:`, error);
+        console.error(`Failed to create notification for reminder ${reminder._id}:`);
         // Continue with other reminders
       }
     }
@@ -93,7 +94,7 @@ async function checkReminders(req: AuthRequest, res: NextApiResponse) {
     });
   } catch (error: unknown) {
     console.error(JSON.stringify({ event: 'reminders.check', result: 'failed' }));
-    res.status(500).json({ error: 'Failed to check reminders' });
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 

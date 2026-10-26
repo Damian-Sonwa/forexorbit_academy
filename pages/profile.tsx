@@ -101,7 +101,7 @@ export default function Profile() {
         }));
       }
     } catch (error) {
-      console.error('Failed to load profile data:', error);
+      console.error('Failed to load profile data:');
     }
   };
 

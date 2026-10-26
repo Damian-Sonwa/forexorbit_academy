@@ -12,6 +12,7 @@ import { apiClient } from '@/lib/api-client';
 import { useSocket } from '@/hooks/useSocket';
 import { isNavHrefDisabled } from '@/lib/config/features';
 import { notificationDestination } from '@/lib/class-notifications';
+import { InlineLoader } from '@/components/loading';
 import { Languages } from 'lucide-react';
 
 interface Notification {
@@ -99,7 +100,7 @@ export default function Header() {
       setNotifications(response.notifications || []);
       setUnreadCount(response.unreadCount || 0);
     } catch (error) {
-      console.error('Failed to fetch notifications:', error);
+      console.error('Failed to fetch notifications:');
       // Don't show error to user, just log it
     } finally {
       setLoadingNotifications(false);
@@ -115,7 +116,7 @@ export default function Header() {
       );
       setUnreadCount((prev) => Math.max(0, prev - 1));
     } catch (error) {
-      console.error('Failed to mark notification as read:', error);
+      console.error('Failed to mark notification as read:');
     }
   };
 
@@ -126,7 +127,7 @@ export default function Header() {
       setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
       setUnreadCount(0);
     } catch (error) {
-      console.error('Failed to mark all as read:', error);
+      console.error('Failed to mark all as read:');
     }
   };
 
@@ -270,9 +271,11 @@ export default function Header() {
                     {/* Notifications List - Scrollable */}
                     <div className="overflow-y-auto flex-1 min-h-0">
                       {loadingNotifications ? (
-                        <div className="px-3 sm:px-4 py-6 sm:py-8 text-center">
-                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600 mx-auto"></div>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Loading...</p>
+                        <div className="space-y-3 px-4 py-4">
+                          <InlineLoader label="Loading notifications" />
+                          <div className="orbit-skeleton h-10 rounded-lg" />
+                          <div className="orbit-skeleton h-10 rounded-lg" />
+                          <div className="orbit-skeleton h-10 rounded-lg" />
                         </div>
                       ) : notifications.length > 0 ? (
                         notifications.map((notification) => (

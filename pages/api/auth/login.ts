@@ -8,6 +8,7 @@ import bcrypt from 'bcryptjs';
 import { getDb } from '@/lib/mongodb';
 import { issueAuthToken } from '@/lib/jwt';
 import { decideAccountAccess } from '@/lib/account-access';
+import { unexpectedBody } from '@/lib/public-error';
 
 export default async function handler(
   req: NextApiRequest,
@@ -30,14 +31,14 @@ export default async function handler(
     // Find user
     const user = await users.findOne({ email });
     if (!user) {
-      console.log(`Login attempt failed: User not found for email: ${email}`);
-      return res.status(401).json({ error: 'Invalid email or password. Please check your credentials or sign up for a new account.' });
+      console.error('Login attempt failed');
+      return res.status(401).json({ error: 'Invalid email or password. Please check your credentials.' });
     }
 
     // Verify password
     const isValid = await bcrypt.compare(password, user.password);
     if (!isValid) {
-      console.log(`Login attempt failed: Invalid password for email: ${email}`);
+      console.error('Login attempt failed');
       return res.status(401).json({ error: 'Invalid email or password. Please check your credentials.' });
     }
 
@@ -76,8 +77,7 @@ export default async function handler(
       },
     });
   } catch (error: any) {
-    console.error('Login error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json(unexpectedBody('login', error));
   }
 }
 

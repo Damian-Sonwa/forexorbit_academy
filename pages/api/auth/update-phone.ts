@@ -8,6 +8,7 @@ import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 import { parseToE164 } from '@/lib/phone';
+import { unexpectedBody } from '@/lib/public-error';
 
 async function handler(req: AuthRequest, res: NextApiResponse) {
   if (req.method !== 'PATCH' && req.method !== 'POST') {
@@ -34,7 +35,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
       _id: { $ne: uid },
     });
     if (taken) {
-      return res.status(400).json({ error: 'This phone number is already used by another account' });
+      return res.status(400).json({ error: 'That phone number cannot be used. Choose a different number.' });
     }
 
     await users.updateOne(
@@ -44,8 +45,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 
     return res.status(200).json({ message: 'Phone number updated', phoneE164: parsed.e164 });
   } catch (error: unknown) {
-    console.error('update-phone error:', error);
-    return res.status(500).json({ error: 'Failed to update phone' });
+    return res.status(500).json(unexpectedBody('update-phone', error));
   }
 }
 

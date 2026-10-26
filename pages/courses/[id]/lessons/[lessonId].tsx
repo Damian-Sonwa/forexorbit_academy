@@ -5,6 +5,7 @@
 
 import { useRouter } from 'next/router';
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import Sidebar from '@/components/Sidebar';
@@ -20,12 +21,12 @@ import { useAuth } from '@/hooks/useAuth';
 import InstructorLessonEditor from '@/components/InstructorLessonEditor';
 import { sanitizeForStudentView } from '@/lib/html-sanitizer';
 import { getLessonDescriptionHtml, hasVisibleHtml } from '@/lib/lesson-html';
-import { useState, useEffect } from 'react';
+import { LessonSkeleton } from '@/components/loading';
 
 export default function LessonPage() {
   const router = useRouter();
   const { id: courseId, lessonId } = router.query;
-  const { lesson, loading: lessonLoading } = useLesson(lessonId);
+  const { lesson, loading: lessonLoading, error: lessonError, refetch: refetchLesson } = useLesson(lessonId);
   const { lessons } = useLessons(courseId);
   // const { course } = useCourse(courseId); // Reserved for future use
   const { isAuthenticated } = useAuth();
@@ -83,10 +84,13 @@ export default function LessonPage() {
     }
   };
 
-  if (lessonLoading) {
+  if (lessonLoading && !lesson) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p>Loading lesson...</p>
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <main className="flex-1 max-w-3xl mx-auto w-full px-4 py-8">
+          <LessonSkeleton />
+        </main>
       </div>
     );
   }
@@ -94,8 +98,16 @@ export default function LessonPage() {
   const displayLesson = currentLesson || lesson;
   if (!displayLesson) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p>Lesson not found</p>
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <main className="flex-1 flex items-center justify-center px-6">
+          <div className="max-w-md text-center">
+            <p className="text-lg font-semibold text-neutral-900">{lessonError ? 'This lesson could not be loaded' : 'Lesson not found'}</p>
+            {lessonError && (
+              <button type="button" onClick={() => refetchLesson()} className="mt-4 inline-flex rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white">Try again</button>
+            )}
+          </div>
+        </main>
       </div>
     );
   }

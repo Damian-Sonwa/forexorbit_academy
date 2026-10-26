@@ -107,7 +107,7 @@ export default function Onboarding() {
         }
       }
     } catch (error) {
-      console.error('Failed to load onboarding data:', error);
+      console.error('Failed to load onboarding data:');
     }
   };
 

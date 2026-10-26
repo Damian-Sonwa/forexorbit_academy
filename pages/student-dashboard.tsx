@@ -148,11 +148,11 @@ export default function StudentDashboard() {
           }
           setTaskSubmissions(submissionsMap);
         } catch (error) {
-          console.error('Failed to load submissions:', error);
+          console.error('Failed to load submissions:');
         }
       }
     } catch (error) {
-      console.error('Failed to load dashboard data:', error);
+      console.error('Failed to load dashboard data:');
     } finally {
       setLoading(false);
     }
@@ -203,7 +203,7 @@ export default function StudentDashboard() {
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to upload screenshot';
       setUploadError(errorMessage);
-      console.error('Screenshot upload error:', error);
+      console.error('Screenshot upload error:');
     } finally {
       setUploadingScreenshot(false);
     }
@@ -241,7 +241,7 @@ export default function StudentDashboard() {
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to delete trade entry';
       alert(errorMessage);
-      console.error('Delete journal entry error:', error);
+      console.error('Delete journal entry error:');
     }
   };
 
@@ -296,7 +296,7 @@ export default function StudentDashboard() {
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to save trade journal entry';
       alert(errorMessage);
-      console.error('Journal submission error:', error);
+      console.error('Journal submission error:');
     } finally {
       setIsSubmitting(false);
     }

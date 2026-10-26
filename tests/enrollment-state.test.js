@@ -156,8 +156,11 @@ test('concurrent enroll decisions that both saw no row produce one row and a dup
   assert.equal(duplicate.body.error, 'Already enrolled');
   assert.equal(repo.rows.length, 1);
   assert.equal(enrollDuplicateStatus({ codeName: 'DuplicateKey' }).status, 400);
-  assert.equal(enrollDuplicateStatus({ code: 50 }).status, 500);
-  assert.equal(enrollDuplicateStatus({ code: 50 }).body.error, 'Internal server error');
+  const unexpected = enrollDuplicateStatus({ code: 50, message: ['duplicate', ' key'].join('') });
+  assert.equal(unexpected.status, 500);
+  assert.equal(unexpected.body.code, 'INTERNAL_ERROR');
+  assert.equal(typeof unexpected.body.requestId, 'string');
+  assert.equal(JSON.stringify(unexpected.body).includes('duplicate'), false);
 });
 
 test('withdrawn quiz history stays visible and is excluded from active totals', () => {

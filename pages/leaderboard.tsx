@@ -56,7 +56,7 @@ export default function Leaderboard() {
       const response = await apiClient.get<LeaderboardEntry[]>(`/leaderboard?${params.toString()}`);
       setLeaderboard(response);
     } catch (error: any) {
-      console.error('Fetch leaderboard error:', error);
+      console.error('Fetch leaderboard error:');
     } finally {
       setLoading(false);
     }

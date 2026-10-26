@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Consultation Session API Route
  * GET: Get session details with messages
@@ -92,8 +93,8 @@ async function getSession(req: AuthRequest, res: NextApiResponse) {
       } : null,
     });
   } catch (error: any) {
-    console.error('Get consultation session error:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    console.error('Get consultation session error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 
@@ -155,8 +156,8 @@ async function updateSession(req: AuthRequest, res: NextApiResponse) {
       res.status(400).json({ error: 'Invalid action' });
     }
   } catch (error: any) {
-    console.error('Update consultation session error:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    console.error('Update consultation session error:');
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 

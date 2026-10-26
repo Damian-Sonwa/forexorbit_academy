@@ -521,7 +521,7 @@ export default function Community() {
         setRooms([]);
       }
     } catch (error: any) {
-      console.error('Failed to load rooms:', error);
+      console.error('Failed to load rooms:');
       // Set empty array on error to prevent blank page
       setRooms([]);
       // Show error message to user
@@ -581,7 +581,7 @@ export default function Community() {
       // Mark messages as read for this room
       await apiClient.post(`/community/messages/read`, { roomId: roomId.toString() });
     } catch (error: any) {
-      console.error('Failed to load messages:', error);
+      console.error('Failed to load messages:');
       const errorMessage = error.response?.data?.error || 'Failed to load messages';
       if (error.response?.status === 403) {
         // Access denied - room is locked
@@ -621,7 +621,7 @@ export default function Community() {
         setNewsItems([]);
       }
     } catch (error) {
-      console.error('Failed to load news:', error);
+      console.error('Failed to load news:');
       setNewsItems([]); // Ensure empty array on error
     }
   };
@@ -634,14 +634,14 @@ export default function Community() {
       await Promise.all(
         unreadNews.map((item) =>
           apiClient.post('/community/news/mark-read', { newsId: item._id }).catch((err) => {
-            console.error(`Failed to mark news ${item._id} as read:`, err);
+            console.error(`Failed to mark news ${item._id} as read:`);
           })
         )
       );
       // Reload news to get updated read status
       await loadNews();
     } catch (error) {
-      console.error('Failed to mark news as read:', error);
+      console.error('Failed to mark news as read:');
     }
   };
 
@@ -1013,7 +1013,7 @@ export default function Community() {
       // Message will also appear via Socket.io broadcast to all room members (including sender)
       // The Socket.io event will handle adding it for receivers and updating for sender
     } catch (error: any) {
-      console.error('Failed to send message:', error);
+      console.error('Failed to send message:');
       let errorMessage = 'Failed to send message';
       
       if (error.response) {
@@ -1075,7 +1075,7 @@ export default function Community() {
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
     } catch (error: any) {
-      console.error('Failed to delete message:', error);
+      console.error('Failed to delete message:');
       const errorMessage = error.response?.data?.error || 'Failed to delete message';
       setToastMessage(errorMessage);
       setShowToast(true);
@@ -1169,7 +1169,7 @@ export default function Community() {
       
       // Message will also appear via Socket.io broadcast to all room members (including sender)
     } catch (error) {
-      console.error('Failed to upload file:', error);
+      console.error('Failed to upload file:');
       // Restore file on error
       setSelectedFile(fileToUpload);
       setFileType(fileTypeToUpload);
@@ -1200,7 +1200,7 @@ export default function Community() {
       setMediaRecorder(recorder);
       setRecording(true);
     } catch (error) {
-      console.error('Failed to start recording:', error);
+      console.error('Failed to start recording:');
       alert('Microphone access denied. Please enable microphone permissions.');
     }
   };
@@ -1240,7 +1240,7 @@ export default function Community() {
       setVideoStream(stream);
       setRecordingVideo(true);
     } catch (error) {
-      console.error('Failed to start video recording:', error);
+      console.error('Failed to start video recording:');
       alert('Camera/microphone access denied. Please enable permissions.');
     }
   };
@@ -1276,7 +1276,7 @@ export default function Community() {
         )
       );
     } catch (error) {
-      console.error('Failed to add reaction:', error);
+      console.error('Failed to add reaction:');
     }
   };
 

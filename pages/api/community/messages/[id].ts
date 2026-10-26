@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Community Message Delete API Route
  * DELETE: Delete a message (only by sender)
@@ -64,7 +65,7 @@ async function deleteMessage(req: AuthRequest, res: NextApiResponse) {
     res.json({ success: true, messageId: id });
   } catch {
     console.error(JSON.stringify({ event: 'communityMessageDelete', result: 'failed' }));
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json(unexpectedBody('api'));
   }
 }
 

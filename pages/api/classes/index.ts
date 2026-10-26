@@ -1,3 +1,4 @@
+import { unexpectedBody } from '@/lib/public-error';
 /**
  * Classes/Events API Route
  * GET: Get upcoming classes
@@ -15,7 +16,6 @@ import { isActiveEnrollment } from '@/lib/enrollment-state';
 import { planClassNotification } from '@/lib/class-notifications';
 import { deliverNotification } from '@/lib/notifications';
 
-const CLASS_ERROR = 'Internal server error';
 
 function storedCourseId(value: unknown): string {
   return typeof value === 'string' && /^[a-fA-F0-9]{24}$/.test(value) ? value : '';
@@ -94,7 +94,7 @@ async function getClasses(req: AuthRequest, res: NextApiResponse) {
     })));
   } catch (error: unknown) {
     console.error(JSON.stringify({ event: 'classes.list', result: 'failed' }));
-    res.status(500).json({ error: CLASS_ERROR });
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 
@@ -136,7 +136,7 @@ async function createClass(req: AuthRequest, res: NextApiResponse) {
     });
   } catch (error: unknown) {
     console.error(JSON.stringify({ event: 'classes.create', result: 'failed' }));
-    res.status(500).json({ error: CLASS_ERROR });
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 
@@ -190,7 +190,7 @@ async function updateClass(req: AuthRequest, res: NextApiResponse) {
     res.json({ success: true, message: 'Class updated successfully' });
   } catch (error: unknown) {
     console.error(JSON.stringify({ event: 'classes.update', result: 'failed' }));
-    res.status(500).json({ error: CLASS_ERROR });
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 
@@ -226,7 +226,7 @@ async function deleteClass(req: AuthRequest, res: NextApiResponse) {
     res.json({ success: true, message: 'Class deleted successfully' });
   } catch (error: unknown) {
     console.error(JSON.stringify({ event: 'classes.delete', result: 'failed' }));
-    res.status(500).json({ error: CLASS_ERROR });
+    res.status(500).json(unexpectedBody('api', error));
   }
 }
 
