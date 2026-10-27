@@ -199,7 +199,7 @@ export default function ExpertConsultation() {
             <ul className="mt-4 space-y-3">
               {ownBookings.map((booking) => (
                 <li key={booking._id} className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-primary-700">{booking.lifecycle.replace(/_/g, ' ')}</p>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-primary-700">{(booking.lifecycle || 'pending').replace(/_/g, ' ')}</p>
                   <h3 className="mt-1 font-semibold">{booking.topic}</h3>
                   <p className="mt-1 text-sm text-gray-600">{booking.student?.name || 'Learner'}{booking.student?.email ? ` · ${booking.student.email}` : ''} · {booking.startsAt ? new Date(booking.startsAt).toLocaleString() : 'No time'} · {booking.paymentStatus || 'not_required'}</p>
                   <p className="mt-2 text-sm">{booking.description}</p>

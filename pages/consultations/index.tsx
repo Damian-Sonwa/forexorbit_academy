@@ -13,7 +13,7 @@ type Expert = {
   profilePhoto?: string | null;
   expertAvailable: boolean;
   timeZone?: string | null;
-  durations: number[];
+  durations?: number[];
   focus?: string;
   hasAvailability: boolean;
 };
@@ -24,7 +24,7 @@ type Booking = {
   _id: string;
   topic: string;
   description: string;
-  lifecycle: string;
+  lifecycle?: string;
   startsAt?: string | null;
   durationMinutes?: number | null;
   meetingUrl?: string | null;
@@ -64,7 +64,10 @@ export default function Consultations() {
         apiClient.get<Expert[]>('/consultations/experts'),
         apiClient.get<Booking[]>('/consultations/requests'),
       ]);
-      setExperts(Array.isArray(expertRows) ? expertRows : []);
+      setExperts((Array.isArray(expertRows) ? expertRows : []).map((expert) => ({
+        ...expert,
+        durations: Array.isArray(expert.durations) ? expert.durations : [],
+      })));
       setBookings(Array.isArray(bookingRows) ? bookingRows : []);
     } catch (reason) {
       setError(messageFromUnknown(reason) || 'The consultation list could not be loaded.');
@@ -167,7 +170,7 @@ export default function Consultations() {
                   <button type="button" onClick={() => chooseExpert(expert._id)} className={`w-full rounded-2xl border p-4 text-left ${expertId === expert._id ? 'border-primary-600' : 'border-gray-200 dark:border-gray-700'} bg-white dark:bg-gray-800`}>
                     <p className="font-semibold text-gray-900 dark:text-white">{expert.name}</p>
                     <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">{expert.focus || 'Consultation'}</p>
-                    <p className="mt-2 text-xs text-gray-500">{!expert.hasAvailability ? 'No published hours yet' : expert.expertAvailable ? 'Taking consultations' : 'Not taking new consultations'}{expert.timeZone ? ` · ${expert.timeZone}` : ''}{expert.durations.length ? ` · ${expert.durations.join(' or ')} min` : ''}</p>
+                    <p className="mt-2 text-xs text-gray-500">{!expert.hasAvailability ? 'No published hours yet' : expert.expertAvailable ? 'Taking consultations' : 'Not taking new consultations'}{expert.timeZone ? ` · ${expert.timeZone}` : ''}{Array.isArray(expert.durations) && expert.durations.length ? ` · ${expert.durations.join(' or ')} min` : ''}</p>
                   </button>
                 </li>
               ))}
@@ -206,7 +209,7 @@ export default function Consultations() {
             <ul className="mt-4 space-y-3">
               {[...upcoming, ...closed].map((booking) => (
                 <li key={booking._id} className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-primary-700">{booking.lifecycle.replace(/_/g, ' ')}</p>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-primary-700">{(booking.lifecycle || 'pending').replace(/_/g, ' ')}</p>
                   <h3 className="mt-1 font-semibold text-gray-900 dark:text-white">{booking.topic}</h3>
                   <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">{booking.expert?.name || 'Expert'} · {when(booking.startsAt)} · {booking.paymentStatus === 'not_required' ? 'No payment required' : booking.paymentStatus}</p>
                   <p className="mt-2 text-sm text-gray-700 dark:text-gray-200">{booking.description}</p>
