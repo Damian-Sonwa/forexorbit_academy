@@ -84,6 +84,15 @@
     color: var(--color-text);
   }
 
+  .rich-html-readable :where(p) {
+    margin-top: 0.85em;
+    line-height: 1.7;
+  }
+
+  .lesson-reading {
+    max-width: 68ch;
+  }
+
   .rich-html-readable :where(a) {
     @apply text-primary-600 dark:text-primary-400 underline;
   }

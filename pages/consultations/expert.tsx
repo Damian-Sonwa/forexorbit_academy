@@ -1,563 +1,239 @@
-/**
- * Expert Consultation Dashboard
- * For Instructors and Admins to manage consultation requests
- */
-
-import { useState, useEffect } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { useAuth } from '@/hooks/useAuth';
 import { apiClient } from '@/lib/api-client';
-import { formatDistanceToNow } from 'date-fns';
+import { messageFromUnknown } from '@/lib/public-error';
 
-interface ConsultationRequest {
+type Booking = {
   _id: string;
-  studentId: string;
-  expertId: string;
+  expertId?: string;
   topic: string;
   description: string;
-  consultationType: 'live-chat' | 'audio-call' | 'video-call';
-  status: 'pending' | 'accepted' | 'rejected' | 'completed';
-  createdAt: string;
-  student?: {
-    _id: string;
-    name: string;
-    email: string;
-    profilePhoto?: string;
-  };
-}
+  lifecycle: string;
+  startsAt?: string | null;
+  durationMinutes?: number | null;
+  proposedStartsAt?: string | null;
+  meetingReady?: boolean;
+  paymentStatus?: string;
+  student?: { name?: string; email?: string } | null;
+};
 
-interface ConsultationSession {
-  _id: string;
-  requestId: string;
-  studentId: string;
-  expertId: string;
-  topic: string;
-  consultationType: string;
-  status: 'active' | 'completed';
-  startedAt: string;
-  endedAt?: string;
-  student?: {
-    _id: string;
-    name: string;
-    email: string;
-    profilePhoto?: string;
-  };
-  messageCount: number;
-}
+const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const ZONES = ['UTC', 'Africa/Lagos', 'Africa/Johannesburg', 'Africa/Nairobi', 'Europe/London', 'America/New_York', 'Asia/Dubai'];
 
 export default function ExpertConsultation() {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const router = useRouter();
-  const [view, setView] = useState<'requests' | 'sessions' | 'settings'>('requests');
-  const [requests, setRequests] = useState<ConsultationRequest[]>([]);
-  const [sessions, setSessions] = useState<ConsultationSession[]>([]);
-  // REUSED from dashboard - state for consultation management
-  const [consultationRequests, setConsultationRequests] = useState<ConsultationRequest[]>([]);
-  const [consultationSessions, setConsultationSessions] = useState<ConsultationSession[]>([]);
-  const [loadingConsultations, setLoadingConsultations] = useState(false);
-  const [expertAvailable, setExpertAvailable] = useState(true);
-  const [loading, setLoading] = useState(false);
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [available, setAvailable] = useState(true);
+  const [timeZone, setTimeZone] = useState('Africa/Lagos');
+  const [durations, setDurations] = useState<number[]>([30]);
+  const [bufferMinutes, setBufferMinutes] = useState(0);
+  const [focus, setFocus] = useState('');
+  const [windows, setWindows] = useState(DAYS.map((_, weekday) => ({ weekday, enabled: weekday >= 1 && weekday <= 5, start: '09:00', end: '17:00' })));
+  const [links, setLinks] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [recognized, setRecognized] = useState(false);
+
+  async function load() {
+    setLoading(true);
+    setError('');
+    try {
+      const [rows, experts] = await Promise.all([
+        apiClient.get<Booking[]>('/consultations/requests'),
+        apiClient.get<Array<{
+          _id: string;
+          expertAvailable: boolean;
+          schedule?: { timeZone?: string | null; durations?: number[]; bufferMinutes?: number; focus?: string; windows?: Array<{ weekday?: number; start?: string; end?: string }> } | null;
+        }>>('/consultations/experts'),
+      ]);
+      setBookings(Array.isArray(rows) ? rows : []);
+      const mine = experts.find((expert) => expert._id === user?.id);
+      setRecognized(Boolean(mine));
+      if (mine) {
+        setAvailable(mine.expertAvailable !== false);
+        const schedule = mine.schedule;
+        if (schedule) {
+          if (schedule.timeZone && ZONES.includes(schedule.timeZone)) setTimeZone(schedule.timeZone);
+          if (Array.isArray(schedule.durations) && schedule.durations.length > 0) setDurations(schedule.durations);
+          if (typeof schedule.bufferMinutes === 'number') setBufferMinutes(schedule.bufferMinutes);
+          if (typeof schedule.focus === 'string') setFocus(schedule.focus);
+          if (Array.isArray(schedule.windows)) {
+            setWindows(DAYS.map((_, weekday) => {
+              const saved = schedule.windows?.find((window) => window.weekday === weekday);
+              return saved
+                ? { weekday, enabled: true, start: saved.start || '09:00', end: saved.end || '17:00' }
+                : { weekday, enabled: false, start: '09:00', end: '17:00' };
+            }));
+          }
+        }
+      }
+    } catch (reason) {
+      setError(messageFromUnknown(reason) || 'Consultations could not be loaded.');
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
-      router.push('/login');
-    }
+    if (!authLoading && !isAuthenticated) router.push('/login');
   }, [authLoading, isAuthenticated, router]);
 
   useEffect(() => {
-    if (isAuthenticated && (user?.role === 'instructor' || user?.role === 'admin' || user?.role === 'superadmin')) {
-      loadRequests();
-      loadSessions();
-      loadAvailability();
-    }
+    if (isAuthenticated && user && user.role !== 'student') load();
   }, [isAuthenticated, user]);
 
-  // Load consultation requests - REUSED from dashboard
-  const loadRequests = async () => {
+  async function act(id: string, body: Record<string, unknown>) {
+    setError('');
+    setNotice('');
     try {
-      setLoadingConsultations(true);
-      const data = await apiClient.get<ConsultationRequest[]>('/consultations/requests');
-      setRequests(data || []);
-      setConsultationRequests(data || []);
-    } catch (error) {
-      console.error('Failed to load consultation requests:');
-      setRequests([]);
-      setConsultationRequests([]);
-    } finally {
-      setLoadingConsultations(false);
+      await apiClient.put(`/consultations/requests/${id}`, body);
+      setNotice('Consultation updated.');
+      await load();
+    } catch (reason) {
+      setError(messageFromUnknown(reason) || 'That change was not saved.');
     }
-  };
-
-  // Load active consultation sessions - REUSED from dashboard
-  const loadSessions = async () => {
-    try {
-      const data = await apiClient.get<ConsultationSession[]>('/consultations/sessions');
-      setSessions(data || []);
-      setConsultationSessions(data || []);
-    } catch (error) {
-      console.error('Failed to load consultation sessions:');
-      setSessions([]);
-      setConsultationSessions([]);
-    }
-  };
-
-  const loadAvailability = async () => {
-    try {
-      const data = await apiClient.get<Array<{ _id: string; expertAvailable?: boolean; [key: string]: unknown }>>('/consultations/experts');
-      const currentExpert = data.find((expert) => expert._id === user?.id);
-      if (currentExpert) {
-        setExpertAvailable(currentExpert.expertAvailable || false);
-      }
-    } catch (error) {
-      console.error('Failed to load availability:');
-    }
-  };
-
-  // Handle accept/reject consultation request - REUSED from dashboard
-  const handleConsultationAction = async (requestId: string, action: 'accept' | 'reject') => {
-    if (action === 'reject' && !confirm('Are you sure you want to reject this consultation request?')) {
-      return;
-    }
-
-    setLoadingConsultations(true);
-    setLoading(true);
-    try {
-      await apiClient.put(`/consultations/requests/${requestId}`, { action });
-      alert(action === 'accept' ? 'Request accepted! Consultation session created.' : 'Request rejected.');
-      await loadRequests();
-      await loadSessions();
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message || `Failed to ${action} request`;
-      alert(errorMessage);
-    } finally {
-      setLoadingConsultations(false);
-      setLoading(false);
-    }
-  };
-
-  // Alias functions for compatibility
-  const handleAcceptRequest = (requestId: string) => handleConsultationAction(requestId, 'accept');
-  const handleRejectRequest = (requestId: string) => handleConsultationAction(requestId, 'reject');
-
-  const handleToggleAvailability = async () => {
-    setLoading(true);
-    try {
-      await apiClient.put('/consultations/experts', { available: !expertAvailable });
-      setExpertAvailable(!expertAvailable);
-      alert(`You are now ${!expertAvailable ? 'available' : 'unavailable'} for consultations`);
-    } catch (error: unknown) {
-      let errorMessage = 'Failed to update availability';
-      if (error && typeof error === 'object' && 'response' in error) {
-        const apiError = error as { response?: { data?: { message?: string; error?: string } }; message?: string };
-        errorMessage = apiError.response?.data?.message || apiError.response?.data?.error || apiError.message || errorMessage;
-      } else if (error instanceof Error) {
-        errorMessage = error.message || errorMessage;
-      }
-      alert(errorMessage);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleJoinSession = async (sessionId: string) => {
-    router.push(`/consultations/chat/${sessionId}`);
-  };
-
-  if (authLoading || !isAuthenticated) {
-    return <LoadingSpinner message="Loading expert consultations..." fullScreen />;
   }
 
-  if (user?.role !== 'instructor' && user?.role !== 'admin' && user?.role !== 'superadmin') {
-    return <div className="min-h-screen flex items-center justify-center">Access denied. Only experts can access this page.</div>;
+  async function saveSchedule(event: FormEvent) {
+    event.preventDefault();
+    if (saving) return;
+    setSaving(true);
+    setError('');
+    try {
+      await apiClient.put('/consultations/experts', {
+        timeZone,
+        durations,
+        bufferMinutes,
+        focus,
+        windows: windows.filter((window) => window.enabled).map(({ weekday, start, end }) => ({ weekday, start, end })),
+      });
+      setNotice('Weekly hours published. Learners can book the open times.');
+      await load();
+    } catch (reason) {
+      setError(messageFromUnknown(reason) || 'Availability could not be saved.');
+    } finally {
+      setSaving(false);
+    }
   }
+
+  async function toggleAvailable() {
+    try {
+      await apiClient.put('/consultations/experts', { available: !available });
+      setAvailable(!available);
+    } catch (reason) {
+      setError(messageFromUnknown(reason) || 'Availability could not be changed.');
+    }
+  }
+
+  if (authLoading || !isAuthenticated) return <LoadingSpinner message="Loading consultations..." fullScreen />;
+  if (!user || user.role === 'student') return <div className="flex min-h-screen items-center justify-center">Access denied</div>;
+  const ownBookings = bookings.filter((booking) => booking.expertId === user.id);
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
+    <div className="flex min-h-screen flex-col bg-gray-50 dark:bg-gray-900">
       <Header />
-      <div className="flex flex-1 overflow-hidden pt-20 lg:pt-0">
+      <div className="flex flex-1">
         <Sidebar />
-        <main className="flex-1 overflow-y-auto p-6">
-          <div className="max-w-6xl mx-auto">
-            <div className="flex items-center justify-between mb-6">
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Expert Consultation Dashboard</h1>
-              <div className="flex items-center space-x-4">
-                <div className="flex items-center space-x-2">
-                  <div className={`w-3 h-3 rounded-full ${expertAvailable ? 'bg-green-500' : 'bg-gray-400'}`}></div>
-                  <span className="text-sm text-gray-600 dark:text-gray-400">
-                    {expertAvailable ? 'Available' : 'Unavailable'}
-                  </span>
-                </div>
-                <button
-                  onClick={handleToggleAvailability}
-                  disabled={loading}
-                  className={`px-4 py-2 rounded-lg font-semibold transition-colors ${
-                    expertAvailable
-                      ? 'bg-yellow-600 hover:bg-yellow-700 text-white'
-                      : 'bg-green-600 hover:bg-green-700 text-white'
-                  } disabled:opacity-50`}
-                >
-                  {expertAvailable ? 'Set Unavailable' : 'Set Available'}
-                </button>
-              </div>
+        <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="page-kicker">Availability</p>
+              <h1 className="page-title mt-2">Consultation availability</h1>
+              <p className="mt-2 max-w-2xl text-sm text-gray-600 dark:text-gray-300">Saving these hours publishes them. Learners only see times that are still open. Confirmed consultations stay booked if you change the hours later.</p>
             </div>
-
-            {/* Tabs */}
-            <div className="flex space-x-4 mb-6 border-b border-gray-200 dark:border-gray-700">
-              <button
-                onClick={() => setView('requests')}
-                className={`px-4 py-2 font-semibold transition-colors ${
-                  view === 'requests'
-                    ? 'text-primary-600 dark:text-primary-400 border-b-2 border-primary-600 dark:border-primary-400'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                }`}
-              >
-                Pending Requests ({requests.filter(r => r.status === 'pending').length})
-              </button>
-              <button
-                onClick={() => setView('sessions')}
-                className={`px-4 py-2 font-semibold transition-colors ${
-                  view === 'sessions'
-                    ? 'text-primary-600 dark:text-primary-400 border-b-2 border-primary-600 dark:border-primary-400'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                }`}
-              >
-                Active Sessions ({sessions.filter(s => s.status === 'active').length})
-              </button>
-              <button
-                onClick={() => setView('settings')}
-                className={`px-4 py-2 font-semibold transition-colors ${
-                  view === 'settings'
-                    ? 'text-primary-600 dark:text-primary-400 border-b-2 border-primary-600 dark:border-primary-400'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                }`}
-              >
-                Settings
-              </button>
-            </div>
-
-            {/* Pending Requests - REUSED from dashboard UI */}
-            {view === 'requests' && (
-              <div className="space-y-4">
-                {/* Consultation Requests Section - REUSED from dashboard */}
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
-                  <div className="flex items-center space-x-3 mb-4">
-                    <svg className="w-6 h-6 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                    </svg>
-                    <div>
-                      <h3 className="text-sm font-bold text-gray-900 dark:text-white">Consultation Requests</h3>
-                      <p className="text-xs text-gray-600 dark:text-gray-400">View and manage consultation requests from students</p>
-                    </div>
-                  </div>
-                  
-                  {loadingConsultations ? (
-                    <div className="text-center py-4">
-                      <p className="text-gray-600 dark:text-gray-400">Loading requests...</p>
-                    </div>
-                  ) : consultationRequests.length === 0 ? (
-                    <div className="text-center py-4">
-                      <p className="text-gray-600 dark:text-gray-400">No consultation requests at the moment</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {consultationRequests.map((request) => (
-                        <div
-                          key={request._id}
-                          className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 sm:p-4 bg-gray-50 dark:bg-gray-900"
-                        >
-                          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-2">
-                                <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                                  request.status === 'pending' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-primary-600' :
-                                  request.status === 'accepted' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-primary-600' :
-                                  request.status === 'rejected' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' :
-                                  'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
-                                }`}>
-                                  {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
-                                </span>
-                                <span className="text-xs text-gray-500 dark:text-gray-400">
-                                  {formatDistanceToNow(new Date(request.createdAt), { addSuffix: true })}
-                                </span>
-                              </div>
-                              {request.student && (
-                                <div className="flex items-center gap-2 mb-2">
-                                  {request.student.profilePhoto && (
-                                    <img
-                                      src={request.student.profilePhoto}
-                                      alt={request.student.name}
-                                      className="w-8 h-8 rounded-full"
-                                    />
-                                  )}
-                                  <div>
-                                    <p className="text-sm font-semibold text-gray-900 dark:text-white">{request.student.name}</p>
-                                    <p className="text-xs text-gray-600 dark:text-gray-400">{request.student.email}</p>
-                                  </div>
-                                </div>
-                              )}
-                              <p className="text-sm font-semibold text-gray-900 dark:text-white mb-1">{request.topic}</p>
-                              <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">{request.description}</p>
-                              <p className="text-xs text-gray-500 dark:text-gray-400">
-                                Type: <span className="capitalize">{request.consultationType.replace('-', ' ')}</span>
-                              </p>
-                            </div>
-                            {request.status === 'pending' && (
-                              <div className="flex gap-2">
-                                <button
-                                  onClick={() => handleConsultationAction(request._id, 'accept')}
-                                  disabled={loadingConsultations}
-                                  className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                  Accept
-                                </button>
-                                <button
-                                  onClick={() => handleConsultationAction(request._id, 'reject')}
-                                  disabled={loadingConsultations}
-                                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                  Reject
-                                </button>
-                              </div>
-                            )}
-                            {request.status === 'accepted' && (
-                              <div className="flex gap-2 flex-wrap">
-                                <button
-                                  onClick={() => {
-                                    // Find session for this request
-                                    const session = consultationSessions.find((s: any) => s.requestId === request._id && s.status === 'active');
-                                    if (session) {
-                                      router.push(`/consultations/chat/${session._id}`);
-                                    } else {
-                                      // Load sessions to find the one for this request
-                                      apiClient.get<any[]>('/consultations/sessions').then((sessions) => {
-                                        const activeSession = sessions.find((s: any) => s.requestId === request._id && s.status === 'active');
-                                        if (activeSession) {
-                                          router.push(`/consultations/chat/${activeSession._id}`);
-                                        } else {
-                                          alert('Session not found. Please try again.');
-                                        }
-                                      });
-                                    }
-                                  }}
-                                  className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold text-sm transition-colors flex items-center gap-2"
-                                >
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                                  </svg>
-                                  Live Chat
-                                </button>
-                                {/* Voice/Video Call buttons removed - Agora SDK handles calls in chat page */}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Active Consultation Sessions - REUSED from dashboard */}
-                {consultationSessions.filter((s: any) => s.status === 'active').length > 0 && (
-                  <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
-                    <div className="flex items-center space-x-3 mb-4">
-                      <svg className="w-6 h-6 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                      </svg>
-                      <div>
-                        <h3 className="text-sm font-bold text-gray-900 dark:text-white">Active Consultation Sessions</h3>
-                        <p className="text-xs text-gray-600 dark:text-gray-400">Communicate with students in real-time</p>
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-3">
-                      {consultationSessions.filter((s: any) => s.status === 'active').map((session: any) => (
-                        <div
-                          key={session._id}
-                          className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 bg-gray-50 dark:bg-gray-900"
-                        >
-                          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                            <div className="flex-1">
-                              {session.student && (
-                                <div className="flex items-center gap-2 mb-2">
-                                  {session.student.profilePhoto && (
-                                    <img
-                                      src={session.student.profilePhoto}
-                                      alt={session.student.name}
-                                      className="w-8 h-8 rounded-full"
-                                    />
-                                  )}
-                                  <div>
-                                    <p className="text-sm font-semibold text-gray-900 dark:text-white">{session.student.name}</p>
-                                    <p className="text-xs text-gray-600 dark:text-gray-400">{session.student.email}</p>
-                                  </div>
-                                </div>
-                              )}
-                              <p className="text-sm font-semibold text-gray-900 dark:text-white mb-1">{session.topic}</p>
-                              <p className="text-xs text-gray-500 dark:text-gray-400">
-                                Started {formatDistanceToNow(new Date(session.startedAt), { addSuffix: true })} • {session.messageCount || 0} messages
-                              </p>
-                            </div>
-                            <div className="flex gap-2 flex-wrap">
-                              <button
-                                onClick={() => router.push(`/consultations/chat/${session._id}`)}
-                                className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold text-sm transition-colors flex items-center gap-2"
-                              >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                                </svg>
-                                Live Chat
-                              </button>
-                              {/* Voice/Video Call buttons removed - Agora SDK handles calls in chat page */}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Active Sessions - REUSED from dashboard UI */}
-            {view === 'sessions' && (
-              <div className="space-y-4">
-                {/* Active Consultation Sessions - REUSED from dashboard */}
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
-                  <div className="flex items-center space-x-3 mb-4">
-                    <svg className="w-6 h-6 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                    </svg>
-                    <div>
-                      <h3 className="text-sm font-bold text-gray-900 dark:text-white">Active Consultation Sessions</h3>
-                      <p className="text-xs text-gray-600 dark:text-gray-400">Communicate with students in real-time</p>
-                    </div>
-                  </div>
-                  
-                  {consultationSessions.filter((s: any) => s.status === 'active').length === 0 ? (
-                    <div className="text-center py-4">
-                      <p className="text-gray-600 dark:text-gray-400">No active consultation sessions</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {consultationSessions.filter((s: any) => s.status === 'active').map((session: any) => (
-                        <div
-                          key={session._id}
-                          className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 bg-gray-50 dark:bg-gray-900"
-                        >
-                          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                            <div className="flex-1">
-                              {session.student && (
-                                <div className="flex items-center gap-2 mb-2">
-                                  {session.student.profilePhoto && (
-                                    <img
-                                      src={session.student.profilePhoto}
-                                      alt={session.student.name}
-                                      className="w-8 h-8 rounded-full"
-                                    />
-                                  )}
-                                  <div>
-                                    <p className="text-sm font-semibold text-gray-900 dark:text-white">{session.student.name}</p>
-                                    <p className="text-xs text-gray-600 dark:text-gray-400">{session.student.email}</p>
-                                  </div>
-                                </div>
-                              )}
-                              <p className="text-sm font-semibold text-gray-900 dark:text-white mb-1">{session.topic}</p>
-                              <p className="text-xs text-gray-500 dark:text-gray-400">
-                                Started {formatDistanceToNow(new Date(session.startedAt), { addSuffix: true })} • {session.messageCount || 0} messages
-                              </p>
-                            </div>
-                            <div className="flex gap-2 flex-wrap">
-                              <button
-                                onClick={() => router.push(`/consultations/chat/${session._id}`)}
-                                className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold text-sm transition-colors flex items-center gap-2"
-                              >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                                </svg>
-                                Live Chat
-                              </button>
-                              {/* Voice/Video Call buttons removed - Agora SDK handles calls in chat page */}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Completed Sessions */}
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
-                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Completed Sessions</h2>
-                  {sessions.filter(s => s.status === 'completed').length === 0 ? (
-                    <p className="text-gray-500 dark:text-gray-400">No completed sessions</p>
-                  ) : (
-                    <div className="space-y-3">
-                      {sessions.filter(s => s.status === 'completed').slice(0, 10).map((session) => (
-                        <div key={session._id} className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="font-semibold text-gray-900 dark:text-white">{session.student?.name || 'Student'}</p>
-                              <p className="text-sm text-gray-600 dark:text-gray-400">{session.topic}</p>
-                              <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                                Completed {session.endedAt ? formatDistanceToNow(new Date(session.endedAt), { addSuffix: true }) : ''}
-                              </p>
-                            </div>
-                            <span className="px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 rounded-full text-sm font-semibold">
-                              Completed
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Settings */}
-            {view === 'settings' && (
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Expert Settings</h2>
-                <div className="space-y-6">
-                  <div>
-                    <label className="flex items-center space-x-3 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={expertAvailable}
-                        onChange={handleToggleAvailability}
-                        disabled={loading}
-                        className="w-5 h-5 text-primary-600 rounded focus:ring-primary-500"
-                      />
-                      <div>
-                        <p className="font-semibold text-gray-900 dark:text-white">Available for Consultations</p>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                          When enabled, students can request consultations from you
-                        </p>
-                      </div>
-                    </label>
-                  </div>
-                  <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      <strong>Note:</strong> You can toggle your availability at any time. When unavailable, students will not be able to send you new consultation requests.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
+            <button type="button" className="rounded-full border border-gray-300 px-4 py-2 text-sm font-semibold" onClick={toggleAvailable}>{available ? 'Pause new bookings' : 'Take new bookings'}</button>
           </div>
+          {error ? <p className="mt-4 text-sm text-red-700" role="alert">{error}</p> : null}
+          {notice ? <p className="mt-4 text-sm font-semibold" role="status">{notice}</p> : null}
+
+          {!loading && !recognized && user.role === 'superadmin' ? <p className="mt-4 text-sm text-gray-700 dark:text-gray-200">You are not bookable yet. Saving the hours below publishes you as an expert.</p> : null}
+          {!loading && !recognized && user.role !== 'superadmin' ? <p className="mt-4 text-sm text-gray-700 dark:text-gray-200">A super admin must approve you as an expert before these hours can be saved. The approval page is Consultation admin.</p> : null}
+
+          <form className="mt-8 space-y-4 rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800" onSubmit={saveSchedule}>
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Published weekly hours</h2>
+            <label className="block text-sm font-semibold">Timezone
+              <select className="mt-1 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 font-normal" value={timeZone} onChange={(event) => setTimeZone(event.target.value)}>
+                {ZONES.map((zone) => <option key={zone} value={zone}>{zone}</option>)}
+              </select>
+            </label>
+            <fieldset>
+              <legend className="text-sm font-semibold">Session length</legend>
+              {[30, 60].map((minutes) => (
+                <label key={minutes} className="mr-4 text-sm">
+                  <input type="checkbox" className="mr-2" checked={durations.includes(minutes)} onChange={(event) => setDurations((current) => event.target.checked ? Array.from(new Set([...current, minutes])) : current.filter((item) => item !== minutes))} />
+                  {minutes} minutes
+                </label>
+              ))}
+            </fieldset>
+            <label className="block text-sm font-semibold">Buffer after each session
+              <select className="mt-1 rounded-xl border border-gray-300 bg-white px-3 py-2 font-normal" value={bufferMinutes} onChange={(event) => setBufferMinutes(Number(event.target.value))}>
+                {[0, 5, 10, 15].map((minutes) => <option key={minutes} value={minutes}>{minutes} minutes</option>)}
+              </select>
+            </label>
+            <label className="block text-sm font-semibold">What you help with
+              <textarea className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 font-normal" rows={3} maxLength={280} value={focus} onChange={(event) => setFocus(event.target.value)} />
+            </label>
+            <ul className="space-y-2">
+              {windows.map((window) => (
+                <li key={window.weekday} className="flex flex-wrap items-center gap-2 text-sm">
+                  <label className="w-28"><input type="checkbox" className="mr-2" checked={window.enabled} onChange={(event) => setWindows((current) => current.map((item) => item.weekday === window.weekday ? { ...item, enabled: event.target.checked } : item))} />{DAYS[window.weekday]}</label>
+                  <input type="time" value={window.start} onChange={(event) => setWindows((current) => current.map((item) => item.weekday === window.weekday ? { ...item, start: event.target.value } : item))} />
+                  <input type="time" value={window.end} onChange={(event) => setWindows((current) => current.map((item) => item.weekday === window.weekday ? { ...item, end: event.target.value } : item))} />
+                </li>
+              ))}
+            </ul>
+            <button type="submit" disabled={saving} className="rounded-full bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60">{saving ? 'Saving…' : 'Save availability'}</button>
+          </form>
+
+          <section className="mt-8">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Your booked consultations</h2>
+            {loading ? <div className="mt-4 h-24 animate-pulse rounded-2xl bg-gray-200" aria-hidden /> : null}
+            {!loading && ownBookings.length === 0 ? <p className="mt-3 text-sm text-gray-600">No consultations are booked with you.</p> : null}
+            <ul className="mt-4 space-y-3">
+              {ownBookings.map((booking) => (
+                <li key={booking._id} className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-primary-700">{booking.lifecycle.replace(/_/g, ' ')}</p>
+                  <h3 className="mt-1 font-semibold">{booking.topic}</h3>
+                  <p className="mt-1 text-sm text-gray-600">{booking.student?.name || 'Learner'}{booking.student?.email ? ` · ${booking.student.email}` : ''} · {booking.startsAt ? new Date(booking.startsAt).toLocaleString() : 'No time'} · {booking.paymentStatus || 'not_required'}</p>
+                  <p className="mt-2 text-sm">{booking.description}</p>
+                  {booking.proposedStartsAt ? <p className="mt-2 text-sm">Requested time: {new Date(booking.proposedStartsAt).toLocaleString()}</p> : null}
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {booking.lifecycle === 'PENDING_CONFIRMATION' ? (
+                      <>
+                        <button type="button" className="rounded-full bg-primary-600 px-3 py-1.5 text-sm font-semibold text-white" onClick={() => act(booking._id, { action: 'accept' })}>Accept</button>
+                        <button type="button" className="rounded-full border px-3 py-1.5 text-sm" onClick={() => act(booking._id, { action: 'decline' })}>Decline</button>
+                      </>
+                    ) : null}
+                    {booking.lifecycle === 'RESCHEDULE_REQUESTED' ? <button type="button" className="rounded-full bg-primary-600 px-3 py-1.5 text-sm font-semibold text-white" onClick={() => act(booking._id, { action: 'accept-reschedule' })}>Accept new time</button> : null}
+                    {booking.lifecycle === 'CONFIRMED' ? (
+                      <>
+                        <button type="button" className="rounded-full border px-3 py-1.5 text-sm" onClick={() => act(booking._id, { action: 'complete' })}>Mark completed</button>
+                        <button type="button" className="rounded-full border px-3 py-1.5 text-sm" onClick={() => act(booking._id, { action: 'no-show' })}>Report no-show</button>
+                        <button type="button" className="rounded-full border px-3 py-1.5 text-sm" onClick={() => act(booking._id, { action: 'cancel', reason: 'Cancelled by expert' })}>Cancel</button>
+                      </>
+                    ) : null}
+                  </div>
+                  {booking.lifecycle === 'CONFIRMED' ? (
+                    <form className="mt-3 flex flex-col gap-2 sm:flex-row" onSubmit={(event) => { event.preventDefault(); act(booking._id, { action: 'meeting', meetingUrl: links[booking._id] || '' }); }}>
+                      <label className="sr-only" htmlFor={`link-${booking._id}`}>Meeting link</label>
+                      <input id={`link-${booking._id}`} className="min-w-0 flex-1 rounded-xl border border-gray-300 px-3 py-2 text-sm" placeholder="https://meet.google.com/abc-defg-hij" value={links[booking._id] || ''} onChange={(event) => setLinks((current) => ({ ...current, [booking._id]: event.target.value }))} />
+                      <button type="submit" className="rounded-full border px-3 py-2 text-sm font-semibold">Save meeting link</button>
+                    </form>
+                  ) : null}
+                  {booking.meetingReady ? <p className="mt-2 text-xs text-gray-500">A meeting link is saved. It is shown to the learner only while the consultation is confirmed.</p> : null}
+                </li>
+              ))}
+            </ul>
+          </section>
         </main>
       </div>
     </div>
   );
 }
-
-
-
-
-
-
-
-

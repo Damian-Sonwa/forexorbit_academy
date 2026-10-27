@@ -69,7 +69,7 @@ export default function CourseCard({ course, onEnroll, onUnenroll }: CourseCardP
             href={`/courses/${courseId}`}
             className={`flex-1 text-center text-sm ${course.enrolled ? 'btn btn-primary' : 'btn btn-outline'}`}
           >
-            {course.enrolled ? 'Continue' : 'View course'}
+            {!course.enrolled ? 'View course' : (course.progress ?? 0) >= 100 ? 'Review' : (course.progress ?? 0) > 0 ? 'Continue' : 'Start'}
           </Link>
 
           {isAuthenticated && (

@@ -132,7 +132,7 @@ export default function Sidebar({ }: SidebarProps) {
     { href: '/dashboard', label: 'Dashboard', icon: DashboardIcon, group: 'Learn' },
     { href: '/courses', label: 'My Courses', icon: CoursesIcon, group: 'Learn' },
     { href: '/progress', label: 'Progress', icon: ProgressIcon, group: 'Learn' },
-    { href: '/student-dashboard', label: 'Trading Dashboard', icon: CoursesIcon, group: 'Practice' },
+    { href: '/student-dashboard', label: 'Practice desk', icon: CoursesIcon, group: 'Practice' },
     { href: '/ai-assistant', label: 'AI Assistant', icon: AIAssistantIcon, group: 'Practice' },
     { href: '/leaderboard', label: 'Leaderboard', icon: AnalyticsIcon, group: 'Community' },
     { href: '/certificates', label: 'Certificates', icon: CertificatesIcon, group: 'Community' },
@@ -152,7 +152,7 @@ export default function Sidebar({ }: SidebarProps) {
     { href: '/progress', label: 'Progress', icon: ProgressIcon },
     { href: '/certificates', label: 'Certificates', icon: CertificatesIcon },
     { href: '/community', label: 'Community', icon: CommunityIcon },
-    { href: '/consultations/expert', label: 'Expert Consultation', icon: ConsultationIcon },
+    { href: '/consultations/expert', label: 'Consultation availability', icon: ConsultationIcon },
     { href: '/profile', label: 'Profile', icon: ProfileIcon },
   ];
 
@@ -164,7 +164,7 @@ export default function Sidebar({ }: SidebarProps) {
     { href: '/admin', label: 'Certificates', icon: CertificatesIcon, tab: 'certificates' },
     { href: '/admin', label: 'Analytics', icon: AnalyticsIcon, tab: 'analytics' },
     { href: '/community', label: 'Community', icon: CommunityIcon },
-    { href: '/consultations/expert', label: 'Expert Consultation', icon: ConsultationIcon },
+    { href: '/consultations/expert', label: 'Consultation availability', icon: ConsultationIcon },
     { href: '/profile', label: 'Profile', icon: ProfileIcon },
   ];
 
@@ -177,7 +177,7 @@ export default function Sidebar({ }: SidebarProps) {
     { href: '/admin', label: 'Certificates', icon: CertificatesIcon, tab: 'certificates' },
     { href: '/admin', label: 'Analytics', icon: AnalyticsIcon, tab: 'analytics' },
     { href: '/community', label: 'Community', icon: CommunityIcon },
-    { href: '/consultations/expert', label: 'Expert Consultation', icon: ConsultationIcon },
+    { href: '/consultations/expert', label: 'Consultation availability', icon: ConsultationIcon },
     { href: '/consultations/admin', label: 'Consultation Admin', icon: ConsultationIcon },
     { href: '/profile', label: 'Profile', icon: ProfileIcon },
   ];
@@ -288,8 +288,9 @@ export default function Sidebar({ }: SidebarProps) {
       {/* Mobile Hamburger Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="lg:hidden fixed top-[3.5rem] left-2 sm:left-4 z-50 p-2 bg-white rounded-lg shadow-lg border border-primary-400 text-neutral-900 hover:bg-primary-50 transition-colors"
+        className="lg:hidden fixed top-[3.5rem] left-2 sm:left-4 z-50 p-2 bg-white rounded-lg shadow-lg border border-primary-400 text-neutral-900 hover:bg-primary-50 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-700"
         aria-label="Toggle sidebar"
+        aria-expanded={isOpen}
       >
         {isOpen ? <CloseIcon className="w-5 h-5 sm:w-6 sm:h-6" /> : <MenuIcon className="w-5 h-5 sm:w-6 sm:h-6" />}
       </button>

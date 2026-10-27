@@ -6,6 +6,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Header from '@/components/Header';
+import Sidebar from '@/components/Sidebar';
 import BackButton from '@/components/BackButton';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { useAuth } from '@/hooks/useAuth';
@@ -211,8 +212,9 @@ export default function Profile() {
   return (
     <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
       <Header />
-
-      <main className="flex-1 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+      <div className="flex flex-1 lg:items-start">
+        <Sidebar />
+        <main className="flex-1 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pt-16 lg:pt-8 w-full">
         {/* Back Button */}
         <div className="mb-6">
           <BackButton href="/dashboard" />
@@ -579,6 +581,7 @@ export default function Profile() {
           </div>
         </div>
       </main>
+      </div>
     </div>
   );
 }

@@ -10,6 +10,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Header from '@/components/Header';
+import Sidebar from '@/components/Sidebar';
 // import Footer from '@/components/Footer'; // Reserved for future use
 import BackButton from '@/components/BackButton';
 import LoadingSpinner from '@/components/LoadingSpinner';
@@ -165,7 +166,9 @@ export default function Progress() {
     return (
       <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
         <Header />
-        <main className="flex-1 px-4 sm:px-6 lg:px-8 py-6">
+        <div className="flex flex-1 lg:items-start">
+          <Sidebar />
+          <main className="flex-1 px-4 sm:px-6 lg:px-8 py-6 pt-16 lg:pt-8">
           {/* Back Button */}
           <div className="mb-4">
             <BackButton href="/dashboard" />
@@ -357,6 +360,7 @@ export default function Progress() {
             </div>
           )}
         </main>
+        </div>
       </div>
     );
   }

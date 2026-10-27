@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { BookOpen } from 'lucide-react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import Sidebar from '@/components/Sidebar';
 import CourseCard from '@/components/CourseCard';
 import { CourseCardSkeleton, LoadingStatus } from '@/components/loading';
 import { useCourses } from '@/hooks/useCourses';
@@ -15,92 +16,107 @@ export default function CoursesPage() {
   const [filters, setFilters] = useState({ category: '', difficulty: '', search: '' });
   const { courses, loading, error, enroll, unenroll, refetch } = useCourses(filters);
 
+  const inProgress = courses.filter((course) => course.enrolled && (course.progress ?? 0) < 100);
+  const completed = courses.filter((course) => course.enrolled && (course.progress ?? 0) >= 100);
+  const explore = courses.filter((course) => !course.enrolled);
+  const groups = [
+    { key: 'continue', label: 'Continue learning', courses: inProgress },
+    { key: 'done', label: 'Completed', courses: completed },
+    { key: 'explore', label: 'Explore courses', courses: explore },
+  ].filter((group) => group.courses.length > 0);
+
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
+      <div className="flex flex-1 lg:items-start">
+        <Sidebar />
+        <main className="flex-1 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pt-16 lg:pt-8 w-full">
+          <div className="mb-8">
+            <p className="page-kicker mb-2">Library</p>
+            <h1 className="page-title">Courses</h1>
+            <p className="mt-2 max-w-xl text-sm text-neutral-600">
+              Courses you are studying stay separate from the rest of the catalog.
+            </p>
+          </div>
 
-      <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Hero Section */}
-        <div className="mb-10">
-          <p className="page-kicker mb-2">Catalog</p>
-          <h1 className="page-title">Courses</h1>
-          <p className="mt-2 max-w-xl text-sm text-neutral-600">
-            Forex lessons arranged by topic and difficulty.
-          </p>
-        </div>
-
-        {/* Filters */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-8">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1 relative">
-              <input
-                type="text"
-                placeholder="Search courses..."
-                value={filters.search}
-                onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              />
-              <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
+          <div className="mb-8 border-y border-neutral-200 py-4">
+            <div className="flex flex-col gap-3 md:flex-row">
+              <div className="relative flex-1">
+                <label className="sr-only" htmlFor="course-search">Search courses</label>
+                <input
+                  id="course-search"
+                  type="search"
+                  placeholder="Search courses"
+                  value={filters.search}
+                  onChange={(event) => setFilters({ ...filters, search: event.target.value })}
+                  className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+              </div>
+              <select
+                aria-label="Category"
+                value={filters.category}
+                onChange={(event) => setFilters({ ...filters, category: event.target.value })}
+                className="rounded-xl border border-neutral-300 bg-white px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary-500"
+              >
+                <option value="">All categories</option>
+                <option value="basics">Basics</option>
+                <option value="technical">Technical analysis</option>
+                <option value="fundamental">Fundamental analysis</option>
+                <option value="trading">Trading strategies</option>
+              </select>
+              <select
+                aria-label="Level"
+                value={filters.difficulty}
+                onChange={(event) => setFilters({ ...filters, difficulty: event.target.value })}
+                className="rounded-xl border border-neutral-300 bg-white px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary-500"
+              >
+                <option value="">All levels</option>
+                <option value="beginner">Beginner</option>
+                <option value="intermediate">Intermediate</option>
+                <option value="advanced">Advanced</option>
+              </select>
             </div>
-            <select
-              value={filters.category}
-              onChange={(e) => setFilters({ ...filters, category: e.target.value })}
-              className="px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white"
-            >
-              <option value="">All Categories</option>
-              <option value="basics">Basics</option>
-              <option value="technical">Technical Analysis</option>
-              <option value="fundamental">Fundamental Analysis</option>
-              <option value="trading">Trading Strategies</option>
-            </select>
-            <select
-              value={filters.difficulty}
-              onChange={(e) => setFilters({ ...filters, difficulty: e.target.value })}
-              className="px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white"
-            >
-              <option value="">All Levels</option>
-              <option value="beginner">Beginner</option>
-              <option value="intermediate">Intermediate</option>
-              <option value="advanced">Advanced</option>
-            </select>
           </div>
-        </div>
 
-        {/* Courses Grid */}
-        {loading && courses.length === 0 && !error ? (
-          <div className="space-y-4">
-            <LoadingStatus label="Loading courses" />
-            <CourseCardSkeleton count={6} />
-          </div>
-        ) : error && courses.length === 0 ? (
-          <div className="rounded-2xl border border-neutral-200 bg-white px-6 py-16 text-center">
-            <p className="text-lg font-semibold text-neutral-900">Courses could not be loaded</p>
-            <p className="mt-2 text-sm text-neutral-600">Check the connection and try again.</p>
-            <button type="button" onClick={() => refetch()} className="mt-6 inline-flex rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary-700">Try again</button>
-          </div>
-        ) : courses.length === 0 ? (
-          <div className="text-center py-20 bg-white rounded-2xl shadow-sm border border-gray-100">
-            <BookOpen className="mx-auto mb-4 h-12 w-12 text-neutral-400" aria-hidden />
-            <p className="text-gray-500 text-lg mb-2">No courses found</p>
-            <p className="text-gray-400 text-sm">Try adjusting your filters</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {loading && <div className="sm:col-span-2 lg:col-span-3"><LoadingStatus label="Updating courses" compact /></div>}
-            {courses.map((course) => (
-              <CourseCard
-                key={course._id || course.id}
-                course={course}
-                onEnroll={enroll}
-                onUnenroll={unenroll}
-              />
-            ))}
-          </div>
-        )}
-      </main>
-
+          {loading && courses.length === 0 && !error ? (
+            <div className="space-y-4">
+              <LoadingStatus label="Loading courses" />
+              <CourseCardSkeleton count={6} />
+            </div>
+          ) : error && courses.length === 0 ? (
+            <div className="rounded-2xl border border-neutral-200 px-6 py-16 text-center">
+              <p className="text-lg font-semibold text-neutral-900">Courses could not be loaded</p>
+              <p className="mt-2 text-sm text-neutral-600">Check the connection and try again.</p>
+              <button type="button" onClick={() => refetch()} className="mt-6 inline-flex rounded-full bg-primary-400 px-5 py-2.5 text-sm font-semibold text-neutral-900 hover:bg-primary-500">Try again</button>
+            </div>
+          ) : courses.length === 0 ? (
+            <div className="py-16 text-center">
+              <BookOpen className="mx-auto mb-4 h-10 w-10 text-neutral-400" aria-hidden />
+              <p className="text-lg font-semibold text-neutral-900">No courses match these filters</p>
+              <button type="button" className="mt-4 text-sm font-semibold text-primary-700 underline-offset-4 hover:underline" onClick={() => setFilters({ category: '', difficulty: '', search: '' })}>Clear filters</button>
+            </div>
+          ) : (
+            <div className="space-y-10">
+              {loading && <LoadingStatus label="Updating courses" compact />}
+              {groups.map((group) => (
+                <section key={group.key}>
+                  <h2 className="font-display text-lg font-semibold text-neutral-900">{group.label}</h2>
+                  <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    {group.courses.map((course) => (
+                      <CourseCard
+                        key={course._id || course.id}
+                        course={course}
+                        onEnroll={enroll}
+                        onUnenroll={unenroll}
+                      />
+                    ))}
+                  </div>
+                </section>
+              ))}
+            </div>
+          )}
+        </main>
+      </div>
       <Footer />
     </div>
   );

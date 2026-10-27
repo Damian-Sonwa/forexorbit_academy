@@ -1,520 +1,249 @@
-/**
- * Expert Consultation Page - Student View
- * Request consultations, join live sessions, view history
- */
-
-import { useState, useEffect } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
-import Image from 'next/image';
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { useAuth } from '@/hooks/useAuth';
-import { useSocket } from '@/hooks/useSocket';
 import { apiClient } from '@/lib/api-client';
-import { formatDistanceToNow } from 'date-fns';
+import { messageFromUnknown } from '@/lib/public-error';
 
-interface Expert {
+type Expert = {
   _id: string;
   name: string;
-  email: string;
-  profilePhoto?: string;
+  profilePhoto?: string | null;
   expertAvailable: boolean;
-  role: string;
-}
+  timeZone?: string | null;
+  durations: number[];
+  focus?: string;
+  hasAvailability: boolean;
+};
 
-interface ConsultationRequest {
+type Slot = { startsAt: string; endsAt: string; durationMinutes: number };
+
+type Booking = {
   _id: string;
-  studentId: string;
-  expertId: string;
   topic: string;
   description: string;
-  consultationType: 'live-chat' | 'audio-call' | 'video-call';
-  status: 'pending' | 'accepted' | 'rejected' | 'completed';
-  createdAt: string;
-  expert?: Expert;
-}
+  lifecycle: string;
+  startsAt?: string | null;
+  durationMinutes?: number | null;
+  meetingUrl?: string | null;
+  meetingReady?: boolean;
+  paymentStatus?: string;
+  expert?: { name?: string } | null;
+};
 
-interface ConsultationSession {
-  _id: string;
-  requestId: string;
-  studentId: string;
-  expertId: string;
-  topic: string;
-  consultationType: string;
-  status: 'active' | 'completed';
-  startedAt: string;
-  endedAt?: string;
-  expert?: Expert;
-  messageCount: number;
+function when(value?: string | null) {
+  if (!value) return 'Time to be confirmed';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Time to be confirmed';
+  return date.toLocaleString();
 }
 
 export default function Consultations() {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const router = useRouter();
-  const { socket, connected } = useSocket();
-  const [view, setView] = useState<'request' | 'history' | 'chat'>('request');
   const [experts, setExperts] = useState<Expert[]>([]);
-  const [requests, setRequests] = useState<ConsultationRequest[]>([]);
-  const [sessions, setSessions] = useState<ConsultationSession[]>([]);
-  // const [selectedSession, setSelectedSession] = useState<ConsultationSession | null>(null); // Reserved for future use
-  const [requestForm, setRequestForm] = useState({
-    expertId: '',
-    topic: '',
-    description: '',
-    consultationType: 'live-chat' as 'live-chat' | 'audio-call' | 'video-call',
-  });
-  const [loading, setLoading] = useState(false);
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [slots, setSlots] = useState<Slot[]>([]);
+  const [expertId, setExpertId] = useState('');
+  const [slotKey, setSlotKey] = useState('');
+  const [topic, setTopic] = useState('');
+  const [description, setDescription] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [moves, setMoves] = useState<Record<string, string>>({});
 
-  useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
-      router.push('/login');
-    }
-  }, [authLoading, isAuthenticated, router]);
-
-  useEffect(() => {
-    if (isAuthenticated && user?.role === 'student') {
-      loadExperts();
-      loadRequests();
-      loadSessions();
-
-      // Track consultation viewed event in GA4
-      if (typeof window !== 'undefined' && (window as any).gtag) {
-        (window as any).gtag('event', 'consultation_viewed', {
-          event_category: 'consultations',
-        });
-      }
-    }
-  }, [isAuthenticated, user]);
-
-  // Listen for real-time status updates - CRITICAL for instant UI updates
-  useEffect(() => {
-    if (!socket || !connected) return;
-
-    // Listen for consultation status updates (when instructor approves/rejects)
-    const handleStatusUpdate = (data: { requestId: string; sessionId: string; status: string }) => {
-      console.log('Consultation status updated:', data);
-      
-      // Immediately update requests state to reflect new status
-      setRequests((prev) => 
-        prev.map((req) => 
-          req._id === data.requestId 
-            ? { ...req, status: data.status as 'pending' | 'accepted' | 'rejected' }
-            : req
-        )
-      );
-      
-      // If accepted, reload sessions to show new active session
-      if (data.status === 'accepted') {
-        loadSessions();
-      }
-    };
-
-    // Listen for auto-join consultation room signal
-    const handleJoinRoom = (data: { sessionId: string; requestId: string }) => {
-      console.log('Auto-joining consultation room:', data);
-      if (socket && data.sessionId) {
-        socket.emit('joinConsultation', { sessionId: data.sessionId });
-      }
-    };
-
-    socket.on('consultation_status_updated', handleStatusUpdate);
-    socket.on('join_consultation_room', handleJoinRoom);
-    socket.on('consultationAccepted', handleStatusUpdate); // Legacy event support
-
-    return () => {
-      socket.off('consultation_status_updated', handleStatusUpdate);
-      socket.off('join_consultation_room', handleJoinRoom);
-      socket.off('consultationAccepted', handleStatusUpdate);
-    };
-  }, [socket, connected]);
-
-  const loadExperts = async () => {
-    try {
-      const data = await apiClient.get<Expert[]>('/consultations/experts');
-      setExperts(data.filter((expert) => expert.expertAvailable));
-    } catch (error) {
-      console.error('Failed to load experts:');
-    }
-  };
-
-  const loadRequests = async () => {
-    try {
-      const data = await apiClient.get<ConsultationRequest[]>('/consultations/requests');
-      setRequests(data);
-    } catch (error) {
-      console.error('Failed to load requests:');
-    }
-  };
-
-  const loadSessions = async () => {
-    try {
-      const data = await apiClient.get<ConsultationSession[]>('/consultations/sessions');
-      setSessions(data);
-    } catch (error) {
-      console.error('Failed to load sessions:');
-    }
-  };
-
-  const handleSubmitRequest = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!requestForm.expertId || !requestForm.topic || !requestForm.description) {
-      alert('Please fill in all required fields');
-      return;
-    }
-
+  async function load() {
     setLoading(true);
+    setError('');
     try {
-      await apiClient.post('/consultations/requests', requestForm);
-      alert('Consultation request submitted successfully!');
-      setRequestForm({ expertId: '', topic: '', description: '', consultationType: 'live-chat' });
-      await loadRequests();
-    } catch (error: unknown) {
-      let errorMessage = 'Failed to submit request';
-      if (error && typeof error === 'object' && 'response' in error) {
-        const apiError = error as { response?: { data?: { message?: string; error?: string } }; message?: string };
-        errorMessage = apiError.response?.data?.message || apiError.response?.data?.error || apiError.message || errorMessage;
-      } else if (error instanceof Error) {
-        errorMessage = error.message || errorMessage;
-      }
-      alert(errorMessage);
+      const [expertRows, bookingRows] = await Promise.all([
+        apiClient.get<Expert[]>('/consultations/experts'),
+        apiClient.get<Booking[]>('/consultations/requests'),
+      ]);
+      setExperts(Array.isArray(expertRows) ? expertRows : []);
+      setBookings(Array.isArray(bookingRows) ? bookingRows : []);
+    } catch (reason) {
+      setError(messageFromUnknown(reason) || 'The consultation list could not be loaded.');
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleJoinSession = async (sessionId: string) => {
-    router.push(`/consultations/chat/${sessionId}`);
-  };
-
-  if (authLoading || !isAuthenticated) {
-    return <LoadingSpinner message="Loading consultations..." fullScreen />;
   }
 
-  if (user?.role !== 'student') {
-    return <div className="min-h-screen flex items-center justify-center">Access denied</div>;
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) router.push('/login');
+  }, [authLoading, isAuthenticated, router]);
+
+  useEffect(() => {
+    if (isAuthenticated && user?.role === 'student') load();
+  }, [isAuthenticated, user]);
+
+  async function chooseExpert(id: string) {
+    setExpertId(id);
+    setSlotKey('');
+    setSlots([]);
+    setError('');
+    const from = new Date();
+    const to = new Date(from.getTime() + 14 * 24 * 60 * 60 * 1000);
+    try {
+      const data = await apiClient.get<{ slots: Slot[] }>(`/consultations/experts/${id}/slots?from=${from.toISOString()}&to=${to.toISOString()}`);
+      setSlots(Array.isArray(data.slots) ? data.slots : []);
+    } catch (reason) {
+      setError(messageFromUnknown(reason) || 'Available times could not be loaded.');
+    }
   }
+
+  async function onBook(event: FormEvent) {
+    event.preventDefault();
+    if (submitting) return;
+    const slot = slots.find((item) => item.startsAt + ':' + item.durationMinutes === slotKey);
+    if (!slot) {
+      setError('Choose an available time.');
+      return;
+    }
+    setSubmitting(true);
+    setError('');
+    setNotice('');
+    try {
+      await apiClient.post('/consultations/requests', {
+        expertId,
+        topic,
+        description,
+        startsAt: slot.startsAt,
+        durationMinutes: slot.durationMinutes,
+      });
+      setNotice('Request sent. It is not confirmed until the expert accepts it.');
+      setTopic('');
+      setDescription('');
+      setSlotKey('');
+      await load();
+      await chooseExpert(expertId);
+    } catch (reason) {
+      setError(messageFromUnknown(reason) || 'The booking could not be created.');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function cancel(id: string) {
+    setError('');
+    try {
+      await apiClient.put(`/consultations/requests/${id}`, { action: 'cancel', reason: 'Cancelled by learner' });
+      setNotice('Consultation cancelled.');
+      await load();
+    } catch (reason) {
+      setError(messageFromUnknown(reason) || 'The consultation could not be cancelled.');
+    }
+  }
+
+  if (authLoading || !isAuthenticated) return <LoadingSpinner message="Loading consultations..." fullScreen />;
+  if (user?.role !== 'student') return <div className="flex min-h-screen items-center justify-center">Access denied</div>;
+
+  const upcoming = bookings.filter((item) => ['PENDING_CONFIRMATION', 'CONFIRMED', 'RESCHEDULE_REQUESTED'].includes(item.lifecycle));
+  const closed = bookings.filter((item) => !upcoming.includes(item));
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
+    <div className="flex min-h-screen flex-col bg-gray-50 dark:bg-gray-900">
       <Header />
-      <div className="flex flex-1 overflow-hidden pt-20 lg:pt-0">
+      <div className="flex flex-1">
         <Sidebar />
-        <main className="flex-1 overflow-y-auto p-6">
-          <div className="max-w-6xl mx-auto">
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-6">Expert Consultation</h1>
+        <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8">
+              <p className="page-kicker">Guidance</p>
+              <h1 className="page-title mt-2">Consultations</h1>
+          <p className="mt-2 max-w-2xl text-sm text-gray-600 dark:text-gray-300">Choose an expert who has published times. The meeting happens on Google Meet or Zoom after they confirm and add the link. There is no charge in this booking flow.</p>
+          {error ? <p className="mt-4 text-sm text-red-700 dark:text-red-300" role="alert">{error} <button type="button" className="font-semibold" onClick={load}>Try again</button></p> : null}
+          {notice ? <p className="mt-4 text-sm font-semibold text-gray-900 dark:text-white" role="status">{notice}</p> : null}
+          {loading ? <div className="mt-6 h-28 animate-pulse rounded-2xl bg-gray-200 dark:bg-gray-800" aria-hidden /> : null}
 
-            {/* Tabs */}
-            <div className="flex space-x-4 mb-6 border-b border-gray-200 dark:border-gray-700">
-              <button
-                onClick={() => setView('request')}
-                className={`px-4 py-2 font-semibold transition-colors ${
-                  view === 'request'
-                    ? 'text-primary-600 dark:text-primary-400 border-b-2 border-primary-600 dark:border-primary-400'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                }`}
-              >
-                Request Consultation
-              </button>
-              <button
-                onClick={() => setView('history')}
-                className={`px-4 py-2 font-semibold transition-colors ${
-                  view === 'history'
-                    ? 'text-primary-600 dark:text-primary-400 border-b-2 border-primary-600 dark:border-primary-400'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                }`}
-              >
-                My Consultations
-              </button>
-            </div>
-
-            {/* Request Consultation Form */}
-            {view === 'request' && (
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Request Expert Consultation</h2>
-                <form onSubmit={handleSubmitRequest} className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                      Select Expert <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      value={requestForm.expertId}
-                      onChange={(e) => setRequestForm({ ...requestForm, expertId: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                      required
-                      disabled={experts.length === 0}
-                    >
-                      <option value="">{experts.length === 0 ? 'No experts available. Please contact support.' : 'Choose an expert...'}</option>
-                      {experts.map((expert) => (
-                        <option key={expert._id} value={expert._id}>
-                          {expert.name} ({expert.role === 'instructor' ? 'Instructor' : 'Admin'})
-                        </option>
-                      ))}
-                    </select>
-                    {/* FIX: Show message if no experts available */}
-                    {experts.length === 0 && (
-                      <p className="mt-2 text-sm text-yellow-600 dark:text-yellow-400">
-                        No experts are currently available. Please check back later or contact support.
-                      </p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                      Topic <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      value={requestForm.topic}
-                      onChange={(e) => setRequestForm({ ...requestForm, topic: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                      required
-                    >
-                      <option value="">Select a topic...</option>
-                      <option value="Risk Management">Risk Management</option>
-                      <option value="Market Structure">Market Structure</option>
-                      <option value="Trading Psychology">Trading Psychology</option>
-                      <option value="Technical Analysis">Technical Analysis</option>
-                      <option value="Fundamental Analysis">Fundamental Analysis</option>
-                      <option value="Strategy Development">Strategy Development</option>
-                      <option value="Other">Other</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                      Consultation Type <span className="text-red-500">*</span>
-                    </label>
-                    <div className="grid grid-cols-3 gap-4">
-                      <label className={`p-4 border-2 rounded-lg cursor-pointer transition-colors ${
-                        requestForm.consultationType === 'live-chat'
-                          ? 'border-primary-600 bg-primary-50 dark:bg-primary-900/20'
-                          : 'border-gray-300 dark:border-gray-600 hover:border-primary-300'
-                      }`}>
-                        <input
-                          type="radio"
-                          value="live-chat"
-                          checked={requestForm.consultationType === 'live-chat'}
-                          onChange={(e) => setRequestForm({ ...requestForm, consultationType: e.target.value as 'live-chat' | 'audio-call' | 'video-call' })}
-                          className="sr-only"
-                        />
-                        <div className="text-center">
-                          <svg className="w-8 h-8 mx-auto mb-2 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                          </svg>
-                          <span className="font-semibold text-gray-900 dark:text-white">Live Chat</span>
-                        </div>
-                      </label>
-                      <label className={`p-4 border-2 rounded-lg cursor-pointer transition-colors ${
-                        requestForm.consultationType === 'audio-call'
-                          ? 'border-primary-600 bg-primary-50 dark:bg-primary-900/20'
-                          : 'border-gray-300 dark:border-gray-600 hover:border-primary-300'
-                      }`}>
-                        <input
-                          type="radio"
-                          value="audio-call"
-                          checked={requestForm.consultationType === 'audio-call'}
-                          onChange={(e) => setRequestForm({ ...requestForm, consultationType: e.target.value as 'live-chat' | 'audio-call' | 'video-call' })}
-                          className="sr-only"
-                        />
-                        <div className="text-center">
-                          <svg className="w-8 h-8 mx-auto mb-2 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                          </svg>
-                          <span className="font-semibold text-gray-900 dark:text-white">Audio Call</span>
-                          <span className="text-xs text-gray-500 block mt-1">(Placeholder)</span>
-                        </div>
-                      </label>
-                      <label className={`p-4 border-2 rounded-lg cursor-pointer transition-colors ${
-                        requestForm.consultationType === 'video-call'
-                          ? 'border-primary-600 bg-primary-50 dark:bg-primary-900/20'
-                          : 'border-gray-300 dark:border-gray-600 hover:border-primary-300'
-                      }`}>
-                        <input
-                          type="radio"
-                          value="video-call"
-                          checked={requestForm.consultationType === 'video-call'}
-                          onChange={(e) => setRequestForm({ ...requestForm, consultationType: e.target.value as 'live-chat' | 'audio-call' | 'video-call' })}
-                          className="sr-only"
-                        />
-                        <div className="text-center">
-                          <svg className="w-8 h-8 mx-auto mb-2 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                          </svg>
-                          <span className="font-semibold text-gray-900 dark:text-white">Video Call</span>
-                          <span className="text-xs text-gray-500 block mt-1">(Placeholder)</span>
-                        </div>
-                      </label>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                      Description <span className="text-red-500">*</span>
-                    </label>
-                    <textarea
-                      value={requestForm.description}
-                      onChange={(e) => setRequestForm({ ...requestForm, description: e.target.value })}
-                      placeholder="Describe your issue or question..."
-                      rows={5}
-                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                      required
-                    />
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {loading ? 'Submitting...' : 'Submit Request'}
+          <section className="mt-8">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Experts</h2>
+            {!loading && experts.length === 0 ? <p className="mt-3 text-sm text-gray-600 dark:text-gray-300">No expert has published consultation times yet. You can come back after an expert opens their schedule, or ask in the community in the meantime.</p> : null}
+            <ul className="mt-4 grid gap-3 md:grid-cols-2">
+              {experts.map((expert) => (
+                <li key={expert._id}>
+                  <button type="button" onClick={() => chooseExpert(expert._id)} className={`w-full rounded-2xl border p-4 text-left ${expertId === expert._id ? 'border-primary-600' : 'border-gray-200 dark:border-gray-700'} bg-white dark:bg-gray-800`}>
+                    <p className="font-semibold text-gray-900 dark:text-white">{expert.name}</p>
+                    <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">{expert.focus || 'Consultation'}</p>
+                    <p className="mt-2 text-xs text-gray-500">{!expert.hasAvailability ? 'No published hours yet' : expert.expertAvailable ? 'Taking consultations' : 'Not taking new consultations'}{expert.timeZone ? ` · ${expert.timeZone}` : ''}{expert.durations.length ? ` · ${expert.durations.join(' or ')} min` : ''}</p>
                   </button>
-                </form>
-              </div>
-            )}
+                </li>
+              ))}
+            </ul>
+          </section>
 
-            {/* Consultation History */}
-            {view === 'history' && (
-              <div className="space-y-4">
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">My Consultations</h2>
-
-                {/* Note: Pending requests are not shown to students - only instructors can see pending requests sent to them */}
-
-                {/* Accepted Requests - Show with communication buttons */}
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
-                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Approved Consultations</h3>
-                  {requests.filter(r => r.status === 'accepted').length === 0 ? (
-                    <p className="text-gray-500 dark:text-gray-400">No approved consultations yet</p>
-                  ) : (
-                    <div className="space-y-3">
-                      {requests.filter(r => r.status === 'accepted').map((request) => {
-                        // Find corresponding session for this request
-                        const session = sessions.find((s: ConsultationSession) => s.requestId === request._id && s.status === 'active');
-                        return (
-                          <div key={request._id} className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
-                            <div className="flex items-center justify-between mb-3">
-                              <div className="flex items-center gap-3">
-                                {request.expert?.profilePhoto && (
-                                  <Image
-                                    src={request.expert.profilePhoto}
-                                    alt={request.expert.name || 'Expert'}
-                                    width={40}
-                                    height={40}
-                                    className="w-10 h-10 rounded-full"
-                                  />
-                                )}
-                                <div>
-                                  <p className="font-semibold text-gray-900 dark:text-white">{request.expert?.name || 'Expert'}</p>
-                                  <p className="text-sm text-gray-600 dark:text-gray-400">{request.topic}</p>
-                                </div>
-                              </div>
-                              <span className="px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 rounded-full text-sm font-semibold">
-                                Approved
-                              </span>
-                            </div>
-                            {session && (
-                              <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
-                                <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
-                                  Started {formatDistanceToNow(new Date(session.startedAt), { addSuffix: true })} • {session.messageCount || 0} messages
-                                </p>
-                                <div className="flex gap-2 flex-wrap">
-                                  <button
-                                    onClick={() => handleJoinSession(session._id)}
-                                    className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold transition-colors flex items-center gap-2"
-                                  >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                                    </svg>
-                                    Live Chat
-                                  </button>
-                                  {/* Voice/Video Call buttons removed - Agora SDK handles calls in chat page */}
-                                </div>
-                              </div>
-                            )}
-                            {!session && (
-                              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Session is being created...</p>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
+          {expertId ? (
+            <form className="mt-8 space-y-4 rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800" onSubmit={onBook}>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Book a time</h2>
+              <p className="text-sm text-gray-600 dark:text-gray-300">Times are shown in your timezone. Price is not collected because consultations are not charged here.</p>
+              {slots.length === 0 ? <p className="text-sm text-gray-600 dark:text-gray-300">This expert has no open times in the next 14 days. Choose another expert, or come back after they publish more hours.</p> : (
+                <div className="flex flex-wrap gap-2" role="listbox" aria-label="Available times">
+                  {slots.map((slot) => {
+                    const key = slot.startsAt + ':' + slot.durationMinutes;
+                    return (
+                      <button key={key} type="button" aria-pressed={slotKey === key} className={`rounded-full border px-3 py-1.5 text-sm ${slotKey === key ? 'border-primary-600 bg-primary-50' : 'border-gray-300'}`} onClick={() => setSlotKey(key)}>
+                        {when(slot.startsAt)} · {slot.durationMinutes} min
+                      </button>
+                    );
+                  })}
                 </div>
+              )}
+              <label className="block text-sm font-semibold text-gray-900 dark:text-white">Topic
+                <input className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 font-normal text-gray-900" value={topic} onChange={(event) => setTopic(event.target.value)} required minLength={3} maxLength={120} />
+              </label>
+              <label className="block text-sm font-semibold text-gray-900 dark:text-white">What do you want to cover?
+                <textarea className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 font-normal text-gray-900" rows={4} value={description} onChange={(event) => setDescription(event.target.value)} required minLength={10} maxLength={2000} />
+              </label>
+              <button type="submit" disabled={submitting} className="rounded-full bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60">{submitting ? 'Sending request…' : 'Request consultation'}</button>
+            </form>
+          ) : null}
 
-                {/* Active Sessions - Legacy display (for sessions without requestId) */}
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
-                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Active Sessions</h3>
-                  {sessions.filter((s: ConsultationSession) => s.status === 'active' && !requests.some((r: ConsultationRequest) => r.status === 'accepted' && s.requestId === r._id)).length === 0 ? (
-                    <p className="text-gray-500 dark:text-gray-400">No active sessions</p>
-                  ) : (
-                    <div className="space-y-3">
-                      {sessions.filter((s: ConsultationSession) => s.status === 'active' && !requests.some((r: ConsultationRequest) => r.status === 'accepted' && s.requestId === r._id)).map((session: ConsultationSession) => (
-                        <div key={session._id} className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="font-semibold text-gray-900 dark:text-white">{session.expert?.name || 'Expert'}</p>
-                              <p className="text-sm text-gray-600 dark:text-gray-400">{session.topic}</p>
-                              <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                                Started {formatDistanceToNow(new Date(session.startedAt), { addSuffix: true })}
-                              </p>
-                            </div>
-                            <div className="flex gap-2 flex-wrap">
-                              <button
-                                onClick={() => handleJoinSession(session._id)}
-                                className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold transition-colors flex items-center gap-2"
-                              >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                                </svg>
-                                Live Chat
-                              </button>
-                              {/* Voice/Video Call buttons removed - Agora SDK handles calls in chat page */}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Completed Sessions */}
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
-                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Completed</h3>
-                  {sessions.filter((s: ConsultationSession) => s.status === 'completed').length === 0 ? (
-                    <p className="text-gray-500 dark:text-gray-400">No completed consultations</p>
-                  ) : (
-                    <div className="space-y-3">
-                      {sessions.filter((s: ConsultationSession) => s.status === 'completed').map((session: ConsultationSession) => (
-                        <div key={session._id} className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="font-semibold text-gray-900 dark:text-white">{session.expert?.name || 'Expert'}</p>
-                              <p className="text-sm text-gray-600 dark:text-gray-400">{session.topic}</p>
-                              <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                                Completed {session.endedAt ? formatDistanceToNow(new Date(session.endedAt), { addSuffix: true }) : ''}
-                              </p>
-                            </div>
-                            <span className="px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 rounded-full text-sm font-semibold">
-                              Completed
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
+          <section className="mt-10">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Your consultations</h2>
+            {!loading && bookings.length === 0 ? <p className="mt-3 text-sm text-gray-600 dark:text-gray-300">You have no consultations yet.</p> : null}
+            <ul className="mt-4 space-y-3">
+              {[...upcoming, ...closed].map((booking) => (
+                <li key={booking._id} className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-primary-700">{booking.lifecycle.replace(/_/g, ' ')}</p>
+                  <h3 className="mt-1 font-semibold text-gray-900 dark:text-white">{booking.topic}</h3>
+                  <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">{booking.expert?.name || 'Expert'} · {when(booking.startsAt)} · {booking.paymentStatus === 'not_required' ? 'No payment required' : booking.paymentStatus}</p>
+                  <p className="mt-2 text-sm text-gray-700 dark:text-gray-200">{booking.description}</p>
+                  <div className="mt-3 flex flex-wrap gap-3">
+                    {booking.meetingUrl ? (
+                      <a className="rounded-full bg-primary-600 px-4 py-2 text-sm font-semibold text-white" href={booking.meetingUrl} target="_blank" rel="noopener noreferrer">Join consultation</a>
+                    ) : null}
+                    {upcoming.includes(booking) ? (
+                      <button type="button" className="text-sm font-semibold text-gray-700 dark:text-gray-200" onClick={() => cancel(booking._id)}>Cancel</button>
+                    ) : null}
+                    {booking.lifecycle === 'CONFIRMED' || booking.lifecycle === 'PENDING_CONFIRMATION' ? (
+                      <form className="flex flex-wrap items-center gap-2" onSubmit={(event) => {
+                        event.preventDefault();
+                        const value = moves[booking._id];
+                        if (!value) return;
+                        apiClient.put(`/consultations/requests/${booking._id}`, {
+                          action: 'request-reschedule',
+                          startsAt: new Date(value).toISOString(),
+                          durationMinutes: booking.durationMinutes || 30,
+                        }).then(() => {
+                          setNotice('Reschedule requested. The original time stays until the expert accepts.');
+                          return load();
+                        }).catch((reason) => setError(messageFromUnknown(reason) || 'The new time could not be requested.'));
+                      }}>
+                        <label className="sr-only" htmlFor={`move-${booking._id}`}>New time</label>
+                        <input id={`move-${booking._id}`} type="datetime-local" className="rounded-xl border border-gray-300 px-2 py-1 text-sm" value={moves[booking._id] || ''} onChange={(event) => setMoves((current) => ({ ...current, [booking._id]: event.target.value }))} />
+                        <button type="submit" className="text-sm font-semibold text-primary-700">Request new time</button>
+                        <span className="text-xs text-gray-500">Use one of that expert's open times. The original time stays until they accept.</span>
+                      </form>
+                    ) : null}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
         </main>
       </div>
     </div>
   );
 }
-
-
-
-
-
-
-
-

@@ -6,6 +6,7 @@
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Header from '@/components/Header';
+import Sidebar from '@/components/Sidebar';
 import Footer from '@/components/Footer';
 import BackButton from '@/components/BackButton';
 import LoadingSpinner from '@/components/LoadingSpinner';
@@ -214,9 +215,12 @@ export default function CourseDetailPage() {
     return (
       <div className="min-h-screen flex flex-col">
         <Header />
-        <main className="flex-1 max-w-3xl mx-auto w-full px-4 py-8">
-          <LessonSkeleton />
-        </main>
+        <div className="flex flex-1 lg:items-start">
+          <Sidebar />
+          <main className="flex-1 max-w-3xl mx-auto w-full px-4 py-8 pt-16 lg:pt-8">
+            <LessonSkeleton />
+          </main>
+        </div>
       </div>
     );
   }
@@ -225,14 +229,17 @@ export default function CourseDetailPage() {
     return (
       <div className="min-h-screen flex flex-col">
         <Header />
-        <main className="flex-1 flex items-center justify-center px-6">
-          <div className="max-w-md text-center">
-            <p className="text-lg font-semibold text-neutral-900">{error ? 'This course could not be loaded' : 'Course not found'}</p>
-            {error && (
-              <button type="button" onClick={() => refetchCourse()} className="mt-4 inline-flex rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white">Try again</button>
-            )}
-          </div>
-        </main>
+        <div className="flex flex-1 lg:items-start">
+          <Sidebar />
+          <main className="flex-1 flex items-center justify-center px-6 pt-16">
+            <div className="max-w-md text-center">
+              <p className="text-lg font-semibold text-neutral-900">{error ? 'This course could not be loaded' : 'Course not found'}</p>
+              {error && (
+                <button type="button" onClick={() => refetchCourse()} className="mt-4 inline-flex rounded-lg bg-primary-400 px-4 py-2 text-sm font-semibold text-neutral-900">Try again</button>
+              )}
+            </div>
+          </main>
+        </div>
       </div>
     );
   }
@@ -249,8 +256,9 @@ export default function CourseDetailPage() {
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-
-      <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 md:py-8">
+      <div className="flex flex-1 lg:items-start">
+        <Sidebar />
+        <main className="flex-1 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pt-16 lg:pt-8 w-full">
         {/* Back Button */}
         <div className="mb-3">
           <BackButton href="/courses" />
@@ -317,7 +325,7 @@ export default function CourseDetailPage() {
                           onClick={() => openLesson(href)}
                         >
                           <div className="flex min-w-0 flex-1 items-center space-x-4">
-                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 text-base font-bold text-white shadow-md transition-transform group-hover:scale-110">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-neutral-300 text-sm font-semibold text-neutral-800">
                               {index + 1}
                             </div>
                             <div className="min-w-0 flex-1 text-left">
@@ -432,6 +440,7 @@ export default function CourseDetailPage() {
           </div>
         </div>
       </main>
+      </div>
 
       <Footer />
     </div>

@@ -248,9 +248,9 @@ export default function LessonPage() {
           )}
 
           {!payBlocked && hasVisibleHtml(lessonDescStudent) && (
-            <div className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-4 sm:p-6 mb-4">
-              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-3">Lesson Description</h2>
-              <div className="rich-html-readable text-base leading-relaxed">
+            <div className="lesson-reading mb-8 border-t border-neutral-200 pt-6">
+              <h2 className="font-display text-lg font-semibold text-neutral-900 dark:text-white">Lesson</h2>
+              <div className="rich-html-readable mt-4 text-base leading-relaxed">
                 <div dangerouslySetInnerHTML={{ __html: lessonDescStudent }} />
               </div>
             </div>

@@ -82,13 +82,22 @@ async function updateSettings(req: AuthRequest, res: NextApiResponse) {
       );
       res.json({ success: true, message: `Consultation feature ${enabled ? 'enabled' : 'disabled'}` });
     } else if (action === 'approveExpert') {
-      // Approve/remove expert status
-      const { userId, isExpert } = data;
+      const { userId, isExpert } = data || {};
+      if (typeof userId !== 'string' || !/^[a-fA-F0-9]{24}$/.test(userId) || typeof isExpert !== 'boolean') {
+        return res.status(400).json({ error: 'Choose a staff account.' });
+      }
+      const target = await users.findOne(
+        { _id: new ObjectId(userId) },
+        { projection: { role: 1 } }
+      );
+      if (!target || !['instructor', 'admin', 'superadmin'].includes(String(target.role))) {
+        return res.status(400).json({ error: 'Only an instructor, admin, or super admin can be an expert.' });
+      }
       await users.updateOne(
         { _id: new ObjectId(userId) },
-        { $set: { isExpert: isExpert } }
+        { $set: { isExpert } }
       );
-      res.json({ success: true, message: `Expert status ${isExpert ? 'approved' : 'removed'}` });
+      res.json({ success: true, message: isExpert ? 'Expert approved' : 'Expert removed' });
     } else if (action === 'suspendUser') {
       // Suspend user (placeholder - add suspended field to user model)
       const { userId, suspended } = data;

@@ -272,13 +272,14 @@ export default function Onboarding() {
 
       <main className="flex-1 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
         <div className="mb-8">
-          <h1 className="text-4xl font-display font-bold text-gray-900 dark:text-white mb-2">
-            {(user as any)?.onboardingCompleted ? 'Edit Your Profile' : 'Welcome to ForexOrbit Academy!'}
+          <p className="page-kicker mb-2">Getting started</p>
+          <h1 className="page-title">
+            {(user as any)?.onboardingCompleted ? 'Edit your profile' : 'Tell us where you are starting'}
           </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            {(user as any)?.onboardingCompleted 
-              ? 'Update your profile information to personalize your learning experience'
-              : "Let's set up your profile to personalize your learning experience"}
+          <p className="mt-2 max-w-2xl text-sm text-neutral-600">
+            {(user as any)?.onboardingCompleted
+              ? 'These details stay on your profile. Lessons stay open either way.'
+              : 'This is optional. Skip it and open a course whenever you are ready.'}
           </p>
         </div>
 

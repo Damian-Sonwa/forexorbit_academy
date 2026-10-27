@@ -644,12 +644,11 @@ export default function AdminPanel() {
       <Header />
 
       <div className="flex flex-1 relative">
-        {/* Hide sidebar for Super Admin only */}
-        {user?.role !== 'superadmin' && <Sidebar />}
+        <Sidebar />
 
         <main className={`flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 ${user?.role === 'superadmin' ? 'pt-20 lg:pt-8' : 'pt-20 lg:pt-8'}`}>
         <div className="mb-8">
-          <div className="flex items-center justify-between">
+          <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
             <div>
               <h1 className="text-4xl font-display font-bold text-gray-900 dark:text-white mb-2">Admin Panel</h1>
               <p className="text-gray-600 dark:text-gray-400">Manage courses, lessons, and view analytics</p>
@@ -679,6 +678,12 @@ export default function AdminPanel() {
                   <span className="text-xs font-medium opacity-90">Soon</span>
                 </div>
               ))}
+            {user?.role === 'superadmin' && (
+              <>
+                <Link href="/consultations/expert" className="rounded-lg border border-neutral-300 px-4 py-2 text-sm font-semibold text-neutral-900 dark:text-white">Publish hours</Link>
+                <Link href="/consultations/admin" className="rounded-lg border border-neutral-300 px-4 py-2 text-sm font-semibold text-neutral-900 dark:text-white">Approve experts</Link>
+              </>
+            )}
           </div>
         </div>
 
@@ -1785,7 +1790,16 @@ export default function AdminPanel() {
             <div className="mb-6">
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Consultation Requests Management</h2>
               <p className="text-gray-600 dark:text-gray-400 text-sm">
-                View and manage all consultation requests. Admins can accept or cancel any request.
+                View and manage consultation requests. Publish your own hours from Consultation availability.
+              </p>
+              <p className="mt-3 text-sm">
+                <Link href="/consultations/expert" className="font-semibold text-primary-700 underline-offset-4 hover:underline">Publish weekly hours</Link>
+                {user?.role === 'superadmin' ? (
+                  <>
+                    <span aria-hidden> · </span>
+                    <Link href="/consultations/admin" className="font-semibold text-primary-700 underline-offset-4 hover:underline">Approve experts</Link>
+                  </>
+                ) : null}
               </p>
             </div>
 
@@ -1874,8 +1888,18 @@ export default function AdminPanel() {
 
                         <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
                           <span>
-                            Type: <span className="capitalize font-semibold">{request.consultationType.replace('-', ' ')}</span>
+                            Type: <span className="capitalize font-semibold">{String(request.consultationType || 'consultation').replace('-', ' ')}</span>
                           </span>
+                          {request.startsAt && (
+                            <span>
+                              When: <span className="font-semibold">{new Date(request.startsAt).toLocaleString()}</span>
+                            </span>
+                          )}
+                          {request.lifecycle && (
+                            <span>
+                              State: <span className="font-semibold">{request.lifecycle}</span>
+                            </span>
+                          )}
                           {request.updatedAt && (
                             <span>
                               Updated: {formatDistanceToNow(new Date(request.updatedAt), { addSuffix: true })}

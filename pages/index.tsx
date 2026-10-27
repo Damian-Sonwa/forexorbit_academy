@@ -20,12 +20,101 @@ import {
   Users,
   X,
 } from 'lucide-react';
-import CourseCard from '@/components/CourseCard';
 import { useAuth } from '@/hooks/useAuth';
-import { useCourses } from '@/hooks/useCourses';
+import { useCourses, type Course } from '@/hooks/useCourses';
 import { apiClient } from '@/lib/api-client';
+import { sanitizeForStudentView, stripHtml } from '@/lib/html-sanitizer';
 
-const levels = ['Beginner', 'Intermediate', 'Advanced', 'Demo desk', 'Live classes'];
+const levels = ['Beginner', 'Intermediate', 'Advanced', 'Demo desk'];
+
+const subjectLabels: Record<string, string> = {
+  basics: 'Market structure',
+  technical: 'The chart',
+  fundamental: 'The calendar',
+  trading: 'The trade',
+};
+
+function catalogSubject(category: string) {
+  return subjectLabels[category] || category;
+}
+
+const catalogPhotos = [
+  '/images/catalog/digital-forex.jpg',
+  '/images/catalog/global-network.jpg',
+  '/images/catalog/trading-floor.jpg',
+  '/images/catalog/golden-investment.jpg',
+  '/images/catalog/chart-analysis.jpg',
+  '/images/catalog/forex-dashboard.jpg',
+];
+
+function catalogImage(course: Course, index: number) {
+  if (course.thumbnail) return course.thumbnail;
+  return catalogPhotos[index];
+}
+
+function levelLabel(difficulty: string) {
+  if (!difficulty) return 'Course';
+  return difficulty.charAt(0).toUpperCase() + difficulty.slice(1);
+}
+
+function CatalogEntry({
+  course,
+  index,
+  isAuthenticated,
+  onEnroll,
+}: {
+  course: Course;
+  index: number;
+  isAuthenticated: boolean;
+  onEnroll: (courseId: string) => void;
+}) {
+  const courseId = course._id || course.id || '';
+  const description = stripHtml(sanitizeForStudentView(course.description || ''));
+  const lessonCount = course.lessons?.length;
+  const imageSrc = catalogImage(course, index);
+  const meta = [levelLabel(course.difficulty), lessonCount ? `${lessonCount} ${lessonCount === 1 ? 'lesson' : 'lessons'}` : catalogSubject(course.category)]
+    .filter(Boolean)
+    .join(' · ');
+
+  return (
+    <article className="flex h-full flex-col rounded-2xl border border-[#eadfce] bg-[#f6f3ec] p-3 text-[#1c1917]">
+      <Link href={`/courses/${courseId}`} className="block overflow-hidden rounded-xl bg-[#07080c]" aria-label={course.title}>
+        {imageSrc ? (
+          <img src={imageSrc} alt="" className="aspect-[16/10] w-full object-cover" />
+        ) : (
+          <div className="flex aspect-[16/10] items-center justify-center">
+            <BookOpen className="h-10 w-10 text-[#F28C28]" aria-hidden />
+          </div>
+        )}
+      </Link>
+      <div className="flex flex-1 flex-col px-3 pb-4 pt-5">
+        <p className="text-sm text-[#6f675f]">{meta}</p>
+        <h3 className="mt-2 font-display text-xl font-bold tracking-tight text-[#1c1917]">
+          <Link href={`/courses/${courseId}`}>{course.title}</Link>
+        </h3>
+        {description ? <p className="mt-3 line-clamp-3 text-sm leading-relaxed text-[#6f675f]">{description}</p> : null}
+        <div className="mt-auto pt-6">
+          {isAuthenticated && !course.enrolled ? (
+            <button
+              type="button"
+              onClick={() => onEnroll(courseId)}
+              className="rounded-lg border border-[#F28C28] px-5 py-2 text-xs font-semibold tracking-wide text-[#F28C28] hover:bg-[#F28C28] hover:text-[#102017]"
+            >
+              ENROLL
+            </button>
+          ) : (
+            <Link
+              href={`/courses/${courseId}`}
+              className="inline-block rounded-lg border border-[#F28C28] px-5 py-2 text-xs font-semibold tracking-wide text-[#F28C28] hover:bg-[#F28C28] hover:text-[#102017]"
+            >
+              {course.enrolled ? 'CONTINUE' : 'OPEN COURSE'}
+            </Link>
+          )}
+        </div>
+      </div>
+    </article>
+  );
+}
 
 const paths = [
   { pair: 'Foundation', name: 'Market structure', note: 'Candles, sessions, and how a quote moves', progress: 'Start here' },
@@ -36,7 +125,7 @@ const paths = [
 export default function Home() {
   const { isAuthenticated } = useAuth();
   const [filters, setFilters] = useState({ category: '', difficulty: '', search: '' });
-  const { courses, loading, enroll, unenroll } = useCourses(filters);
+  const { courses, loading, enroll } = useCourses(filters);
   const [menuOpen, setMenuOpen] = useState(false);
   const [instructors, setInstructors] = useState<Array<{ _id?: string; id?: string; name?: string; title?: string; description?: string; imageUrl?: string }>>([]);
 
@@ -97,141 +186,120 @@ export default function Home() {
       </header>
 
       <main>
-        <section className="relative overflow-hidden bg-[#07080c]">
-          <div className="pointer-events-none absolute inset-y-0 right-0 w-[55%] bg-[radial-gradient(circle_at_center,#4A2506_0%,transparent_70%)]" aria-hidden />
-          <div className="mx-auto grid max-w-7xl items-center gap-12 px-4 py-16 sm:px-6 lg:grid-cols-[1.1fr_0.9fr] lg:py-24">
+        <section className="relative overflow-hidden bg-[#faf8f4] text-[#171717]">
+          <div className="mx-auto grid max-w-7xl items-center gap-10 px-4 py-14 sm:px-6 sm:py-16 xl:grid-cols-[minmax(0,0.92fr)_minmax(0,1.12fr)] xl:gap-12 xl:py-20">
             <div>
-              <p className="mb-5 inline-flex items-center gap-2 text-sm font-medium text-[#F28C28]">
+              <p className="mb-4 inline-flex items-center gap-2 text-sm font-semibold text-[#9A4E0C]">
                 <Sparkles className="h-4 w-4" aria-hidden />
-                Forex, on your orbit
+                Forex, made understandable.
               </p>
-              <h1 className="font-display text-5xl font-bold leading-[0.95] tracking-tight sm:text-6xl lg:text-7xl">
-                Learn the market
-                <span className="mt-2 block text-[#F28C28]">your way.</span>
+              <h1 className="font-display text-[2rem] font-bold leading-[1.08] tracking-tight text-[#171717] sm:text-5xl xl:text-[2.5rem] xl:leading-[1.05]">
+                <span className="block">Stop guessing.</span>
+                <span className="mt-1 block text-[#C85E0E] sm:mt-2">
+                  <span className="sm:hidden">Start<br />understanding</span>
+                  <span className="hidden sm:inline">Start understanding</span>
+                </span>
+                <span className="mt-1 block sm:mt-2">the market.</span>
               </h1>
-              <p className="mt-6 max-w-xl text-lg leading-relaxed text-white/75">
-                Structured lessons, a demo desk, and instructors who stay with the chart after the video ends. Built for people who want a routine, not a signal feed.
+              <p className="mt-6 max-w-xl text-base leading-relaxed text-[#525252] sm:text-lg">
+                From your first candlestick to your next practice setup, build your market knowledge through structured lessons, guided exercises, and a learning community that helps you keep growing. Learn the reasoning behind the chart, not just what to do next.
               </p>
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
                 <Link href={accountHref} className="inline-flex items-center justify-center gap-2 rounded-full bg-[#F28C28] px-6 py-3 font-semibold text-[#102017]">
                   {accountLabel}
                   <ArrowRight className="h-4 w-4" aria-hidden />
                 </Link>
-                <a href="#practice" className="inline-flex items-center justify-center gap-2 rounded-full border border-[#F28C28]/70 px-6 py-3 font-semibold text-white/90 hover:bg-white/5">
+                <a href="#practice" className="inline-flex items-center justify-center gap-2 rounded-full border border-[#C85E0E]/50 px-6 py-3 font-semibold text-[#171717] hover:bg-[#F28C28]/10">
                   <Play className="h-4 w-4" aria-hidden />
                   How practice works
                 </a>
               </div>
             </div>
 
-            <div className="relative mx-auto w-full max-w-md pb-16 pt-10">
-              <div className="absolute -left-6 top-16 hidden h-28 w-28 rounded-full bg-[#F28C28]/20 blur-2xl sm:block" aria-hidden />
-              <div className="relative rounded-[2rem] border border-white/10 bg-[#101214] p-4 shadow-2xl shadow-black/50">
-                <div className="mb-4 flex items-center justify-between text-xs text-white/50">
-                  <span>EUR/USD · lesson chart</span>
-                  <span className="text-[#F28C28]">Study mode</span>
-                </div>
-                <svg viewBox="0 0 320 150" className="h-36 w-full" role="img" aria-label="Sample lesson chart">
-                  <path d="M0 110 C 40 100, 50 70, 80 78 S 130 120, 160 90 S 220 40, 260 55 S 300 90, 320 70" fill="none" stroke="#F28C28" strokeWidth="3" />
-                  <path d="M0 120 C 40 112, 70 90, 110 96 S 170 130, 210 100 S 270 80, 320 88" fill="none" stroke="#F8B56A" strokeWidth="2" opacity="0.8" />
-                </svg>
-                <ul className="mt-2 space-y-2 text-sm">
-                  {['Read the session', 'Mark the level', 'Write the risk before the entry'].map((step, index) => (
-                    <li key={step} className="flex items-center justify-between rounded-xl bg-white/5 px-3 py-2">
-                      <span>{index + 1}. {step}</span>
-                      <span className="text-xs text-[#F28C28]">Lesson</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <div className="absolute right-2 top-0 rounded-2xl border border-white/10 bg-[#101214]/95 p-4 shadow-xl">
-                <p className="text-xs text-white/50">Lesson progress</p>
-                <p className="font-display text-3xl font-bold text-[#F28C28]">Keep going</p>
-              </div>
-              <div className="absolute bottom-0 left-4 rounded-2xl border border-white/10 bg-[#101214] px-4 py-3 shadow-xl">
-                <p className="text-xs text-white/50">Today&apos;s desk</p>
-                <p className="font-semibold">Demo practice · no live order</p>
-              </div>
+            <div className="mx-auto w-full max-w-[42rem] xl:max-w-none">
+              <img
+                src="/images/smd.png"
+                alt="EUR/USD lesson chart showing trend identification, support and resistance, risk management, and review steps"
+                width={1536}
+                height={1024}
+                className="mx-auto h-auto w-full drop-shadow-[0_16px_28px_rgba(23,23,23,0.08)]"
+              />
             </div>
           </div>
           <div className="mx-auto flex max-w-7xl flex-wrap gap-3 px-4 pb-10 sm:px-6">
             {levels.map((level) => (
-              <span key={level} className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/75">{level}</span>
+              <span key={level} className="rounded-full border border-[#e7e2da] bg-white px-4 py-2 text-sm text-[#525252]">{level}</span>
             ))}
           </div>
         </section>
 
-        <section id="practice" className="bg-[#07080c] py-20">
-          <div className="mx-auto grid max-w-7xl items-center gap-12 px-4 sm:px-6 lg:grid-cols-2">
+        <section id="practice" className="bg-[#07080c] py-20 lg:py-24">
+          <div className="mx-auto grid max-w-6xl items-start gap-12 px-4 sm:px-6 lg:grid-cols-2 lg:gap-16">
             <div>
-              <p className="text-sm font-semibold text-[#F28C28]">Work the chart with us</p>
-              <h2 className="mt-3 font-display text-4xl font-bold tracking-tight sm:text-5xl">Build a routine that survives the next session.</h2>
-              <div className="mt-8 grid gap-4 sm:grid-cols-2">
+              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#F28C28]">Work the chart with us</p>
+              <h2 className="mt-4 max-w-lg font-display text-4xl font-bold leading-[1.12] tracking-tight text-white sm:text-5xl">Build a trading routine that outlasts the session.</h2>
+              <p className="mt-5 max-w-lg text-base leading-relaxed text-white/80 sm:text-lg">
+                Learn to read the chart, practise your decisions, and build a repeatable process. Your next lesson is ready when you are.
+              </p>
+              <ul className="mt-8 max-w-md space-y-3">
                 {[
-                  { icon: BookOpen, title: 'Guided courses', text: 'Lessons in order, with the next one waiting when this one is done.' },
-                  { icon: LineChart, title: 'Demo desk', text: 'Practice the idea on a demo account before it is a real decision.' },
-                  { icon: Users, title: 'Room for questions', text: 'Community rooms stay with your learning level.' },
+                  { title: 'Guided courses', text: 'Lessons in order' },
+                  { title: 'Demo desk', text: 'Practice before a real decision' },
+                  { title: 'Room for questions', text: 'A room that matches your level' },
                 ].map((item) => (
-                  <div key={item.title} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                    <item.icon className="mb-3 h-5 w-5 text-[#F28C28]" aria-hidden />
-                    <h3 className="font-semibold">{item.title}</h3>
-                    <p className="mt-1 text-sm leading-relaxed text-white/60">{item.text}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="rounded-3xl border border-white/10 bg-[#101214] p-6">
-              <p className="text-sm text-[#F28C28]">Your study list</p>
-              <p className="mt-1 font-display text-2xl font-bold">Three paths, one desk</p>
-              <ul className="mt-6 space-y-3">
-                {paths.map((path) => (
-                  <li key={path.pair} className="flex items-center justify-between rounded-2xl bg-black/25 px-4 py-3">
-                    <div>
-                      <p className="font-semibold">{path.name}</p>
-                      <p className="text-xs text-white/50">{path.pair} · {path.note}</p>
+                  <li key={item.title}>
+                    <div className="rounded-2xl border border-[#eadfce] bg-[#f6f3ec] px-5 py-4 shadow-[0_8px_20px_-14px_rgba(0,0,0,0.45)]">
+                      <p className="text-base font-semibold text-[#1c1917]">{item.title}</p>
+                      <p className="mt-1 text-sm leading-relaxed text-[#525252]">{item.text}</p>
                     </div>
-                    <span className="text-xs font-semibold text-[#F28C28]">{path.progress}</span>
                   </li>
                 ))}
               </ul>
-              <Link href="/demo-trading" className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-[#F28C28]">
-                Open the demo desk <ArrowRight className="h-4 w-4" />
+            </div>
+            <div className="rounded-[1.75rem] border border-[#eadfce] bg-[#f6f3ec] p-7 shadow-[0_12px_28px_-18px_rgba(0,0,0,0.45)] sm:p-8">
+              <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F28C28] text-[#102017]">
+                <LineChart className="h-6 w-6" aria-hidden />
+              </span>
+              <ul className="mt-6 space-y-3">
+                {paths.map((path) => (
+                  <li key={path.pair} className="flex items-center justify-between gap-4 rounded-2xl border border-[#eadfce] bg-[#ffffff] px-4 py-3.5">
+                    <div className="min-w-0">
+                      <p className="font-semibold text-[#1c1917]">{path.name}</p>
+                      <p className="mt-1 text-sm leading-relaxed text-[#525252]">{path.note}</p>
+                    </div>
+                    <span className="shrink-0 rounded-full bg-[#F28C28] px-3 py-1 text-xs font-semibold text-[#102017]">{path.progress}</span>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-6 text-sm leading-relaxed text-[#525252]">The demo desk is for practice. It does not place a real market order.</p>
+              <Link href="/demo-trading" className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#F28C28] px-5 py-2.5 text-sm font-semibold text-[#102017]">
+                Open the demo desk <ArrowRight className="h-4 w-4" aria-hidden />
               </Link>
             </div>
           </div>
         </section>
 
-        <section className="relative overflow-hidden bg-[#07080c] py-20">
-          <div className="mx-auto grid max-w-7xl items-center gap-12 px-4 sm:px-6 lg:grid-cols-[1.1fr_0.9fr]">
-            <div className="grid gap-4 sm:grid-cols-2">
-              {paths.map((path) => (
-                <article key={path.name} className="rounded-3xl border border-white/10 bg-[#12182a]/90 p-5 shadow-xl">
-                  <p className="text-xs uppercase tracking-[0.2em] text-white/40">{path.pair}</p>
-                  <h3 className="mt-3 font-display text-2xl font-bold">{path.name}</h3>
-                  <p className="mt-2 text-sm text-white/60">{path.note}</p>
+        <section className="bg-[#ffffff] py-20 text-[#171717] lg:py-28">
+          <div className="mx-auto max-w-6xl bg-[#ffffff] px-4 sm:px-6">
+            <p className="text-center text-sm font-semibold uppercase tracking-[0.18em] text-[#9A4E0C]">Academy portfolio</p>
+            <h2 className="mx-auto mt-4 max-w-3xl text-center font-display text-4xl font-bold leading-[1.12] tracking-tight text-[#171717] sm:text-5xl">
+              Start a path today. <span className="text-[#C85E0E]">Keep the history when you pause.</span>
+            </h2>
+            <div className="mt-14 grid gap-5 md:grid-cols-3">
+              {[
+                { icon: LineChart, title: 'Open the path', text: 'Unenrolling keeps the record. Coming back does not wipe the work.' },
+                { icon: Shield, title: 'Practice on the desk', text: 'The demo desk is for repetition. It does not place a market order.' },
+                { icon: GraduationCap, title: 'Ask a person', text: 'Book a consultation when a chart needs a second set of eyes.' },
+              ].map((item, index) => (
+                <article key={item.title} className="rounded-2xl border border-[#e5e5e5] bg-[#ffffff] px-6 py-9 text-center shadow-[0_10px_24px_-18px_rgba(23,23,23,0.28)]">
+                  <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#F28C28] text-[#102017]">
+                    <item.icon className="h-6 w-6" aria-hidden />
+                  </span>
+                  <h3 className="mt-5 font-display text-xl font-bold text-[#171717]">{index + 1}. {item.title}</h3>
+                  <div className="mx-auto mt-4 h-8 w-px bg-[#F28C28]" aria-hidden />
+                  <p className="mt-4 text-sm font-medium leading-relaxed text-[#525252]">{item.text}</p>
                 </article>
               ))}
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-[#F28C28]">Academy portfolio</p>
-              <h2 className="mt-3 font-display text-4xl font-bold tracking-tight sm:text-5xl">Start a path today. Keep the history when you pause.</h2>
-              <ul className="mt-8 space-y-4">
-                {[
-                  { icon: LineChart, title: 'Lessons that stay yours', text: 'Unenrolling keeps the record. Coming back does not wipe the work.' },
-                  { icon: Shield, title: 'Practice without a live ticket', text: 'The demo desk is for repetition. It does not place a market order.' },
-                  { icon: GraduationCap, title: 'A person on the other side', text: 'Book a consultation when a chart needs a second set of eyes.' },
-                ].map((item) => (
-                  <li key={item.title} className="flex gap-4">
-                    <span className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#F28C28]/15 text-[#F28C28]">
-                      <item.icon className="h-5 w-5" aria-hidden />
-                    </span>
-                    <div>
-                      <h3 className="font-semibold">{item.title}</h3>
-                      <p className="text-sm text-white/60">{item.text}</p>
-                    </div>
-                  </li>
-                ))}
-              </ul>
             </div>
           </div>
         </section>
@@ -251,64 +319,61 @@ export default function Home() {
                 ))}
               </ul>
             </div>
-            <div className="rounded-3xl border border-white/10 bg-[#101214] p-6">
-              <div className="flex items-end gap-2">
-                {[40, 68, 52, 80, 64, 90, 74].map((height) => (
-                  <span key={height} className="w-full rounded-t-md bg-gradient-to-t from-[#7C3C08] to-[#F28C28]" style={{ height: `${height}px` }} />
-                ))}
-              </div>
-              <p className="mt-4 text-sm text-white/60">A week of lessons completed. The bars are a picture of the habit, not a profit claim.</p>
-            </div>
+            <img
+              src="/images/financial-learning-dashboard-devices.png"
+              alt="Phone and laptop showing a financial foundations lesson with progress on both screens"
+              className="h-auto w-full"
+            />
           </div>
         </section>
 
-        <section className="bg-[#07080c] py-20 text-white">
-          <div id="courses" className="mx-auto max-w-7xl px-4 sm:px-6">
-            <div className="mb-10 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-              <div>
-                <p className="text-sm font-semibold text-[#F28C28]">The catalog</p>
-                <h2 className="font-display text-4xl font-bold tracking-tight">Courses you can open today</h2>
-              </div>
-              <Link href="/courses" className="text-sm font-semibold text-[#F28C28]">View the full list</Link>
-            </div>
-            <div className="mb-8 grid gap-3 sm:grid-cols-3">
+        <section id="courses" className="bg-[#07080c] py-16 text-white sm:py-20">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6">
+            <div className="grid gap-3 sm:grid-cols-3">
               <input
                 type="search"
                 value={filters.search}
                 onChange={(event) => setFilters({ ...filters, search: event.target.value })}
-                placeholder="Search courses"
-                className="rounded-2xl border border-white/10 bg-[#101214] px-4 py-3 text-sm text-white outline-none ring-[#F28C28] focus:ring-2"
+                placeholder="Find a course"
+                aria-label="Find a course"
+                className="rounded-xl border border-white/10 bg-[#101214] px-4 py-3 text-sm text-white outline-none placeholder:text-white/40 focus:border-[#F28C28]"
               />
-              <select value={filters.category} onChange={(event) => setFilters({ ...filters, category: event.target.value })} className="rounded-2xl border border-white/10 bg-[#101214] px-4 py-3 text-sm text-white">
-                <option value="">All categories</option>
-                <option value="basics">Basics</option>
-                <option value="technical">Technical analysis</option>
-                <option value="fundamental">Fundamental analysis</option>
-                <option value="trading">Trading strategies</option>
+              <select value={filters.category} onChange={(event) => setFilters({ ...filters, category: event.target.value })} aria-label="Subject" className="rounded-xl border border-white/10 bg-[#101214] px-4 py-3 text-sm text-white">
+                <option value="">Every subject</option>
+                <option value="basics">Market structure</option>
+                <option value="technical">The chart</option>
+                <option value="fundamental">The calendar</option>
+                <option value="trading">The trade</option>
               </select>
-              <select value={filters.difficulty} onChange={(event) => setFilters({ ...filters, difficulty: event.target.value })} className="rounded-2xl border border-white/10 bg-[#101214] px-4 py-3 text-sm text-white">
-                <option value="">All levels</option>
+              <select value={filters.difficulty} onChange={(event) => setFilters({ ...filters, difficulty: event.target.value })} aria-label="Level" className="rounded-xl border border-white/10 bg-[#101214] px-4 py-3 text-sm text-white">
+                <option value="">Every level</option>
                 <option value="beginner">Beginner</option>
                 <option value="intermediate">Intermediate</option>
                 <option value="advanced">Advanced</option>
               </select>
             </div>
             {loading ? (
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="mt-8 grid gap-6 md:grid-cols-2 xl:grid-cols-3">
                 {[0, 1, 2].map((item) => (
-                  <div key={item} className="h-48 animate-pulse rounded-2xl bg-[#101214]" />
+                  <div key={item} className="h-80 animate-pulse rounded-2xl bg-[#101214]" />
                 ))}
               </div>
             ) : courses.length === 0 ? (
-              <div className="rounded-2xl border border-white/10 bg-[#101214] px-6 py-16 text-center">
+              <div className="mt-8 rounded-2xl border border-white/10 bg-[#101214] px-6 py-16 text-center">
                 <BookOpen className="mx-auto mb-3 h-8 w-8 text-white/40" aria-hidden />
-                <p className="font-semibold">No courses match those filters.</p>
-                <button type="button" className="mt-3 text-sm font-semibold text-[#F28C28]" onClick={() => setFilters({ category: '', difficulty: '', search: '' })}>Clear filters</button>
+                <p className="text-lg font-semibold">No course matches that search.</p>
+                <button type="button" className="mt-4 text-sm font-semibold text-[#F28C28]" onClick={() => setFilters({ category: '', difficulty: '', search: '' })}>Show every course</button>
               </div>
             ) : (
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {courses.map((course) => (
-                  <CourseCard key={course._id || course.id} course={course} onEnroll={enroll} onUnenroll={unenroll} />
+              <div className="mt-8 grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+                {courses.map((course, index) => (
+                  <CatalogEntry
+                    key={course._id || course.id}
+                    course={course}
+                    index={index}
+                    isAuthenticated={isAuthenticated}
+                    onEnroll={enroll}
+                  />
                 ))}
               </div>
             )}
@@ -342,7 +407,7 @@ export default function Home() {
             <div className="mt-10 grid gap-4 text-left sm:grid-cols-3">
               {[
                 { href: '/help', icon: MessageCircle, title: 'Help', text: 'Questions about an account, a lesson, or a payment go to the help desk.' },
-                { href: '/community', icon: Users, title: 'Community', text: 'Talk with people on the same learning level, in the room that matches it.' },
+                { href: '/community', icon: Users, title: 'Community', text: 'Ask a question, follow a discussion, and learn from other members.' },
                 { href: '/courses', icon: GraduationCap, title: 'Academy', text: 'Open a course, finish the lesson, and leave a record you can return to.' },
               ].map((item) => (
                 <Link key={item.title} href={item.href} className="rounded-3xl border border-white/10 bg-black/20 p-6 hover:border-[#F28C28]/40">

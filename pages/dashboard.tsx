@@ -1,6 +1,7 @@
 /**
- * Student Dashboard
- * Shows enrolled courses, progress, and statistics
+ * Student learning home.
+ * One continuation, a short progress summary, and one catalog suggestion.
+ * The course library stays on /courses.
  */
 
 import { useEffect, useState } from 'react';
@@ -9,20 +10,17 @@ import Link from 'next/link';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import Sidebar from '@/components/Sidebar';
-import CourseCard from '@/components/CourseCard';
 import LoadingSpinner from '@/components/LoadingSpinner';
-import { CourseCardSkeleton, LoadingStatus, MetricSkeleton } from '@/components/loading';
+import { LoadingStatus, MetricSkeleton } from '@/components/loading';
 import { resolveLoadingPresentation } from '@/lib/loading-presentation';
-import TodoList from '@/components/TodoList';
 import RemindersPanel from '@/components/RemindersPanel';
 import { useAuth } from '@/hooks/useAuth';
 import { useProgress } from '@/hooks/useProgress';
 import { useCourses } from '@/hooks/useCourses';
-import { sumActiveCompletedLessons } from '@/lib/enrollment-state';
+import { countsTowardActiveTotals, sumActiveCompletedLessons } from '@/lib/enrollment-state';
 import { apiClient } from '@/lib/api-client';
 import { sanitizeForStudentView, stripHtml } from '@/lib/html-sanitizer';
-import { AlertTriangle, ArrowRight, BarChart3, BookOpen, CandlestickChart, CheckCircle2, Shield, Star, Zap } from 'lucide-react';
-
+import { ArrowRight } from 'lucide-react';
 
 interface UpcomingLesson {
   courseId: string;
@@ -30,7 +28,13 @@ interface UpcomingLesson {
   lessonId: string;
   lessonTitle: string;
   order: number;
-  date?: string;
+}
+
+interface UpcomingConsultation {
+  _id: string;
+  topic: string;
+  lifecycle: string;
+  startsAt?: string | null;
 }
 
 export default function Dashboard() {
@@ -38,47 +42,46 @@ export default function Dashboard() {
   const { progress, loading: progressLoading, error: progressError, refetch: refetchProgress } = useProgress();
   const { courses } = useCourses();
   const router = useRouter();
-  const [userPoints, setUserPoints] = useState(0);
   const [upcomingLessons, setUpcomingLessons] = useState<UpcomingLesson[]>([]);
+  const [consultations, setConsultations] = useState<UpcomingConsultation[]>([]);
   const [loadingData, setLoadingData] = useState(true);
 
   const fetchDashboardData = async () => {
     if (!user) return;
-    
+
     try {
       setLoadingData(true);
-      
-      // Fetch user points
-      try {
-        const userData = await apiClient.get<any>('/auth/me');
-        setUserPoints(userData.points || 0);
-      } catch (error) {
-        console.error('Failed to fetch user points:');
-        setUserPoints(0);
-      }
-      
-      // Fetch upcoming lessons
       try {
         const lessons: UpcomingLesson[] = [];
-        for (const p of progress) {
-          if (p.progress > 0 && p.progress < 100 && p.course) {
-            const courseLessons = await apiClient.get<any[]>(`/lessons?courseId=${p.courseId}`);
-            const nextLesson = courseLessons.find((l: any) => !p.completedLessons?.includes(l._id || l.id));
-            if (nextLesson) {
-              lessons.push({
-                courseId: p.courseId,
-                courseTitle: p.course.title,
-                lessonId: nextLesson._id || nextLesson.id,
-                lessonTitle: nextLesson.title,
-                order: nextLesson.order || 0,
-              });
-            }
+        for (const row of progress) {
+          if (!countsTowardActiveTotals(row) || !row.course || row.progress <= 0 || row.progress >= 100) continue;
+          const courseLessons = await apiClient.get<Array<{ _id?: string; id?: string; title: string; order?: number }>>(`/lessons?courseId=${row.courseId}`);
+          const nextLesson = courseLessons.find((lesson) => !row.completedLessons?.includes(lesson._id || lesson.id || ''));
+          if (nextLesson) {
+            lessons.push({
+              courseId: row.courseId,
+              courseTitle: row.course.title,
+              lessonId: nextLesson._id || nextLesson.id || '',
+              lessonTitle: nextLesson.title,
+              order: nextLesson.order || 0,
+            });
           }
         }
-        setUpcomingLessons(lessons.slice(0, 5)); // Next 5 lessons
-      } catch (error) {
-        console.error('Failed to fetch upcoming lessons:');
+        setUpcomingLessons(lessons.slice(0, 3));
+      } catch {
         setUpcomingLessons([]);
+      }
+
+      try {
+        const rows = await apiClient.get<UpcomingConsultation[]>('/consultations/requests');
+        const upcoming = (Array.isArray(rows) ? rows : []).filter((row) => {
+          if (!row.startsAt) return false;
+          if (!['CONFIRMED', 'PENDING_CONFIRMATION', 'RESCHEDULE_REQUESTED'].includes(row.lifecycle)) return false;
+          return new Date(row.startsAt).getTime() > Date.now() - 60 * 60 * 1000;
+        });
+        setConsultations(upcoming.slice(0, 3));
+      } catch {
+        setConsultations([]);
       }
     } finally {
       setLoadingData(false);
@@ -90,14 +93,8 @@ export default function Dashboard() {
       router.push('/login');
       return;
     }
-    // Redirect instructors and admins to their respective dashboards
-    // Check approval status for instructors and admins
     if (!authLoading && isAuthenticated && user) {
-      // Onboarding is now optional - students can skip it
-      // No redirect needed - they can complete it later
-      
       if (user.role === 'instructor') {
-        // Check if instructor is approved
         if (user.status && user.status !== 'approved') {
           if (user.status === 'pending') {
             alert('Your registration is pending approval. Please wait for Super Admin approval before accessing your dashboard.');
@@ -111,7 +108,6 @@ export default function Dashboard() {
         return;
       }
       if (user.role === 'admin' || user.role === 'superadmin') {
-        // Check if admin is approved (superadmin is always approved)
         if (user.role === 'admin' && user.status && user.status !== 'approved') {
           if (user.status === 'pending') {
             alert('Your registration is pending approval. Please wait for Super Admin approval before accessing your dashboard.');
@@ -122,7 +118,6 @@ export default function Dashboard() {
           return;
         }
         router.push('/admin');
-        return;
       }
     }
   }, [isAuthenticated, authLoading, user, router]);
@@ -132,7 +127,7 @@ export default function Dashboard() {
       fetchDashboardData();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated, user, progressLoading]);
+  }, [isAuthenticated, user, progressLoading, progress]);
 
   const sessionBlocked = authLoading || !isAuthenticated || !user || user.role !== 'student';
   const progressView = resolveLoadingPresentation({
@@ -147,20 +142,21 @@ export default function Dashboard() {
     return <LoadingSpinner message="Checking your session" fullScreen />;
   }
 
+  const firstName = user?.name?.split(' ')[0] || 'there';
+  const level = user?.learningLevel || (user as { studentDetails?: { tradingLevel?: string } })?.studentDetails?.tradingLevel;
+
   if (progressView === 'skeleton') {
-    const firstName = user?.name?.split(' ')[0] || 'Student';
     return (
       <div className="min-h-screen flex flex-col overflow-hidden">
         <Header />
         <div className="flex flex-1 relative overflow-hidden lg:items-start">
           <Sidebar />
-          <main className="flex-1 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8 pt-16 lg:pt-8 w-full">
+          <main className="flex-1 max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-10 pt-16 lg:pt-10 w-full">
             <p className="page-kicker mb-2">Learning home</p>
             <h1 className="page-title">Welcome back, {firstName}</h1>
             <div className="mt-8 space-y-8">
               <LoadingStatus label="Loading your dashboard" />
               <MetricSkeleton count={3} />
-              <CourseCardSkeleton count={3} />
             </div>
           </main>
         </div>
@@ -168,263 +164,177 @@ export default function Dashboard() {
     );
   }
 
-  const enrolledCourses = courses.filter((c) => c.enrolled);
-  // const completedCourses = progress.filter((p) => p.progress >= 100); // Reserved for future use
-  // const activeCourses = progress.filter((p) => p.progress > 0 && p.progress < 100); // Reserved for future use
-  const completedModules = sumActiveCompletedLessons(progress);
-  const recommendedCourses = courses.filter((c) => !c.enrolled).slice(0, 3);
+  const activeProgress = progress.filter((row) => countsTowardActiveTotals(row));
+  const enrolledCourses = courses.filter((course) => course.enrolled);
+  const completedLessons = sumActiveCompletedLessons(progress);
+  const finishedCourses = activeProgress.filter((row) => row.progress >= 100).length;
+  const nextLesson = upcomingLessons[0];
+  const continueCourse = nextLesson
+    ? courses.find((course) => (course._id || course.id) === nextLesson.courseId)
+    : undefined;
+  const continueProgress = nextLesson
+    ? activeProgress.find((row) => row.courseId === nextLesson.courseId)
+    : undefined;
+  const catalogSuggestion = courses.find((course) => !course.enrolled);
+  const started = enrolledCourses.length > 0 || completedLessons > 0;
 
   return (
     <div className="min-h-screen flex flex-col overflow-hidden">
       <Header />
-
       <div className="flex flex-1 relative overflow-hidden lg:items-start">
         <Sidebar />
-
-        <main className="flex-1 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8 pt-16 lg:pt-8 overflow-y-auto w-full">
-          <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <main className="flex-1 max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-10 pt-16 lg:pt-10 overflow-y-auto w-full">
+          <header className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="page-kicker mb-2">Learning home</p>
-              <h1 className="page-title">
-                Welcome back, {user?.name?.split(' ')[0] || 'Student'}
-              </h1>
-              <p className="mt-2 text-sm sm:text-base text-neutral-600">Pick up where you left off.</p>
+              <h1 className="page-title">{started ? `Welcome back, ${firstName}` : `Welcome, ${firstName}`}</h1>
+              <p className="mt-2 max-w-xl text-sm text-neutral-600">
+                {started ? 'Your next lesson is ready when you are.' : 'Start with a course. Your place in it will stay here.'}
+              </p>
               {progressView === 'refresh' && (
                 <div className="mt-3">
                   <LoadingStatus label="Updating your dashboard" compact />
                 </div>
               )}
             </div>
-            <div className="flex flex-wrap items-center gap-3">
-              {(user?.learningLevel || (user as any)?.studentDetails?.tradingLevel) && (
-                <span className="inline-flex items-center rounded-full border border-neutral-200 bg-white px-3 py-1 text-sm font-medium capitalize text-neutral-800">
-                  {user?.learningLevel || (user as any)?.studentDetails?.tradingLevel}
-                </span>
-              )}
-              <Link href="/onboarding" className="text-sm font-medium text-neutral-600 underline-offset-4 hover:text-neutral-900 hover:underline">
-                Edit profile
+            {level ? (
+              <span className="inline-flex w-fit items-center rounded-full border border-neutral-200 px-3 py-1 text-sm font-medium capitalize text-neutral-800">
+                {level}
+              </span>
+            ) : (
+              <Link href="/onboarding" className="text-sm font-medium text-neutral-600 underline-offset-4 hover:underline">
+                Set your level
               </Link>
-            </div>
-          </div>
+            )}
+          </header>
 
-          {upcomingLessons[0] ? (
-            <section className="mb-6 rounded-2xl border border-neutral-200 bg-white p-5 shadow-soft sm:p-6">
-              <p className="page-kicker">Next lesson</p>
-              <h2 className="mt-2 font-display text-xl font-semibold tracking-tight text-neutral-900 sm:text-2xl" dangerouslySetInnerHTML={{ __html: sanitizeForStudentView(upcomingLessons[0].lessonTitle) }} />
-              <p className="mt-2 text-sm text-neutral-600">{upcomingLessons[0].courseTitle}</p>
-              <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
-                <Link
-                  href={`/courses/${upcomingLessons[0].courseId}/lessons/${upcomingLessons[0].lessonId}`}
-                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary-400 px-4 py-2.5 text-sm font-semibold text-neutral-900 hover:bg-primary-500"
-                >
-                  Continue lesson
-                  <ArrowRight className="h-4 w-4" aria-hidden />
-                </Link>
-                <Link href="/student-dashboard" className="text-sm font-medium text-neutral-600 hover:text-neutral-900">
-                  Open trading practice
-                </Link>
+          {nextLesson ? (
+            <section className="mb-10 border-t border-neutral-200 pt-8">
+              <p className="page-kicker">Continue learning</p>
+              <div className="mt-4 flex flex-col gap-5 sm:flex-row sm:items-start">
+                {continueCourse?.thumbnail ? (
+                  <img src={continueCourse.thumbnail} alt="" className="h-28 w-full rounded-xl object-cover sm:h-32 sm:w-44" />
+                ) : null}
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm text-neutral-500">{nextLesson.courseTitle}</p>
+                  <h2 className="mt-1 font-display text-2xl font-semibold tracking-tight text-neutral-900" dangerouslySetInnerHTML={{ __html: sanitizeForStudentView(nextLesson.lessonTitle) }} />
+                  {typeof continueProgress?.progress === 'number' ? (
+                    <p className="mt-3 text-sm text-neutral-600">{Math.round(continueProgress.progress)}% of this course</p>
+                  ) : null}
+                  <Link
+                    href={`/courses/${nextLesson.courseId}/lessons/${nextLesson.lessonId}`}
+                    className="mt-5 inline-flex items-center gap-2 rounded-full bg-primary-400 px-5 py-2.5 text-sm font-semibold text-neutral-900 hover:bg-primary-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-700"
+                  >
+                    Continue learning
+                    <ArrowRight className="h-4 w-4" aria-hidden />
+                  </Link>
+                </div>
               </div>
-            </section>
-          ) : enrolledCourses.length > 0 ? (
-            <section className="mb-6 rounded-2xl border border-neutral-200 bg-white p-5 shadow-soft sm:p-6">
-              <p className="page-kicker">Practice</p>
-              <h2 className="mt-2 font-display text-xl font-semibold tracking-tight text-neutral-900 sm:text-2xl">Work through a demo trade</h2>
-              <p className="mt-2 max-w-2xl text-sm text-neutral-600">
-                Live prices, instructor tasks, and your trade journal are in the trading dashboard. Demo trading uses virtual money only.
-              </p>
-              <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
-                <Link
-                  href="/student-dashboard"
-                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary-400 px-4 py-2.5 text-sm font-semibold text-neutral-900 hover:bg-primary-500"
-                >
-                  Open trading dashboard
-                  <ArrowRight className="h-4 w-4" aria-hidden />
-                </Link>
-              </div>
-              <p className="mt-4 flex items-start gap-2 text-xs text-neutral-500">
-                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-700" aria-hidden />
-                <span>Demo trading is for education only. ForexOrbit Academy does not provide brokerage services or financial advice.</span>
-              </p>
             </section>
           ) : progressError ? (
-            <section className="mb-6 rounded-2xl border border-neutral-200 bg-white p-5 shadow-soft sm:p-6">
+            <section className="mb-10 border-t border-neutral-200 pt-8">
               <p className="page-kicker">Progress</p>
-              <h2 className="mt-2 font-display text-xl font-semibold tracking-tight text-neutral-900 sm:text-2xl">Progress could not be loaded</h2>
-              <p className="mt-2 max-w-2xl text-sm text-neutral-600">Your enrollments are unchanged. Try again before treating this as an empty enrollment list.</p>
-              <button type="button" onClick={() => refetchProgress()} className="mt-5 inline-flex items-center justify-center gap-2 rounded-lg bg-primary-400 px-4 py-2.5 text-sm font-semibold text-neutral-900 hover:bg-primary-500">Try again</button>
+              <h2 className="mt-2 font-display text-2xl font-semibold tracking-tight text-neutral-900">Progress could not be loaded</h2>
+              <p className="mt-2 max-w-xl text-sm text-neutral-600">Your enrollments are unchanged. Try again before treating this as an empty enrollment list.</p>
+              <button type="button" onClick={() => refetchProgress()} className="mt-5 inline-flex rounded-full bg-primary-400 px-5 py-2.5 text-sm font-semibold text-neutral-900 hover:bg-primary-500">Try again</button>
+            </section>
+          ) : enrolledCourses.length > 0 ? (
+            <section className="mb-10 border-t border-neutral-200 pt-8">
+              <p className="page-kicker">Continue learning</p>
+              <h2 className="mt-2 font-display text-2xl font-semibold tracking-tight text-neutral-900">You have finished the lessons in your current courses</h2>
+              <p className="mt-2 max-w-xl text-sm text-neutral-600">Review a course, or open another one from the library.</p>
+              <Link href="/courses" className="mt-5 inline-flex items-center gap-2 rounded-full bg-primary-400 px-5 py-2.5 text-sm font-semibold text-neutral-900 hover:bg-primary-500">
+                View your courses
+                <ArrowRight className="h-4 w-4" aria-hidden />
+              </Link>
             </section>
           ) : (
-            <section className="mb-6 rounded-2xl border border-neutral-200 bg-white p-5 shadow-soft sm:p-6">
-              <p className="page-kicker">Get started</p>
-              <h2 className="mt-2 font-display text-xl font-semibold tracking-tight text-neutral-900 sm:text-2xl">Choose a course to begin</h2>
-              <p className="mt-2 max-w-2xl text-sm text-neutral-600">Your enrolled courses, lessons, and practice tools will show up here once you join a course.</p>
-              <Link
-                href="/courses"
-                className="mt-5 inline-flex items-center justify-center gap-2 rounded-lg bg-primary-400 px-4 py-2.5 text-sm font-semibold text-neutral-900 hover:bg-primary-500"
-              >
+            <section className="mb-10 border-t border-neutral-200 pt-8">
+              <p className="page-kicker">Where to begin</p>
+              <h2 className="mt-2 font-display text-2xl font-semibold tracking-tight text-neutral-900">Choose a course, then open its first lesson</h2>
+              <p className="mt-2 max-w-xl text-sm leading-relaxed text-neutral-600">
+                Lessons, practice on the demo desk, and questions in the community all start from a course. Progress is kept on this page and on My progress.
+              </p>
+              <Link href="/courses" className="mt-5 inline-flex items-center gap-2 rounded-full bg-primary-400 px-5 py-2.5 text-sm font-semibold text-neutral-900 hover:bg-primary-500">
                 Browse courses
                 <ArrowRight className="h-4 w-4" aria-hidden />
               </Link>
             </section>
           )}
 
-          <section className="mb-8 grid grid-cols-1 divide-y divide-neutral-200 overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-soft sm:grid-cols-3 sm:divide-x sm:divide-y-0">
-            <div className="flex items-center gap-3 px-5 py-4">
-              <BookOpen className="h-4 w-4 shrink-0 text-primary-600" aria-hidden />
-              <div>
-                <p className="text-2xl font-semibold tracking-tight text-neutral-900">{enrolledCourses.length}</p>
-                <p className="text-xs text-neutral-500">Enrolled courses</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 px-5 py-4">
-              <CheckCircle2 className="h-4 w-4 shrink-0 text-green-700" aria-hidden />
-              <div>
-                <p className="text-2xl font-semibold tracking-tight text-neutral-900">{progressError ? '—' : completedModules}</p>
-                <p className="text-xs text-neutral-500">Completed modules</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 px-5 py-4">
-              <Star className="h-4 w-4 shrink-0 text-primary-600" aria-hidden />
-              <div>
-                <p className="text-2xl font-semibold tracking-tight text-neutral-900">{userPoints}</p>
-                <p className="text-xs text-neutral-500">Points earned</p>
-              </div>
-            </div>
-          </section>
-
-          <section className="mb-8">
-            <div className="mb-4 flex items-end justify-between gap-3">
-              <h2 className="font-display text-lg font-semibold tracking-tight text-neutral-900">Enrolled courses</h2>
-              <Link href="/courses" className="text-sm font-medium text-neutral-600 hover:text-neutral-900">
-                Browse all
-              </Link>
-            </div>
-            {enrolledCourses.length > 0 ? (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {enrolledCourses.map((course) => (
-                  <CourseCard key={course._id || course.id} course={course} />
-                ))}
-              </div>
-            ) : (
-              <div className="rounded-2xl border border-dashed border-neutral-300 bg-white px-6 py-10 text-center">
-                <p className="text-sm text-neutral-600">You have not enrolled in a course yet.</p>
-                <Link href="/courses" className="mt-4 inline-flex rounded-lg bg-primary-400 px-4 py-2 text-sm font-semibold text-neutral-900 hover:bg-primary-500">
-                  Browse courses
-                </Link>
-              </div>
-            )}
-          </section>
-
-          {upcomingLessons.length > 0 && (
-            <section className="mb-8 rounded-2xl border border-neutral-200 bg-white p-5 shadow-soft sm:p-6">
-              <h2 className="mb-4 font-display text-lg font-semibold tracking-tight text-neutral-900">Upcoming lessons</h2>
-              <div className="divide-y divide-neutral-200">
-                {upcomingLessons.map((lesson) => (
-                  <Link
-                    key={`${lesson.courseId}-${lesson.lessonId}`}
-                    href={`/courses/${lesson.courseId}/lessons/${lesson.lessonId}`}
-                    className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0"
-                  >
-                    <div className="min-w-0">
-                      <h3 className="truncate font-medium text-neutral-900" dangerouslySetInnerHTML={{ __html: sanitizeForStudentView(lesson.lessonTitle) }} />
-                      <p className="truncate text-sm text-neutral-500">{lesson.courseTitle}</p>
-                    </div>
-                    <span className="shrink-0 text-xs text-neutral-500">Lesson {lesson.order}</span>
-                  </Link>
-                ))}
-              </div>
-            </section>
-          )}
-
-          <section className="mb-8 grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-soft">
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <h2 className="font-display text-lg font-semibold tracking-tight text-neutral-900">Recommended</h2>
-                <Link href="/courses" className="text-sm font-medium text-neutral-600 hover:text-neutral-900">View all</Link>
-              </div>
-              {recommendedCourses.length > 0 ? (
-                <div className="space-y-4">
-                  {recommendedCourses.map((course) => (
-                    <div key={course._id || course.id} className="border-t border-neutral-200 pt-4 first:border-0 first:pt-0">
-                      <h3 className="font-medium text-neutral-900" dangerouslySetInnerHTML={{ __html: sanitizeForStudentView(course.title) }} />
-                      <p className="mt-1 line-clamp-2 text-sm text-neutral-600">
-                        {stripHtml(sanitizeForStudentView(course.description || ''))}
-                      </p>
-                      <Link href={`/courses/${course._id || course.id}`} className="mt-2 inline-flex text-sm font-semibold text-primary-700 hover:text-primary-800">
-                        View course
-                      </Link>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-neutral-500">No recommendations right now.</p>
-              )}
+          <section className="mb-10 grid grid-cols-3 gap-4 border-y border-neutral-200 py-5" aria-label="Learning progress">
+            <div>
+              <p className="font-display text-2xl font-semibold text-neutral-900">{progressError ? '—' : enrolledCourses.length}</p>
+              <p className="mt-1 text-xs text-neutral-500">Active courses</p>
             </div>
             <div>
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <h2 className="font-display text-lg font-semibold tracking-tight text-neutral-900">Reminders</h2>
-                <Link href="/student-dashboard?section=reminders" className="text-sm font-medium text-neutral-600 hover:text-neutral-900">
-                  View all
-                </Link>
-              </div>
-              <div className="space-y-4">
-                <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-soft">
-                  <RemindersPanel />
-                </div>
-                <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-soft">
-                  <TodoList />
-                </div>
-              </div>
+              <p className="font-display text-2xl font-semibold text-neutral-900">{progressError ? '—' : completedLessons}</p>
+              <p className="mt-1 text-xs text-neutral-500">Lessons completed</p>
+            </div>
+            <div>
+              <p className="font-display text-2xl font-semibold text-neutral-900">{progressError ? '—' : finishedCourses}</p>
+              <p className="mt-1 text-xs text-neutral-500">Courses completed</p>
             </div>
           </section>
 
-          <section className="mb-8 rounded-2xl border border-neutral-200 bg-white p-5 shadow-soft sm:p-6">
-            <h2 className="font-display text-lg font-semibold tracking-tight text-neutral-900">What this training covers</h2>
-            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="flex gap-3">
-                <CandlestickChart className="mt-0.5 h-4 w-4 shrink-0 text-neutral-500" aria-hidden />
-                <div>
-                  <h3 className="text-sm font-semibold text-neutral-900">Understanding Forex markets</h3>
-                  <p className="text-sm text-neutral-600">Currency pairs, sessions, and how prices move.</p>
-                </div>
-              </div>
-              <div className="flex gap-3">
-                <Zap className="mt-0.5 h-4 w-4 shrink-0 text-neutral-500" aria-hidden />
-                <div>
-                  <h3 className="text-sm font-semibold text-neutral-900">Executing trades</h3>
-                  <p className="text-sm text-neutral-600">How orders are placed and managed in practice.</p>
-                </div>
-              </div>
-              <div className="flex gap-3">
-                <Shield className="mt-0.5 h-4 w-4 shrink-0 text-neutral-500" aria-hidden />
-                <div>
-                  <h3 className="text-sm font-semibold text-neutral-900">Risk management</h3>
-                  <p className="text-sm text-neutral-600">Position size, stops, and protecting capital.</p>
-                </div>
-              </div>
-              <div className="flex gap-3">
-                <BarChart3 className="mt-0.5 h-4 w-4 shrink-0 text-neutral-500" aria-hidden />
-                <div>
-                  <h3 className="text-sm font-semibold text-neutral-900">Chart analysis</h3>
-                  <p className="text-sm text-neutral-600">Reading price charts without treating any setup as certain.</p>
-                </div>
-              </div>
-            </div>
-          </section>
+          {catalogSuggestion ? (
+            <section className="mb-10">
+              <p className="page-kicker">From the catalog</p>
+              <h2 className="mt-2 font-display text-xl font-semibold text-neutral-900" dangerouslySetInnerHTML={{ __html: sanitizeForStudentView(catalogSuggestion.title) }} />
+              <p className="mt-2 line-clamp-3 max-w-xl text-sm text-neutral-600">{stripHtml(sanitizeForStudentView(catalogSuggestion.description || ''))}</p>
+              <p className="mt-2 text-xs capitalize text-neutral-500">{catalogSuggestion.difficulty} · {catalogSuggestion.category}</p>
+              <Link href={`/courses/${catalogSuggestion._id || catalogSuggestion.id}`} className="mt-3 inline-flex text-sm font-semibold text-primary-700 hover:underline">
+                View this course
+              </Link>
+            </section>
+          ) : null}
 
-          <Link href="/leaderboard" className="mb-4 flex items-center justify-between rounded-2xl border border-neutral-200 bg-white px-5 py-4 text-sm shadow-soft hover:border-neutral-300">
-            <span>
-              <span className="block font-semibold text-neutral-900">Leaderboard</span>
-              <span className="text-neutral-500">See how your points compare with other learners.</span>
-            </span>
-            <ArrowRight className="h-4 w-4 shrink-0 text-neutral-500" aria-hidden />
-          </Link>
+          {upcomingLessons.length > 1 ? (
+            <section className="mb-10">
+              <h2 className="font-display text-lg font-semibold text-neutral-900">Also waiting</h2>
+              <ul className="mt-3 divide-y divide-neutral-200">
+                {upcomingLessons.slice(1).map((lesson) => (
+                  <li key={`${lesson.courseId}-${lesson.lessonId}`}>
+                    <Link href={`/courses/${lesson.courseId}/lessons/${lesson.lessonId}`} className="flex items-center justify-between gap-4 py-3">
+                      <span className="min-w-0">
+                        <span className="block truncate font-medium text-neutral-900" dangerouslySetInnerHTML={{ __html: sanitizeForStudentView(lesson.lessonTitle) }} />
+                        <span className="block truncate text-sm text-neutral-500">{lesson.courseTitle}</span>
+                      </span>
+                      <span className="shrink-0 text-xs text-neutral-500">Lesson {lesson.order}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
 
+          {consultations.length > 0 ? (
+            <section className="mb-10">
+              <h2 className="font-display text-lg font-semibold text-neutral-900">Consultations</h2>
+              <ul className="mt-3 divide-y divide-neutral-200">
+                {consultations.map((booking) => (
+                  <li key={booking._id} className="flex items-center justify-between gap-4 py-3">
+                    <span className="min-w-0">
+                      <span className="block truncate font-medium text-neutral-900">{booking.topic}</span>
+                      <span className="block text-sm text-neutral-500">{booking.startsAt ? new Date(booking.startsAt).toLocaleString() : ''}</span>
+                    </span>
+                    <Link href="/consultations" className="shrink-0 text-sm font-semibold text-primary-700">Open</Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+
+          <RemindersPanel hideWhenEmpty />
+
+          <p className="mt-10 text-sm text-neutral-500">
+            <Link href="/courses" className="font-semibold text-neutral-800 underline-offset-4 hover:underline">All courses</Link>
+            <span aria-hidden> · </span>
+            <Link href="/progress" className="font-semibold text-neutral-800 underline-offset-4 hover:underline">Progress</Link>
+          </p>
         </main>
       </div>
-
       <Footer />
     </div>
   );
 }
-

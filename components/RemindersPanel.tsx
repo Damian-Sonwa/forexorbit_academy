@@ -19,7 +19,7 @@ interface Reminder {
   createdAt: Date | string;
 }
 
-export default function RemindersPanel() {
+export default function RemindersPanel({ hideWhenEmpty = false }: { hideWhenEmpty?: boolean }) {
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [loading, setLoading] = useState(true);
   const { socket, connected } = useSocket();
@@ -104,6 +104,7 @@ export default function RemindersPanel() {
   };
 
   if (loading) {
+    if (hideWhenEmpty) return null;
     return (
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
         <div className="animate-pulse space-y-3">
@@ -115,6 +116,7 @@ export default function RemindersPanel() {
   }
 
   const upcomingReminders = reminders.filter((r) => !r.completed).slice(0, 5);
+  if (hideWhenEmpty && !loading && upcomingReminders.length === 0) return null;
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">

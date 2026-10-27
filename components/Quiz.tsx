@@ -127,7 +127,7 @@ export default function Quiz({ lessonId, quiz }: QuizProps) {
       {quiz.questions.map((question, qIndex) => (
         <div key={qIndex} className="p-6 bg-gray-50 rounded-xl border border-gray-200">
           <div className="flex items-start mb-4">
-            <div className="flex-shrink-0 w-8 h-8 bg-primary-600 text-white rounded-lg flex items-center justify-center font-bold mr-3">
+            <div className="flex-shrink-0 w-8 h-8 bg-primary-400 text-neutral-900 rounded-lg flex items-center justify-center font-bold mr-3">
               {qIndex + 1}
             </div>
             <p className="text-lg font-semibold text-gray-900 flex-1">
@@ -163,7 +163,7 @@ export default function Quiz({ lessonId, quiz }: QuizProps) {
         <button
           onClick={handleSubmit}
           disabled={loading || answers.length !== quiz.questions.length}
-          className="w-full px-6 py-4 bg-primary-600 hover:bg-primary-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-xl font-semibold text-lg transition-colors shadow-lg"
+          className="w-full px-6 py-4 bg-primary-400 hover:bg-primary-500 disabled:bg-gray-300 disabled:cursor-not-allowed text-neutral-900 rounded-xl font-semibold text-lg transition-colors"
         >
           {loading ? (
             <span className="flex items-center justify-center">
