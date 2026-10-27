@@ -145,7 +145,8 @@ export default function Consultations() {
   if (authLoading || !isAuthenticated) return <LoadingSpinner message="Loading consultations..." fullScreen />;
   if (user?.role !== 'student') return <div className="flex min-h-screen items-center justify-center">Access denied</div>;
 
-  const upcoming = bookings.filter((item) => ['PENDING_CONFIRMATION', 'CONFIRMED', 'RESCHEDULE_REQUESTED'].includes(item.lifecycle));
+  const openLifecycles = ['PENDING_CONFIRMATION', 'CONFIRMED', 'RESCHEDULE_REQUESTED'];
+  const upcoming = bookings.filter((item) => item.lifecycle != null && openLifecycles.includes(item.lifecycle));
   const closed = bookings.filter((item) => !upcoming.includes(item));
 
   return (
