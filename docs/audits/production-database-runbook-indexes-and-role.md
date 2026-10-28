@@ -139,3 +139,59 @@ A user that still holds `readWrite` therefore fails twice: once for the audit lo
 | Atlas custom role and app user switch, then the checker reports `PASS` | Owner (Atlas access) |
 | Optional: apply the same role to `forexorbit_dev` for parity | Owner (Atlas access) |
 | Cross-process concurrency test on real MongoDB (plan section 5) | Needs a disposable `mongod` |
+
+## Release day: exact commands, in order
+
+Run from this repository on a trusted machine. Production values are typed at a hidden prompt, never written to a file, and removed from the shell afterwards.
+
+**0. Before anything (owner, dashboards only)**
+- **Atlas backup:** go to **Clusters → `<production cluster>` → Backup → Snapshots**. Confirm a completed snapshot from today, or take an on-demand snapshot and wait for "Completed". Record its time in the authoritative report.
+- **Render:** open the service `forex-elearning-app` (or your actual service), then **Settings → Build & Deploy**. Confirm **Branch = `master`** and Auto-Deploy on. `render.yaml` names no branch, so only the dashboard shows this.
+- **Vercel:** the frontend is also deployed on Vercel (`performance-audit.md`). In the Vercel project, confirm its production branch. If it is `master`, the merge deploys it too. Any variables set on Render (for example `SHARED_RATE_LIMIT`) must then also be set there if Vercel serves `/api` routes.
+
+**1. Merge (fast-forward only; it deploys)**
+```powershell
+git fetch origin
+git merge-base --is-ancestor origin/master origin/review/sprint-1-3-integration; if ($LASTEXITCODE -ne 0) { 'master has moved: stop' }
+git push origin origin/review/sprint-1-3-integration:refs/heads/master
+```
+A plain push is refused unless it is a fast-forward, so it can't overwrite `master`. The working tree and `template/` are not touched.
+
+The PR alternative is https://github.com/Damian-Sonwa/forexorbit_academy/compare/master...review/sprint-1-3-integration, then **Create pull request → Merge**.
+
+**2. After the deploy finishes: signed-out smoke checks (read-only)**
+```powershell
+$base = 'https://forexorbit-academy.onrender.com'   # use the URL Render shows for the service
+function Code($m, $p) { try { (Invoke-WebRequest -Method $m -Uri "$base$p" -UseBasicParsing -TimeoutSec 30 -ContentType 'application/json' -Body $(if ($m -eq 'POST') { '{}' })).StatusCode } catch { [int]$_.Exception.Response.StatusCode } }
+"home 200: "               + (Code GET  '/')
+"course list 200: "        + (Code GET  '/api/courses')
+"auth/me 401: "            + (Code GET  '/api/auth/me')
+"admin purchases 401: "    + (Code GET  '/api/admin/purchases')
+"payment exceptions 401: " + (Code GET  '/api/admin/payment-exceptions')
+"init-course 401: "        + (Code POST '/api/payments/paystack/init-course')
+"unsigned webhook 401: "   + (Code POST '/api/paystack/webhook')
+```
+None of these writes anything: the webhook route rejects an unsigned request before any database access. Then check the Render logs for a clean start and no `E11000` or `rate-limit-unavailable` lines.
+
+**3. Index preflight (read-only), then build.** Follow steps 3–7 of "Production: indexes" above:
+- `node scripts/course-payment-indexes.js --database Forex_elearning`, entering the URI at the `-AsSecureString` prompt;
+- stop if any scan S1–S6 reports groups;
+- otherwise run `--apply` and expect "Verified: all 7 indexes are present with the expected keys and options".
+
+**4. App role.** Follow "Steps in Atlas" above. Then:
+```powershell
+node scripts/check-db-role.js --database Forex_elearning
+```
+This must print `PASS`, with no `FAIL … grants more than the role` lines.
+
+**5. Shared rate limit.** In Render (and Vercel, if step 0 says so), set `SHARED_RATE_LIMIT=mongodb` and save; the service restarts. Repeat the step 2 checks.
+
+**6. Signed-in checks S1–S8** (`browser-verification-checklist.md`) are run by the owner, against production with the owner's own accounts. No checkout and no payment.
+
+**7. Record** each result (time, PASS or FAIL, no values) in the last section of `release-readiness-2026-10-26.md`.
+
+**Rollback at any step:**
+- **Code:** redeploy the previous commit `453f813` from the Render dashboard (**Manual Deploy → deploy a specific commit**).
+- **Indexes:** run `--rollback`.
+- **Role:** give the app user `readWrite` again.
+- **Shared limit:** remove `SHARED_RATE_LIMIT`.
