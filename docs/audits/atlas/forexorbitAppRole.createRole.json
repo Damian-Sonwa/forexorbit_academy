@@ -1,0 +1,607 @@
+{
+  "role": "forexorbitAppRole",
+  "privileges": [
+    {
+      "resource": {
+        "db": "Forex_elearning",
+        "collection": "Screenshots"
+      },
+      "actions": [
+        "find",
+        "insert",
+        "update",
+        "remove"
+      ]
+    },
+    {
+      "resource": {
+        "db": "Forex_elearning",
+        "collection": "assignmentSubmissions"
+      },
+      "actions": [
+        "find",
+        "insert",
+        "update",
+        "remove"
+      ]
+    },
+    {
+      "resource": {
+        "db": "Forex_elearning",
+        "collection": "assignments"
+      },
+      "actions": [
+        "find",
+        "insert",
+        "update",
+        "remove"
+      ]
+    },
+    {
+      "resource": {
+        "db": "Forex_elearning",
+        "collection": "badges"
+      },
+      "actions": [
+        "find",
+        "insert",
+        "update",
+        "remove"
+      ]
+    },
+    {
+      "resource": {
+        "db": "Forex_elearning",
+        "collection": "certificateTemplates"
+      },
+      "actions": [
+        "find",
+        "insert",
+        "update",
+        "remove"
+      ]
+    },
+    {
+      "resource": {
+        "db": "Forex_elearning",
+        "collection": "certificates"
+      },
+      "actions": [
+        "find",
+        "insert",
+        "update",
+        "remove"
+      ]
+    },
+    {
+      "resource": {
+        "db": "Forex_elearning",
+        "collection": "challengeCompletions"
+      },
+      "actions": [
+        "find",
+        "insert",
+        "update",
+        "remove"
+      ]
+    },
+    {
+      "resource": {
+        "db": "Forex_elearning",
+        "collection": "challenges"
+      },
+      "actions": [
+        "find",
+        "insert",
+        "update",
+        "remove"
+      ]
+    },
+    {
+      "resource": {
+        "db": "Forex_elearning",
+        "collection": "classes"
+      },
+      "actions": [
+        "find",
+        "insert",
+        "update",
+        "remove"
+      ]
+    },
+    {
+      "resource": {
+        "db": "Forex_elearning",
+        "collection": "communityMessages"
+      },
+      "actions": [
+        "find",
+        "insert",
+        "update",
+        "remove"
+      ]
+    },
+    {
+      "resource": {
+        "db": "Forex_elearning",
+        "collection": "communityNews"
+      },
+      "actions": [
+        "find",
+        "insert",
+        "update",
+        "remove"
+      ]
+    },
+    {
+      "resource": {
+        "db": "Forex_elearning",
+        "collection": "communityQuestions"
+      },
+      "actions": [
+        "find",
+        "insert",
+        "update",
+        "remove"
+      ]
+    },
+    {
+      "resource": {
+        "db": "Forex_elearning",
+        "collection": "communityReplies"
+      },
+      "actions": [
+        "find",
+        "insert",
+        "update",
+        "remove"
+      ]
+    },
+    {
+      "resource": {
+        "db": "Forex_elearning",
+        "collection": "communityRooms"
+      },
+      "actions": [
+        "find",
+        "insert",
+        "update",
+        "remove"
+      ]
+    },
+    {
+      "resource": {
+        "db": "Forex_elearning",
+        "collection": "communityVotes"
+      },
+      "actions": [
+        "find",
+        "insert",
+        "update",
+        "remove"
+      ]
+    },
+    {
+      "resource": {
+        "db": "Forex_elearning",
+        "collection": "consultationMessages"
+      },
+      "actions": [
+        "find",
+        "insert",
+        "update",
+        "remove"
+      ]
+    },
+    {
+      "resource": {
+        "db": "Forex_elearning",
+        "collection": "consultationRequests"
+      },
+      "actions": [
+        "find",
+        "insert",
+        "update",
+        "remove"
+      ]
+    },
+    {
+      "resource": {
+        "db": "Forex_elearning",
+        "collection": "consultationSessions"
+      },
+      "actions": [
+        "find",
+        "insert",
+        "update",
+        "remove"
+      ]
+    },
+    {
+      "resource": {
+        "db": "Forex_elearning",
+        "collection": "coursePurchases"
+      },
+      "actions": [
+        "find",
+        "insert",
+        "update",
+        "remove"
+      ]
+    },
+    {
+      "resource": {
+        "db": "Forex_elearning",
+        "collection": "courses"
+      },
+      "actions": [
+        "find",
+        "insert",
+        "update",
+        "remove"
+      ]
+    },
+    {
+      "resource": {
+        "db": "Forex_elearning",
+        "collection": "demoAccounts"
+      },
+      "actions": [
+        "find",
+        "insert",
+        "update",
+        "remove"
+      ]
+    },
+    {
+      "resource": {
+        "db": "Forex_elearning",
+        "collection": "demoTaskSubmissions"
+      },
+      "actions": [
+        "find",
+        "insert",
+        "update",
+        "remove"
+      ]
+    },
+    {
+      "resource": {
+        "db": "Forex_elearning",
+        "collection": "demoTasks"
+      },
+      "actions": [
+        "find",
+        "insert",
+        "update",
+        "remove"
+      ]
+    },
+    {
+      "resource": {
+        "db": "Forex_elearning",
+        "collection": "demoTradeJournal"
+      },
+      "actions": [
+        "find",
+        "insert",
+        "update",
+        "remove"
+      ]
+    },
+    {
+      "resource": {
+        "db": "Forex_elearning",
+        "collection": "demoTrades"
+      },
+      "actions": [
+        "find",
+        "insert",
+        "update",
+        "remove"
+      ]
+    },
+    {
+      "resource": {
+        "db": "Forex_elearning",
+        "collection": "forumPosts"
+      },
+      "actions": [
+        "find",
+        "insert",
+        "update",
+        "remove"
+      ]
+    },
+    {
+      "resource": {
+        "db": "Forex_elearning",
+        "collection": "instructors"
+      },
+      "actions": [
+        "find",
+        "insert",
+        "update",
+        "remove"
+      ]
+    },
+    {
+      "resource": {
+        "db": "Forex_elearning",
+        "collection": "lessonPurchases"
+      },
+      "actions": [
+        "find",
+        "insert",
+        "update",
+        "remove"
+      ]
+    },
+    {
+      "resource": {
+        "db": "Forex_elearning",
+        "collection": "lessons"
+      },
+      "actions": [
+        "find",
+        "insert",
+        "update",
+        "remove"
+      ]
+    },
+    {
+      "resource": {
+        "db": "Forex_elearning",
+        "collection": "messages"
+      },
+      "actions": [
+        "find",
+        "insert",
+        "update",
+        "remove"
+      ]
+    },
+    {
+      "resource": {
+        "db": "Forex_elearning",
+        "collection": "notifications"
+      },
+      "actions": [
+        "find",
+        "insert",
+        "update",
+        "remove"
+      ]
+    },
+    {
+      "resource": {
+        "db": "Forex_elearning",
+        "collection": "passwordPhoneResets"
+      },
+      "actions": [
+        "find",
+        "insert",
+        "update",
+        "remove"
+      ]
+    },
+    {
+      "resource": {
+        "db": "Forex_elearning",
+        "collection": "passwordResetSecurityLogs"
+      },
+      "actions": [
+        "find",
+        "insert",
+        "update",
+        "remove"
+      ]
+    },
+    {
+      "resource": {
+        "db": "Forex_elearning",
+        "collection": "paymentExceptions"
+      },
+      "actions": [
+        "find",
+        "insert",
+        "update",
+        "remove"
+      ]
+    },
+    {
+      "resource": {
+        "db": "Forex_elearning",
+        "collection": "paystackPaymentIntents"
+      },
+      "actions": [
+        "find",
+        "insert",
+        "update",
+        "remove"
+      ]
+    },
+    {
+      "resource": {
+        "db": "Forex_elearning",
+        "collection": "paystackPayments"
+      },
+      "actions": [
+        "find",
+        "insert",
+        "update",
+        "remove"
+      ]
+    },
+    {
+      "resource": {
+        "db": "Forex_elearning",
+        "collection": "progress"
+      },
+      "actions": [
+        "find",
+        "insert",
+        "update",
+        "remove"
+      ]
+    },
+    {
+      "resource": {
+        "db": "Forex_elearning",
+        "collection": "quizScores"
+      },
+      "actions": [
+        "find",
+        "insert",
+        "update",
+        "remove"
+      ]
+    },
+    {
+      "resource": {
+        "db": "Forex_elearning",
+        "collection": "quizzes"
+      },
+      "actions": [
+        "find",
+        "insert",
+        "update",
+        "remove"
+      ]
+    },
+    {
+      "resource": {
+        "db": "Forex_elearning",
+        "collection": "rateLimits"
+      },
+      "actions": [
+        "find",
+        "insert",
+        "update",
+        "remove"
+      ]
+    },
+    {
+      "resource": {
+        "db": "Forex_elearning",
+        "collection": "reminders"
+      },
+      "actions": [
+        "find",
+        "insert",
+        "update",
+        "remove"
+      ]
+    },
+    {
+      "resource": {
+        "db": "Forex_elearning",
+        "collection": "todos"
+      },
+      "actions": [
+        "find",
+        "insert",
+        "update",
+        "remove"
+      ]
+    },
+    {
+      "resource": {
+        "db": "Forex_elearning",
+        "collection": "userBadges"
+      },
+      "actions": [
+        "find",
+        "insert",
+        "update",
+        "remove"
+      ]
+    },
+    {
+      "resource": {
+        "db": "Forex_elearning",
+        "collection": "userCourseAccess"
+      },
+      "actions": [
+        "find",
+        "insert",
+        "update",
+        "remove"
+      ]
+    },
+    {
+      "resource": {
+        "db": "Forex_elearning",
+        "collection": "userLessonAccess"
+      },
+      "actions": [
+        "find",
+        "insert",
+        "update",
+        "remove"
+      ]
+    },
+    {
+      "resource": {
+        "db": "Forex_elearning",
+        "collection": "users"
+      },
+      "actions": [
+        "find",
+        "insert",
+        "update",
+        "remove"
+      ]
+    },
+    {
+      "resource": {
+        "db": "Forex_elearning",
+        "collection": "adminAuditLog"
+      },
+      "actions": [
+        "find",
+        "insert"
+      ]
+    },
+    {
+      "resource": {
+        "db": "Forex_elearning",
+        "collection": "consultationMessages"
+      },
+      "actions": [
+        "createCollection",
+        "createIndex"
+      ]
+    },
+    {
+      "resource": {
+        "db": "Forex_elearning",
+        "collection": "consultationRequests"
+      },
+      "actions": [
+        "createCollection",
+        "createIndex"
+      ]
+    },
+    {
+      "resource": {
+        "db": "Forex_elearning",
+        "collection": "consultationSessions"
+      },
+      "actions": [
+        "createCollection",
+        "createIndex"
+      ]
+    },
+    {
+      "resource": {
+        "db": "Forex_elearning",
+        "collection": ""
+      },
+      "actions": [
+        "listCollections"
+      ]
+    }
+  ],
+  "roles": []
+}
