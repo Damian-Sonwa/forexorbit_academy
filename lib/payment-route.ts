@@ -8,7 +8,7 @@ import type { AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
 import { isStaffRole } from '@/lib/lesson-monetization';
 import { createRateLimiter } from '@/lib/rate-limit';
-import { consumeSharedLimit } from '@/lib/shared-rate-limit';
+import { consumeSharedLimit, sharedLimitEnabled } from '@/lib/shared-rate-limit';
 import {
   confirmCoursePayment,
   decidePaymentEnvironment,
@@ -51,14 +51,15 @@ export function studentOnly(req: AuthRequest, res: NextApiResponse): boolean {
 }
 
 /**
- * Per-user limit, counted in this process and in the shared store so several server instances
- * cannot multiply it. If the shared store is unreachable the request is refused, not let through.
+ * Per-user limit, counted in this process and, once SHARED_RATE_LIMIT=mongodb is set, in the
+ * shared store so several server instances cannot multiply it. If the shared store is
+ * unreachable the request is refused, not let through.
  */
 export async function withinRateLimit(kind: 'init' | 'confirm', req: AuthRequest, res: NextApiResponse): Promise<boolean> {
   const limiter = kind === 'init' ? initLimiter : confirmLimiter;
   const userId = req.user!.userId;
   let decision = limiter.check(`${kind}:${userId}`);
-  if (decision.allowed) {
+  if (decision.allowed && sharedLimitEnabled()) {
     try {
       decision = await consumeSharedLimit(await getDb(), { scope: `payment-${kind}`, key: userId, windowMs: LIMIT_WINDOW_MS, max: LIMITS[kind] });
     } catch {

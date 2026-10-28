@@ -9,7 +9,7 @@ import type { AuthRequest } from '@/lib/auth-middleware';
 import { authorizeLedgerAccess } from '@/lib/admin-purchase-ledger';
 import { getDb } from '@/lib/mongodb';
 import { createRateLimiter } from '@/lib/rate-limit';
-import { consumeSharedLimit } from '@/lib/shared-rate-limit';
+import { consumeSharedLimit, sharedLimitEnabled } from '@/lib/shared-rate-limit';
 
 const LIMIT_WINDOW_MS = 10 * 60 * 1000;
 const LIMITS = { provider: 20, write: 60 } as const;
@@ -27,7 +27,7 @@ export function superAdminOnly(req: AuthRequest, res: NextApiResponse): boolean 
 export async function withinLedgerLimit(kind: 'provider' | 'write', req: AuthRequest, res: NextApiResponse): Promise<boolean> {
   const userId = req.user!.userId;
   let decision = (kind === 'provider' ? providerLimiter : writeLimiter).check(`${kind}:${userId}`);
-  if (decision.allowed) {
+  if (decision.allowed && sharedLimitEnabled()) {
     try {
       decision = await consumeSharedLimit(await getDb(), { scope: `ledger-${kind}`, key: userId, windowMs: LIMIT_WINDOW_MS, max: LIMITS[kind] });
     } catch {

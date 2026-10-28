@@ -265,3 +265,23 @@ The full results, the `fo_1…gow7` checklist and the refund and dispute decisio
 - **R1.** A TTL index on `rateLimits.expiresAt`, managed by the index script.
 - **D9 checker.** It now also fails on excessive privileges. `rateLimits` was added to the role.
 - **Verification.** `npm test` 446/446 offline, tsc exit 0, lint exit 0, and an isolated build exit 0.
+
+## 11. Final release closure (28 October 2026)
+
+The full evidence is in the authoritative report (`release-readiness-2026-10-26.md`, last section).
+
+**Owner decisions**
+- **Atlas `Damian25`:** removal confirmed by the owner. Closed.
+- **`fo_1…gow7`:** deferred outside the release gate. The record is untouched and not reconciled.
+- **Refunds and disputes:** Paystack processes refunds and handles disputes. ForexOrbit records the signed events, never changes access from them, and routes them to Super Admin review. The ledger wording now says this.
+
+**Code**
+- The shared rate limit is behind `SHARED_RATE_LIMIT=mongodb`, so a deploy does not depend on R1.
+- `postcss-selector-parser` was updated from 6.1.2 to 6.1.5 (lockfile only).
+- New `scripts/payment-concurrency-rehearsal.js`.
+
+**Evidence**
+- **Real-MongoDB rehearsal** (8 processes, dev server 8.0.34): 5 of 5 pass.
+- **Dev indexes:** R1 built; all 7 indexes verified.
+- **Checks:** `npm test` 447/447 offline, tsc and lint exit 0.
+- **Online `npm audit`:** 1 low and 2 moderate remain (`quill` and `react-quill`, staff-only; `deepmerge`). Neither has a fix, so owner risk acceptance is needed.

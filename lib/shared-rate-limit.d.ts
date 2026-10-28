@@ -9,3 +9,4 @@ export function consumeSharedLimit(
   db: unknown,
   input: { scope: string; key: string; windowMs: number; max: number; now?: number }
 ): Promise<{ allowed: boolean; retryAfterSec: number }>;
+export function sharedLimitEnabled(env?: Record<string, string | undefined>): boolean;

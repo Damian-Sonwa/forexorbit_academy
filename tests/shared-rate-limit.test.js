@@ -8,7 +8,7 @@ const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
 
-const { RATE_LIMIT_COLLECTION, consumeSharedLimit } = require('../lib/shared-rate-limit');
+const { RATE_LIMIT_COLLECTION, consumeSharedLimit, sharedLimitEnabled } = require('../lib/shared-rate-limit');
 const { createRateLimiter } = require('../lib/rate-limit');
 
 const WINDOW = 10 * 60 * 1000;
@@ -86,12 +86,21 @@ test('an unreachable store throws so the route refuses the request', async () =>
   await assert.rejects(consume(db, T0), /connection refused/);
 });
 
+test('the shared count is off until SHARED_RATE_LIMIT=mongodb is set, so a deploy does not depend on R1', () => {
+  assert.equal(sharedLimitEnabled({}), false);
+  assert.equal(sharedLimitEnabled({ SHARED_RATE_LIMIT: '' }), false);
+  assert.equal(sharedLimitEnabled({ SHARED_RATE_LIMIT: 'memory' }), false);
+  assert.equal(sharedLimitEnabled({ SHARED_RATE_LIMIT: 'mongodb' }), true);
+  assert.equal(sharedLimitEnabled({ SHARED_RATE_LIMIT: ' MongoDB ' }), true);
+});
+
 test('payment and ledger routes count in the shared store and refuse when it is unavailable', () => {
   const read = (relative) => fs.readFileSync(path.join(__dirname, '..', relative), 'utf8');
   const paymentRoute = read('lib/payment-route.ts');
   const ledgerRoute = read('lib/admin-ledger-route.ts');
   for (const source of [paymentRoute, ledgerRoute]) {
     assert.match(source, /consumeSharedLimit\(await getDb\(\)/);
+    assert.match(source, /if \(decision\.allowed && sharedLimitEnabled\(\)\) \{/);
     assert.match(source, /res\.status\(503\)/);
     assert.doesNotMatch(source, /catch \{\s*return true/);
   }

@@ -1,10 +1,11 @@
 # Production database: unique indexes and app role (D2/D3, D9)
 
 **Status (28 October 2026):**
-- **Dev database:** done. The six unique indexes are built and verified on `Forex_elearning_dev`.
+- **Dev database:** done. The six unique indexes and the R1 TTL index are built. The script verified all 7 on `Forex_elearning_dev`.
+- **Real-MongoDB rehearsal:** passed 5 of 5 with 8 independent processes (`scripts/payment-concurrency-rehearsal.js`; results in `release-readiness-2026-10-26.md`, the authoritative report).
 - **Production:** not done. It needs the project owner, who holds the Atlas and production credentials. The agent has none and must not use them.
 
-The application stays **NOT PRODUCTION-READY** until this runbook is completed and the other release blockers are closed.
+The application is not called production-ready until this runbook is completed and recorded in the authoritative report.
 
 ## What was done on the dev database
 
@@ -24,7 +25,14 @@ The application stays **NOT PRODUCTION-READY** until this runbook is completed a
 
 As a result, the full-content hash comparison doesn't span the build. The data evidence is the count check above, which matches the read-only baseline taken earlier the same morning.
 
-**No disposable rehearsal.** No local `mongod` or Docker was available, so the throwaway-database rehearsal in section 5 of the index migration plan was not run. Without a second database, there was also no cross-process concurrency test against real MongoDB. The dev database (5 payment rows) served as the first real build.
+**Rehearsal (later on 28 October).** There is still no local `mongod`. Instead, `scripts/payment-concurrency-rehearsal.js` ran on the dev server (MongoDB 8.0.34). It used throwaway `rehearsal_<run>_` collections built with the real I1–I6 and R1 definitions, and 8 independent Node processes. Five scenarios passed:
+- concurrent checkouts share one pending intent;
+- concurrent confirmations grant exactly once;
+- a replayed webhook changes nothing;
+- a stale claim is recovered once;
+- the shared rate limit holds across processes.
+
+The rehearsal collections were dropped afterwards, and existing dev data was not touched.
 
 ## Index definitions (as built)
 
@@ -53,8 +61,8 @@ The fix: the older intent now stays `processing` with no claim time. The next co
 
 Do these in order. Stop at any failure.
 
-1. **Deploy the application code first.** The live site runs older code (`main`) that lacks the duplicate-key handling in `createCourseIntent` and `releaseIntent`. Building I2 under that code would turn concurrent checkouts into errors. Deploying needs the release blockers closed and your approval.
-2. **Back up.** Take an Atlas snapshot (or confirm continuous backup) of the production cluster.
+1. **Back up.** Take an Atlas snapshot, or confirm continuous backup, of the production cluster before anything else.
+2. **Deploy the application code.** The live site runs older code from `master`. That code lacks the duplicate-key handling in `createCourseIntent` and `releaseIntent`, and building I2 under it would turn concurrent checkouts into errors. Merging `review/sprint-1-3-integration` into `master` deploys it through Render. The new code runs safely before the indexes exist, and its shared rate limit stays off until step 8.
 3. **Run the dry run.** From a trusted machine, with the production connection string set only in that shell, never written to a file in the repo:
    ```powershell
    $s = Read-Host 'Production URI' -AsSecureString
@@ -70,9 +78,12 @@ Do these in order. Stop at any failure.
    ```
    The user needs `createIndex` on the payment collections and on `rateLimits`. The current app user (`readWrite`) has it, so do this **before** step 3 of the role section below. Otherwise, use a separate maintenance user.
 
-   The script also manages **R1**, a TTL index on `rateLimits.expiresAt` (`ttl_rate_limit_window`, `expireAfterSeconds: 0`), built last. It is not unique. Without it, rate-limit counters still work but expired windows are never deleted. The app role has no `createIndex` on `rateLimits`, so R1 must be built here, before the shared rate limit is deployed.
+   The script also manages **R1**, a TTL index on `rateLimits.expiresAt` (`ttl_rate_limit_window`, `expireAfterSeconds: 0`), built last. It is not unique. Without it, rate-limit counters still work but expired windows are never deleted. The app role has no `createIndex` on `rateLimits`, so R1 must be built here, before the shared rate limit is switched on.
 6. **Check the result.** The script verifies every index after building. Afterwards, watch the logs for `E11000` for a week.
 7. **Clean up the shell:** `Remove-Item Env:MONGO_URI`.
+8. **Switch on the shared rate limit.** Only after R1 is verified, and after the role section below if you apply it now, set `SHARED_RATE_LIMIT=mongodb` in the Render environment. Render restarts the service.
+   - **Check:** payment init and confirm work as before, and the `rateLimits` collection receives documents.
+   - **Rollback:** remove the variable. Routes return to the per-process limit.
 
 **Rollback:** `node scripts/course-payment-indexes.js --database Forex_elearning --rollback` drops only the seven managed indexes (I1–I6 and R1) by name. It changes no documents.
 
