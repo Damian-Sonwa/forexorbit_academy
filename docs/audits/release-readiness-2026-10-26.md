@@ -433,3 +433,17 @@ Both are planned as a follow-up branch.
 **Update 12:53 UTC.** After the second push (`81e0841`), both build ids changed: Render `A3dd1XPxOT0mDDXlHxTru`, Vercel `K54qGaWNCwjEzh3eNJuP6`. **Vercel does deploy from `master`**; it was only slower than Render. Signed-out checks on both new builds pass.
 
 On Render, the unsigned webhook now returns **401**: the payment-environment gate passes and the signature check rejects the request. This is the expected production behavior, and indicates that a live key is now configured on Render; the key itself was not read. Vercel still returns 503 (not configured). If Vercel should serve payments, set the same live keys there. If it should not, leave them unset, which stays fail-closed.
+
+### Production indexes — 28 October 2026, 13:1x UTC (owner-requested)
+
+The agent ran these against `Forex_elearning` as `forexorbit_app`, using a connection string the owner placed in the local `.env`. The connection string was never printed. The Atlas backup was not verified by the agent.
+
+- **First dry run: refused.** S2 found 3 groups: 8 course intents with no `status` field. Seven were created on 22 March 2026. One was created at 11:49:58 UTC on 28 October, before the merge, by the previously deployed code, which did not set a status. A read-only check showed that none of the 8 has a payment row and none of the users has access to that course.
+- **Owner-approved fix.** Exactly those 8 intents were set to `status: 'expired'`, `closedAt`, `closedReason: 'legacy_no_status'`; 8 matched and 8 were modified, and 0 intents without a status remain. This is the treatment prescribed in the migration plan. Nothing was deleted.
+- **Second dry run:** S1–S6 report 0 groups; "Ready to build".
+- **`--apply`:** created I1, I3, I6, I2, I5, I4 and R1. **"Verified: all 7 indexes are present with the expected keys and options."**
+
+**Still to do:**
+- switch the app role, then `check-db-role.js` must report PASS;
+- only after that, set `SHARED_RATE_LIMIT=mongodb`;
+- the signed-in checks S1–S8.
