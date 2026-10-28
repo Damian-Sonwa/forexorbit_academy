@@ -429,3 +429,7 @@ Do these steps in the Paystack dashboard, without copying payer details into any
 - `react-player` 2 → 3.4 drops `deepmerge`, but it is a major rewrite of the player API.
 
 Both are planned as a follow-up branch.
+
+**Update 12:53 UTC.** After the second push (`81e0841`), both build ids changed: Render `A3dd1XPxOT0mDDXlHxTru`, Vercel `K54qGaWNCwjEzh3eNJuP6`. **Vercel does deploy from `master`**; it was only slower than Render. Signed-out checks on both new builds pass.
+
+On Render, the unsigned webhook now returns **401**: the payment-environment gate passes and the signature check rejects the request. This is the expected production behavior, and indicates that a live key is now configured on Render; the key itself was not read. Vercel still returns 503 (not configured). If Vercel should serve payments, set the same live keys there. If it should not, leave them unset, which stays fail-closed.
