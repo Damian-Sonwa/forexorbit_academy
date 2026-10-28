@@ -17,6 +17,7 @@ const { COURSE_PRICE_KOBO, COURSE_CURRENCY, COURSE_PRICE_LABEL, formatNairaFromK
 const { createRateLimiter } = require('../lib/rate-limit');
 
 const { COLLECTIONS } = payment;
+const { COURSE_PAYMENT_INDEXES } = require('../lib/course-payment-indexes');
 const root = path.join(__dirname, '..');
 const read = (relative) => fs.readFileSync(path.join(root, relative), 'utf8');
 
@@ -62,11 +63,32 @@ function matches(doc, query) {
 /** Lets other pending work run, the way a network round trip to MongoDB would. */
 const yieldTurn = () => new Promise((resolve) => setImmediate(resolve));
 
+/** Index key for `doc`, or null when a partial index does not cover it (missing fields count as null). */
+function indexKey(doc, index) {
+  const partial = index.options.partialFilterExpression;
+  if (partial && !matches(doc, partial)) return null;
+  return JSON.stringify(Object.keys(index.key).map((field) => (doc[field] === undefined ? null : String(doc[field]))));
+}
+
+function duplicateKeyError(index) {
+  return Object.assign(new Error(`E11000 duplicate key error index: ${index.options.name}`), { code: 11000, codeName: 'DuplicateKey' });
+}
+
 class MemoryCollection {
-  constructor(options = {}) {
+  constructor(options = {}, name = '') {
     this.docs = [];
     this.seq = 0;
     this.racy = Boolean(options.racyUpserts);
+    this.uniqueIndexes = (options.uniqueIndexes || []).filter((index) => index.collection === name);
+  }
+
+  /** Throws like MongoDB when `candidate` would share a unique index key with another document. */
+  assertUnique(candidate) {
+    for (const index of this.uniqueIndexes) {
+      const key = indexKey(candidate, index);
+      if (key === null) continue;
+      if (this.docs.some((row) => row !== candidate && indexKey(row, index) === key)) throw duplicateKeyError(index);
+    }
   }
 
   async findOne(query) {
@@ -98,6 +120,7 @@ class MemoryCollection {
   async insertOne(doc) {
     if (this.racy) await yieldTurn();
     const row = { _id: doc._id ?? `id_${++this.seq}`, ...doc };
+    this.assertUnique(row);
     this.docs.push(row);
     return { insertedId: row._id };
   }
@@ -120,11 +143,22 @@ class MemoryCollection {
       this.docs.push(doc);
       upserted = true;
     }
+    const before = { ...doc };
     Object.assign(doc, update.$set || {});
     for (const [key, value] of Object.entries(update.$inc || {})) doc[key] = (doc[key] || 0) + value;
     for (const [key, value] of Object.entries(update.$push || {})) doc[key] = [...(doc[key] || []), value];
     for (const [key, value] of Object.entries(update.$pull || {})) {
       doc[key] = (doc[key] || []).filter((item) => !sameValue(item, value));
+    }
+    try {
+      this.assertUnique(doc);
+    } catch (error) {
+      if (upserted) this.docs.splice(this.docs.indexOf(doc), 1);
+      else {
+        for (const key of Object.keys(doc)) delete doc[key];
+        Object.assign(doc, before);
+      }
+      throw error;
     }
     return { matchedCount: upserted ? 0 : 1, modifiedCount: upserted ? 0 : 1, upsertedCount: upserted ? 1 : 0 };
   }
@@ -134,7 +168,7 @@ function memoryDb(options = {}) {
   const collections = new Map();
   return {
     collection(name) {
-      if (!collections.has(name)) collections.set(name, new MemoryCollection(options));
+      if (!collections.has(name)) collections.set(name, new MemoryCollection(options, name));
       return collections.get(name);
     },
     rows(name) {
@@ -837,6 +871,110 @@ test('with a unique pending-intent index, the checkout that loses the insert ret
   col.insertOne = async () => { throw new Error('storage down'); };
   col.find = () => ({ toArray: async () => [] });
   await assert.rejects(payment.createCourseIntent(db, { userId: STUDENT, courseId: COURSE, fetchTransaction: provider({}), makeReference, now: NOW }), /storage down/);
+});
+
+// ---------------------------------------------------------------------------
+// Behavior with the unique indexes I1–I6 enforced (lib/course-payment-indexes.js)
+// ---------------------------------------------------------------------------
+
+const indexedDb = () => memoryDb({ uniqueIndexes: COURSE_PAYMENT_INDEXES });
+
+test('the in-memory store enforces the planned indexes the way MongoDB does', async () => {
+  const db = indexedDb();
+  const intents = db.collection(COLLECTIONS.intents);
+  await insertIntent(db, { reference: 'fo_c_idx_a_abcdef' });
+  await assert.rejects(insertIntent(db, { reference: 'fo_c_idx_a_abcdef', status: 'expired' }), { code: 11000 });
+  await assert.rejects(insertIntent(db, { reference: 'fo_c_idx_b_abcdef' }), { code: 11000 });
+  await insertIntent(db, { reference: 'fo_c_idx_c_abcdef', status: 'superseded' });
+  await insertIntent(db, { reference: 'fo_c_idx_d_abcdef', kind: 'lesson' });
+  await insertIntent(db, { reference: 'fo_c_idx_e_abcdef', kind: 'lesson' });
+  await assert.rejects(
+    intents.updateOne({ reference: 'fo_c_idx_c_abcdef' }, { $set: { status: 'pending' } }),
+    { code: 11000 }
+  );
+  assert.equal((await intents.findOne({ reference: 'fo_c_idx_c_abcdef' })).status, 'superseded');
+  await db.collection(COLLECTIONS.courseAccess).insertOne({ userId: STUDENT, courseId: COURSE, paid: true });
+  await assert.rejects(
+    db.collection(COLLECTIONS.courseAccess).updateOne({ userId: STUDENT, courseId: COURSE, paid: false }, { $set: { paid: true } }, { upsert: true }),
+    { code: 11000 }
+  );
+  assert.equal(db.rows(COLLECTIONS.courseAccess).length, 1);
+});
+
+test('with the unique indexes, a purchase and its replays and webhook write one payment, access and purchase row', async () => {
+  const db = indexedDb();
+  const intent = await startCheckout(db);
+  const data = successData(intent, { id: 9101 });
+  assert.equal((await confirm(db, intent, data)).ok, true);
+  const replay = await confirm(db, intent, data);
+  assert.equal(replay.ok, true);
+  assert.equal(replay.alreadyProcessed, true);
+  assert.equal((await payment.processWebhookEvent(db, { event: 'charge.success', data }, NOW)).ack, true);
+  assert.equal(db.rows(COLLECTIONS.payments).length, 1);
+  assert.equal(db.rows(COLLECTIONS.courseAccess).length, 1);
+  assert.equal(db.rows(COLLECTIONS.coursePurchases).length, 1);
+  assert.equal(db.rows(COLLECTIONS.exceptions).length, 0);
+  assert.equal((await payment.createCourseIntent(db, { userId: STUDENT, courseId: COURSE, fetchTransaction: provider({}), makeReference, now: NOW })).alreadyOwned, true);
+});
+
+test('with the unique indexes, a second paid checkout is held as one duplicate_payment exception and grants nothing', async () => {
+  const db = indexedDb();
+  const first = await startCheckout(db);
+  assert.equal((await confirm(db, first, successData(first, { id: 9201 }))).ok, true);
+  const second = await insertIntent(db);
+  const data = successData(second, { id: 9202 });
+  const result = await confirm(db, second, data);
+  assert.equal(result.duplicatePayment, true);
+  assert.equal((await confirm(db, second, data)).alreadyProcessed, true);
+  await payment.processWebhookEvent(db, { event: 'charge.success', data }, NOW);
+  assert.equal(db.rows(COLLECTIONS.payments).length, 2);
+  assert.equal(db.rows(COLLECTIONS.courseAccess).length, 1);
+  assert.equal(db.rows(COLLECTIONS.coursePurchases).length, 1);
+  assert.equal(exceptionsFor(db, 'duplicate_payment').length, 1);
+});
+
+test('with the unique indexes, a claimed checkout whose place was taken by a newer one is released without an error and still settles', async () => {
+  const db = indexedDb();
+  const older = await startCheckout(db);
+  let newerReference = null;
+  const notFoundAfterNewerCheckout = async () => {
+    const newer = await payment.createCourseIntent(db, { userId: STUDENT, courseId: COURSE, fetchTransaction: provider({}), makeReference, now: NOW });
+    newerReference = newer.reference;
+    return { outcome: 'not_found' };
+  };
+  const pendingResult = await payment.confirmCoursePayment(db, {
+    reference: older.reference,
+    source: 'checkout',
+    sessionUserId: STUDENT,
+    expectedCourseId: COURSE,
+    fetchTransaction: provider({ [older.reference]: notFoundAfterNewerCheckout }),
+    now: NOW,
+  });
+  assert.equal(pendingResult.ok, false);
+  assert.equal(pendingResult.code, 'payment_not_found');
+  assert.equal(pendingResult.retryable, true);
+  assert.notEqual(newerReference, older.reference);
+  const olderRow = await db.collection(COLLECTIONS.intents).findOne({ reference: older.reference });
+  assert.equal(olderRow.status, 'processing');
+  assert.equal(olderRow.claimedAt, null);
+  assert.equal((await db.collection(COLLECTIONS.intents).findOne({ reference: newerReference })).status, 'pending');
+
+  const paid = await confirm(db, olderRow, successData(olderRow, { id: 9301 }));
+  assert.equal(paid.ok, true);
+  assert.notEqual(paid.duplicatePayment, true);
+  assert.equal((await db.collection(COLLECTIONS.intents).findOne({ reference: older.reference })).status, 'paid');
+  assert.equal(await payment.hasCourseEntitlement(db, STUDENT, COURSE), true);
+  assert.equal(db.rows(COLLECTIONS.courseAccess).length, 1);
+  assert.equal(db.rows(COLLECTIONS.exceptions).length, 0);
+});
+
+test('with the unique indexes, a recurring exception stays one document per reference and reason', async () => {
+  const db = indexedDb();
+  const entry = { reference: 'fo_c_exc_abcdef', reason: 'unreconciled_charge', source: 'webhook' };
+  assert.equal((await payment.recordPaymentException(db, { ...entry, eventKey: 'e1' }, NOW)).recorded, 'created');
+  assert.equal((await payment.recordPaymentException(db, { ...entry, eventKey: 'e2' }, NOW)).recorded, 'occurrence');
+  assert.equal((await payment.recordPaymentException(db, { ...entry, reason: 'no_matching_intent' }, NOW)).recorded, 'created');
+  assert.equal(db.rows(COLLECTIONS.exceptions).length, 2);
 });
 
 // ---------------------------------------------------------------------------

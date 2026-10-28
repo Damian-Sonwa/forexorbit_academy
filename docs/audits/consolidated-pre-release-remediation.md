@@ -330,7 +330,10 @@ That first run also showed the temporary network preload let a raw socket throug
 
 ## 7. Blockers (release stays BLOCKED)
 
-1. **Unique indexes (D2/D3):** the plan needs review, a read-only scan, owner decisions on duplicates, a disposable rehearsal, then a scheduled build.
+1. **Unique indexes (D2/D3), partly done (28 October).**
+   - **Dev database:** built and verified with `scripts/course-payment-indexes.js`.
+   - **Production:** still needed. The order is to deploy the duplicate-key handling, run the dry-run scans, build, then watch for a week. See `production-database-runbook-indexes-and-role.md`.
+   - **Not done:** the disposable rehearsal and a cross-process test, because no local `mongod` is available.
 2. **Backfill `fo_1…gow7`:** ownership decision (Phase G).
 3. **Refund and dispute policy:** undecided (Phase G).
 4. **End-to-end verification (partly done):**
@@ -342,7 +345,10 @@ That first run also showed the temporary network preload let a raw socket throug
      - a superseded checkout;
      - the **signed-in** browser checks of the lesson, quiz and ledger pages (signed-out read-only checks passed on 27 October);
      - mobile testing.
-5. **D9 role change:** the production database user's permissions (owner action).
+5. **D9 role change, prepared but not applied.**
+   - **Ready:** the custom role (`lib/app-database-role.js`) and a read-only checker (`scripts/check-db-role.js`).
+   - **Dev check:** on the dev user the checker reports FAIL, as expected, because `readWrite` allows update and remove on `adminAuditLog`.
+   - **Still needed:** the owner creates the role in Atlas and switches the app user (runbook).
 6. **D10:** accepted as per-process, or a shared store approved.
 7. ~~Owner decisions from the webhook review (section 2c)~~: **both approved and implemented** (section 2d).
 8. **Dependencies:** 3 moderate `npm audit` findings with no risk acceptance; the audit was not re-run in this session (network restricted).

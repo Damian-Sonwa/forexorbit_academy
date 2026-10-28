@@ -1,6 +1,16 @@
 # Course payment: unique index migration plan
 
-**Status: PLAN ONLY. Not executed.** No index has been created and no duplicate scan or data change has been run against any shared or production database. Each step below needs owner review and a separate approval before it runs.
+**Status (28 October 2026):**
+- **Dev database:** built. All six indexes are on the isolated dev database `Forex_elearning_dev`, after the scans came back clean.
+- **Production:** not built. Production has no index and no scan run against it.
+- **What's needed:** the owner-run steps are in `production-database-runbook-indexes-and-role.md`.
+- **Implementation:** `scripts/course-payment-indexes.js` (dry run by default) and `lib/course-payment-indexes.js`.
+- **Plan changes:**
+  - I2's partial filter is now `{ status: 'pending', kind: 'course' }`, so legacy lesson checkouts are excluded;
+  - I5 is full;
+  - `releaseIntent` handles the duplicate key that I2 can cause.
+
+The original plan follows.
 
 Related findings: D2 (granting access is several writes with no unique indexes) and D3 (concurrent checkout can create two payable intents). See `docs/audits/consolidated-pre-release-remediation.md`.
 

@@ -288,3 +288,13 @@ It was not run against the dev server. No tunnel was installed or opened.
 
 **Blockers.** No status changed. The table above still applies. The genuine webhook delivery plan now has a local forwarder check (C3) and public probes (C6) before any Paystack dashboard change.
 
+## Status update — 28 October 2026 (unique indexes and app role)
+
+Release decision remains **BLOCKED**. The application is **NOT PRODUCTION-READY**. Details are in `production-database-runbook-indexes-and-role.md`.
+
+| Item | Status | What's needed |
+| --- | --- | --- |
+| Unique indexes I1–I6 | **Dev database: built and verified.** Scans were clean and payment row counts unchanged. **Production: not built** | Deploy the duplicate-key handling, then the owner runs the dry run, then `--apply`, with production credentials |
+| D9 app role | **Prepared:** role definition, read-only checker, tests. Dev user check: FAIL (`readWrite`), as expected | Owner creates `forexorbitAppRole` in Atlas, switches the app user, then the checker reports PASS |
+| Refund and dispute policy | Deferred by the owner | Owner decision later |
+
