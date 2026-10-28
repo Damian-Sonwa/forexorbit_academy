@@ -396,3 +396,36 @@ Do these steps in the Paystack dashboard, without copying payer details into any
 3. **Which course?** Compare the course named in the metadata, and its price at that date, with the course access was granted for.
 4. **Whose purchase?** Decide who it belongs to: the payer, the student holding access, or unknown pending support contact with the payer. Note only the outcome here.
 5. Any change to access or the record is a separate approved admin action through the ledger. Provider-side matters go to Paystack.
+
+### Release execution — 28 October 2026 (owner-authorized merge)
+
+**Merge.** The owner authorized the merge. `master` was fast-forwarded from `453f813` to `a74dd84` with a plain push, without force. The test fix below followed as another fast-forward. The agent did not verify the Atlas backup; the owner authorized the merge without that confirmation.
+
+**Deployment (evidence from the public site only; no dashboard access).**
+- **Render** (`https://forexorbit-academy.onrender.com`): the Next.js build id changed from `1wx9770Mn6p_oQYNSJtiX` to `9C6dcDbdfW2Sh3P42PaYL` between 12:39:27 and 12:40:29 UTC, about 3 minutes after the push. **Render deploys from `master`.**
+- **Vercel** (`https://forexorbit-academy.vercel.app`): the build id stayed `2Hi2i4Q-FwnVy7dP4IAus` for at least 7 minutes after the push. Its production branch is unconfirmed; check it in the Vercel dashboard.
+- Before the merge, both sites already served routes added after `453f813`. They had been deployed earlier from newer code by an unknown route.
+
+**Signed-out smoke checks on the new Render build:** all pass.
+- `/` and `/api/courses` return 200, and the course list exposes no content, answer or email fields.
+- `/api/auth/me`, `/api/admin/purchases`, `/api/admin/payment-exceptions`, `/api/admin/audit-log` and `POST /api/payments/paystack/init-course` return 401.
+
+**Finding: production payments are disabled (fail closed).**
+- `POST /api/paystack/webhook`, with no signature or a bad one, returns **503 "Webhook not configured"** on Render; Vercel returns 503 with an empty body.
+- The payment-environment gate answers before the body is read, the signature is checked or the database is opened. So production has no `sk_live_` Paystack secret key: it is missing, a test key, or unrecognized. The Render log line `webhook … code: <reason>` names which.
+- Signature rejection before any database access is guaranteed by the code order (`pages/api/paystack/webhook.ts`) and by `tests/paystack-webhook-handler.test.js` (`getDbCalls === 0`).
+- **Owner action:** set the live `PAYSTACK_SECRET_KEY` and the matching public key in Render, and in Vercel if it serves `/api`. Then repeat the webhook check and expect 401.
+
+**Defect found and fixed (test only).** `tests/course-checkout-unlock.test.js` used a fixed clock (`2026-10-27T12:00Z`), but the checkout helpers read stored references against the real clock with a 24-hour expiry. Four tests therefore began failing at 12:00 UTC on 28 October. The test clock now follows the real clock. Product code is unchanged. `npm test`, offline: **447/447 pass**.
+
+**Not done: these need owner access.**
+- **Production index dry run and apply, and the role switch with `check-db-role.js`:** no production credentials in this environment.
+- **`SHARED_RATE_LIMIT=mongodb`:** must stay **off** until R1 and the role are verified in production.
+- **Signed-in checks S1–S8:** no authorized browser session.
+- **Genuine Paystack webhook:** needs the live key first.
+
+**Advisories (unchanged: 1 low, 2 moderate; not accepted).** Fix paths exist, but each is a library replacement that needs browser regression checks:
+- `react-quill` → `react-quill-new` 3.8.3 (Quill 2.0.3, React 18 supported). Quill 2 changes list markup (`<li data-list>`), so the sanitizer and stored lessons must be retested.
+- `react-player` 2 → 3.4 drops `deepmerge`, but it is a major rewrite of the player API.
+
+Both are planned as a follow-up branch.

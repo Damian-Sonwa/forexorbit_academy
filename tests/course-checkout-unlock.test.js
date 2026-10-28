@@ -120,7 +120,9 @@ function memoryStorage() {
 
 const STUDENT = 'user_student_a';
 const COURSE = 'course_alpha';
-const NOW = new Date('2026-10-27T12:00:00Z');
+// The browser helpers read stored references against the real clock (24-hour expiry), so the
+// test clock must stay close to it; a fixed date makes these tests fail a day after that date.
+const NOW = new Date(Math.floor(Date.now() / 1000) * 1000);
 let refCounter = 0;
 
 async function startCheckout(db) {
