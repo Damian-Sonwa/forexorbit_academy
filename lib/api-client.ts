@@ -5,6 +5,7 @@
 
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
 import { messageFromUnknown } from '@/lib/public-error';
+import { loginHref } from '@/lib/login-redirect';
 
 /**
  * Next.js API routes live under `/api`. If the env is a host without `/api`,
@@ -75,7 +76,7 @@ class ApiClient {
               // Only redirect if we're not on login page and it's not a login request
               localStorage.removeItem('token');
               localStorage.removeItem('user');
-              window.location.href = '/login';
+              window.location.href = loginHref(`${window.location.pathname}${window.location.search}`);
             }
           }
         }
@@ -132,4 +133,8 @@ class ApiClient {
 }
 
 export const apiClient = new ApiClient();
+
+export function isUnauthorizedError(err: unknown): boolean {
+  return (err as { response?: { status?: number } } | null)?.response?.status === 401;
+}
 

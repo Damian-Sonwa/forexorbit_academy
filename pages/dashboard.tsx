@@ -52,22 +52,21 @@ export default function Dashboard() {
     try {
       setLoadingData(true);
       try {
-        const lessons: UpcomingLesson[] = [];
-        for (const row of progress) {
-          if (!countsTowardActiveTotals(row) || !row.course || row.progress <= 0 || row.progress >= 100) continue;
-          const courseLessons = await apiClient.get<Array<{ _id?: string; id?: string; title: string; order?: number }>>(`/lessons?courseId=${row.courseId}`);
-          const nextLesson = courseLessons.find((lesson) => !row.completedLessons?.includes(lesson._id || lesson.id || ''));
-          if (nextLesson) {
-            lessons.push({
-              courseId: row.courseId,
-              courseTitle: row.course.title,
-              lessonId: nextLesson._id || nextLesson.id || '',
-              lessonTitle: nextLesson.title,
-              order: nextLesson.order || 0,
-            });
-          }
-        }
-        setUpcomingLessons(lessons.slice(0, 3));
+        const activeRows = progress.filter((row) => countsTowardActiveTotals(row) && row.course && row.progress > 0 && row.progress < 100);
+        const lessons = await Promise.all(activeRows.map(async (row) => {
+          const courseLessons = await apiClient.get<Array<{ _id?: string; id?: string; title: string; order?: number }>>(`/lessons?courseId=${row.courseId}&outline=1`);
+          const nextLesson = (Array.isArray(courseLessons) ? courseLessons : []).find((lesson) => !row.completedLessons?.includes(lesson._id || lesson.id || ''));
+          if (!nextLesson) return null;
+          const lesson: UpcomingLesson = {
+            courseId: row.courseId,
+            courseTitle: row.course?.title || 'Course',
+            lessonId: nextLesson._id || nextLesson.id || '',
+            lessonTitle: nextLesson.title,
+            order: nextLesson.order || 0,
+          };
+          return lesson;
+        }));
+        setUpcomingLessons(lessons.filter((lesson): lesson is UpcomingLesson => lesson !== null).slice(0, 3));
       } catch {
         setUpcomingLessons([]);
       }

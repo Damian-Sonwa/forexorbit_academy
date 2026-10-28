@@ -60,11 +60,12 @@ const handle = app.getRequestHandler();
 app.prepare().then(async () => {
   console.log('✓ Next.js app prepared');
   
-  // Seed community rooms on server start (non-blocking)
+  // Room seeding hits Mongo and must not delay the port becoming ready.
   try {
     const { seedRooms } = require('./scripts/seed-rooms');
-    await seedRooms();
-    console.log('✓ Community rooms seeded');
+    seedRooms()
+      .then(() => console.log('✓ Community rooms seeded'))
+      .catch(() => console.warn('Failed to seed rooms'));
   } catch (error) {
     console.warn('Failed to seed rooms');
   }
@@ -192,6 +193,12 @@ app.prepare().then(async () => {
     // Join user's personal room for targeted notifications
     socket.join(`user:${user.userId}`);
     console.log(`User joined personal notification room: user:${user.userId}`);
+    socket.on('subscribeMarketSignals', () => {
+      socket.join('market-signals');
+    });
+    socket.on('unsubscribeMarketSignals', () => {
+      socket.leave('market-signals');
+    });
 
     async function loadLessonContext(lessonId) {
       try {
@@ -847,7 +854,7 @@ app.prepare().then(async () => {
       type: types[Math.floor(Math.random() * types.length)],
       timestamp: new Date().toISOString(),
     };
-    io.emit('marketSignal', signal);
+    io.to('market-signals').emit('marketSignal', signal);
   }, 3000);
 
 
@@ -861,7 +868,7 @@ app.prepare().then(async () => {
     console.log('  ✓ Server is ready!');
     console.log(`  ✓ Frontend: ${serverUrl}`);
     console.log(`  ✓ MongoDB: Connected to Atlas cluster`);
-    console.log(`  ✓ Database: Forex_elearning`);
+    console.log(`  ✓ Database: ${process.env.MONGODB_DB_NAME?.trim() || 'Forex_elearning'}`);
     console.log(`  ✓ Socket.io: Running on ${serverUrl}/api/socket`);
     console.log(`  ✓ Port: ${port}`);
     console.log(`  ✓ Hostname: ${hostname}`);

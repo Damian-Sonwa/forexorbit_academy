@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { apiClient } from '@/lib/api-client';
+import { apiClient, isUnauthorizedError } from '@/lib/api-client';
 
 export interface LessonMonetization {
   unlocked: boolean;
@@ -47,17 +47,19 @@ export interface Lesson {
   isDemo?: boolean;
 }
 
-export function useLesson(lessonId: string | string[] | undefined) {
+export function useLesson(lessonId: string | string[] | undefined, enabled = true) {
   const [lesson, setLesson] = useState<Lesson | null>(null);
   const [accessDenied, setAccessDenied] = useState<LessonAccessDeniedPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const refetchLesson = useCallback(async () => {
-    if (!lessonId || Array.isArray(lessonId)) return;
+    if (!enabled || !lessonId || Array.isArray(lessonId)) return;
     try {
       setLoading(true);
       const res = await apiClient.getAllowingError<Lesson>(`/lessons/${lessonId}`);
+      // A 401 triggers the api-client login redirect; keep the loading state instead of flashing an error.
+      if (!res.ok && res.status === 401) return;
       if (res.ok && res.status === 200) {
         setLesson(res.data);
         setAccessDenied(null);
@@ -97,10 +99,9 @@ export function useLesson(lessonId: string | string[] | undefined) {
       setLesson(null);
       setAccessDenied(null);
       setError(msg);
-    } finally {
-      setLoading(false);
     }
-  }, [lessonId]);
+    setLoading(false);
+  }, [lessonId, enabled]);
 
   useEffect(() => {
     void refetchLesson();
@@ -109,27 +110,26 @@ export function useLesson(lessonId: string | string[] | undefined) {
   return { lesson, loading, error, accessDenied, refetch: refetchLesson };
 }
 
-export function useLessons(courseId: string | string[] | undefined) {
+export function useLessons(courseId: string | string[] | undefined, enabled = true) {
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const refetchLessons = useCallback(async () => {
-    if (!courseId || Array.isArray(courseId)) return;
+    if (!enabled || !courseId || Array.isArray(courseId)) return;
     try {
       setLoading(true);
       const data = await apiClient.get<{ lessons: Lesson[] }>(`/courses/${courseId}/lessons`);
       const list = Array.isArray(data.lessons) ? data.lessons : [];
-      console.log('LESSONS:', list);
       setLessons(list);
       setError(null);
     } catch (err: unknown) {
+      if (isUnauthorizedError(err)) return;
       const msg = err instanceof Error ? err.message : 'Failed to fetch lessons';
       setError(msg);
-    } finally {
-      setLoading(false);
     }
-  }, [courseId]);
+    setLoading(false);
+  }, [courseId, enabled]);
 
   useEffect(() => {
     void refetchLessons();

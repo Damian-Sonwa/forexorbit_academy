@@ -4,6 +4,7 @@
  */
 
 import Link from 'next/link';
+import BrandLogo from '@/components/BrandLogo';
 
 export default function Footer() {
   return (
@@ -12,15 +13,9 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
           {/* Brand */}
           <div>
-            <div className="flex items-center space-x-3 mb-6">
-              <div className="w-12 h-12 bg-primary-600 rounded-xl flex items-center justify-center">
-                <span className="text-white font-bold text-lg">FA</span>
-              </div>
-              <span className="text-2xl font-display font-bold text-white">
-                ForexOrbit
-                <span className="text-nav-muted ml-1 font-medium">Academy</span>
-              </span>
-            </div>
+            <Link href="/" aria-label="FX Orbit Academy home" className="mb-6 inline-flex transition-opacity duration-200 hover:opacity-85">
+              <BrandLogo variant="light" className="h-11" />
+            </Link>
             <p className="text-sm text-nav-muted leading-relaxed">
               Learn Forex trading with expert instructors and real-time market signals.
             </p>

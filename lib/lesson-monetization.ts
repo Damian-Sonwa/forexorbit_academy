@@ -1,21 +1,13 @@
 /**
- * Course monetization: first lesson (by order or isFirstLesson) + demo lessons free; rest require course payment.
- * Legacy per-lesson userLessonAccess rows still grant access to the whole course.
+ * Course monetization: first lesson (by order or isFirstLesson) + demo lessons free; the rest
+ * require a full-course entitlement (verified purchase or explicit grant in userCourseAccess).
+ * Legacy per-lesson purchase rows unlock only the lesson they name.
  */
 
 import type { Db } from 'mongodb';
 import { ObjectId } from 'mongodb';
-
-/** Legacy name — kept for reads so existing purchase rows still grant access */
-export const LESSON_PURCHASES_COLLECTION = 'lessonPurchases';
-/** Canonical per-user lesson unlocks after verified Paystack payment (legacy per-lesson; rows include courseId) */
-export const USER_ACCESS_COLLECTION = 'userLessonAccess';
-/** Per-user course unlock after Paystack course checkout */
-export const USER_COURSE_ACCESS_COLLECTION = 'userCourseAccess';
-export const PAYSTACK_PAYMENTS_COLLECTION = 'paystackPayments';
-export const PAYSTACK_INTENTS_COLLECTION = 'paystackPaymentIntents';
-/** Denormalized course purchase rows (userId, courseId, reference, status) for reporting */
-export const COURSE_PURCHASES_COLLECTION = 'coursePurchases';
+import { COURSE_CURRENCY, COURSE_PRICE_KOBO } from '@/lib/course-price';
+import { hasCourseEntitlement, legacyLessonIdsWithAccess } from '@/lib/course-payment';
 
 export type MonetizationFlags = {
   unlocked: boolean;
@@ -102,23 +94,13 @@ export function isPaystackConfigured(): boolean {
   return Boolean(process.env.PAYSTACK_SECRET_KEY?.trim());
 }
 
-export function getLessonPriceKobo(): number {
-  const n = parseInt(process.env.PAYSTACK_LESSON_PRICE_KOBO || '300000', 10);
-  return Number.isFinite(n) && n > 0 ? n : 300000;
-}
-
-/** One-time course unlock (default ₦5,000 = 500000 kobo; override with PAYSTACK_COURSE_PRICE_KOBO). */
+/** Full-course price in kobo. Set in code (lib/course-price.js); environment variables do not override it. */
 export function getCoursePriceKobo(): number {
-  const raw = process.env.PAYSTACK_COURSE_PRICE_KOBO?.trim();
-  if (raw) {
-    const n = parseInt(raw, 10);
-    if (Number.isFinite(n) && n > 0) return n;
-  }
-  return 500000;
+  return COURSE_PRICE_KOBO;
 }
 
 export function getPaystackCurrency(): string {
-  return (process.env.PAYSTACK_CURRENCY || 'NGN').toUpperCase();
+  return COURSE_CURRENCY;
 }
 
 export function sortLessonsByOrder<
@@ -132,70 +114,27 @@ export function sortLessonsByOrder<
   });
 }
 
+/** Lessons this user holds through a legacy per-lesson purchase. Never widens to the course. */
 export async function getPurchasedLessonIdSet(
   db: Db,
   userId: string,
   lessonIdStrings: string[]
 ): Promise<Set<string>> {
-  if (lessonIdStrings.length === 0) return new Set();
-  const q = { userId, lessonId: { $in: lessonIdStrings } };
-  const accessQ = {
-    userId,
-    lessonId: { $in: lessonIdStrings },
-    $or: [{ paid: true }, { paid: { $exists: false } }],
-  };
-  const [legacy, access] = await Promise.all([
-    db.collection(LESSON_PURCHASES_COLLECTION).find(q).project({ lessonId: 1 }).toArray(),
-    db.collection(USER_ACCESS_COLLECTION).find(accessQ).project({ lessonId: 1 }).toArray(),
-  ]);
-  const ids = new Set<string>();
-  for (const r of [...legacy, ...access]) {
-    ids.add(String(r.lessonId));
-  }
-  return ids;
+  return legacyLessonIdsWithAccess(db, userId, lessonIdStrings);
 }
 
 export async function hasLessonPurchase(db: Db, userId: string, lessonId: string): Promise<boolean> {
-  const q = { userId, lessonId };
-  const accessQ = {
-    userId,
-    lessonId,
-    $or: [{ paid: true }, { paid: { $exists: false } }],
-  };
-  const [a, b] = await Promise.all([
-    db.collection(LESSON_PURCHASES_COLLECTION).countDocuments(q, { limit: 1 }),
-    db.collection(USER_ACCESS_COLLECTION).countDocuments(accessQ, { limit: 1 }),
-  ]);
-  return a > 0 || b > 0;
+  return (await legacyLessonIdsWithAccess(db, userId, [lessonId])).has(String(lessonId));
 }
 
-/** True if the user has paid for full course access (course doc or any lesson unlock row for this course). */
+/** Full-course access: a paid userCourseAccess row or an explicit complimentary/manual grant. */
 export async function hasPaidForCourse(db: Db, userId: string, courseId: string): Promise<boolean> {
-  const courseQ = {
-    userId,
-    courseId,
-    $or: [{ paid: true }, { paid: { $exists: false } }],
-  };
-  const [courseRow, lessonRow] = await Promise.all([
-    db.collection(USER_COURSE_ACCESS_COLLECTION).countDocuments(courseQ, { limit: 1 }),
-    db.collection(USER_ACCESS_COLLECTION).countDocuments(courseQ, { limit: 1 }),
-  ]);
-  if (courseRow > 0 || lessonRow > 0) return true;
-  const lessonsCol = db.collection('lessons');
-  const inCourse = await lessonsCol.find({ courseId }).project({ _id: 1 }).toArray();
-  const ids = inCourse.map((l) => l._id.toString());
-  if (ids.length === 0) return false;
-  const legacy = await db
-    .collection(LESSON_PURCHASES_COLLECTION)
-    .find({ userId, lessonId: { $in: ids } })
-    .limit(1)
-    .toArray();
-  return legacy.length > 0;
+  return hasCourseEntitlement(db, userId, courseId);
 }
 
 /**
  * Compute flags for one lesson. `sortedCourseLessons` must be all lessons for the course sorted by order.
- * `courseUnlocked` = user paid for the course (or legacy per-lesson row / purchase in this course).
+ * `courseUnlocked` = paid access to this lesson (full-course entitlement or a legacy purchase of this lesson).
  */
 export function computeMonetizationFlags(
   lessonIdStr: string,
@@ -358,7 +297,9 @@ export async function getMonetizationForLessonDoc(
   );
   const lessonIdStr = lesson._id.toString();
   const courseUnlocked =
-    isStaffRole(user.role) || (await hasPaidForCourse(db, user.userId, String(lesson.courseId)));
+    isStaffRole(user.role) ||
+    (await hasPaidForCourse(db, user.userId, String(lesson.courseId))) ||
+    (await hasLessonPurchase(db, user.userId, lessonIdStr));
 
   const adsEnabled = process.env.NEXT_PUBLIC_ADS_ENABLED !== 'false';
   const flags = computeMonetizationFlags(lessonIdStr, sorted, courseUnlocked, user.role, adsEnabled);

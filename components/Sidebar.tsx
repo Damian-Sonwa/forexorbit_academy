@@ -176,6 +176,7 @@ export default function Sidebar({ }: SidebarProps) {
     { href: '/admin', label: 'Courses', icon: CoursesIcon, tab: 'courses' },
     { href: '/admin', label: 'Certificates', icon: CertificatesIcon, tab: 'certificates' },
     { href: '/admin', label: 'Analytics', icon: AnalyticsIcon, tab: 'analytics' },
+    { href: '/admin/purchases', label: 'Course Purchases', icon: CertificatesIcon },
     { href: '/community', label: 'Community', icon: CommunityIcon },
     { href: '/consultations/expert', label: 'Consultation availability', icon: ConsultationIcon },
     { href: '/consultations/admin', label: 'Consultation Admin', icon: ConsultationIcon },

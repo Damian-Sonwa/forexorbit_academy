@@ -4,14 +4,14 @@
  * Connects only after auth is ready and the user is logged in (avoids "No token" noise and matches server JWT gate).
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { createContext, createElement, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from '@/hooks/useAuth';
 import { resolveSocketUrl } from '@/lib/client-origin';
 
 const SOCKET_PATH = '/api/socket';
 
-export function useSocket() {
+function useSocketConnection() {
   const { isAuthenticated, loading: authLoading } = useAuth();
   const [socket, setSocket] = useState<Socket | null>(null);
   const [connected, setConnected] = useState(false);
@@ -216,6 +216,23 @@ export function useSocket() {
     sendStopTyping,
     notifyOnline,
   };
+}
+
+type SocketApi = ReturnType<typeof useSocketConnection>;
+
+const SocketContext = createContext<SocketApi | null>(null);
+
+export function SocketProvider({ children }: { children: ReactNode }) {
+  const value = useSocketConnection();
+  return createElement(SocketContext.Provider, { value }, children);
+}
+
+export function useSocket() {
+  const value = useContext(SocketContext);
+  if (!value) {
+    throw new Error('useSocket must be used within SocketProvider');
+  }
+  return value;
 }
 
 

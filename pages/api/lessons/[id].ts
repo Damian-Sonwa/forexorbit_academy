@@ -18,15 +18,9 @@ export const config = {
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
-import { decideAccountAccess, decideLessonDelete, decideLessonRead, decideLessonUpdate, decideQuizRead, isStoredId, presentLessonRead } from '@/lib/account-access';
-import { enrollmentDecisionRecord } from '@/lib/enrollment-state';
+import { decideAccountAccess, decideLessonDelete, decideLessonUpdate, isStoredId } from '@/lib/account-access';
+import { readLessonDetail } from '@/lib/course-lesson-list';
 import { stripLessonVisualAidsFields } from '@/lib/strip-visual-aids-html';
-import {
-  buildLessonLockedBody,
-  flagsToMonetizationPayload,
-  getMonetizationForLessonDoc,
-  isStaffRole,
-} from '@/lib/lesson-monetization';
 
 async function getLesson(req: AuthRequest, res: NextApiResponse) {
   const lessonId = Array.isArray(req.query.id) ? req.query.id[0] : req.query.id;
@@ -35,102 +29,9 @@ async function getLesson(req: AuthRequest, res: NextApiResponse) {
   }
   try {
     const db = await getDb();
-    const record = await db.collection('users').findOne(
-      { _id: new ObjectId(req.user!.userId) },
-      { projection: { email: 1, role: 1, status: 1 } }
-    );
-    const account = decideAccountAccess({ userId: req.user!.userId, record });
-    const lesson = await db.collection('lessons').findOne({ _id: new ObjectId(lessonId) });
-    let course = null;
-    if (lesson && lesson.courseId != null && isStoredId(String(lesson.courseId))) {
-      course = await db.collection('courses').findOne(
-        { _id: new ObjectId(String(lesson.courseId)) },
-        { projection: { instructorId: 1, difficulty: 1 } }
-      );
-    }
-    const courseId = course ? String(course._id) : '';
-    const enrollment = account.ok && course
-      ? await db.collection('progress').findOne({
-          userId: account.user.userId,
-          $or: [{ courseId }, { courseId: course._id }],
-        })
-      : null;
-    const member = account.ok ? { userId: account.user.userId, role: account.user.role, email: account.user.email } : null;
-    const lessonRecord = lesson ? {
-      _id: lesson._id,
-      courseId: lesson.courseId,
-      requiredLevel: typeof lesson.requiredLevel === 'string' ? lesson.requiredLevel : null,
-    } : null;
-    const courseRecord = course ? {
-      _id: course._id,
-      instructorId: course.instructorId,
-      difficulty: typeof course.difficulty === 'string' ? course.difficulty : null,
-    } : null;
-    const enrollmentRecord = enrollmentDecisionRecord(enrollment);
-    const decision = decideLessonRead({
-      member,
-      lesson: lessonRecord,
-      course: courseRecord,
-      enrollment: enrollmentRecord,
-    });
-    if (!decision.ok) {
-      return res.status(decision.status).json({ error: decision.error });
-    }
-
-    let monetization = null;
-    if (lesson && account.ok) {
-      const { flags } = await getMonetizationForLessonDoc(
-        db,
-        { userId: account.user.userId, role: account.user.role },
-        lesson as { _id: ObjectId; courseId: string }
-      );
-      if (!isStaffRole(account.user.role) && !flags.unlocked) {
-        return res.status(403).json(
-          buildLessonLockedBody(flags, lesson as { _id: ObjectId; title?: string; courseId: string })
-        );
-      }
-      monetization = flagsToMonetizationPayload(flags);
-    }
-
-    const quiz = await db.collection('quizzes').findOne(
-      { lessonId: decision.lessonId },
-      { projection: { questions: 1 } }
-    );
-    const quizDecision = decideQuizRead({
-      member,
-      lesson: lessonRecord,
-      course: courseRecord,
-      enrollment: enrollmentRecord,
-      quiz: quiz ? { questions: quiz.questions } : null,
-    });
-    const view = presentLessonRead(lesson as Record<string, unknown>, true, courseId);
-    if (lesson && lesson.summary && !view.lessonSummary) {
-      view.lessonSummary = {
-        overview: lesson.summary,
-        updatedAt: lesson.updatedAt || lesson.createdAt || new Date(),
-      };
-    }
-    if (quizDecision.ok) {
-      view.quiz = {
-        lessonId: quizDecision.lessonId,
-        courseId: quizDecision.courseId,
-        questions: quizDecision.questions,
-      };
-    }
-    view.completed = Boolean(
-      enrollment &&
-      Array.isArray(enrollment.completedLessons) &&
-      enrollment.completedLessons.map(String).includes(decision.lessonId)
-    );
-    if (monetization) {
-      view.access = true;
-      view.locked = false;
-      view.monetization = monetization;
-      view.isFirstLesson = (lesson as { isFirstLesson?: boolean }).isFirstLesson === true;
-      view.isDemo = (lesson as { isDemo?: boolean }).isDemo === true;
-    }
-
-    res.json(stripLessonVisualAidsFields(view));
+    const { status, body } = await readLessonDetail(db, { userId: req.user!.userId, lessonId });
+    if (status !== 200) return res.status(status).json(body);
+    res.json(stripLessonVisualAidsFields(body));
   } catch {
     console.error(JSON.stringify({ event: 'lessonRead', result: 'failed' }));
     res.status(500).json(unexpectedBody('api'));

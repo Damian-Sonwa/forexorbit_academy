@@ -11,8 +11,16 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 
 export default function MarketSignal() {
   const { isAuthenticated } = useAuth();
-  const { marketSignal, connected } = useSocket();
+  const { marketSignal, connected, socket } = useSocket();
   const [signalHistory, setSignalHistory] = useState<Array<{ time: string; price: number }>>([]);
+
+  useEffect(() => {
+    if (!socket || !connected) return;
+    socket.emit('subscribeMarketSignals');
+    return () => {
+      socket.emit('unsubscribeMarketSignals');
+    };
+  }, [socket, connected]);
 
   useEffect(() => {
     if (marketSignal) {

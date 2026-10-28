@@ -7,7 +7,6 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import bcrypt from 'bcryptjs';
 import { getDb } from '@/lib/mongodb';
 import { issueAuthToken } from '@/lib/jwt';
-import { parseToE164 } from '@/lib/phone';
 import { unexpectedBody } from '@/lib/public-error';
 import { isDuplicateKey, signupConflict } from '@/lib/signup-conflict';
 
@@ -20,18 +19,11 @@ export default async function handler(
   }
 
   try {
-    const { email, password, name, phone, role = 'student' } = req.body;
+    const { email, password, name, role = 'student' } = req.body;
 
-    // Validation
-    if (!email || !password || !name || !phone) {
-      return res.status(400).json({ error: 'Name, email, phone, and password are required' });
+    if (!email || !password || !name) {
+      return res.status(400).json({ error: 'Name, email, and password are required' });
     }
-
-    const parsedPhone = parseToE164(String(phone));
-    if (!parsedPhone) {
-      return res.status(400).json({ error: 'Invalid phone number' });
-    }
-    const phoneE164 = parsedPhone.e164;
 
     if (!['admin', 'instructor', 'student'].includes(role)) {
       return res.status(400).json({ error: 'Invalid role' });
@@ -40,16 +32,14 @@ export default async function handler(
     const emailNorm = String(email).trim().toLowerCase();
     const nameTrim = String(name).trim();
     if (!nameTrim) {
-      return res.status(400).json({ error: 'Name, email, phone, and password are required' });
+      return res.status(400).json({ error: 'Name, email, and password are required' });
     }
 
     const db = await getDb();
     const users = db.collection('users');
 
-    // Check if user exists
     const existingUser = await users.findOne({ email: emailNorm });
-    const existingPhone = await users.findOne({ phoneE164 });
-    const conflict = signupConflict(existingUser, existingPhone);
+    const conflict = signupConflict(existingUser, null);
     if (conflict) {
       return res.status(conflict.status).json(conflict.body);
     }
@@ -65,7 +55,6 @@ export default async function handler(
     // Create user
     const result = await users.insertOne({
       email: emailNorm,
-      phoneE164,
       password: hashedPassword,
       name: nameTrim,
       role,

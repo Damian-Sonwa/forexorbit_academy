@@ -9,9 +9,10 @@ import { Db, MongoClient } from 'mongodb';
 
 /**
  * Get database instance
- * @param dbName - Database name (default: Forex_elearning)
+ * @param dbName - Database name (default: MONGODB_DB_NAME, else Forex_elearning). Set
+ *   MONGODB_DB_NAME to isolate local or test data from the shared database.
  */
-export async function getDb(dbName: string = 'Forex_elearning'): Promise<Db> {
+export async function getDb(dbName: string = process.env.MONGODB_DB_NAME?.trim() || 'Forex_elearning'): Promise<Db> {
   const client = await clientPromise;
   return client.db(dbName);
 }

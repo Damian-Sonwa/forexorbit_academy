@@ -6,7 +6,7 @@
  * Strategy: network-first for Next hashed assets (/_next/static/) so CSS/JS updates apply;
  * cache-first for other static file extensions as a fallback.
  */
-const CACHE_VERSION = '2026-03-22-pwa-v2';
+const CACHE_VERSION = '2026-10-28-pwa-v3';
 const STATIC_CACHE = `forexorbit-static-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `forexorbit-runtime-${CACHE_VERSION}`;
 

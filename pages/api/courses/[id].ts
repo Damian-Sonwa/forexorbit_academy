@@ -32,24 +32,22 @@ async function getCourse(req: AuthRequest, res: NextApiResponse) {
   }
   try {
     const db = await getDb();
-    const record = await db.collection('users').findOne(
-      { _id: new ObjectId(req.user!.userId) },
-      { projection: { email: 1, role: 1, status: 1 } }
-    );
-    const account = decideAccountAccess({ userId: req.user!.userId, record });
+    const memberFromSession = {
+      userId: req.user!.userId,
+      role: req.user!.role,
+      email: req.user!.email,
+    };
     const course = await db.collection('courses').findOne({ _id: new ObjectId(courseIdParam) });
     if (!course) {
       return res.status(404).json({ error: 'Course not found' });
     }
 
     const courseId = String(course._id);
-    const enrollment = account.ok
-      ? await db.collection('progress').findOne({
-          userId: account.user.userId,
-          $or: [{ courseId }, { courseId: course._id }],
-        })
-      : null;
-    const member = account.ok ? { userId: account.user.userId, role: account.user.role, email: account.user.email } : null;
+    const member = memberFromSession;
+    const enrollment = await db.collection('progress').findOne({
+      userId: member.userId,
+      $or: [{ courseId }, { courseId: course._id }],
+    });
     const enrollmentRecord = enrollmentDecisionRecord(enrollment);
     const courseRecord = {
       _id: course._id,
@@ -63,7 +61,8 @@ async function getCourse(req: AuthRequest, res: NextApiResponse) {
     const priced = await buildLessonsListForCourse(
       db,
       courseId,
-      account.ok ? { userId: account.user.userId, role: account.user.role } : undefined
+      { userId: member.userId, role: member.role },
+      courseLessons as Record<string, unknown>[]
     );
     const pricedById = new Map(priced.map((item) => [String(item._id), item]));
     const lessons = courseLessons.map((lesson) => {

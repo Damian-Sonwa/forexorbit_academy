@@ -5,6 +5,7 @@ import { PwaInstallModal } from '@/components/PwaInstallModal';
 import { RouteProgress } from '@/components/loading/RouteProgress';
 import { PwaInstallProvider } from '@/contexts/PwaInstallContext';
 import { AuthProvider } from '@/hooks/useAuth';
+import { SocketProvider } from '@/hooks/useSocket';
 import { ThemeProvider } from '@/hooks/useTheme';
 import '@/styles/globals.css';
 
@@ -13,10 +14,12 @@ export default function App({ Component, pageProps }: AppProps) {
     <ThemeProvider>
       <PwaInstallProvider>
         <AuthProvider>
-          <RouteProgress />
-          <RegisterPwa />
-          <PwaInstallModal />
-          <Component {...pageProps} />
+          <SocketProvider>
+            <RouteProgress />
+            <RegisterPwa />
+            <PwaInstallModal />
+            <Component {...pageProps} />
+          </SocketProvider>
         </AuthProvider>
       </PwaInstallProvider>
     </ThemeProvider>

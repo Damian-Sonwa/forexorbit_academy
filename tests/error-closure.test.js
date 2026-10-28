@@ -30,6 +30,8 @@ test('duplicate email and phone signups share one response and do not create an 
   assert.equal(signup.includes('User already exists'), false);
   assert.equal(signup.includes('already registered'), false);
   assert.equal(signup.includes('signupConflict'), true);
+  assert.equal(signup.includes('phoneE164'), false);
+  assert.equal(signup.includes('parseToE164'), false);
 });
 
 test('account recovery responses do not add an existence oracle', () => {

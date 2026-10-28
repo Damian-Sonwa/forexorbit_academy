@@ -44,7 +44,30 @@ async function getCourses(req: AuthRequest, res: NextApiResponse) {
       ];
     }
 
-    const coursesList = await courses.find(query).toArray();
+    const coursesList = await courses.find(query).project({
+      title: 1,
+      description: 1,
+      category: 1,
+      difficulty: 1,
+      thumbnail: 1,
+      instructorId: 1,
+    }).toArray();
+    const progressByCourse = new Map<string, { progress?: number; active?: boolean; withdrawnAt?: unknown }>();
+    if (req.user) {
+      const rows = await progress.find(
+        { userId: req.user.userId },
+        { projection: { courseId: 1, progress: 1, active: 1, withdrawnAt: 1 } }
+      ).toArray();
+      for (const row of rows) {
+        if (row.courseId != null) {
+          progressByCourse.set(String(row.courseId), {
+            progress: typeof row.progress === 'number' ? row.progress : undefined,
+            active: row.active === false ? false : undefined,
+            withdrawnAt: row.withdrawnAt,
+          });
+        }
+      }
+    }
     const views = [];
     for (const course of coursesList) {
       const description = typeof course.description === 'string'
@@ -53,11 +76,8 @@ async function getCourses(req: AuthRequest, res: NextApiResponse) {
       let extras = {};
       if (req.user) {
         const courseId = course._id?.toString() || course.id;
-        const userProgress = await progress.findOne({
-          userId: req.user.userId,
-          courseId,
-        });
-        const activeEnrollment = isActiveEnrollment(userProgress);
+        const userProgress = progressByCourse.get(String(course._id)) || progressByCourse.get(String(courseId));
+        const activeEnrollment = isActiveEnrollment(userProgress || null);
         extras = {
           progress: activeEnrollment ? (userProgress?.progress || 0) : 0,
           enrolled: activeEnrollment,

@@ -6,6 +6,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import BrandLogo from '@/components/BrandLogo';
 import {
   ArrowRight,
   BookOpen,
@@ -14,7 +15,6 @@ import {
   LineChart,
   Menu,
   MessageCircle,
-  Play,
   Shield,
   Sparkles,
   Users,
@@ -23,6 +23,7 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import { useCourses, type Course } from '@/hooks/useCourses';
 import { apiClient } from '@/lib/api-client';
+import { loginHref } from '@/lib/login-redirect';
 import { sanitizeForStudentView, stripHtml } from '@/lib/html-sanitizer';
 
 const levels = ['Beginner', 'Intermediate', 'Advanced', 'Demo desk'];
@@ -39,12 +40,12 @@ function catalogSubject(category: string) {
 }
 
 const catalogPhotos = [
-  '/images/catalog/digital-forex.jpg',
-  '/images/catalog/global-network.jpg',
-  '/images/catalog/trading-floor.jpg',
-  '/images/catalog/golden-investment.jpg',
-  '/images/catalog/chart-analysis.jpg',
-  '/images/catalog/forex-dashboard.jpg',
+  '/images/catalog/digital-forex.webp',
+  '/images/catalog/global-network.webp',
+  '/images/catalog/trading-floor.webp',
+  '/images/catalog/golden-investment.webp',
+  '/images/catalog/chart-analysis.webp',
+  '/images/catalog/forex-dashboard.webp',
 ];
 
 function catalogImage(course: Course, index: number) {
@@ -69,6 +70,7 @@ function CatalogEntry({
   onEnroll: (courseId: string) => void;
 }) {
   const courseId = course._id || course.id || '';
+  const courseHref = isAuthenticated ? `/courses/${courseId}` : loginHref(`/courses/${courseId}`);
   const description = stripHtml(sanitizeForStudentView(course.description || ''));
   const lessonCount = course.lessons?.length;
   const imageSrc = catalogImage(course, index);
@@ -78,7 +80,7 @@ function CatalogEntry({
 
   return (
     <article className="flex h-full flex-col rounded-2xl border border-[#eadfce] bg-[#f6f3ec] p-3 text-[#1c1917]">
-      <Link href={`/courses/${courseId}`} className="block overflow-hidden rounded-xl bg-[#07080c]" aria-label={course.title}>
+      <Link href={courseHref} className="block overflow-hidden rounded-xl bg-[#07080c]" aria-label={course.title}>
         {imageSrc ? (
           <img src={imageSrc} alt="" className="aspect-[16/10] w-full object-cover" />
         ) : (
@@ -90,7 +92,7 @@ function CatalogEntry({
       <div className="flex flex-1 flex-col px-3 pb-4 pt-5">
         <p className="text-sm text-[#6f675f]">{meta}</p>
         <h3 className="mt-2 font-display text-xl font-bold tracking-tight text-[#1c1917]">
-          <Link href={`/courses/${courseId}`}>{course.title}</Link>
+          <Link href={courseHref}>{course.title}</Link>
         </h3>
         {description ? <p className="mt-3 line-clamp-3 text-sm leading-relaxed text-[#6f675f]">{description}</p> : null}
         <div className="mt-auto pt-6">
@@ -104,7 +106,7 @@ function CatalogEntry({
             </button>
           ) : (
             <Link
-              href={`/courses/${courseId}`}
+              href={courseHref}
               className="inline-block rounded-lg border border-[#F28C28] px-5 py-2 text-xs font-semibold tracking-wide text-[#F28C28] hover:bg-[#F28C28] hover:text-[#102017]"
             >
               {course.enrolled ? 'CONTINUE' : 'OPEN COURSE'}
@@ -151,9 +153,12 @@ export default function Home() {
     <div className="landing-shell min-h-screen bg-[#07080c] text-white">
       <header className="sticky top-0 z-40 border-b border-white/10 bg-[#07080c]/85 backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
-          <Link href="/" className="flex items-center gap-2 font-display text-lg font-bold tracking-tight">
-            <span className="flex h-9 w-9 items-center justify-center rounded-full border border-[#F28C28]/50 bg-black text-sm text-[#F28C28]">FO</span>
-            Forex<span className="text-[#F28C28]">Orbit</span>
+          <Link
+            href="/"
+            aria-label="FX Orbit Academy home"
+            className="flex shrink-0 items-center rounded-md transition-opacity duration-200 hover:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F28C28] focus-visible:ring-offset-2 focus-visible:ring-offset-[#faf8f4] dark:focus-visible:ring-offset-[#07080c]"
+          >
+            <BrandLogo priority className="h-8 sm:h-9" />
           </Link>
           <nav className="hidden items-center gap-7 text-sm text-white/75 lg:flex">
             <a href="#courses" className="hover:text-white">Courses</a>
@@ -209,19 +214,20 @@ export default function Home() {
                   {accountLabel}
                   <ArrowRight className="h-4 w-4" aria-hidden />
                 </Link>
-                <a href="#practice" className="inline-flex items-center justify-center gap-2 rounded-full border border-[#C85E0E]/50 px-6 py-3 font-semibold text-[#171717] hover:bg-[#F28C28]/10">
-                  <Play className="h-4 w-4" aria-hidden />
-                  How practice works
-                </a>
+                <Link href="/how-it-works" className="inline-flex items-center justify-center gap-2 rounded-full border border-[#C85E0E]/50 px-6 py-3 font-semibold text-[#171717] hover:bg-[#F28C28]/10">
+                  How it works
+                </Link>
               </div>
             </div>
 
             <div className="mx-auto w-full max-w-[42rem] xl:max-w-none">
               <img
-                src="/images/smd.png"
+                src="/images/smd.webp"
                 alt="EUR/USD lesson chart showing trend identification, support and resistance, risk management, and review steps"
                 width={1536}
                 height={1024}
+                {...{ fetchpriority: 'high' }}
+                decoding="async"
                 className="mx-auto h-auto w-full drop-shadow-[0_16px_28px_rgba(23,23,23,0.08)]"
               />
             </div>
@@ -320,8 +326,12 @@ export default function Home() {
               </ul>
             </div>
             <img
-              src="/images/financial-learning-dashboard-devices.png"
+              src="/images/financial-learning-dashboard-devices.webp"
               alt="Phone and laptop showing a financial foundations lesson with progress on both screens"
+              width={1536}
+              height={1024}
+              loading="lazy"
+              decoding="async"
               className="h-auto w-full"
             />
           </div>
@@ -424,7 +434,9 @@ export default function Home() {
       <footer className="border-t border-white/10 bg-[#07080c]">
         <div className="mx-auto grid max-w-7xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-4">
           <div>
-            <p className="font-display text-xl font-bold">Forex<span className="text-[#F28C28]">Orbit</span></p>
+            <Link href="/" aria-label="FX Orbit Academy home" className="inline-flex transition-opacity duration-200 hover:opacity-85">
+              <BrandLogo className="h-11" />
+            </Link>
             <p className="mt-3 text-sm leading-relaxed text-white/55">A forex academy with courses, a demo desk, and rooms for the questions that show up after the lesson.</p>
           </div>
           <div>

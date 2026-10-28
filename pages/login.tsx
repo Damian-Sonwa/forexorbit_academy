@@ -6,10 +6,10 @@
 import { useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
-import Header from '@/components/Header';
-import Footer from '@/components/Footer';
+import { AuthFrame, authButtonClass, authFieldClass, authLabelClass } from '@/components/auth/AuthFrame';
 import { ButtonLoadingState } from '@/components/loading';
 import { useAuth } from '@/hooks/useAuth';
+import { safeNextPath, signupHref } from '@/lib/login-redirect';
 
 // Helper function to normalize email (trim + lowercase)
 const normalizeEmail = (email: string): string => {
@@ -30,6 +30,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const router = useRouter();
+  const nextPath = safeNextPath(router.query.next);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,7 +53,7 @@ export default function Login() {
     try {
       await login(normalizedEmail, password);
       
-      router.push('/dashboard');
+      router.push(nextPath ?? '/dashboard');
     } catch (err: any) {
       // Map errors safely without exposing backend details
       let errorMessage = 'Login failed. Please check your credentials.';
@@ -78,85 +79,60 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <Header />
-
-      <main className="flex-1 flex items-center justify-center bg-neutral-50 py-8 sm:py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
-        {/* Subtle background decoration */}
-        <div className="absolute top-0 right-0 w-48 h-48 sm:w-64 sm:h-64 opacity-10">
-          <svg viewBox="0 0 200 200" className="w-full h-full">
-            <path d="M50,50 Q100,0 150,50 T250,50" stroke="#E5E5E5" strokeWidth="2" fill="none" />
-            <path d="M30,100 Q100,50 170,100 T310,100" stroke="#E5E5E5" strokeWidth="2" fill="none" />
-            <path d="M10,150 Q100,100 190,150 T370,150" stroke="#E5E5E5" strokeWidth="2" fill="none" />
-          </svg>
+    <AuthFrame
+      title="Sign in"
+      lead="Use the email and password for your ForexOrbit account."
+      switcher={
+        <>
+          New to ForexOrbit?{' '}
+          <Link href={signupHref(nextPath ?? undefined)} className="font-medium text-[#9A4E0C] hover:underline">
+            Create an account
+          </Link>
+        </>
+      }
+    >
+      {error ? (
+        <p className="mb-5 text-sm leading-relaxed text-[#9f1239]" role="alert">{error}</p>
+      ) : null}
+      <form onSubmit={handleSubmit} className="space-y-3.5">
+        <div>
+          <label className={authLabelClass} htmlFor="login-email">Email</label>
+          <input
+            id="login-email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            autoComplete="email"
+            className={authFieldClass}
+          />
         </div>
-
-        <div className="max-w-md w-full relative z-10 animate-fade-in">
-          <div className="bg-white rounded-2xl shadow-soft p-6 sm:p-8 border border-neutral-200">
-            <div className="text-center mb-6 sm:mb-8">
-              <h2 className="text-neutral-900 font-bold text-2xl sm:text-3xl mb-3 sm:mb-4">Sign In</h2>
-              <p className="text-sm sm:text-base text-neutral-500">Welcome back to ForexOrbit Academy</p>
-            </div>
-
-            {error && (
-              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
-                <p className="text-red-700 text-sm">{error}</p>
-              </div>
-            )}
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-semibold text-neutral-500 mb-2">Email</label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  className="bg-white border border-neutral-300 text-neutral-900 rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary-400/50 focus:border-transparent w-full mb-4 placeholder:text-neutral-400"
-                  placeholder="you@example.com"
-                />
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="block text-sm font-semibold text-neutral-500">Password</label>
-                  <Link href="/forgot-password" className="text-neutral-500 hover:text-neutral-900 hover:underline text-sm">
-                    Forgot password? (SMS code)
-                  </Link>
-                </div>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  className="bg-white border border-neutral-300 text-neutral-900 rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary-400/50 focus:border-transparent w-full mb-4 placeholder:text-neutral-400"
-                  placeholder="••••••••"
-                />
-              </div>
-
-                  <button
-                    type="submit"
-                    disabled={loading || !email.trim() || !password.trim()}
-                    className="bg-primary-600 hover:bg-primary-700 text-white w-full rounded-xl py-3 font-semibold transition-colors disabled:bg-primary-900/50 disabled:cursor-not-allowed"
-                  >
-                {loading ? <ButtonLoadingState loading loadingLabel="Signing in" /> : 'Sign In'}
-              </button>
-            </form>
-
-            <div className="mt-6 pt-6 border-t border-neutral-200">
-              <p className="text-center text-sm text-neutral-500">
-                Don't have an account?{' '}
-                <Link href="/signup" className="text-neutral-900 hover:underline font-semibold">
-                  Sign Up
-                </Link>
-              </p>
-            </div>
+        <div>
+          <div className="flex items-baseline justify-between gap-3">
+            <label className={authLabelClass} htmlFor="login-password">Password</label>
+            <Link href="/forgot-password" className="text-sm font-medium text-[#9A4E0C] hover:underline">
+              Forgot password?
+            </Link>
           </div>
+          <input
+            id="login-password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            autoComplete="current-password"
+            className={authFieldClass}
+          />
         </div>
-      </main>
-
-      <Footer />
-    </div>
+        <button
+          type="submit"
+          disabled={loading || !email.trim() || !password.trim()}
+          className={authButtonClass}
+        >
+          {loading ? <ButtonLoadingState loading loadingLabel="Signing in" /> : 'Sign in'}
+        </button>
+      </form>
+    </AuthFrame>
   );
 }
 

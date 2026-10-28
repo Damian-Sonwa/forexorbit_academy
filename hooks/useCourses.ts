@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect, useRef } from 'react';
-import { apiClient } from '@/lib/api-client';
+import { apiClient, isUnauthorizedError } from '@/lib/api-client';
 
 export interface Course {
   _id?: string;
@@ -88,13 +88,14 @@ export function useCourses(filters?: { category?: string; difficulty?: string; s
   return { courses, loading, error, enroll, unenroll, refetch: fetchCourses };
 }
 
-export function useCourse(courseId: string | string[] | undefined) {
+/** `enabled` lets pages wait for auth so guests never hit the auth-only course endpoint. */
+export function useCourse(courseId: string | string[] | undefined, enabled = true) {
   const [course, setCourse] = useState<Course | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!courseId || Array.isArray(courseId)) return;
+    if (!enabled || !courseId || Array.isArray(courseId)) return;
 
     const fetchCourse = async () => {
       try {
@@ -103,27 +104,28 @@ export function useCourse(courseId: string | string[] | undefined) {
         setCourse(data);
         setError(null);
       } catch (err: any) {
+        // A 401 triggers the api-client login redirect; keep the loading state instead of flashing an error.
+        if (isUnauthorizedError(err)) return;
         setError(err.message || 'Failed to fetch course');
-      } finally {
-        setLoading(false);
       }
+      setLoading(false);
     };
 
     fetchCourse();
-  }, [courseId]);
+  }, [courseId, enabled]);
 
   // Expose a refetch function so pages can refresh course data on socket events
   const refetch = async () => {
-    if (!courseId || Array.isArray(courseId)) return;
+    if (!enabled || !courseId || Array.isArray(courseId)) return;
     try {
       const data = await apiClient.get<Course>(`/courses/${courseId}`);
       setCourse(data);
       setError(null);
     } catch (err: any) {
+      if (isUnauthorizedError(err)) return;
       setError(err.message || 'Failed to fetch course');
-    } finally {
-      setLoading(false);
     }
+    setLoading(false);
   };
 
   return { course, loading, error, refetch };

@@ -170,7 +170,9 @@ test('protected lesson fields are removed until the read is allowed', () => {
 
 test('lesson and course reads use the stored course and do not return raw errors', () => {
   const root = path.join(__dirname, '..');
-  const lesson = fs.readFileSync(path.join(root, 'pages', 'api', 'lessons', '[id].ts'), 'utf8');
+  const lessonRoute = fs.readFileSync(path.join(root, 'pages', 'api', 'lessons', '[id].ts'), 'utf8');
+  assert.equal(lessonRoute.includes('readLessonDetail(db'), true);
+  const lesson = lessonRoute + fs.readFileSync(path.join(root, 'lib', 'course-lesson-list.js'), 'utf8');
   const list = fs.readFileSync(path.join(root, 'pages', 'api', 'lessons', 'index.ts'), 'utf8');
   const course = fs.readFileSync(path.join(root, 'pages', 'api', 'courses', '[id].ts'), 'utf8');
   assert.equal(lesson.includes('decideLessonRead'), true);

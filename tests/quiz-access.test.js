@@ -185,7 +185,9 @@ test('the quiz routes grade on the server and the lesson payload does not copy t
   assert.equal(quizRoute.includes('req.body.score'), false);
   assert.equal(quizRoute.includes('Get quiz error:'), false);
   assert.equal(quizRoute.includes('Submit quiz error:'), false);
-  const lessonRoute = fs.readFileSync(path.join(__dirname, '..', 'pages', 'api', 'lessons', '[id].ts'), 'utf8');
+  const lessonRoute = fs.readFileSync(path.join(__dirname, '..', 'pages', 'api', 'lessons', '[id].ts'), 'utf8')
+    + fs.readFileSync(path.join(__dirname, '..', 'lib', 'course-lesson-list.js'), 'utf8');
+  assert.equal(lessonRoute.includes('readLessonDetail'), true);
   assert.equal(lessonRoute.includes('decideQuizRead'), true);
   assert.equal(lessonRoute.includes('lesson.quiz = quiz;'), false);
 });

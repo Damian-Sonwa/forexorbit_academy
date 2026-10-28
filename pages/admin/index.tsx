@@ -682,6 +682,7 @@ export default function AdminPanel() {
               <>
                 <Link href="/consultations/expert" className="rounded-lg border border-neutral-300 px-4 py-2 text-sm font-semibold text-neutral-900 dark:text-white">Publish hours</Link>
                 <Link href="/consultations/admin" className="rounded-lg border border-neutral-300 px-4 py-2 text-sm font-semibold text-neutral-900 dark:text-white">Approve experts</Link>
+                <Link href="/admin/purchases" className="rounded-lg border border-neutral-300 px-4 py-2 text-sm font-semibold text-neutral-900 dark:text-white">Course purchases</Link>
               </>
             )}
           </div>

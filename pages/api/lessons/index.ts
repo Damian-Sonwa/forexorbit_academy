@@ -20,32 +20,32 @@ import { ObjectId } from 'mongodb';
 import { decideAccountAccess, decideLessonCatalog, decideLessonCreate, decideLessonRead, isStoredId, presentLessonRead } from '@/lib/account-access';
 import { enrollmentDecisionRecord } from '@/lib/enrollment-state';
 import { stripLessonVisualAidsFields } from '@/lib/strip-visual-aids-html';
-import { buildLessonsListForCourse } from '@/lib/build-course-lessons-list';
+import { loadCourseEntitlement, presentCourseLessons, priceCourseLessons } from '@/lib/course-lesson-list';
 
 async function getLessons(req: AuthRequest, res: NextApiResponse) {
   const requestedId = Array.isArray(req.query.courseId) ? req.query.courseId[0] : req.query.courseId;
   if (!isStoredId(requestedId)) {
     return res.status(400).json({ error: 'Invalid course ID' });
   }
+  const outline = req.query.outline === '1' || req.query.outline === 'true';
   try {
     const db = await getDb();
-    const record = await db.collection('users').findOne(
-      { _id: new ObjectId(req.user!.userId) },
-      { projection: { email: 1, role: 1, status: 1 } }
-    );
-    const account = decideAccountAccess({ userId: req.user!.userId, record });
+    const member = {
+      userId: req.user!.userId,
+      role: req.user!.role,
+      email: req.user!.email,
+    };
     const course = await db.collection('courses').findOne(
       { _id: new ObjectId(requestedId) },
       { projection: { instructorId: 1, difficulty: 1 } }
     );
     const courseId = course ? String(course._id) : '';
-    const enrollment = account.ok && course
+    const enrollment = course
       ? await db.collection('progress').findOne({
-          userId: account.user.userId,
+          userId: member.userId,
           $or: [{ courseId }, { courseId: course._id }],
         })
       : null;
-    const member = account.ok ? { userId: account.user.userId, role: account.user.role, email: account.user.email } : null;
     const enrollmentRecord = enrollmentDecisionRecord(enrollment);
     const catalog = decideLessonCatalog({
       member,
@@ -56,59 +56,46 @@ async function getLessons(req: AuthRequest, res: NextApiResponse) {
       return res.status(catalog.status).json({ error: catalog.error });
     }
 
-    const lessonsList = await db.collection('lessons')
-      .find({ courseId: catalog.courseId })
-      .sort({ order: 1 })
-      .toArray();
+    const lessonCursor = db.collection('lessons').find({ courseId: catalog.courseId });
+    if (outline) {
+      lessonCursor.project({ title: 1, type: 1, order: 1, courseId: 1, requiredLevel: 1 });
+    }
+    const lessonsList = await lessonCursor.sort({ order: 1 }).toArray();
     const courseRecord = {
       _id: course!._id,
       instructorId: course!.instructorId,
       difficulty: typeof course!.difficulty === 'string' ? course!.difficulty : null,
     };
-    const priced = await buildLessonsListForCourse(
-      db,
-      catalog.courseId,
-      account.ok ? { userId: account.user.userId, role: account.user.role } : undefined
-    );
-    const pricedById = new Map(priced.map((item) => [String(item._id), item]));
-    const views = lessonsList.map((lesson) => {
-      const read = decideLessonRead({
-        member,
-        lesson: {
-          _id: lesson._id,
-          courseId: lesson.courseId,
-          requiredLevel: typeof lesson.requiredLevel === 'string' ? lesson.requiredLevel : null,
-        },
-        course: courseRecord,
-        enrollment: enrollmentRecord,
+    if (outline) {
+      const outlineViews = lessonsList.map((lesson) => {
+        const read = decideLessonRead({
+          member,
+          lesson: {
+            _id: lesson._id,
+            courseId: lesson.courseId,
+            requiredLevel: typeof lesson.requiredLevel === 'string' ? lesson.requiredLevel : null,
+          },
+          course: courseRecord,
+          enrollment: enrollmentRecord,
+        });
+        return stripLessonVisualAidsFields(presentLessonRead(lesson as Record<string, unknown>, read.ok, catalog.courseId));
       });
-      const view = presentLessonRead(lesson as Record<string, unknown>, read.ok, catalog.courseId);
-      if (read.ok) {
-        view.completed = Boolean(
-          enrollment &&
-          Array.isArray(enrollment.completedLessons) &&
-          enrollment.completedLessons.map(String).includes(String(lesson._id))
-        );
-      }
-      const price = pricedById.get(String(lesson._id));
-      if (price) {
-        view.locked = price.locked === true;
-        view.isFirstLesson = price.isFirstLesson === true;
-        view.isDemo = price.isDemo === true;
-        view.monetization = price.monetization;
-        if (price.locked === true) {
-          view.content = null;
-          view.description = null;
-          view.summary = null;
-          view.lessonSummary = null;
-          view.videoUrl = null;
-          view.pdfUrl = null;
-          view.resources = [];
-        }
-      }
-      return stripLessonVisualAidsFields(view);
+      return res.json(outlineViews);
+    }
+    const entitlement = await loadCourseEntitlement(
+      db,
+      member,
+      catalog.courseId,
+      lessonsList.map((lesson) => String(lesson._id))
+    );
+    const views = presentCourseLessons({
+      member,
+      course: courseRecord,
+      enrollmentRow: enrollment,
+      lessons: lessonsList as Record<string, unknown>[],
+      pricing: priceCourseLessons(lessonsList, entitlement),
     });
-    res.json(views);
+    res.json(views.map(stripLessonVisualAidsFields));
   } catch {
     console.error(JSON.stringify({ event: 'lessonList', result: 'failed' }));
     res.status(500).json(unexpectedBody('api'));

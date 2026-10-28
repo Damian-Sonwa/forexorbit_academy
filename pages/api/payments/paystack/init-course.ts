@@ -1,98 +1,72 @@
 /**
  * POST /api/payments/paystack/init-course
- * Creates a Paystack intent to unlock all paid lessons in a course (one-time course payment).
- * Client should send Paystack metadata: { userId, courseId } (from this response).
+ * Creates the server-side intent for a one-time full-course purchase.
+ * The client must use the returned reference, amount, and currency unchanged.
  */
 
 import type { NextApiResponse } from 'next';
-import crypto from 'crypto';
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
+import { createCourseIntent, presentConfirmResult } from '@/lib/course-payment';
 import {
-  getCoursePriceKobo,
-  getPaystackCurrency,
-  isPaystackConfigured,
-  isStaffRole,
-  PAYSTACK_INTENTS_COLLECTION,
-  hasPaidForCourse,
-} from '@/lib/lesson-monetization';
+  logPayment,
+  lookupPaystackTransaction,
+  newSupportId,
+  paymentsAllowed,
+  studentOnly,
+  withinRateLimit,
+} from '@/lib/payment-route';
 
 async function handler(req: AuthRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ message: 'Method not allowed' });
   }
+  if (!paymentsAllowed(res) || !studentOnly(req, res) || !withinRateLimit('init', req, res)) return;
 
-  if (!isPaystackConfigured()) {
-    return res.status(503).json({ message: 'Payments are not configured' });
-  }
-
-  if (isStaffRole(req.user!.role)) {
-    return res.status(400).json({ message: 'Staff accounts do not need to purchase courses' });
+  const supportId = newSupportId();
+  const { courseId } = (req.body || {}) as { courseId?: unknown };
+  if (typeof courseId !== 'string' || !ObjectId.isValid(courseId)) {
+    return res.status(400).json({ success: false, code: 'invalid_course', message: 'A valid courseId is required' });
   }
 
   try {
-    const { courseId } = req.body as { courseId?: string };
-    if (!courseId || typeof courseId !== 'string') {
-      return res.status(400).json({ message: 'courseId is required' });
-    }
-
-    let oid: ObjectId;
-    try {
-      oid = new ObjectId(courseId);
-    } catch {
-      return res.status(400).json({ message: 'Invalid courseId' });
-    }
-
     const db = await getDb();
-    const courses = db.collection('courses');
-    const course = await courses.findOne({ _id: oid });
+    const course = await db.collection('courses').findOne({ _id: new ObjectId(courseId) }, { projection: { _id: 1 } });
     if (!course) {
-      return res.status(404).json({ message: 'Course not found' });
+      return res.status(404).json({ success: false, code: 'course_not_found', message: 'Course not found' });
     }
 
-    const paid = await hasPaidForCourse(db, req.user!.userId, courseId);
-    if (paid) {
-      return res.status(200).json({
-        message: 'You already have full access to this course.',
-        alreadyOwned: true,
-        reference: null,
-        amountKobo: getCoursePriceKobo(),
-        currency: getPaystackCurrency(),
-        email: req.user!.email,
-        userId: req.user!.userId,
-        courseId,
-      });
-    }
-
-    const reference = `fo_c_${Date.now()}_${crypto.randomBytes(6).toString('hex')}`;
-    const amountKobo = getCoursePriceKobo();
-    const currency = getPaystackCurrency();
-
-    await db.collection(PAYSTACK_INTENTS_COLLECTION).insertOne({
-      reference,
+    const result = await createCourseIntent(db, {
       userId: req.user!.userId,
-      email: req.user!.email,
       courseId,
-      kind: 'course',
-      amountKobo,
-      currency,
-      createdAt: new Date(),
-      expiresAt: new Date(Date.now() + 30 * 60 * 1000),
+      fetchTransaction: lookupPaystackTransaction,
     });
 
+    if (!result.ok) {
+      logPayment('init-course', { supportId, code: result.code });
+      const { status, body } = presentConfirmResult(result, supportId);
+      return res.status(status).json(body);
+    }
+    if (result.alreadyOwned) {
+      logPayment('init-course', { supportId, code: 'already_owned' });
+      return res.status(200).json({ alreadyOwned: true, reference: null, courseId, message: 'You already have full access to this course.' });
+    }
+
+    logPayment('init-course', { supportId, reference: result.reference, code: 'intent_created' });
     return res.status(200).json({
-      message: 'Checkout ready. Complete payment in the Paystack window.',
-      reference,
-      amountKobo,
-      currency,
+      alreadyOwned: false,
+      reference: result.reference,
+      amountKobo: result.amountKobo,
+      currency: result.currency,
       email: req.user!.email,
       userId: req.user!.userId,
       courseId,
+      message: 'Checkout ready. Complete payment in the Paystack window.',
     });
-  } catch (e) {
-    console.error('[init-course]', e);
-    return res.status(500).json({ message: 'Something went wrong. Please try again later.' });
+  } catch {
+    logPayment('init-course', { supportId, code: 'internal_error' });
+    return res.status(503).json({ success: false, code: 'internal_error', retryable: true, message: 'Could not start checkout. Try again shortly.', supportId });
   }
 }
 

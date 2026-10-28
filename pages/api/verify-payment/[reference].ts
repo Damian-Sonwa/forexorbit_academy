@@ -1,59 +1,21 @@
 /**
- * GET /api/verify-payment/:reference
- * Verifies a Paystack transaction server-side and unlocks the course for the authenticated user.
+ * GET /api/verify-payment/:reference?courseId=
+ * Re-checks a full-course checkout for the signed-in student. Same rules as POST /api/courses/:id/pay.
  */
 
 import type { NextApiResponse } from 'next';
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
-import { getDb } from '@/lib/mongodb';
-import { isPaystackConfigured } from '@/lib/lesson-monetization';
-import { verifyPaymentReferenceForUser } from '@/lib/paystack-course-unlock';
+import { respondWithCourseConfirmation } from '@/lib/payment-route';
 
 async function handler(req: AuthRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
     return res.status(405).json({ message: 'Method not allowed' });
   }
-
-  if (!isPaystackConfigured()) {
-    return res.status(503).json({ message: 'Payments are not configured' });
-  }
-
-  const { reference } = req.query;
-  const ref = typeof reference === 'string' ? reference.trim() : '';
-  if (!ref) {
-    return res.status(400).json({ message: 'reference is required' });
-  }
-
-  if (!req.user) {
-    return res.status(401).json({ message: 'Unauthorized' });
-  }
-
-  try {
-    const db = await getDb();
-    const result = await verifyPaymentReferenceForUser(db, ref, {
-      userId: req.user.userId,
-      email: req.user.email,
-      role: req.user.role,
-    });
-
-    if (!result.ok) {
-      console.error('[verify-payment] FAILED', { reference: ref, message: result.message, status: result.status });
-      return res.status(result.status).json({ verified: false, message: result.message });
-    }
-
-    return res.status(200).json({
-      verified: true,
-      success: true,
-      courseId: result.courseId,
-      reference: result.reference,
-      alreadyHadAccess: result.alreadyHadAccess,
-      alreadyProcessed: result.alreadyProcessed,
-      message: 'Payment verified. Course unlocked.',
-    });
-  } catch (e) {
-    console.error('[verify-payment] error', e);
-    return res.status(500).json({ message: 'Something went wrong. Please try again later.' });
-  }
+  return respondWithCourseConfirmation(req, res, {
+    tag: 'verify-payment',
+    reference: req.query.reference,
+    expectedCourseId: req.query.courseId,
+  });
 }
 
 export default withAuth(handler);

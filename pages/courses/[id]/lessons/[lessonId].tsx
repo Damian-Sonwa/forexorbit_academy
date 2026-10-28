@@ -23,17 +23,25 @@ import { getLessonDescriptionHtml, hasVisibleHtml } from '@/lib/lesson-html';
 import { LessonSkeleton } from '@/components/loading';
 import { ContentAdBanner } from '@/components/ads/ContentAdBanner';
 import { ContentAdInterstitial } from '@/components/ads/ContentAdInterstitial';
-import { PaystackLessonUnlock } from '@/components/monetization/PaystackLessonUnlock';
+import { PaystackCourseUnlock } from '@/components/monetization/PaystackCourseUnlock';
 import type { LessonAccessDeniedPayload, LessonMonetization } from '@/hooks/useLesson';
-import { readCoursePaidClient, writeCoursePaidClient } from '@/lib/forexorbit-course-paid';
+import { COURSE_PRICE_LABEL } from '@/lib/course-price';
+import { loginHref } from '@/lib/login-redirect';
 
 export default function LessonPage() {
   const router = useRouter();
   const { id: courseId, lessonId } = router.query;
-  const { lesson, loading: lessonLoading, error: lessonError, accessDenied, refetch: refetchLesson } = useLesson(lessonId);
-  const { lessons, refetch: refetchLessons } = useLessons(courseId);
+  const { isAuthenticated, user, loading: authLoading } = useAuth();
+  const canFetch = !authLoading && isAuthenticated;
+  const { lesson, loading: lessonLoading, error: lessonError, accessDenied, refetch: refetchLesson } = useLesson(lessonId, canFetch);
+  const { lessons, refetch: refetchLessons } = useLessons(courseId, canFetch);
   // const { course } = useCourse(courseId); // Reserved for future use
-  const { isAuthenticated, user } = useAuth();
+
+  useEffect(() => {
+    if (router.isReady && !authLoading && !isAuthenticated) {
+      void router.replace(loginHref(router.asPath));
+    }
+  }, [router, authLoading, isAuthenticated]);
   const { updateProgress, joinLesson, leaveLesson, socket, connected } = useSocket();
   const [showQuiz, setShowQuiz] = useState(false);
   const [showContentEditor, setShowContentEditor] = useState(false);
@@ -81,12 +89,9 @@ export default function LessonPage() {
   };
 
   const handleLessonUnlocked = useCallback(async () => {
-    if (typeof courseId === 'string') {
-      writeCoursePaidClient(courseId);
-    }
     await refetchLesson();
     await refetchLessons();
-  }, [courseId, refetchLesson, refetchLessons]);
+  }, [refetchLesson, refetchLessons]);
 
   // Compute these before early returns so useEffect can run unconditionally
   const displayLesson = currentLesson || lesson;
@@ -107,7 +112,7 @@ export default function LessonPage() {
     }
   }, [isLockedAccessDenied, payBlocked, courseId, router]);
 
-  if (lessonLoading) {
+  if (!canFetch || lessonLoading) {
     return (
       <div className="min-h-screen flex flex-col">
         <Header />
@@ -163,11 +168,9 @@ export default function LessonPage() {
   const nextLesson = currentIndex < lessons.length - 1 ? lessons[currentIndex + 1] : null;
   const nextLessonIndex = currentIndex >= 0 && currentIndex < lessons.length - 1 ? currentIndex + 1 : -1;
   const isNextFirstLesson = nextLessonIndex === 0;
-  const coursePaid = typeof courseId === 'string' ? readCoursePaidClient(courseId) : false;
   const isNextLocked =
     nextLesson != null &&
     !isNextFirstLesson &&
-    !coursePaid &&
     (nextLesson.locked === true || (nextLesson.monetization as any)?.unlocked === false);
 
   return (
@@ -216,10 +219,8 @@ export default function LessonPage() {
                   'Pay once to unlock this course. The first lesson and demo lessons stay free.'}
               </p>
               <div className="mt-4 max-w-md">
-                <PaystackLessonUnlock
+                <PaystackCourseUnlock
                   courseId={courseId as string}
-                  unlockScope="course"
-                  monetization={monetization}
                   variant="compact"
                   onUnlocked={handleLessonUnlocked}
                 />
@@ -415,7 +416,7 @@ export default function LessonPage() {
                   onClick={() => router.push(`/courses/${courseId}`)}
                   className="flex items-center justify-center px-4 sm:px-6 py-2 sm:py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-semibold transition-colors shadow-sm sm:ml-auto text-sm sm:text-base"
                 >
-                  <span className="hidden sm:inline">Unlock full course – ₦5,000</span>
+                  <span className="hidden sm:inline">Unlock full course – {COURSE_PRICE_LABEL}</span>
                   <span className="sm:hidden">Unlock course</span>
                   <svg className="w-4 h-4 sm:w-5 sm:h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />

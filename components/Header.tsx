@@ -14,6 +14,7 @@ import { isNavHrefDisabled } from '@/lib/config/features';
 import { notificationDestination } from '@/lib/class-notifications';
 import { InlineLoader } from '@/components/loading';
 import { Languages } from 'lucide-react';
+import BrandLogo from '@/components/BrandLogo';
 interface Notification {
   _id: string;
   type: string;
@@ -165,14 +166,12 @@ export default function Header() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-14 py-2">
           {/* Logo */}
-          <Link href="/" className="flex items-center space-x-2 group">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-primary-400 rounded-lg flex items-center justify-center">
-              <span className="text-neutral-900 font-bold text-sm sm:text-base">FA</span>
-            </div>
-            <span className="text-lg sm:text-xl font-display font-semibold tracking-tight text-neutral-900 dark:text-white">
-              ForexOrbit
-              <span className="text-neutral-500 dark:text-neutral-400 ml-1 hidden sm:inline font-medium">Academy</span>
-            </span>
+          <Link
+            href="/"
+            aria-label="FX Orbit Academy home"
+            className="flex shrink-0 items-center rounded-md transition-opacity duration-200 hover:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-neutral-950"
+          >
+            <BrandLogo priority className="h-8 lg:h-9" />
           </Link>
 
           {/* Navigation - Hidden for students, shown for other roles */}

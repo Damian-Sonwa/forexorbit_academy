@@ -19,26 +19,35 @@ import { apiClient } from '@/lib/api-client';
 import { sanitizeForStudentView, stripHtml } from '@/lib/html-sanitizer';
 import { getLessonDescriptionHtml, hasVisibleHtml } from '@/lib/lesson-html';
 import { useLessons } from '@/hooks/useLesson';
-import { readCoursePaidClient, writeCoursePaidClient } from '@/lib/forexorbit-course-paid';
-import { loadPaystackInline } from '@/lib/paystack-inline-script';
+import { loginHref } from '@/lib/login-redirect';
+import { PaystackCourseUnlock } from '@/components/monetization/PaystackCourseUnlock';
 
 export default function CourseDetailPage() {
   const router = useRouter();
   const { id } = router.query;
-  const { course, loading, error, refetch: refetchCourse } = useCourse(id) as any;
-  const { lessons, loading: lessonsLoading, refetch: refetchLessons } = useLessons(id);
+  const { isAuthenticated, user, loading: authLoading } = useAuth();
+  const canFetch = !authLoading && isAuthenticated;
+  const { course, loading, error, refetch: refetchCourse } = useCourse(id, canFetch) as any;
+  const { lessons, loading: lessonsLoading, refetch: refetchLessons } = useLessons(id, canFetch);
   const { socket, connected } = useSocket();
-  const { isAuthenticated, user } = useAuth();
-  const [enrolling, setEnrolling] = useState(false);
-  const [paid, setPaid] = useState(false);
-  const [verifyBusy, setVerifyBusy] = useState(false);
-  const [fixRef, setFixRef] = useState('');
+  const goToLogin = useCallback(() => {
+    void router.replace(loginHref(router.asPath));
+  }, [router]);
 
   useEffect(() => {
-    if (typeof id === 'string' && readCoursePaidClient(id)) {
-      setPaid(true);
-    }
-  }, [id]);
+    if (router.isReady && !authLoading && !isAuthenticated) goToLogin();
+  }, [router.isReady, authLoading, isAuthenticated, goToLogin]);
+  const [enrolling, setEnrolling] = useState(false);
+  const [verifyBusy, setVerifyBusy] = useState(false);
+  const [fixRef, setFixRef] = useState('');
+  const [fixMessage, setFixMessage] = useState<string | null>(null);
+  /** Server-derived: every lesson in the list is unlocked for this user. */
+  const paid = lessons.length > 0 && lessons.every((lesson) => lesson.locked !== true);
+
+  const handleCourseUnlocked = useCallback(async () => {
+    await refetchLessons();
+    await refetchCourse?.();
+  }, [refetchLessons, refetchCourse]);
 
   const openLesson = useCallback(
     (href: string) => {
@@ -47,122 +56,30 @@ export default function CourseDetailPage() {
     [router]
   );
 
-  /**
-   * Paystack: callback MUST be function(response) { ... }.
-   * After Paystack reports success, server verifies via GET /api/verify-payment/:reference (secret never on client).
-   */
-  const handlePay = useCallback(
-    async (courseId: string) => {
-      if (!courseId?.trim()) return;
-
-      if (!isAuthenticated) {
-        void router.push('/login');
-        return;
-      }
-
-      const payEmail = user?.email?.trim().toLowerCase();
-      if (!payEmail) {
-        alert('Your account has no email. Update your profile before paying.');
-        return;
-      }
-
-      const publicKey = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY?.trim();
-      if (!publicKey) {
-        alert('Missing NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY in environment.');
-        return;
-      }
-
-      try {
-        await loadPaystackInline();
-        const PaystackPop = window.PaystackPop;
-        if (!PaystackPop) {
-          alert('Paystack script failed to load.');
-          return;
-        }
-
-        const ref = `fo_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-        const userId = user?.id?.trim();
-        if (!userId) {
-          alert('Your account ID is missing. Sign in again before paying.');
-          return;
-        }
-        const courseIdForMeta = String(course?._id ?? course?.id ?? courseId).trim();
-        const handler = PaystackPop.setup({
-          key: publicKey,
-          email: payEmail,
-          amount: parseInt(process.env.NEXT_PUBLIC_PAYSTACK_COURSE_PRICE_KOBO || '500000', 10) || 500000,
-          currency: 'NGN',
-          ref,
-          metadata: { userId, courseId: courseIdForMeta },
-          callback: function (response: { reference?: string }) {
-            console.log('Payment success:', response);
-            const paymentRef = response.reference || ref;
-            void (async () => {
-              try {
-                const data = await apiClient.get<{
-                  verified?: boolean;
-                  message?: string;
-                }>(`/verify-payment/${encodeURIComponent(paymentRef)}`);
-                if (data.verified) {
-                  setPaid(true);
-                  writeCoursePaidClient(courseId);
-                  await refetchLessons();
-                  await refetchCourse?.();
-                } else {
-                  alert(data.message || 'Could not verify payment.');
-                }
-              } catch (e: unknown) {
-                console.error('[verify-payment]', e);
-                const ax = e as { response?: { data?: { message?: string } } };
-                alert(ax.response?.data?.message || 'Payment verification failed. Use “Fix payment” with your reference or contact support.');
-              }
-            })();
-          },
-          onClose: function () {
-            console.log('Payment closed');
-          },
-        });
-
-        if (typeof handler.openIframe === 'function') {
-          handler.openIframe();
-        }
-      } catch (e) {
-        console.error(e);
-        alert('Could not start payment. Check console.');
-      }
-    },
-    [isAuthenticated, user?.email, user?.id, course?._id, course?.id, router, refetchLessons, refetchCourse]
-  );
-
   const handleManualVerify = useCallback(async () => {
-    const ref = fixRef.trim();
+    const ref = fixRef.trim().replace(/[.,;:!?]+$/, '');
     if (!ref || typeof id !== 'string') return;
     if (!isAuthenticated) {
-      void router.push('/login');
+      goToLogin();
       return;
     }
     setVerifyBusy(true);
+    setFixMessage(null);
     try {
-      const data = await apiClient.post<{ verified?: boolean; message?: string }>('/verify-payment/manual', {
-        reference: ref,
-      });
-      if (data.verified) {
-        setPaid(true);
-        writeCoursePaidClient(id);
-        await refetchLessons();
-        await refetchCourse?.();
-        setFixRef('');
-        alert('Payment verified. Course unlocked.');
-      } else {
-        alert(data.message || 'Verification failed.');
-      }
+      await apiClient.post('/verify-payment/manual', { reference: ref, courseId: id });
+      await handleCourseUnlocked();
+      setFixRef('');
+      setFixMessage('Payment confirmed. The full course is unlocked.');
     } catch (e: unknown) {
-      const ax = e as { response?: { data?: { message?: string } } };
-      alert(ax.response?.data?.message || 'Verification failed.');
+      const ax = e as { response?: { data?: { message?: string; supportId?: string } } };
+      const supportId = ax.response?.data?.supportId;
+      setFixMessage(
+        `${ax.response?.data?.message || 'Verification failed.'}${supportId ? ` Support ID: ${supportId}` : ''}`
+      );
     } finally {
       setVerifyBusy(false);
     }
-  }, [fixRef, id, isAuthenticated, router, refetchLessons, refetchCourse]);
+  }, [fixRef, id, isAuthenticated, goToLogin, handleCourseUnlocked]);
 
   // Redirect instructors to instructor course management page
   useEffect(() => {
@@ -192,7 +109,7 @@ export default function CourseDetailPage() {
 
   const handleEnroll = async () => {
     if (!isAuthenticated) {
-      router.push('/login');
+      goToLogin();
       return;
     }
 
@@ -210,6 +127,10 @@ export default function CourseDetailPage() {
       setEnrolling(false);
     }
   };
+
+  if (!canFetch) {
+    return <LoadingSpinner message={authLoading ? 'Loading course...' : 'Redirecting to sign in...'} fullScreen />;
+  }
 
   if (loading && !course) {
     return (
@@ -358,13 +279,9 @@ export default function CourseDetailPage() {
                       <p className="mb-1 text-sm text-gray-700 dark:text-gray-300">
                         {lessons.length - 1} more lesson{lessons.length > 2 ? 's' : ''} in this course
                       </p>
-                      <button
-                        type="button"
-                        className="w-full rounded-xl bg-primary-600 px-4 py-3 text-center text-base font-bold text-white shadow-md hover:bg-primary-700"
-                        onClick={() => handlePay(typeof id === 'string' ? id : '')}
-                      >
-                        Unlock full course – ₦5,000
-                      </button>
+                      {typeof id === 'string' && (
+                        <PaystackCourseUnlock courseId={id} variant="compact" onUnlocked={handleCourseUnlocked} />
+                      )}
                       <p className="mt-3 text-xs text-gray-600 dark:text-gray-400">
                         Paid but still locked? Enter your Paystack reference below.
                       </p>
@@ -385,6 +302,9 @@ export default function CourseDetailPage() {
                           {verifyBusy ? 'Verifying…' : 'Fix payment'}
                         </button>
                       </div>
+                      {fixMessage && (
+                        <p className="mt-2 text-sm text-gray-700 dark:text-gray-300" role="status">{fixMessage}</p>
+                      )}
                     </div>
                   )}
                 </div>
@@ -430,7 +350,7 @@ export default function CourseDetailPage() {
                       {enrolling ? <ButtonLoadingState loading loadingLabel={course.enrolled ? 'Leaving course' : 'Enrolling'} /> : course.enrolled ? 'Unenroll' : 'Enroll Now'}
                     </button>
                   ) : (
-                    <Link href="/login" className="block w-full px-6 py-4 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-bold text-lg text-center transition-colors shadow-lg hover:shadow-xl">
+                    <Link href={loginHref(router.asPath)} className="block w-full px-6 py-4 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-bold text-lg text-center transition-colors shadow-lg hover:shadow-xl">
                       Login to Enroll
                     </Link>
                   )}

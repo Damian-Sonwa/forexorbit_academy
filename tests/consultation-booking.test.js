@@ -217,7 +217,7 @@ test('consultation payment is not wired into course unlock', () => {
   const webhook = fs.readFileSync(path.join(__dirname, '../pages/api/paystack/webhook.ts'), 'utf8');
   const store = fs.readFileSync(path.join(__dirname, '../lib/consultation-booking-store.ts'), 'utf8');
   const script = fs.readFileSync(path.join(__dirname, '../scripts/consultation-booking-indexes.js'), 'utf8');
-  assert.equal(webhook.includes('unlockCourseFromWebhookPayload'), true);
+  assert.equal(webhook.includes('processWebhookEvent'), true);
   assert.equal(webhook.includes('consultationRequests'), false);
   assert.equal(store.includes('unlockCourse'), false);
   assert.equal(store.includes('PAYSTACK'), false);

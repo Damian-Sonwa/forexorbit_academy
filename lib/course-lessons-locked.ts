@@ -1,84 +1,39 @@
 /**
- * Course lesson list: `locked` is false for isFirstLesson, isDemo, or when user paid for the course; staff always unlocked.
+ * Course lesson pricing: `locked` is false for isFirstLesson, isDemo, a full-course entitlement, or a
+ * legacy purchase of that one lesson; staff always unlocked. Rows carry public lesson fields only,
+ * because this helper does not check enrollment. Use lib/course-lesson-list for lesson content.
  */
 
 import type { Db } from 'mongodb';
-import { ObjectId } from 'mongodb';
-import { stripLessonVisualAidsFields } from '@/lib/strip-visual-aids-html';
+import { presentLessonRead } from '@/lib/account-access';
 import {
+  loadCourseEntitlement,
+  priceCourseLessons,
   sortLessonsByOrder,
-  hasPaidForCourse,
-  isStaffRole,
-  getCoursePriceKobo,
-  getPaystackCurrency,
-  isPaystackConfigured,
-} from '@/lib/lesson-monetization';
+  withholdLockedContent,
+} from '@/lib/course-lesson-list';
 
 export async function buildSimpleLessonsWithLocked(
   db: Db,
   courseId: string,
-  user: { userId: string; role: string } | undefined
+  user: { userId: string; role: string } | undefined,
+  preloaded?: Record<string, unknown>[]
 ): Promise<Record<string, unknown>[]> {
-  const lessonsCol = db.collection('lessons');
-  const raw = await lessonsCol.find({ courseId }).sort({ order: 1 }).toArray();
-  const sorted = sortLessonsByOrder(
-    raw as { _id: ObjectId; order?: number; isDemo?: boolean; isFirstLesson?: boolean }[]
-  );
+  const raw = preloaded ?? await db.collection('lessons').find({ courseId }).sort({ order: 1 }).toArray();
+  const sorted = sortLessonsByOrder(raw as Record<string, unknown>[]);
+  const entitlement = await loadCourseEntitlement(db, user, courseId, sorted.map((lesson) => String(lesson._id)));
+  const pricing = priceCourseLessons(sorted, entitlement);
 
-  const coursePaid =
-    user && user.role === 'student' ? await hasPaidForCourse(db, user.userId, courseId) : true;
-
-  const amountKobo = getCoursePriceKobo();
-  const currency = getPaystackCurrency();
-  const paymentsConfigured = isPaystackConfigured();
-
-  return sorted.map((lesson, index) => {
-    const doc = lesson as Record<string, unknown> & {
-      _id: ObjectId;
-      isFirstLesson?: boolean;
-      isDemo?: boolean;
+  return sorted.map((lesson) => {
+    const price = pricing.get(String(lesson._id))!;
+    const row: Record<string, unknown> = {
+      ...presentLessonRead(lesson, false, courseId),
+      accessible: false,
+      locked: price.locked,
+      isFirstLesson: price.isFirstLesson,
+      isDemo: price.isDemo,
+      monetization: price.monetization,
     };
-    const base = stripLessonVisualAidsFields(doc as Record<string, unknown>) as Record<string, unknown>;
-
-    if (!user || isStaffRole(user.role)) {
-      return {
-        ...base,
-        locked: false,
-        isFirstLesson: doc.isFirstLesson === true,
-        isDemo: doc.isDemo === true,
-        monetization: {
-          unlocked: true,
-          isFreeTier: false,
-          isDemo: false,
-          requiresPayment: false,
-          showAds: false,
-          amountKobo,
-          currency,
-          paymentsConfigured,
-        },
-      };
-    }
-
-    /** First row (index 0) is always free even when isFirstLesson is missing on the document. */
-    const isFirstSlot = doc.isFirstLesson === true || index === 0;
-    const isDemo = doc.isDemo === true;
-    const locked = !(isFirstSlot || isDemo || coursePaid);
-
-    return {
-      ...base,
-      locked,
-      isFirstLesson: doc.isFirstLesson === true,
-      isDemo,
-      monetization: {
-        unlocked: !locked,
-        isFreeTier: isFirstSlot,
-        isDemo,
-        requiresPayment: locked,
-        showAds: Boolean((isFirstSlot || isDemo) && process.env.NEXT_PUBLIC_ADS_ENABLED !== 'false'),
-        amountKobo,
-        currency,
-        paymentsConfigured,
-      },
-    };
+    return price.locked ? withholdLockedContent(row) : row;
   });
 }
