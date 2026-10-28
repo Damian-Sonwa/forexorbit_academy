@@ -17,7 +17,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
     res.setHeader('Allow', ['PUT']);
     return res.status(405).json({ error: 'Method not allowed' });
   }
-  if (!withinLedgerLimit('write', req, res)) return;
+  if (!(await withinLedgerLimit('write', req, res))) return;
   try {
     const db = await getDb();
     const id = typeof req.query.id === 'string' ? req.query.id : '';

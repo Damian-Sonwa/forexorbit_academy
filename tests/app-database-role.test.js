@@ -21,11 +21,12 @@ test('the built-in readWrite grant fails: it can update and remove audit entries
   assert.equal(result.ok, false);
   assert.deepEqual(result.auditViolations, [{ collection: 'adminAuditLog', actions: ['update', 'remove', 'dropCollection'] }]);
   assert.deepEqual(result.missing, []);
+  assert.deepEqual(result.excessive, [{ resource: `${DB}.*`, actions: ['createCollection', 'createIndex', 'dropCollection', 'find', 'insert', 'remove', 'update'] }]);
 });
 
 test('the custom role passes: audit log find and insert only, every app collection read-write', () => {
   const result = role.evaluatePrivileges(role.rolePrivileges(DB), DB);
-  assert.deepEqual(result, { ok: true, auditViolations: [], missing: [], warnings: [] });
+  assert.deepEqual(result, { ok: true, auditViolations: [], missing: [], excessive: [], warnings: [] });
   const audit = role.rolePrivileges(DB).filter((p) => p.resource.collection === AUDIT_COLLECTION);
   assert.deepEqual(audit, [{ resource: { db: DB, collection: 'adminAuditLog' }, actions: ['find', 'insert'] }]);
   const dbWide = role.rolePrivileges(DB).filter((p) => p.resource.collection === '');
@@ -43,8 +44,24 @@ test('the custom role plus any database-wide, other-database or any-resource wri
     assert.equal(result.ok, false, JSON.stringify(extra));
     assert.equal(result.auditViolations.length, 1);
   }
-  const elsewhere = [...role.rolePrivileges(DB), { resource: { db: 'other_db', collection: '' }, actions: ['update', 'remove'] }];
-  assert.equal(role.evaluatePrivileges(elsewhere, DB).ok, true);
+});
+
+test('any privilege beyond the role fails as excessive, even where the audit log is untouched', () => {
+  const cases = [
+    [{ resource: { db: 'other_db', collection: '' }, actions: ['update', 'remove'] }, { resource: 'other_db.*', actions: ['remove', 'update'] }],
+    [{ resource: { db: DB, collection: 'users' }, actions: ['dropCollection'] }, { resource: `${DB}.users`, actions: ['dropCollection'] }],
+    [{ resource: { db: DB, collection: '' }, actions: ['dropDatabase'] }, { resource: `${DB}.*`, actions: ['dropDatabase'] }],
+    [{ resource: { db: 'admin', collection: '' }, actions: ['createUser', 'grantRole'] }, { resource: 'admin.*', actions: ['createUser', 'grantRole'] }],
+    [{ resource: { cluster: true }, actions: ['shutdown'] }, { resource: 'cluster', actions: ['shutdown'] }],
+    [{ resource: { db: DB, collection: 'paystackPayments' }, actions: ['createIndex'] }, { resource: `${DB}.paystackPayments`, actions: ['createIndex'] }],
+  ];
+  for (const [extra, expected] of cases) {
+    const result = role.evaluatePrivileges([...role.rolePrivileges(DB), extra], DB);
+    assert.equal(result.ok, false, JSON.stringify(extra));
+    const dropsAuditLog = extra.actions.includes('dropDatabase');
+    assert.deepEqual(result.auditViolations, dropsAuditLog ? [{ collection: 'adminAuditLog', actions: ['dropDatabase'] }] : [], JSON.stringify(extra));
+    assert.deepEqual(result.excessive, [expected]);
+  }
 });
 
 test('a role missing an action the app needs fails and names it', () => {
@@ -77,6 +94,7 @@ test('the role covers every collection the app uses', () => {
     VOTES: 'communityVotes',
     REQUESTS: 'consultationRequests',
     SESSIONS: 'consultationSessions',
+    RATE_LIMIT_COLLECTION: 'rateLimits',
     // Chosen at runtime: payments or access rows (admin ledger), questions or replies (community votes).
     name: null,
     collection: null,
@@ -115,5 +133,9 @@ test('the checker takes a database name, never prints the connection string, and
 
   const lines = [];
   report(role.evaluatePrivileges(readWriteBuiltIn, DB), (line) => lines.push(line));
-  assert.deepEqual(lines, ['FAIL adminAuditLog allows: update, remove, dropCollection', 'FAIL: see the lines above.']);
+  assert.deepEqual(lines, [
+    'FAIL adminAuditLog allows: update, remove, dropCollection',
+    `FAIL ${DB}.* grants more than the role: createCollection, createIndex, dropCollection, find, insert, remove, update`,
+    'FAIL: see the lines above.',
+  ]);
 });

@@ -8,7 +8,8 @@ const path = require('path');
 
 const { COURSE_PAYMENT_INDEXES, PENDING_COURSE_INTENT } = require('../lib/course-payment-indexes');
 const { COLLECTIONS } = require('../lib/course-payment');
-const { SCANS, compareIndex, maskValue, parseArgs, run } = require('../scripts/course-payment-indexes');
+const { MANAGED_INDEXES, SCANS, compareIndex, maskValue, parseArgs, run } = require('../scripts/course-payment-indexes');
+const { RATE_LIMIT_TTL_INDEX } = require('../lib/shared-rate-limit');
 
 const PAYMENT_COLLECTIONS = [COLLECTIONS.intents, COLLECTIONS.payments, COLLECTIONS.courseAccess, COLLECTIONS.coursePurchases];
 
@@ -32,7 +33,7 @@ function fakeDb({ collections = PAYMENT_COLLECTIONS, groups = {}, indexes = {} }
           calls.push({ op: 'createIndex', name, key, options });
           present.add(name);
           if (!idx.has(name)) idx.set(name, [{ name: '_id_', key: { _id: 1 } }]);
-          idx.get(name).push({ name: options.name, key, unique: options.unique, partialFilterExpression: options.partialFilterExpression });
+          idx.get(name).push({ name: options.name, key, unique: options.unique, partialFilterExpression: options.partialFilterExpression, expireAfterSeconds: options.expireAfterSeconds });
           return options.name;
         },
         dropIndex: async (indexName) => {
@@ -94,16 +95,30 @@ test('a dry run only reads, and reports ready when every scan is clean', async (
   assert.ok(lines.some((line) => line.startsWith('Ready to build')));
 });
 
-test('apply builds the six indexes in plan order with the exact definitions, then verifies them', async () => {
+test('the rate-limit TTL index is built last, is not unique, and expires each window at its end', () => {
+  assert.deepEqual(MANAGED_INDEXES.map((item) => item.id), ['I1', 'I3', 'I6', 'I2', 'I5', 'I4', 'R1']);
+  assert.deepEqual(RATE_LIMIT_TTL_INDEX, {
+    id: 'R1',
+    collection: 'rateLimits',
+    key: { expiresAt: 1 },
+    options: { name: 'ttl_rate_limit_window', expireAfterSeconds: 0 },
+  });
+  const ttl = { name: 'ttl_rate_limit_window', key: { expiresAt: 1 }, expireAfterSeconds: 0 };
+  assert.equal(compareIndex(RATE_LIMIT_TTL_INDEX, [ttl]).state, 'present');
+  assert.equal(compareIndex(RATE_LIMIT_TTL_INDEX, [{ ...ttl, expireAfterSeconds: 60 }]).state, 'conflict');
+  assert.equal(compareIndex(RATE_LIMIT_TTL_INDEX, [{ ...ttl, unique: true }]).state, 'conflict');
+});
+
+test('apply builds the seven indexes in plan order with the exact definitions, then verifies them', async () => {
   const db = fakeDb();
   const result = await run(db, { mode: 'apply', log: quiet });
   assert.equal(result.ok, true);
   const created = writes(db);
-  assert.deepEqual(created.map((call) => call.options.name), COURSE_PAYMENT_INDEXES.map((item) => item.options.name));
+  assert.deepEqual(created.map((call) => call.options.name), MANAGED_INDEXES.map((item) => item.options.name));
   created.forEach((call, i) => {
-    assert.equal(call.name, COURSE_PAYMENT_INDEXES[i].collection);
-    assert.deepEqual(call.key, COURSE_PAYMENT_INDEXES[i].key);
-    assert.deepEqual(call.options, COURSE_PAYMENT_INDEXES[i].options);
+    assert.equal(call.name, MANAGED_INDEXES[i].collection);
+    assert.deepEqual(call.key, MANAGED_INDEXES[i].key);
+    assert.deepEqual(call.options, MANAGED_INDEXES[i].options);
   });
 
   const again = await run(db, { mode: 'apply', log: quiet });
@@ -149,7 +164,7 @@ test('a wrong database name is refused before any scan', async () => {
   assert.deepEqual(db.calls, []);
 });
 
-test('rollback drops only the six named indexes that exist', async () => {
+test('rollback drops only the named managed indexes that exist', async () => {
   const db = fakeDb({ indexes: { paystackPayments: [{ name: 'uniq_payment_reference', key: { reference: 1 }, unique: true }, { name: 'other_index', key: { createdAt: 1 } }] } });
   const result = await run(db, { mode: 'rollback', log: quiet });
   assert.deepEqual(result.dropped, ['uniq_payment_reference']);

@@ -1,5 +1,7 @@
 # Release readiness — 26 October 2026
 
+> **Authoritative status:** the last section, "Current status — 28 October 2026 (release-blocker closure)", supersedes every earlier status in this file. Earlier sections are kept as history.
+
 A local Git repository was created in this follow-up on branch `release-readiness/sprint-3-remediation`. It has no commit and no remote. Nothing was pushed. Release decision: **BLOCKED**.
 
 ## Gates
@@ -298,3 +300,87 @@ Release decision remains **BLOCKED**. The application is **NOT PRODUCTION-READY*
 | D9 app role | **Prepared:** role definition, read-only checker, tests. Dev user check: FAIL (`readWrite`), as expected | Owner creates `forexorbitAppRole` in Atlas, switches the app user, then the checker reports PASS |
 | Refund and dispute policy | Deferred by the owner | Owner decision later |
 
+
+## Current status — 28 October 2026 (release-blocker closure)
+
+Release decision: **BLOCKED**. The application is **NOT PRODUCTION-READY**. Nothing was deployed, merged, or changed in production, Atlas, Render or Paystack.
+
+**Recovery point.** Local branch `backup/pre-release-closure-2026-10-28` points at `9f6dba7`, the commit this run started from.
+
+**Deployment branch.** `RENDER_SETUP.md` and `VERCEL_DEPLOYMENT.md` name `master`, and `origin/HEAD` points to `master`. `render.yaml` has `autoDeploy: true` and no branch. A merge into `master` could therefore start a deploy. The work stays on `review/sprint-1-3-integration`.
+
+### Changes in this run
+
+| Area | Change | Evidence |
+| --- | --- | --- |
+| Abandoned checkout | An automatic re-check that gets `payment_not_successful` stops re-checking that course on later visits and shows nothing. A manual "confirm" keeps the message. Server behavior is unchanged. A webhook still grants access later, and starting a new checkout first re-checks ownership. | `tests/course-checkout-unlock.test.js` tests 11 and 11b |
+| D10 shared rate limit | Payment init and confirm, and the admin ledger routes, now also count in MongoDB (`rateLimits`, one document per user, scope and window, one atomic upsert). Limits are unchanged. If the store fails, these routes answer 503 and do not continue (fail closed). The in-process limiter still runs first. | `tests/shared-rate-limit.test.js` (6 tests, including two instances sharing one count) |
+| R1 TTL index | `scripts/course-payment-indexes.js` now also manages `ttl_rate_limit_window` on `rateLimits.expiresAt`. It also compares `unique` and `expireAfterSeconds` with the definition. | `tests/course-payment-indexes.test.js` |
+| D9 role checker | It now also fails on **excessive** privileges: anything the role does not grant on that exact resource. The role covers `rateLimits` (46 read-write collections). | `tests/app-database-role.test.js` (8 tests) |
+
+### Verification (this run)
+
+| Check | Result |
+| --- | --- |
+| `npm test` (network blocked: `fetch`, DNS and IP sockets refused by a preload, probed before the run; database, Paystack, JWT and demo-password variables removed) | **446 passed, 0 failed, 0 skipped**, exit 0 |
+| `npx tsc --noEmit -p tsconfig.json` | exit 0 |
+| `npm run lint` | exit 0 (0 errors) |
+| `npm run build` in a temporary copy (no `.env` files, dummy values, network blocked) | exit 0, 43/43 static pages, 588 `Warning:` lines. Output scan: 0 credential-shaped MongoDB URIs or `sk_` keys. The copy was deleted. |
+| `git diff --check` | exit 0 |
+
+**Not verified.**
+- **Concurrency on a real server.** Two processes against real MongoDB were not tested, either for the unique indexes or for the shared limiter. There is no local `mongod` or Docker, and the dev user is limited to one database. The tests use in-memory stand-ins.
+- **R1 on the dev database.** It is not built there yet; I1–I6 are.
+- **`npm audit`.** It was not re-run, because it needs the registry.
+
+### npm advisories (offline analysis; unchanged)
+
+The installed versions are `quill` 1.3.7 (through `react-quill` 2.0.0) and `postcss-selector-parser` 6.1.2 (dev only, through Tailwind 3).
+- The Quill editor renders only for instructors: `components/InstructorLessonEditor.tsx`, shown on the lesson page when `user.role === 'instructor'`, and `components/RichTextEditor.tsx` on instructor pages.
+- Every place students see lesson or course HTML goes through `sanitizeForStudentView`. That sanitizer is not a full DOM sanitizer on the server.
+- `npm audit fix --force` would downgrade `react-quill` to 0.0.2 and was not run. No dependency was changed.
+
+**Still needed:**
+- the owner's risk acceptance or an editor-replacement plan;
+- an online `npm audit` to confirm the current findings.
+
+### `fo_1…gow7` reconciliation checklist (owner, read-only)
+
+The record was not touched. Known facts, from `consolidated-pre-release-remediation.md` Phase G:
+- it is a live ₦5,000 payment recorded by the old backfill script;
+- its provider metadata names a different course;
+- it has no user;
+- the payer differs from the student who holds access.
+
+Do these steps in the Paystack dashboard, without copying payer details into any document.
+
+1. Find the transaction by reference. Record its status, amount, currency and paid date.
+2. Check the dashboard for any refund or dispute on that transaction.
+3. **Which course?** Compare the course named in the metadata, and its price at that date, with the course access was granted for.
+4. **Whose purchase?** Decide who it belongs to: the payer, the student holding access, or unknown pending support contact with the payer. Note only the outcome here.
+5. The decision needed is that owner and that course. Any later change to access or the record is a separate approved action through the admin ledger. If the payment should be returned, it falls under the refund decision below.
+
+### Refund and dispute policy: the smallest decision needed
+
+Today a refund or dispute event is recorded for review only. Access does not change. The owner needs to choose a default for the two cases below. Nothing is implemented until that choice is made.
+
+| Event | Option A | Option B | Option C (current behavior) |
+| --- | --- | --- | --- |
+| Full refund | Revoke course access automatically | Keep access | Flag for admin review; no automatic change |
+| Dispute or chargeback opened | Suspend access until resolved | Keep access | Flag for admin review; no automatic change |
+
+The owner also needs to name who reviews flagged cases.
+
+### Remaining blockers
+
+| Blocker | Status | Who can close it |
+| --- | --- | --- |
+| Production indexes I1–I6 and R1 | Not built in production. I1–I6 are built on dev. | Owner, after release approval (runbook) |
+| D9 production role | Prepared; Atlas not changed | Owner with Atlas access |
+| D10 in production | Code ready; needs R1 built first, then deploy | Owner, after release approval |
+| npm advisories | No risk acceptance; audit not re-run | Dependency owner |
+| Refund and dispute policy | Undecided (table above) | Owner |
+| `fo_1…gow7` | Undecided; record untouched (checklist above) | Owner |
+| Atlas `Damian25` absence; Render runtime identity | UNVERIFIED | Atlas org owner; Render operator |
+| Eight smoke tests, signed-in browser checks, genuine webhook delivery | Not run; needs owner sign-in, a tunnel and dashboard approval | Owner |
+| Real-server concurrency test | Not run; no disposable `mongod` | Needs an environment |

@@ -14,6 +14,7 @@ export function clearPendingCheckout(storage: StorageLike, courseId: string): vo
 export function referenceFromQuery(search: string): string | null;
 export function resumableReference(storage: StorageLike, courseId: string, search: string, now?: number): string | null;
 export const SILENT_RESUME_CODES: ReadonlySet<string>;
+export const ABANDONED_RESUME_CODES: ReadonlySet<string>;
 export function clearFormReferences(form: { elements?: ArrayLike<unknown> } | null): void;
 export function referenceForFormSignal(formReference: string | null, pendingReference: string | null): string | null;
 export function readFormReference(form: { elements?: ArrayLike<{ name?: string; value?: string }> } | null): string | null;
@@ -33,4 +34,5 @@ export function settleCourseCheckout(input: {
   onUnlocked?: () => void | Promise<void>;
   delays?: readonly number[];
   sleep?: (ms: number) => Promise<void>;
+  automatic?: boolean;
 }): Promise<CheckoutResult>;

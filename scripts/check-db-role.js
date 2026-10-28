@@ -20,8 +20,9 @@ function parseArgs(argv) {
 function report(result, log = console.log) {
   result.auditViolations.forEach((item) => log(`FAIL ${item.collection} allows: ${item.actions.join(', ')}`));
   result.missing.forEach((item) => log(`FAIL ${item.collection} lacks: ${item.actions.join(', ')}`));
+  (result.excessive || []).forEach((item) => log(`FAIL ${item.resource} grants more than the role: ${item.actions.join(', ')}`));
   result.warnings.forEach((item) => log(`WARN ${item}`));
-  log(result.ok ? 'PASS: the audit log is append-only for this user and every app collection is covered.' : 'FAIL: see the lines above.');
+  log(result.ok ? 'PASS: the audit log is append-only, every app collection is covered, and nothing beyond the role is granted.' : 'FAIL: see the lines above.');
 }
 
 async function main() {

@@ -7,10 +7,14 @@
 import type { NextApiResponse } from 'next';
 import type { AuthRequest } from '@/lib/auth-middleware';
 import { authorizeLedgerAccess } from '@/lib/admin-purchase-ledger';
+import { getDb } from '@/lib/mongodb';
 import { createRateLimiter } from '@/lib/rate-limit';
+import { consumeSharedLimit } from '@/lib/shared-rate-limit';
 
-const providerLimiter = createRateLimiter({ windowMs: 10 * 60 * 1000, max: 20 });
-const writeLimiter = createRateLimiter({ windowMs: 10 * 60 * 1000, max: 60 });
+const LIMIT_WINDOW_MS = 10 * 60 * 1000;
+const LIMITS = { provider: 20, write: 60 } as const;
+const providerLimiter = createRateLimiter({ windowMs: LIMIT_WINDOW_MS, max: LIMITS.provider });
+const writeLimiter = createRateLimiter({ windowMs: LIMIT_WINDOW_MS, max: LIMITS.write });
 
 export function superAdminOnly(req: AuthRequest, res: NextApiResponse): boolean {
   res.setHeader('Cache-Control', 'no-store');
@@ -19,8 +23,18 @@ export function superAdminOnly(req: AuthRequest, res: NextApiResponse): boolean 
   return false;
 }
 
-export function withinLedgerLimit(kind: 'provider' | 'write', req: AuthRequest, res: NextApiResponse): boolean {
-  const decision = (kind === 'provider' ? providerLimiter : writeLimiter).check(`${kind}:${req.user!.userId}`);
+/** Counted in this process and in the shared store; refused if the shared store is unreachable. */
+export async function withinLedgerLimit(kind: 'provider' | 'write', req: AuthRequest, res: NextApiResponse): Promise<boolean> {
+  const userId = req.user!.userId;
+  let decision = (kind === 'provider' ? providerLimiter : writeLimiter).check(`${kind}:${userId}`);
+  if (decision.allowed) {
+    try {
+      decision = await consumeSharedLimit(await getDb(), { scope: `ledger-${kind}`, key: userId, windowMs: LIMIT_WINDOW_MS, max: LIMITS[kind] });
+    } catch {
+      res.status(503).json({ error: 'The ledger is briefly unavailable. Try again shortly.' });
+      return false;
+    }
+  }
   if (decision.allowed) return true;
   res.setHeader('Retry-After', String(decision.retryAfterSec));
   res.status(429).json({ error: 'Too many requests. Wait a moment and try again.' });

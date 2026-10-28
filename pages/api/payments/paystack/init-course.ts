@@ -22,7 +22,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ message: 'Method not allowed' });
   }
-  if (!paymentsAllowed(res) || !studentOnly(req, res) || !withinRateLimit('init', req, res)) return;
+  if (!paymentsAllowed(res) || !studentOnly(req, res) || !(await withinRateLimit('init', req, res))) return;
 
   const supportId = newSupportId();
   const { courseId } = (req.body || {}) as { courseId?: unknown };

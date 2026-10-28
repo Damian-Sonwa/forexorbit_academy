@@ -8,6 +8,7 @@ import type { AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
 import { isStaffRole } from '@/lib/lesson-monetization';
 import { createRateLimiter } from '@/lib/rate-limit';
+import { consumeSharedLimit } from '@/lib/shared-rate-limit';
 import {
   confirmCoursePayment,
   decidePaymentEnvironment,
@@ -16,8 +17,10 @@ import {
   type ProviderLookup,
 } from '@/lib/course-payment';
 
-const initLimiter = createRateLimiter({ windowMs: 10 * 60 * 1000, max: 10 });
-const confirmLimiter = createRateLimiter({ windowMs: 10 * 60 * 1000, max: 30 });
+const LIMIT_WINDOW_MS = 10 * 60 * 1000;
+const LIMITS = { init: 10, confirm: 30 } as const;
+const initLimiter = createRateLimiter({ windowMs: LIMIT_WINDOW_MS, max: LIMITS.init });
+const confirmLimiter = createRateLimiter({ windowMs: LIMIT_WINDOW_MS, max: LIMITS.confirm });
 
 export function newSupportId(): string {
   return crypto.randomUUID();
@@ -47,9 +50,23 @@ export function studentOnly(req: AuthRequest, res: NextApiResponse): boolean {
   return false;
 }
 
-export function withinRateLimit(kind: 'init' | 'confirm', req: AuthRequest, res: NextApiResponse): boolean {
+/**
+ * Per-user limit, counted in this process and in the shared store so several server instances
+ * cannot multiply it. If the shared store is unreachable the request is refused, not let through.
+ */
+export async function withinRateLimit(kind: 'init' | 'confirm', req: AuthRequest, res: NextApiResponse): Promise<boolean> {
   const limiter = kind === 'init' ? initLimiter : confirmLimiter;
-  const decision = limiter.check(`${kind}:${req.user!.userId}`);
+  const userId = req.user!.userId;
+  let decision = limiter.check(`${kind}:${userId}`);
+  if (decision.allowed) {
+    try {
+      decision = await consumeSharedLimit(await getDb(), { scope: `payment-${kind}`, key: userId, windowMs: LIMIT_WINDOW_MS, max: LIMITS[kind] });
+    } catch {
+      logPayment('rate-limit-unavailable', { kind });
+      res.status(503).json({ success: false, code: 'rate_limit_unavailable', retryable: true, message: 'Payments are briefly unavailable. Try again shortly.' });
+      return false;
+    }
+  }
   if (decision.allowed) return true;
   res.setHeader('Retry-After', String(decision.retryAfterSec));
   res.status(429).json({ success: false, code: 'rate_limited', retryable: true, message: 'Too many payment requests. Wait a moment and try again.' });
@@ -62,7 +79,7 @@ export async function respondWithCourseConfirmation(
   res: NextApiResponse,
   params: { tag: string; reference: unknown; expectedCourseId?: unknown }
 ) {
-  if (!paymentsAllowed(res) || !studentOnly(req, res) || !withinRateLimit('confirm', req, res)) return;
+  if (!paymentsAllowed(res) || !studentOnly(req, res) || !(await withinRateLimit('confirm', req, res))) return;
   const supportId = newSupportId();
   const reference = typeof params.reference === 'string' ? params.reference.trim() : '';
   const expectedCourseId =

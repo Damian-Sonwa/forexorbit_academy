@@ -23,7 +23,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
   if (!environment.enabled) {
     return res.status(503).json({ error: 'Paystack lookups are not available in this environment.', code: environment.reason });
   }
-  if (!withinLedgerLimit('provider', req, res)) return;
+  if (!(await withinLedgerLimit('provider', req, res))) return;
   try {
     const db = await getDb();
     const id = typeof req.query.id === 'string' ? req.query.id : '';

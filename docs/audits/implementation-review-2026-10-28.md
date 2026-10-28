@@ -241,18 +241,27 @@ All runs had outbound network blocked and no `.env` values loaded.
 | D9 production role | Prepared, not applied | Atlas custom role, switch the app user, checker reports PASS |
 | Refund and dispute policy | Deferred by the owner | Decide later |
 | Backfill `fo_1…gow7` | Undecided; record untouched | Ownership decision |
-| D10 rate limits | Per-process only | Accept, or approve a shared store |
+| D10 rate limits | Shared MongoDB store implemented (section 10); not deployed | Build R1, then deploy |
 | 3 moderate npm advisories | No risk acceptance; audit not rerun | Accept, or plan an upgrade |
 | Atlas account and Render identity | Unverified | Atlas org owner, Render operator |
 | Eight smoke tests | Unverified; fixtures missing in dev | Approve the fixtures, then a signed-in run |
 | Genuine Paystack webhook delivery | Not run | Approvals in the delivery plan |
 | Signed-in, mobile, failed and abandoned payment tests | Not run | Owner sign-in (S1–S8) and payment approvals |
 | Disposable rehearsal and cross-process test | Not run | A local `mongod` or other disposable cluster |
-| Abandoned-checkout UX | Open | Owner decision |
+| Abandoned-checkout UX | Fixed client-side (section 10) | Review |
 
 ## 9. Decisions requested from the reviewer
 
 1. Approve the `releaseIntent` change (section 4.2) and the I2 partial filter change (section 4.1).
 2. Approve committing and pushing the uncommitted work in section 7 to `review/sprint-1-3-integration`.
 3. Schedule the production steps: deploy, then indexes, then role, in the runbook's order.
-4. Decide the abandoned-checkout UX item (section 1.2).
+4. ~~Decide the abandoned-checkout UX item (section 1.2).~~ Resolved client-side in section 10.
+
+## 10. Release-blocker closure run (28 October 2026)
+
+The full results, the `fo_1…gow7` checklist and the refund and dispute decision table are in the last section of `release-readiness-2026-10-26.md`, the authoritative report. In short:
+- **Abandoned checkout.** An automatic re-check that gets `payment_not_successful` stops re-checking on later visits. Manual confirmation and the server are unchanged.
+- **D10 shared rate limit.** `lib/shared-rate-limit.js` counts in MongoDB `rateLimits`. Payment and ledger routes fail closed with 503 if the store fails.
+- **R1.** A TTL index on `rateLimits.expiresAt`, managed by the index script.
+- **D9 checker.** It now also fails on excessive privileges. `rateLimits` was added to the role.
+- **Verification.** `npm test` 446/446 offline, tsc exit 0, lint exit 0, and an isolated build exit 0.

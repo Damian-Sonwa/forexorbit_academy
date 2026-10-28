@@ -3,6 +3,7 @@ import { apiClient } from '@/lib/api-client';
 import { COURSE_PRICE_LABEL } from '@/lib/course-price';
 import { loadPaystackInline, onPaystackHostFormSubmit, resetPaystackHostForm } from '@/lib/paystack-inline-script';
 import {
+  ABANDONED_RESUME_CODES,
   SILENT_RESUME_CODES,
   readPendingCheckout,
   referenceForFormSignal,
@@ -85,6 +86,7 @@ export function PaystackCourseUnlock({ courseId, onUnlocked, variant = 'default'
         courseId,
         reference,
         onUnlocked: () => onUnlockedRef.current(),
+        automatic,
       });
       if (!mounted.current) return;
       setPhase('idle');
@@ -94,7 +96,12 @@ export function PaystackCourseUnlock({ courseId, onUnlocked, variant = 'default'
         return;
       }
       setNotice(null);
-      if (automatic && result.state === 'failed' && result.code && SILENT_RESUME_CODES.has(result.code)) {
+      if (
+        automatic &&
+        result.state === 'failed' &&
+        result.code &&
+        (SILENT_RESUME_CODES.has(result.code) || ABANDONED_RESUME_CODES.has(result.code))
+      ) {
         setRetryReference(null);
         return;
       }

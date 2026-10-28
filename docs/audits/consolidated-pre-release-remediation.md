@@ -349,7 +349,7 @@ That first run also showed the temporary network preload let a raw socket throug
    - **Ready:** the custom role (`lib/app-database-role.js`) and a read-only checker (`scripts/check-db-role.js`).
    - **Dev check:** on the dev user the checker reports FAIL, as expected, because `readWrite` allows update and remove on `adminAuditLog`.
    - **Still needed:** the owner creates the role in Atlas and switches the app user (runbook).
-6. **D10:** accepted as per-process, or a shared store approved.
+6. **D10 (28 October): shared store implemented, not deployed.** Payment and ledger routes now also count in MongoDB `rateLimits` and fail closed with 503. Production needs the R1 TTL index first. See the current status in `release-readiness-2026-10-26.md`, the authoritative report.
 7. ~~Owner decisions from the webhook review (section 2c)~~: **both approved and implemented** (section 2d).
 8. **Dependencies:** 3 moderate `npm audit` findings with no risk acceptance; the audit was not re-run in this session (network restricted).
 9. **Cross-process safety is not verified.** It must not be claimed until tested against real MongoDB with the unique indexes in place.

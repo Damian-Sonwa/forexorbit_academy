@@ -541,6 +541,62 @@ test('10. two tabs resuming the same checkout at once record one payment and one
   assert.equal(db.rows(COLLECTIONS.coursePurchases).length, 1);
 });
 
+test('11. an automatic resume of an abandoned checkout drops the stored reference once; a later success is still granted', async () => {
+  for (const status of ['abandoned', 'failed']) {
+    const db = memoryDb();
+    const storage = memoryStorage();
+    const intent = await startCheckout(db);
+    checkout.rememberPendingCheckout(storage, COURSE, intent.reference, NOW.getTime());
+    let providerStatus = status;
+    const post = confirmEndpoint(db, () => paid(intent, { status: providerStatus }));
+
+    const resumed = await checkout.settleCourseCheckout({ post, storage, courseId: COURSE, reference: intent.reference, automatic: true, ...noWait });
+    assert.equal(resumed.state, 'failed', status);
+    assert.equal(resumed.code, 'payment_not_successful');
+    assert.equal(post.calls.length, 1);
+    assert.equal(checkout.readPendingCheckout(storage, COURSE, NOW.getTime()), null, `${status}: the next visit makes no lookup`);
+    assert.equal(checkout.resumableReference(storage, COURSE, '', NOW.getTime()), null);
+    assert.equal(db.rows(COLLECTIONS.intents)[0].status, 'pending', `${status}: the server keeps the checkout`);
+
+    providerStatus = 'success';
+    const webhook = await payment.processWebhookEvent(db, { event: 'charge.success', data: paid(intent).data }, NOW);
+    assert.equal(webhook.ack, true);
+    assert.equal(await payment.hasCourseEntitlement(db, STUDENT, COURSE), true, `${status}: a later success is granted by the webhook`);
+  }
+
+  const db = memoryDb();
+  const intent = await startCheckout(db);
+  const lookups = [];
+  const later = await payment.createCourseIntent(db, {
+    userId: STUDENT,
+    courseId: COURSE,
+    fetchTransaction: async (reference) => { lookups.push(reference); return paid(intent); },
+    makeReference: () => 'fo_c_unused_reference',
+    now: NOW,
+  });
+  assert.equal(later.alreadyOwned, true, 'the re-check before a new checkout grants a payment that succeeded later');
+  assert.deepEqual(lookups, [intent.reference]);
+  assert.equal(db.rows(COLLECTIONS.payments).length, 1);
+});
+
+test('11b. a confirmation the user asked for still reports an abandoned payment and keeps the reference', async () => {
+  const db = memoryDb();
+  const storage = memoryStorage();
+  const intent = await startCheckout(db);
+  checkout.rememberPendingCheckout(storage, COURSE, intent.reference, NOW.getTime());
+  const post = confirmEndpoint(db, () => paid(intent, { status: 'abandoned' }));
+  const result = await checkout.settleCourseCheckout({ post, storage, courseId: COURSE, reference: intent.reference, ...noWait });
+  assert.equal(result.state, 'failed');
+  assert.equal(result.retryable, true);
+  assert.match(result.message, /not successful/);
+  assert.equal(checkout.readPendingCheckout(storage, COURSE, NOW.getTime()), intent.reference);
+  assert.ok(checkout.ABANDONED_RESUME_CODES.has('payment_not_successful'));
+  assert.equal(checkout.ABANDONED_RESUME_CODES.has('payment_pending'), false, 'a payment still processing is never dropped');
+  const component = read('components/monetization/PaystackCourseUnlock.tsx');
+  assert.match(component, /automatic,\s*\}\);/);
+  assert.match(component, /ABANDONED_RESUME_CODES\.has\(result\.code\)/);
+});
+
 test('source contract: checkout confirms through the existing endpoint and the host form cannot navigate', () => {
   const component = read('components/monetization/PaystackCourseUnlock.tsx');
   const script = read('lib/paystack-inline-script.ts');

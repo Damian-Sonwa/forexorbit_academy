@@ -68,11 +68,13 @@ Do these in order. Stop at any failure.
    ```powershell
    node scripts/course-payment-indexes.js --database Forex_elearning --apply
    ```
-   The user needs `createIndex` on the payment collections. The current app user (`readWrite`) has it, so do this **before** step 3 of the role section below. Otherwise, use a separate maintenance user.
+   The user needs `createIndex` on the payment collections and on `rateLimits`. The current app user (`readWrite`) has it, so do this **before** step 3 of the role section below. Otherwise, use a separate maintenance user.
+
+   The script also manages **R1**, a TTL index on `rateLimits.expiresAt` (`ttl_rate_limit_window`, `expireAfterSeconds: 0`), built last. It is not unique. Without it, rate-limit counters still work but expired windows are never deleted. The app role has no `createIndex` on `rateLimits`, so R1 must be built here, before the shared rate limit is deployed.
 6. **Check the result.** The script verifies every index after building. Afterwards, watch the logs for `E11000` for a week.
 7. **Clean up the shell:** `Remove-Item Env:MONGO_URI`.
 
-**Rollback:** `node scripts/course-payment-indexes.js --database Forex_elearning --rollback` drops only these six indexes by name. It changes no documents.
+**Rollback:** `node scripts/course-payment-indexes.js --database Forex_elearning --rollback` drops only the seven managed indexes (I1–I6 and R1) by name. It changes no documents.
 
 ## Production: app role (D9)
 
@@ -85,10 +87,17 @@ node scripts/check-db-role.js --database Forex_elearning --print-role
 ```
 
 It contains:
-- `find`, `insert`, `update` and `remove` on each of the 45 app collections;
+- `find`, `insert`, `update` and `remove` on each of the 46 app collections (including `rateLimits`, the shared rate-limit counters);
 - `find` and `insert` only on `adminAuditLog`;
 - `createCollection` and `createIndex` on the three consultation collections (used by the admin "seed experts" route);
 - `listCollections` on the database.
+
+The checker fails on three kinds of problem:
+- **missing:** an action the app needs;
+- **audit violation:** any way to change or remove audit entries;
+- **excessive:** any privilege the role does not grant on that exact resource. This includes database-wide grants, other databases, `admin` user or role management, cluster actions, and extra actions such as `dropCollection` on an app collection.
+
+A user that still holds `readWrite` therefore fails twice: once for the audit log and once as excessive.
 
 ### Steps in Atlas (owner)
 
@@ -115,7 +124,7 @@ It contains:
 
 | Item | Owner |
 |---|---|
-| Deploy the app code that handles duplicate keys, then build I1–I6 on production | Owner, after release approval |
+| Deploy the app code that handles duplicate keys, then build I1–I6 and R1 on production (R1 before the shared rate limit goes live) | Owner, after release approval |
 | Atlas custom role and app user switch, then the checker reports `PASS` | Owner (Atlas access) |
 | Optional: apply the same role to `forexorbit_dev` for parity | Owner (Atlas access) |
 | Cross-process concurrency test on real MongoDB (plan section 5) | Needs a disposable `mongod` |

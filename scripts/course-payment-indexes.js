@@ -1,5 +1,6 @@
 /**
- * Course payment unique indexes I1–I6 (docs/audits/course-payment-index-migration-plan.md).
+ * Course payment unique indexes I1–I6 (docs/audits/course-payment-index-migration-plan.md), plus
+ * R1, the TTL index that removes finished shared rate-limit windows (lib/shared-rate-limit.js).
  *
  *   node scripts/course-payment-indexes.js --database <name>              read-only: scans and plan
  *   node scripts/course-payment-indexes.js --database <name> --apply      build missing indexes
@@ -11,8 +12,10 @@
  */
 const { COURSE_PAYMENT_INDEXES, PENDING_COURSE_INTENT } = require('../lib/course-payment-indexes');
 const { COLLECTIONS } = require('../lib/course-payment');
+const { RATE_LIMIT_TTL_INDEX } = require('../lib/shared-rate-limit');
 
 const MAX_LISTED_GROUPS = 10;
+const MANAGED_INDEXES = Object.freeze([...COURSE_PAYMENT_INDEXES, RATE_LIMIT_TTL_INDEX]);
 
 const asText = (field) => ({ $toString: `$${field}` });
 const duplicateGroups = [{ $match: { n: { $gt: 1 } } }];
@@ -132,8 +135,9 @@ function compareIndex(definition, existing) {
   const byName = existing.find((item) => item.name === definition.options.name);
   if (byName) {
     const same = sameJson(byName.key, definition.key)
-      && Boolean(byName.unique) === true
-      && sameJson(byName.partialFilterExpression, definition.options.partialFilterExpression);
+      && Boolean(byName.unique) === Boolean(definition.options.unique)
+      && sameJson(byName.partialFilterExpression, definition.options.partialFilterExpression)
+      && sameJson(byName.expireAfterSeconds, definition.options.expireAfterSeconds);
     return same ? { state: 'present' } : { state: 'conflict', detail: 'an index with this name has a different definition' };
   }
   const sameKey = existing.find((item) => sameJson(item.key, definition.key)
@@ -144,7 +148,7 @@ function compareIndex(definition, existing) {
 
 async function indexStates(db, names) {
   const states = [];
-  for (const definition of COURSE_PAYMENT_INDEXES) {
+  for (const definition of MANAGED_INDEXES) {
     const existing = names.has(definition.collection) ? await db.collection(definition.collection).indexes() : [];
     states.push({ definition, ...compareIndex(definition, existing) });
   }
@@ -212,7 +216,7 @@ async function run(db, { mode, log = console.log }) {
   const after = await indexStates(db, await collectionNames(db));
   const unverified = after.filter((item) => item.state !== 'present').map((item) => item.definition.options.name);
   if (unverified.length) return { ok: false, mode, created, error: `Not verified after build: ${unverified.join(', ')}` };
-  log('Verified: all six indexes are present with the expected keys and options.');
+  log(`Verified: all ${MANAGED_INDEXES.length} indexes are present with the expected keys and options.`);
   return { ok: true, mode, created };
 }
 
@@ -251,4 +255,4 @@ async function main() {
 
 if (require.main === module) main();
 
-module.exports = { SCANS, compareIndex, maskValue, parseArgs, run };
+module.exports = { MANAGED_INDEXES, SCANS, compareIndex, maskValue, parseArgs, run };

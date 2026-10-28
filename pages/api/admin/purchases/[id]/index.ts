@@ -22,7 +22,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
       return res.status(200).json(detail);
     }
     if (req.method === 'POST') {
-      if (!withinLedgerLimit('write', req, res)) return;
+      if (!(await withinLedgerLimit('write', req, res))) return;
       const db = await getDb();
       const result = await addPurchaseNote(db, id, req.body, req.user!);
       if (!result.ok) return res.status(result.status).json({ error: result.message });
