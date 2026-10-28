@@ -376,7 +376,8 @@ Tests covering this: `tests/course-purchase.test.js` (refund and dispute events 
 | Backup verification, merge and deploy, production indexes, app role, `SHARED_RATE_LIMIT` | Production steps needing owner access | Owner (sequence above) |
 | Render runtime identity: which commit and which database user | External check | Owner, in the Render dashboard |
 | Signed-in browser checks S1–S8, mobile, genuine Paystack webhook delivery | External verification. Code paths are covered by tests and the rehearsal. | Owner. The agent may not sign in, open a tunnel or change the dashboard without approval. |
-| Risk acceptance for `quill` (moderate, staff-only) and `deepmerge` (low) | One owner decision | Owner |
+| Merge to `master` (deploy) | **Held by the owner** on 28 October; `master` unchanged at `453f813` | Owner |
+| Risk acceptance for `quill` (moderate, staff-only) and `deepmerge` (low) | **Not accepted** by the owner on 28 October. Release needs acceptance or a replacement editor (Quill 2.x wrapper or another editor, with lesson save and display retests). | Owner; developer if replacing |
 | Editor replacement (Quill) | Follow-up after that decision | Developer, later |
 | `fo_1…gow7` | Deferred, not a blocker | Owner, later (checklist below) |
 
