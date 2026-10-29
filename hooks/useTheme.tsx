@@ -27,19 +27,28 @@ function applyTheme(isDark: boolean) {
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [isDark, setIsDark] = useState(true);
-  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    // Mark as mounted to avoid hydration mismatch
-    setMounted(true);
-    
-    if (typeof window !== 'undefined') {
-      const savedTheme = localStorage.getItem('theme');
-      const shouldBeDark = savedTheme !== 'light';
-
+    // Same rule as the _document script that runs before paint: dark unless "light" is saved.
+    const readSaved = () => {
+      try {
+        return localStorage.getItem('theme') !== 'light';
+      } catch {
+        return document.documentElement.classList.contains('dark');
+      }
+    };
+    const sync = () => {
+      const shouldBeDark = readSaved();
       setIsDark(shouldBeDark);
       applyTheme(shouldBeDark);
-    }
+    };
+    sync();
+    // A choice made in another tab applies here too.
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === null || event.key === 'theme') sync();
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
   }, []);
 
   const toggleTheme = () => {
@@ -50,7 +59,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       
       // Update DOM immediately
       applyTheme(newTheme);
-      localStorage.setItem('theme', newTheme ? 'dark' : 'light');
+      try {
+        localStorage.setItem('theme', newTheme ? 'dark' : 'light');
+      } catch {
+        /* storage disabled: the choice lasts for this page view */
+      }
       
       return newTheme;
     });

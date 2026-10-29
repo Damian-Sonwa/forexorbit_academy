@@ -4,9 +4,11 @@ import { COURSE_PRICE_LABEL } from '@/lib/course-price';
 import { loadPaystackInline, onPaystackHostFormSubmit, resetPaystackHostForm } from '@/lib/paystack-inline-script';
 import {
   ABANDONED_RESUME_CODES,
+  CONFIRM_REQUEST_TIMEOUT_MS,
   SILENT_RESUME_CODES,
   readPendingCheckout,
   referenceForFormSignal,
+  refreshAfterUnlock,
   rememberPendingCheckout,
   resumableReference,
   settleCourseCheckout,
@@ -29,12 +31,22 @@ type InitResponse = {
   courseId?: string;
 };
 
-type ApiError = { response?: { status?: number; data?: { message?: string; retryable?: boolean; supportId?: string } }; message?: string };
+type ApiError = {
+  code?: string;
+  response?: { status?: number; data?: { message?: string; retryable?: boolean; supportId?: string } };
+  message?: string;
+};
+
+/** Starting checkout is a single short request; a stalled one is reported rather than waited on. */
+const INIT_REQUEST_TIMEOUT_MS = 20000;
 
 type Phase = 'idle' | 'starting' | 'paying' | 'confirming';
 
 function errorMessage(e: unknown, fallback: string): string {
   const ax = e as ApiError;
+  if (!ax.response && (ax.code === 'ECONNABORTED' || ax.code === 'ETIMEDOUT')) {
+    return 'Checkout is taking too long to respond. Check your connection and try again.';
+  }
   return ax.response?.data?.message || ax.message || fallback;
 }
 
@@ -55,7 +67,8 @@ function stripReturnParams() {
   window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
 }
 
-const postConfirm = (url: string, body: { reference: string }) => apiClient.post(url, body);
+const postConfirm = (url: string, body: { reference: string }) =>
+  apiClient.post(url, body, { timeout: CONFIRM_REQUEST_TIMEOUT_MS });
 
 /** Full-course checkout. Amount, currency, and reference always come from the server intent. */
 export function PaystackCourseUnlock({ courseId, onUnlocked, variant = 'default' }: Props) {
@@ -91,7 +104,7 @@ export function PaystackCourseUnlock({ courseId, onUnlocked, variant = 'default'
       if (!mounted.current) return;
       setPhase('idle');
       if (result.state === 'unlocked') {
-        setNotice(null);
+        setNotice(result.refreshed === false ? 'Payment confirmed. Reload the page to open your lessons.' : null);
         setRetryReference(null);
         return;
       }
@@ -143,9 +156,15 @@ export function PaystackCourseUnlock({ courseId, onUnlocked, variant = 'default'
     setPhase('starting');
     try {
       await loadPaystackInline();
-      const init = await apiClient.post<InitResponse>('/payments/paystack/init-course', { courseId });
+      const init = await apiClient.post<InitResponse>(
+        '/payments/paystack/init-course',
+        { courseId },
+        { timeout: INIT_REQUEST_TIMEOUT_MS }
+      );
       if (init.alreadyOwned) {
-        await Promise.resolve(onUnlockedRef.current());
+        const refreshed = await refreshAfterUnlock(() => onUnlockedRef.current());
+        if (!mounted.current) return;
+        if (!refreshed) setNotice('You already own this course. Reload the page to open your lessons.');
         setPhase('idle');
         return;
       }

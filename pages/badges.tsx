@@ -167,7 +167,7 @@ export default function Badges() {
                   <div className="text-center">
                     <div className="text-6xl mb-4 grayscale">{badge.icon}</div>
                     <h3 className="text-xl font-bold text-gray-500 dark:text-gray-400 mb-2">{badge.name}</h3>
-                    <p className="text-gray-400 dark:text-gray-500 text-sm mb-4">{badge.description}</p>
+                    <p className="text-gray-500 dark:text-gray-400 text-sm mb-4">{badge.description}</p>
                     <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-2">
                       <p className="text-gray-500 dark:text-gray-400 text-xs font-semibold">
                         {badge.pointsRequired} points required • Need {badge.pointsRequired - userPoints} more points

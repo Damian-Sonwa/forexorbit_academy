@@ -112,7 +112,7 @@ export default function InstructorCoursePage() {
     if (!id) return;
     try {
       setLoading(true);
-      const courseData = await apiClient.get<Course>(`/courses/${id}`);
+      const courseData = await apiClient.get<Course>(`/courses/${id}?lessons=none`);
       setCourse(courseData);
       setCourseForm({
         title: courseData.title,

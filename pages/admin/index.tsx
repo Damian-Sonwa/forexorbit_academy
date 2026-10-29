@@ -1262,7 +1262,7 @@ export default function AdminPanel() {
             {pendingUsers.length === 0 ? (
               <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-12 text-center">
                 <svg
-                  className="w-16 h-16 text-gray-400 dark:text-gray-500 mx-auto mb-4"
+                  className="w-16 h-16 text-gray-500 dark:text-gray-400 mx-auto mb-4"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"

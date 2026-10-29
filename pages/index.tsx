@@ -8,6 +8,7 @@ import { useEffect, useState } from 'react';
 import type { GetStaticProps } from 'next';
 import Link from 'next/link';
 import BrandLogo from '@/components/BrandLogo';
+import ThemeToggle from '@/components/ThemeToggle';
 import {
   ArrowRight,
   BookOpen,
@@ -157,6 +158,9 @@ export default function Home({ initialCourses = [] }: { initialCourses?: Course[
             <Link href="/consultations" className="hover:text-white">Consultations</Link>
             <Link href="/about" className="hover:text-white">About</Link>
           </nav>
+          <div className="ml-auto flex items-center gap-3 lg:ml-0">
+            <ThemeToggle className="text-white/80 hover:bg-white/10 hover:text-white" />
+          </div>
           <div className="hidden items-center gap-3 sm:flex">
             <Link href="/login" className="rounded-full border border-primary-500/70 px-4 py-2 text-sm font-semibold hover:bg-white/5">Sign in</Link>
             <Link href={accountHref} className="rounded-full bg-primary-500 px-4 py-2 text-sm font-semibold text-neutral-950 hover:bg-white">{isAuthenticated ? 'Dashboard' : 'Sign up'}</Link>
@@ -181,7 +185,7 @@ export default function Home({ initialCourses = [] }: { initialCourses?: Course[
       </header>
 
       <main>
-        <section className="theme-light-island relative overflow-hidden bg-[#faf8f4] text-[#171717]">
+        <section className="theme-section relative overflow-hidden bg-[#faf8f4] text-[#171717]">
           <div className="mx-auto grid max-w-7xl items-center gap-10 px-4 py-14 sm:px-6 sm:py-16 xl:grid-cols-[minmax(0,0.92fr)_minmax(0,1.12fr)] xl:gap-12 xl:py-20">
             <div>
               <p className="mb-4 inline-flex items-center gap-2 text-sm font-semibold text-primary-700">
@@ -275,7 +279,7 @@ export default function Home({ initialCourses = [] }: { initialCourses?: Course[
           </div>
         </section>
 
-        <section className="theme-light-island bg-[#ffffff] py-20 text-[#171717] lg:py-28">
+        <section className="theme-section bg-[#ffffff] py-20 text-[#171717] lg:py-28">
           <div className="mx-auto max-w-6xl bg-[#ffffff] px-4 sm:px-6">
             <p className="text-center text-sm font-semibold uppercase tracking-[0.18em] text-primary-700">Academy portfolio</p>
             <h2 className="mx-auto mt-4 max-w-3xl text-center font-display text-4xl font-bold leading-[1.12] tracking-tight text-[#171717] sm:text-5xl">

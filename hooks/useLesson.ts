@@ -125,7 +125,7 @@ export function useLessons(courseId: string | string[] | undefined, enabled = tr
     if (!enabled || !courseId || Array.isArray(courseId)) return;
     try {
       setLoading(true);
-      const data = await apiClient.get<{ lessons: Lesson[] }>(`/courses/${courseId}/lessons`);
+      const data = await apiClient.get<{ lessons: Lesson[] }>(`/courses/${courseId}/lessons?view=outline`);
       const list = Array.isArray(data.lessons) ? data.lessons : [];
       setLessons(list);
       setError(null);

@@ -292,7 +292,7 @@ export default function Profile() {
                 <p className="text-sm text-gray-500 dark:text-gray-400 text-center mt-2">
                   {formData.fullName || user?.name || 'User'}
                 </p>
-                <p className="text-xs text-gray-400 dark:text-gray-500 text-center">
+                <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
                   {user?.email}
                 </p>
               </div>

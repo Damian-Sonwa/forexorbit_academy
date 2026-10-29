@@ -38,35 +38,58 @@ export function resetPaystackHostForm(): void {
   clearFormReferences(getOrCreatePaystackHostForm());
 }
 
-export function loadPaystackInline(): Promise<void> {
+/** How long the Paystack script may take before checkout reports a failure instead of waiting. */
+export const PAYSTACK_SCRIPT_TIMEOUT_MS = 15000;
+const PAYSTACK_SCRIPT_SRC = 'https://js.paystack.co/v1/inline.js';
+
+let pendingLoad: Promise<void> | null = null;
+let failedLoads = 0;
+
+/**
+ * Loads Paystack Inline once. The promise always settles: it rejects when the script errors,
+ * loads without defining PaystackPop, or takes longer than `timeoutMs`. A failed script tag is
+ * removed so the next attempt requests the script again instead of waiting on spent events.
+ */
+export function loadPaystackInline(timeoutMs: number = PAYSTACK_SCRIPT_TIMEOUT_MS): Promise<void> {
   if (typeof window === 'undefined') return Promise.resolve();
   if (window.PaystackPop) {
     getOrCreatePaystackHostForm();
     return Promise.resolve();
   }
-  return new Promise((resolve, reject) => {
+  if (pendingLoad) return pendingLoad;
+  const load = new Promise<void>((resolve, reject) => {
     const hostForm = getOrCreatePaystackHostForm();
-    const existing = document.querySelector('script[data-forexorbit-paystack="1"]');
-    if (existing) {
-      if (existing.parentElement !== hostForm) {
-        hostForm.appendChild(existing);
-      }
-      if (window.PaystackPop) {
-        resolve();
-        return;
-      }
-      existing.addEventListener('load', () => resolve());
-      existing.addEventListener('error', () => reject(new Error('Paystack script failed')));
-      return;
-    }
+    // A tag left from an earlier attempt may already have fired its events; start over.
+    document.querySelectorAll('script[data-forexorbit-paystack="1"]').forEach((old) => old.remove());
     const s = document.createElement('script');
-    s.src = 'https://js.paystack.co/v1/inline.js';
+    const fail = (message: string) => {
+      clearTimeout(timer);
+      s.onload = null;
+      s.onerror = null;
+      s.remove();
+      failedLoads += 1;
+      reject(new Error(message));
+    };
+    const timer = setTimeout(() => fail('Paystack is taking too long to load. Check your connection and try again.'), timeoutMs);
+    // After a failure the browser may still hold the stalled request for the plain URL and hand
+    // it to the new tag; a distinct URL makes the retry a real second request.
+    s.src = failedLoads ? `${PAYSTACK_SCRIPT_SRC}?retry=${failedLoads}` : PAYSTACK_SCRIPT_SRC;
     s.async = true;
     s.setAttribute('data-forexorbit-paystack', '1');
-    s.onload = () => resolve();
-    s.onerror = () => reject(new Error('Paystack script failed'));
+    s.onload = () => {
+      clearTimeout(timer);
+      if (window.PaystackPop) resolve();
+      else fail('Paystack failed to load. Check your network or ad blocker.');
+    };
+    s.onerror = () => fail('Paystack failed to load. Check your network or ad blocker.');
     hostForm.appendChild(s);
   });
+  pendingLoad = load;
+  const clear = () => {
+    if (pendingLoad === load) pendingLoad = null;
+  };
+  load.then(clear, clear);
+  return load;
 }
 
 declare global {

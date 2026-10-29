@@ -2,6 +2,7 @@
  * GET /api/courses/:courseId/lessons
  * Response: { lessons: [...] } — each lesson includes `locked` and `monetization`.
  * Teaching content is included only for lessons this member may read and has unlocked.
+ * `?view=outline` returns navigation fields and a short plain-text blurb only (no lesson bodies).
  */
 
 import type { NextApiResponse } from 'next';
@@ -9,6 +10,7 @@ import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
 import { listCourseLessons } from '@/lib/course-lesson-list';
 import { stripLessonVisualAidsFields } from '@/lib/strip-visual-aids-html';
+import { toLessonOutline } from '@/lib/lesson-outline-view';
 
 async function handler(req: AuthRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
@@ -25,7 +27,8 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
     if (!result.ok) {
       return res.status(result.status).json({ message: result.error });
     }
-    return res.status(200).json({ lessons: result.lessons.map(stripLessonVisualAidsFields) });
+    const lessons = result.lessons.map(stripLessonVisualAidsFields);
+    return res.status(200).json({ lessons: req.query.view === 'outline' ? lessons.map(toLessonOutline) : lessons });
   } catch (e) {
     console.error('[courses/:id/lessons]', e);
     return res.status(500).json({ message: 'Something went wrong. Please try again later.' });

@@ -440,13 +440,60 @@
   color: #ffab6b;
 }
 
-/*
- * Orange text written for light surfaces (600/700) is too dark on the dark theme's surfaces.
- * Areas that stay light in both themes (auth, community, parts of the landing page) are marked
- * .theme-light-island and keep the darker shade.
- */
-.dark :where(.text-primary-600, .text-primary-700):where(:not(.theme-light-island, .theme-light-island *)) {
+/* Orange text written for light surfaces (600/700) is too dark on the dark theme's surfaces. */
+.dark :where(.text-primary-600, .text-primary-700) {
   color: #ff8a33;
+}
+
+/*
+ * Sections designed on light hex colours (auth, community, parts of the landing page and How it
+ * works) are marked .theme-section and follow the theme like the rest of the app: in dark mode
+ * their light surfaces, text and borders map to the dark tokens.
+ */
+.dark .theme-section,
+.dark .theme-section :is(.bg-\[\#ffffff\], .bg-\[\#f6f6f6\], .bg-\[\#f6f3ec\]) {
+  background-color: var(--color-surface);
+}
+
+.dark :is(.theme-section.bg-\[\#faf8f4\], .theme-section .bg-\[\#faf8f4\]) {
+  background-color: var(--color-bg);
+}
+
+.dark .theme-section :is(.bg-\[\#fff4ea\], .bg-\[\#fff8f1\]) {
+  background-color: rgba(255, 138, 51, 0.1);
+}
+
+.dark .theme-section .hover\:bg-\[\#faf8f4\]:hover {
+  background-color: rgba(255, 255, 255, 0.06);
+}
+
+.dark .theme-section .bg-\[\#171717\] {
+  background-color: #f5f5f5;
+}
+
+.dark .theme-section .text-\[\#ffffff\] {
+  color: #111111;
+}
+
+.dark :is(.theme-section, .theme-section :is(.text-\[\#171717\], .text-\[\#1c1917\], .text-\[\#3f3a35\], .text-\[\#404040\])) {
+  color: var(--color-text);
+}
+
+.dark .theme-section :is(.text-\[\#525252\], .text-\[\#737373\]),
+.dark .theme-section .placeholder\:text-\[\#8a8a8a\]::placeholder {
+  color: var(--color-text-muted);
+}
+
+.dark .theme-section .text-\[\#9f1239\] {
+  color: #fda4af;
+}
+
+.dark .theme-section :is(.border-\[\#e5e5e5\], .border-\[\#eadfce\], .border-\[\#e7e2da\], .border-\[\#d9d3c8\]) {
+  border-color: var(--color-border);
+}
+
+.dark .theme-section .focus-visible\:ring-offset-\[\#faf8f4\]:focus-visible {
+  --tw-ring-offset-color: var(--color-bg);
 }
 
 html:not(.dark) .landing-shell {

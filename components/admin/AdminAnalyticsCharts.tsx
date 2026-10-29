@@ -17,6 +17,8 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
+import { useTheme } from '@/hooks/useTheme';
+import { chartPalette, chartTooltipStyle } from '@/lib/chart-theme';
 
 export interface AdminAnalyticsChartData {
   usersByRole?: { student?: number; instructor?: number; admin?: number };
@@ -26,6 +28,14 @@ export interface AdminAnalyticsChartData {
 }
 
 export default function AdminAnalyticsCharts({ analytics }: { analytics: AdminAnalyticsChartData }) {
+  const { isDark } = useTheme();
+  const c = chartPalette(isDark);
+  const tooltipStyle = chartTooltipStyle(c);
+  const roleSlices = [
+    { name: 'Students', value: analytics.usersByRole?.student || 0, color: c.accent },
+    { name: 'Instructors', value: analytics.usersByRole?.instructor || 0, color: c.strong },
+    { name: 'Admins', value: analytics.usersByRole?.admin || 0, color: c.muted },
+  ];
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* User Roles Distribution - Pie Chart */}
@@ -34,28 +44,20 @@ export default function AdminAnalyticsCharts({ analytics }: { analytics: AdminAn
         <ResponsiveContainer width="100%" height={300}>
           <PieChart>
             <Pie
-              data={[
-                { name: 'Students', value: analytics.usersByRole?.student || 0, color: '#B85C0E' },
-                { name: 'Instructors', value: analytics.usersByRole?.instructor || 0, color: '#171717' },
-                { name: 'Admins', value: analytics.usersByRole?.admin || 0, color: '#737373' },
-              ]}
+              data={roleSlices}
               cx="50%"
               cy="50%"
               labelLine={false}
               label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
               outerRadius={80}
-              fill="#B85C0E"
+              fill={c.accent}
               dataKey="value"
             >
-              {[
-                { name: 'Students', value: analytics.usersByRole?.student || 0, color: '#B85C0E' },
-                { name: 'Instructors', value: analytics.usersByRole?.instructor || 0, color: '#171717' },
-                { name: 'Admins', value: analytics.usersByRole?.admin || 0, color: '#737373' },
-              ].map((entry, index) => (
+              {roleSlices.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={entry.color} />
               ))}
             </Pie>
-            <Tooltip />
+            <Tooltip contentStyle={tooltipStyle} />
             <Legend />
           </PieChart>
         </ResponsiveContainer>
@@ -72,17 +74,13 @@ export default function AdminAnalyticsCharts({ analytics }: { analytics: AdminAn
               { name: 'Advanced', courses: analytics.coursesByDifficulty?.advanced || 0 },
             ]}
           >
-            <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-            <XAxis dataKey="name" stroke="#6b7280" />
-            <YAxis stroke="#6b7280" />
+            <CartesianGrid strokeDasharray="3 3" stroke={c.grid} />
+            <XAxis dataKey="name" stroke={c.axis} />
+            <YAxis stroke={c.axis} />
             <Tooltip
-              contentStyle={{
-                backgroundColor: '#fff',
-                border: '1px solid #e5e7eb',
-                borderRadius: '8px',
-              }}
+              contentStyle={tooltipStyle}
             />
-            <Bar dataKey="courses" fill="#B85C0E" radius={[8, 8, 0, 0]} />
+            <Bar dataKey="courses" fill={c.accent} radius={[8, 8, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -102,23 +100,19 @@ export default function AdminAnalyticsCharts({ analytics }: { analytics: AdminAn
               { day: 'Sun', enrollments: 0 },
             ]}
           >
-            <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-            <XAxis dataKey="day" stroke="#6b7280" />
-            <YAxis stroke="#6b7280" />
+            <CartesianGrid strokeDasharray="3 3" stroke={c.grid} />
+            <XAxis dataKey="day" stroke={c.axis} />
+            <YAxis stroke={c.axis} />
             <Tooltip
-              contentStyle={{
-                backgroundColor: '#fff',
-                border: '1px solid #e5e7eb',
-                borderRadius: '8px',
-              }}
+              contentStyle={tooltipStyle}
             />
             <Legend />
             <Line
               type="monotone"
               dataKey="enrollments"
-              stroke="#B85C0E"
+              stroke={c.accent}
               strokeWidth={2}
-              dot={{ fill: '#B85C0E', r: 4 }}
+              dot={{ fill: c.accent, r: 4 }}
               name="Enrollments"
             />
           </LineChart>
@@ -136,18 +130,14 @@ export default function AdminAnalyticsCharts({ analytics }: { analytics: AdminAn
               { course: 'Course 3', completed: 0, enrolled: 0 },
             ]}
           >
-            <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-            <XAxis dataKey="course" stroke="#6b7280" />
-            <YAxis stroke="#6b7280" />
+            <CartesianGrid strokeDasharray="3 3" stroke={c.grid} />
+            <XAxis dataKey="course" stroke={c.axis} />
+            <YAxis stroke={c.axis} />
             <Tooltip
-              contentStyle={{
-                backgroundColor: '#fff',
-                border: '1px solid #e5e7eb',
-                borderRadius: '8px',
-              }}
+              contentStyle={tooltipStyle}
             />
             <Legend />
-            <Bar dataKey="enrolled" fill="#B85C0E" name="Enrolled" radius={[8, 8, 0, 0]} />
+            <Bar dataKey="enrolled" fill={c.accent} name="Enrolled" radius={[8, 8, 0, 0]} />
             <Bar dataKey="completed" fill="#10B981" name="Completed" radius={[8, 8, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>

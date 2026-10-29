@@ -107,8 +107,8 @@ export default function ResetPassword() {
 
             {success ? (
               <div className="space-y-4">
-                <div className="p-4 bg-green-900/30 border border-green-700 rounded-xl">
-                  <p className="text-green-300 text-sm text-center">
+                <div className="p-4 bg-green-50 border border-green-200 rounded-xl dark:bg-green-900/30 dark:border-green-700">
+                  <p className="text-green-800 text-sm text-center dark:text-green-300">
                     Password updated. Redirecting to sign in…
                   </p>
                 </div>
@@ -121,8 +121,8 @@ export default function ResetPassword() {
               </div>
             ) : sessionError ? (
               <div className="space-y-4">
-                <div className="p-4 bg-yellow-900/30 border border-yellow-700 rounded-xl">
-                  <p className="text-primary-600 text-sm text-center">
+                <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl dark:bg-yellow-900/30 dark:border-yellow-700">
+                  <p className="text-amber-900 text-sm text-center dark:text-primary-300">
                     {sessionError === 'expired'
                       ? 'This step timed out. Verify your code again from Forgot password.'
                       : 'Open Forgot password, verify your SMS code, then you’ll land here automatically.'}

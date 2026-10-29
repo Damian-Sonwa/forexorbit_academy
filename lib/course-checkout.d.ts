@@ -2,10 +2,20 @@ type StorageLike = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> | null | 
 type Post = (url: string, body: { reference: string }) => Promise<unknown>;
 
 export type CheckoutResult =
-  | { state: 'unlocked'; reference: string; alreadyProcessed: boolean; duplicatePayment: boolean; message: string }
+  | {
+      state: 'unlocked';
+      reference: string;
+      alreadyProcessed: boolean;
+      duplicatePayment: boolean;
+      message: string;
+      /** false when the page refresh after the unlock failed or timed out. */
+      refreshed?: false;
+    }
   | { state: 'pending' | 'failed'; reference: string; code: string | null; retryable: boolean; message: string };
 
 export const CONFIRM_RETRY_DELAYS_MS: readonly number[];
+export const CONFIRM_REQUEST_TIMEOUT_MS: number;
+export function refreshAfterUnlock(onUnlocked?: () => void | Promise<void>, timeoutMs?: number): Promise<boolean>;
 export const PENDING_MAX_AGE_MS: number;
 export const PENDING_KEY_PREFIX: string;
 export function rememberPendingCheckout(storage: StorageLike, courseId: string, reference: string, now?: number): void;
@@ -35,4 +45,5 @@ export function settleCourseCheckout(input: {
   delays?: readonly number[];
   sleep?: (ms: number) => Promise<void>;
   automatic?: boolean;
+  refreshTimeoutMs?: number;
 }): Promise<CheckoutResult>;

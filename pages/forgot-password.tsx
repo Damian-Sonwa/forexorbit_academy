@@ -106,7 +106,7 @@ export default function ForgotPassword() {
         setInfo(res._devNote);
       } else if (res.smsDeliveryEnabled === false) {
         setInfo(
-          'SMS is not configured on the server. No text can be sent until Twilio or Termii env vars are set on the host that runs /api (e.g. Render).'
+          'Password reset by text message is unavailable right now. Please contact support to reset your password.'
         );
       } else {
         setInfo('If this number is registered, you should receive an SMS within a minute.');
@@ -212,10 +212,10 @@ export default function ForgotPassword() {
         <div className="max-w-md w-full relative z-10 animate-fade-in">
           <div className="bg-white rounded-2xl shadow-soft p-6 sm:p-8 border border-neutral-200">
             <div className="text-center mb-6 sm:mb-8">
-              <h2 className="text-white font-bold text-2xl sm:text-3xl mb-3 sm:mb-4">
+              <h2 className="text-neutral-900 font-bold text-2xl sm:text-3xl mb-3 sm:mb-4">
                 {step === 'phone' ? 'Forgot password' : 'Enter verification code'}
               </h2>
-              <p className="text-sm sm:text-base text-gray-300">
+              <p className="text-sm sm:text-base text-neutral-600">
                 {step === 'phone'
                   ? 'We’ll text a 6-digit code to the phone number on your account.'
                   : `Code sent to your phone. It expires in 5 minutes.`}
@@ -223,17 +223,16 @@ export default function ForgotPassword() {
             </div>
 
             {smsDeliveryEnabled === false && (
-              <div className="mb-4 p-3 bg-amber-900/40 border border-amber-600/60 rounded-xl">
-                <p className="text-amber-100 text-sm text-center font-medium">
-                  SMS delivery is off on this API server. Add TWILIO_* or TERMII_* to the same deployment
-                  that serves your API (if the site uses Vercel + Render, set them on Render when
-                  NEXT_PUBLIC_API_BASE_URL points there).
+              <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl dark:bg-amber-900/40 dark:border-amber-600/60">
+                <p className="text-amber-800 text-sm text-center font-medium dark:text-amber-100">
+                  Password reset by text message is unavailable right now. Please{' '}
+                  <Link href="/support" className="underline">contact support</Link> to reset your password.
                 </p>
               </div>
             )}
 
             {info && (
-              <div className="mb-4 p-3 bg-primary-900/40 border border-primary-600/50 rounded-xl">
+              <div className="mb-4 p-3 bg-primary-50 border border-primary-200 rounded-xl dark:bg-primary-900/40 dark:border-primary-600/50">
                 <p className="text-neutral-500 text-sm text-center">{info}</p>
               </div>
             )}
@@ -258,7 +257,7 @@ export default function ForgotPassword() {
                     className="bg-white border border-neutral-300 text-neutral-900 rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary-400/50 focus:border-transparent w-full text-base placeholder:text-neutral-400"
                     placeholder="+234 801 234 5678"
                   />
-                  <p className="text-xs text-gray-400 mt-2">
+                  <p className="text-xs text-neutral-500 mt-2">
                     Use the same number you registered with. Include country code.
                   </p>
                 </div>
@@ -303,7 +302,7 @@ export default function ForgotPassword() {
                       setError('');
                       setInfo('');
                     }}
-                    className="text-sm text-gray-300 hover:text-white underline"
+                    className="text-sm text-neutral-600 hover:text-neutral-900 underline"
                   >
                     Change number
                   </button>
@@ -311,7 +310,7 @@ export default function ForgotPassword() {
                     type="button"
                     onClick={handleResend}
                     disabled={retryAfterSeconds > 0 || loading}
-                    className="text-sm font-semibold text-primary-300 hover:text-primary-600 disabled:text-gray-500 disabled:cursor-not-allowed"
+                    className="text-sm font-semibold text-primary-700 hover:text-primary-600 dark:text-primary-300 disabled:text-gray-500 disabled:cursor-not-allowed"
                   >
                     {retryAfterSeconds > 0 ? `Resend in ${retryAfterSeconds}s` : 'Resend code'}
                   </button>
@@ -319,10 +318,10 @@ export default function ForgotPassword() {
               </form>
             )}
 
-            <div className="mt-6 pt-6 border-t border-gray-600">
-              <p className="text-center text-sm text-gray-300">
+            <div className="mt-6 pt-6 border-t border-neutral-200">
+              <p className="text-center text-sm text-neutral-600">
                 Remember your password?{' '}
-                <Link href="/login" className="text-white hover:underline font-semibold">
+                <Link href="/login" className="text-neutral-900 hover:underline font-semibold">
                   Sign in
                 </Link>
               </p>

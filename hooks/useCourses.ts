@@ -107,7 +107,7 @@ export function useCourse(courseId: string | string[] | undefined, enabled = tru
     const fetchCourse = async () => {
       try {
         setLoading(true);
-        const data = await apiClient.get<Course>(`/courses/${courseId}`);
+        const data = await apiClient.get<Course>(`/courses/${courseId}?lessons=none`);
         setCourse(data);
         setError(null);
       } catch (err: any) {
@@ -125,7 +125,7 @@ export function useCourse(courseId: string | string[] | undefined, enabled = tru
   const refetch = async () => {
     if (!enabled || !courseId || Array.isArray(courseId)) return;
     try {
-      const data = await apiClient.get<Course>(`/courses/${courseId}`);
+      const data = await apiClient.get<Course>(`/courses/${courseId}?lessons=none`);
       setCourse(data);
       setError(null);
     } catch (err: any) {

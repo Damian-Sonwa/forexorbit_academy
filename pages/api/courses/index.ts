@@ -14,6 +14,7 @@ import { isActiveEnrollment } from '@/lib/enrollment-state';
 import { decideSessionBinding, extractToken, verifyToken } from '@/lib/jwt';
 import { stripCourseVisualAidsFields } from '@/lib/strip-visual-aids-html';
 import { presentCourse } from '@/lib/course-response';
+import { buildCourseListQuery } from '@/lib/course-list-filter';
 // import { ObjectId } from 'mongodb'; // Reserved for future use
 
 export const config = {
@@ -31,18 +32,8 @@ async function getCourses(req: AuthRequest, res: NextApiResponse) {
     const courses = db.collection('courses');
     const progress = db.collection('progress');
 
-    const { category, difficulty, search } = req.query;
-
-    // Build query
-    const query: any = {};
-    if (category) query.category = category;
-    if (difficulty) query.difficulty = difficulty;
-    if (search) {
-      query.$or = [
-        { title: { $regex: search, $options: 'i' } },
-        { description: { $regex: search, $options: 'i' } },
-      ];
-    }
+    // Plain-string filters; the search text is matched literally (see lib/course-list-filter).
+    const query = buildCourseListQuery(req.query);
 
     const coursesList = await courses.find(query).project({
       title: 1,

@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef, createContext, useContext, ReactNode } from 'react';
-import { apiClient } from '@/lib/api-client';
+import { apiClient, isUnauthorizedError } from '@/lib/api-client';
 
 interface User {
   id: string;
@@ -96,8 +96,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (updatedUser === parsedUser) return;
       setUser(updatedUser);
       localStorage.setItem('user', JSON.stringify(updatedUser));
-    }).catch(() => {
-      if (!cancelled) logout();
+    }).catch((err: unknown) => {
+      // Only a rejected session signs out; a network error or server fault keeps the saved user.
+      if (!cancelled && isUnauthorizedError(err)) logout();
     }).finally(finish);
 
     return () => {

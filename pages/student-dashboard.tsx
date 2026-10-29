@@ -385,7 +385,7 @@ export default function StudentDashboard() {
                   <ClipboardList className="h-4 w-4 shrink-0" aria-hidden />
                   <span>Tasks</span>
                   {pendingTasks.length > 0 && (
-                    <span className="ml-2 px-2.5 py-0.5 bg-red-500 text-white text-xs font-bold rounded-full motion-safe:animate-pulse">
+                    <span className="ml-2 px-2.5 py-0.5 bg-red-600 text-white text-xs font-bold rounded-full motion-safe:animate-pulse">
                       {pendingTasks.length}
                     </span>
                   )}

@@ -54,49 +54,54 @@ async function getCourse(req: AuthRequest, res: NextApiResponse) {
       instructorId: course.instructorId,
       difficulty: typeof course.difficulty === 'string' ? course.difficulty : null,
     };
-    const courseLessons = await db.collection('lessons')
-      .find({ courseId })
-      .sort({ order: 1 })
-      .toArray();
-    const priced = await buildLessonsListForCourse(
-      db,
-      courseId,
-      { userId: member.userId, role: member.role },
-      courseLessons as Record<string, unknown>[]
-    );
-    const pricedById = new Map(priced.map((item) => [String(item._id), item]));
-    const lessons = courseLessons.map((lesson) => {
-      const read = decideLessonRead({
-        member,
-        lesson: {
-          _id: lesson._id,
-          courseId: lesson.courseId,
-          requiredLevel: typeof lesson.requiredLevel === 'string' ? lesson.requiredLevel : null,
-        },
-        course: courseRecord,
-        enrollment: enrollmentRecord,
-      });
-      const view = stripLessonVisualAidsFields(
-        presentLessonRead(lesson as Record<string, unknown>, read.ok, courseId)
+    // `?lessons=none`: the caller loads lessons from /courses/:id/lessons and needs the course only.
+    const withLessons = req.query.lessons !== 'none';
+    let lessons: Record<string, unknown>[] | undefined;
+    if (withLessons) {
+      const courseLessons = await db.collection('lessons')
+        .find({ courseId })
+        .sort({ order: 1 })
+        .toArray();
+      const priced = await buildLessonsListForCourse(
+        db,
+        courseId,
+        { userId: member.userId, role: member.role },
+        courseLessons as Record<string, unknown>[]
       );
-      const price = pricedById.get(String(lesson._id));
-      if (price) {
-        view.locked = price.locked === true;
-        view.isFirstLesson = price.isFirstLesson === true;
-        view.isDemo = price.isDemo === true;
-        view.monetization = price.monetization;
-        if (price.locked === true) {
-          view.content = null;
-          view.description = null;
-          view.summary = null;
-          view.lessonSummary = null;
-          view.videoUrl = null;
-          view.pdfUrl = null;
-          view.resources = [];
+      const pricedById = new Map(priced.map((item) => [String(item._id), item]));
+      lessons = courseLessons.map((lesson) => {
+        const read = decideLessonRead({
+          member,
+          lesson: {
+            _id: lesson._id,
+            courseId: lesson.courseId,
+            requiredLevel: typeof lesson.requiredLevel === 'string' ? lesson.requiredLevel : null,
+          },
+          course: courseRecord,
+          enrollment: enrollmentRecord,
+        });
+        const view = stripLessonVisualAidsFields(
+          presentLessonRead(lesson as Record<string, unknown>, read.ok, courseId)
+        );
+        const price = pricedById.get(String(lesson._id));
+        if (price) {
+          view.locked = price.locked === true;
+          view.isFirstLesson = price.isFirstLesson === true;
+          view.isDemo = price.isDemo === true;
+          view.monetization = price.monetization;
+          if (price.locked === true) {
+            view.content = null;
+            view.description = null;
+            view.summary = null;
+            view.lessonSummary = null;
+            view.videoUrl = null;
+            view.pdfUrl = null;
+            view.resources = [];
+          }
         }
-      }
-      return view;
-    });
+        return view;
+      });
+    }
 
     const description = typeof course.description === 'string'
       ? String(stripCourseVisualAidsFields({ description: course.description }).description || '')
@@ -104,7 +109,7 @@ async function getCourse(req: AuthRequest, res: NextApiResponse) {
     const coursePayload = presentCourse(
       { ...course, description },
       {
-        lessons,
+        ...(withLessons ? { lessons } : {}),
         progress: typeof enrollment?.progress === 'number' ? enrollment.progress : 0,
         enrolled: Boolean(enrollment),
       }

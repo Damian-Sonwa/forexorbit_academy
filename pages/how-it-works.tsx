@@ -8,6 +8,7 @@ import { useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import BrandLogo from '@/components/BrandLogo';
+import ThemeToggle from '@/components/ThemeToggle';
 import {
   ArrowRight,
   BarChart3,
@@ -129,6 +130,9 @@ export default function HowItWorks() {
             <Link href="/consultations" className="hover:text-white">Consultations</Link>
             <Link href="/about" className="hover:text-white">About</Link>
           </nav>
+          <div className="ml-auto flex items-center gap-3 lg:ml-0">
+            <ThemeToggle className="text-white/80 hover:bg-white/10 hover:text-white" />
+          </div>
           <div className="hidden items-center gap-3 sm:flex">
             {!isAuthenticated && (
               <Link href="/login" className="rounded-full border border-primary-500/70 px-4 py-2 text-sm font-semibold hover:bg-white/5">Sign in</Link>
@@ -155,7 +159,7 @@ export default function HowItWorks() {
       </header>
 
       <main>
-        <section className="theme-light-island bg-[#faf8f4] text-[#171717]">
+        <section className="theme-section bg-[#faf8f4] text-[#171717]">
           <div className="mx-auto max-w-4xl px-4 py-16 text-center sm:px-6 sm:py-20">
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-primary-700">How it works</p>
             <h1 className="mt-4 font-display text-4xl font-bold leading-[1.1] tracking-tight sm:text-5xl">
@@ -182,7 +186,7 @@ export default function HowItWorks() {
             <h2 className="mt-4 max-w-2xl font-display text-3xl font-bold leading-[1.15] tracking-tight sm:text-4xl">Six steps, in the order the app takes you through them.</h2>
             <ol className="mt-12 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
               {studentSteps.map((step, index) => (
-                <li key={step.title} className="theme-light-island flex flex-col rounded-2xl border border-[#eadfce] bg-[#f6f3ec] p-6 text-[#1c1917] shadow-[0_10px_24px_-18px_rgba(0,0,0,0.45)]">
+                <li key={step.title} className="theme-section flex flex-col rounded-2xl border border-[#eadfce] bg-[#f6f3ec] p-6 text-[#1c1917] shadow-[0_10px_24px_-18px_rgba(0,0,0,0.45)]">
                   <div className="flex items-center gap-3">
                     <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary-500 text-neutral-950">
                       <step.icon className="h-5 w-5" aria-hidden />
@@ -205,7 +209,7 @@ export default function HowItWorks() {
           </div>
         </section>
 
-        <section className="theme-light-island bg-[#ffffff] py-20 text-[#171717] lg:py-24">
+        <section className="theme-section bg-[#ffffff] py-20 text-[#171717] lg:py-24">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <p className="text-center text-sm font-semibold uppercase tracking-[0.18em] text-primary-700">When you get stuck</p>
             <h2 className="mx-auto mt-4 max-w-2xl text-center font-display text-3xl font-bold leading-[1.15] tracking-tight sm:text-4xl">People to ask, at every level.</h2>

@@ -16,7 +16,8 @@ interface LeaderboardEntry {
   rank: number;
   userId: string;
   name: string;
-  email: string;
+  /** Present for administrators only. */
+  email?: string;
   points?: number;
   completions?: number;
   avgScore?: number;
@@ -174,7 +175,7 @@ export default function Leaderboard() {
                             <p className="text-sm font-bold text-gray-900 dark:text-white">
                               {entry.name} {entry.userId === user.id && '(You)'}
                             </p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">{entry.email}</p>
+                            {entry.email ? <p className="text-xs text-gray-500 dark:text-gray-400">{entry.email}</p> : null}
                           </div>
                         </div>
                       </td>

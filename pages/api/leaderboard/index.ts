@@ -13,6 +13,9 @@ import { findByIds, objectIdsFrom } from '@/lib/batch-lookup';
 async function getLeaderboard(req: AuthRequest, res: NextApiResponse) {
   try {
     const { type = 'points', courseId } = req.query;
+    // Rankings are visible to every signed-in member; contact emails only to administrators.
+    const showEmail = req.user?.role === 'admin' || req.user?.role === 'superadmin';
+    const emailOf = (value: unknown) => (showEmail && typeof value === 'string' ? value : undefined);
     const db = await getDb();
     const users = db.collection('users');
     const progress = db.collection('progress');
@@ -33,7 +36,7 @@ async function getLeaderboard(req: AuthRequest, res: NextApiResponse) {
         rank: index + 1,
         userId: user._id.toString(),
         name: user.name,
-        email: user.email,
+        email: emailOf(user.email),
         points: user.points || 0,
         avatar: user.avatar || null,
       }));
@@ -58,7 +61,7 @@ async function getLeaderboard(req: AuthRequest, res: NextApiResponse) {
             rank: index + 1,
             userId: item._id.toString(),
             name: user?.name || 'Unknown',
-            email: user?.email || '',
+            email: emailOf(user?.email),
             completions: item.count,
             avatar: user?.avatar || null,
           };
@@ -84,7 +87,7 @@ async function getLeaderboard(req: AuthRequest, res: NextApiResponse) {
             rank: index + 1,
             userId: item._id.toString(),
             name: user?.name || 'Unknown',
-            email: user?.email || '',
+            email: emailOf(user?.email),
             avgScore: Math.round(item.avgScore),
             totalQuizzes: item.totalQuizzes,
             avatar: user?.avatar || null,
@@ -105,7 +108,7 @@ async function getLeaderboard(req: AuthRequest, res: NextApiResponse) {
             rank: index + 1,
             userId: item.userId,
             name: user?.name || 'Unknown',
-            email: user?.email || '',
+            email: emailOf(user?.email),
             progress: Math.round(item.progress),
             avatar: user?.avatar || null,
           };

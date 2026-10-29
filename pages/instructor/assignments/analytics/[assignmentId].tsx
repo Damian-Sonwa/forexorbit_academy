@@ -8,6 +8,8 @@ import { useRouter } from 'next/router';
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
 import { useAuth } from '@/hooks/useAuth';
+import { useTheme } from '@/hooks/useTheme';
+import { chartPalette, chartTooltipStyle } from '@/lib/chart-theme';
 import { apiClient } from '@/lib/api-client';
 import {
   BarChart,
@@ -72,6 +74,7 @@ const COLORS = ['#15803D', '#B85C0E', '#A16207', '#DC2626', '#171717'];
 
 export default function AssignmentAnalytics() {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
+  const chart = chartPalette(useTheme().isDark);
   const router = useRouter();
   const { assignmentId } = router.query;
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
@@ -281,19 +284,19 @@ export default function AssignmentAnalytics() {
                 <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Submission Timeline</h2>
                 <ResponsiveContainer width="100%" height={300}>
                   <LineChart data={analytics.submissionTimeline}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} />
                     <XAxis
                       dataKey="date"
                       tickFormatter={(value) => format(new Date(value), 'MMM dd')}
-                      stroke="#6b7280"
+                      stroke={chart.axis}
                     />
-                    <YAxis stroke="#6b7280" />
+                    <YAxis stroke={chart.axis} />
                     <Tooltip
                       labelFormatter={(value) => format(new Date(value), 'MMM dd, yyyy')}
-                      contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+                      contentStyle={chartTooltipStyle(chart)}
                     />
                     <Legend />
-                    <Line type="monotone" dataKey="count" stroke="#B85C0E" strokeWidth={2} name="Submissions" />
+                    <Line type="monotone" dataKey="count" stroke={chart.accent} strokeWidth={2} name="Submissions" />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
@@ -303,14 +306,14 @@ export default function AssignmentAnalytics() {
                 <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Score Distribution</h2>
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={scoreDistributionData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis dataKey="range" stroke="#6b7280" />
-                    <YAxis stroke="#6b7280" />
+                    <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} />
+                    <XAxis dataKey="range" stroke={chart.axis} />
+                    <YAxis stroke={chart.axis} />
                     <Tooltip
-                      contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+                      contentStyle={chartTooltipStyle(chart)}
                     />
                     <Legend />
-                    <Bar dataKey="count" name="Students" fill="#B85C0E">
+                    <Bar dataKey="count" name="Students" fill={chart.accent}>
                       {scoreDistributionData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
@@ -326,11 +329,11 @@ export default function AssignmentAnalytics() {
                 <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Top Student Scores</h2>
                 <ResponsiveContainer width="100%" height={400}>
                   <BarChart data={studentScoresData} layout="vertical">
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis type="number" domain={[0, 100]} stroke="#6b7280" />
-                    <YAxis dataKey="name" type="category" stroke="#6b7280" width={120} />
+                    <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} />
+                    <XAxis type="number" domain={[0, 100]} stroke={chart.axis} />
+                    <YAxis dataKey="name" type="category" stroke={chart.axis} width={120} />
                     <Tooltip
-                      contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+                      contentStyle={chartTooltipStyle(chart)}
                       formatter={(value: number) => `${value}%`}
                     />
                     <Legend />

@@ -6,15 +6,14 @@
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useAuth } from '@/hooks/useAuth';
-import { useTheme } from '@/hooks/useTheme';
 import { useState, useEffect, useRef } from 'react';
 import { apiClient } from '@/lib/api-client';
 import { useSocket } from '@/hooks/useSocket';
 import { isNavHrefDisabled } from '@/lib/config/features';
 import { notificationDestination } from '@/lib/class-notifications';
 import { InlineLoader } from '@/components/loading';
-import { Languages } from 'lucide-react';
 import BrandLogo from '@/components/BrandLogo';
+import ThemeToggle from '@/components/ThemeToggle';
 interface Notification {
   _id: string;
   type: string;
@@ -31,18 +30,14 @@ interface Notification {
 
 export default function Header() {
   const { user, logout, isAuthenticated } = useAuth();
-  const { isDark, toggleTheme } = useTheme();
   const { socket, connected } = useSocket();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [languageOpen, setLanguageOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [selectedLanguage, setSelectedLanguage] = useState('en');
   const [loadingNotifications, setLoadingNotifications] = useState(false);
   const notificationsRef = useRef<HTMLDivElement>(null);
-  const languageRef = useRef<HTMLDivElement>(null);
   const hasSetupSocketListener = useRef(false);
 
   const handleLogout = () => {
@@ -137,29 +132,11 @@ export default function Header() {
       if (notificationsRef.current && !notificationsRef.current.contains(event.target as Node)) {
         setNotificationsOpen(false);
       }
-      if (languageRef.current && !languageRef.current.contains(event.target as Node)) {
-        setLanguageOpen(false);
-      }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-
-  const languages = [
-    { code: 'en', name: 'English' },
-    { code: 'es', name: 'Español' },
-    { code: 'fr', name: 'Français' },
-    { code: 'de', name: 'Deutsch' },
-    { code: 'pt', name: 'Português' },
-    { code: 'ar', name: 'العربية' },
-  ];
-
-  const handleLanguageChange = (langCode: string) => {
-    setSelectedLanguage(langCode);
-    setLanguageOpen(false);
-    // Language change logic can be implemented here
-  };
 
   return (
     <header className="bg-white/90 text-neutral-900 dark:bg-[#07080c]/90 dark:text-white sticky top-0 z-50 border-b border-neutral-200/80 dark:border-white/10 backdrop-blur-md">
@@ -295,7 +272,7 @@ export default function Header() {
                               <div className="flex-1 min-w-0 pr-1">
                                 <p className="text-xs sm:text-sm text-gray-900 dark:text-white font-medium break-words">{notification.title}</p>
                                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2 break-words">{notification.message}</p>
-                                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1.5">
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">
                                   {new Date(notification.createdAt).toLocaleString()}
                                 </p>
                               </div>
@@ -319,60 +296,8 @@ export default function Header() {
               </div>
             )}
 
-            {/* Language Selection - Only for authenticated users */}
-            {isAuthenticated && (
-              <div className="relative" ref={languageRef}>
-                <button
-                  onClick={() => setLanguageOpen(!languageOpen)}
-                  className="flex items-center space-x-1.5 px-2 py-1 rounded-lg transition-colors hover:bg-neutral-100 dark:hover:bg-white/10 text-neutral-600 dark:text-neutral-300"
-                  aria-label="Language"
-                >
-                  <Languages className="h-5 w-5" aria-hidden />
-                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
+            <ThemeToggle className="text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-white/10" />
 
-                {languageOpen && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-[#101214] rounded-xl shadow-xl border border-gray-200 dark:border-white/10 py-2 overflow-hidden z-50">
-                    {languages.map((lang) => (
-                      <button
-                        key={lang.code}
-                        onClick={() => handleLanguageChange(lang.code)}
-                        className={`w-full flex items-center space-x-3 px-4 py-2 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors text-left ${
-                          selectedLanguage === lang.code ? 'bg-primary-50 dark:bg-primary-950/40' : ''
-                        }`}
-                      >
-                        <span className="text-sm text-gray-900 dark:text-white">{lang.name}</span>
-                        {selectedLanguage === lang.code && (
-                          <svg className="w-4 h-4 text-primary-600 dark:text-primary-400 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Dark Mode Toggle */}
-            <button
-              onClick={toggleTheme}
-              className="p-1.5 rounded-lg transition-colors hover:bg-neutral-100 dark:hover:bg-white/10 text-neutral-600 dark:text-neutral-300"
-              aria-label={isDark ? 'Switch to light theme' : 'Switch to dark theme'}
-            >
-              {isDark ? (
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                </svg>
-              ) : (
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                </svg>
-              )}
-            </button>
-            
             {isAuthenticated ? (
               <div className="relative">
                 <button

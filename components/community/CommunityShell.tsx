@@ -10,7 +10,7 @@ export function CommunityShell({ children }: { children: ReactNode }) {
       <Header />
       <div className="flex flex-1 lg:items-start">
         <Sidebar />
-        <main className="theme-light-island mx-auto w-full max-w-6xl flex-1 bg-[#ffffff] px-4 py-8 pt-16 text-[#171717] sm:px-6 lg:py-10 lg:pt-8">{children}</main>
+        <main className="theme-section mx-auto w-full max-w-6xl flex-1 bg-[#ffffff] px-4 py-8 pt-16 text-[#171717] sm:px-6 lg:py-10 lg:pt-8">{children}</main>
       </div>
       <Footer />
     </div>
