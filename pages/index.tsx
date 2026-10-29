@@ -5,6 +5,7 @@
  */
 
 import { useEffect, useState } from 'react';
+import type { GetStaticProps } from 'next';
 import Link from 'next/link';
 import BrandLogo from '@/components/BrandLogo';
 import {
@@ -96,10 +97,27 @@ const paths = [
   { pair: 'Risk', name: 'Size, stop, and review', note: 'The part that keeps a good idea from becoming a bad trade', progress: 'Practice' },
 ];
 
-export default function Home() {
+/** How often the pre-rendered catalog is refreshed in the background (seconds). */
+const CATALOG_REVALIDATE_SECONDS = 60;
+
+export const getStaticProps: GetStaticProps<{ initialCourses: Course[] }> = async () => {
+  // No database at build time: the first request after a deploy fills the catalog.
+  if (process.env.NEXT_PHASE === 'phase-production-build') {
+    return { props: { initialCourses: [] }, revalidate: 1 };
+  }
+  // Errors propagate on purpose: Next.js then keeps serving the last good page.
+  const [{ getDb }, { loadPublicCatalog }] = await Promise.all([
+    import('@/lib/mongodb'),
+    import('@/lib/public-catalog'),
+  ]);
+  const initialCourses = (await loadPublicCatalog(await getDb())) as Course[];
+  return { props: { initialCourses }, revalidate: CATALOG_REVALIDATE_SECONDS };
+};
+
+export default function Home({ initialCourses = [] }: { initialCourses?: Course[] }) {
   const { isAuthenticated } = useAuth();
   const [filters, setFilters] = useState({ category: '', difficulty: '', search: '' });
-  const { courses, loading, enroll } = useCourses(filters);
+  const { courses, loading, enroll } = useCourses(filters, { initialCourses });
   const [menuOpen, setMenuOpen] = useState(false);
   const [instructors, setInstructors] = useState<Array<{ _id?: string; id?: string; name?: string; title?: string; description?: string; imageUrl?: string }>>([]);
 
@@ -334,7 +352,7 @@ export default function Home() {
                 <option value="advanced">Advanced</option>
               </select>
             </div>
-            {loading ? (
+            {loading && courses.length === 0 ? (
               <div className="mt-8 grid gap-6 md:grid-cols-2 xl:grid-cols-3">
                 {[0, 1, 2].map((item) => (
                   <div key={item} className="h-80 animate-pulse rounded-2xl bg-[#101214]" />

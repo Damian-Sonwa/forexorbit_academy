@@ -35,9 +35,16 @@ export interface Course {
   }>;
 }
 
-export function useCourses(filters?: { category?: string; difficulty?: string; search?: string }) {
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [loading, setLoading] = useState(true);
+/**
+ * `initialCourses` (from a pre-rendered page) are shown straight away; the live list is still
+ * fetched in the background so enrollment state and filters stay current.
+ */
+export function useCourses(
+  filters?: { category?: string; difficulty?: string; search?: string },
+  options?: { initialCourses?: Course[] }
+) {
+  const [courses, setCourses] = useState<Course[]>(options?.initialCourses ?? []);
+  const [loading, setLoading] = useState(!(options?.initialCourses && options.initialCourses.length > 0));
   const [error, setError] = useState<string | null>(null);
   const requestId = useRef(0);
 

@@ -5,6 +5,7 @@
  * A thumbnail that fails to load falls back to that catalog photo.
  */
 import { useEffect, useState } from 'react';
+import { cloudinaryDisplayUrl } from '@/lib/cloudinary-url';
 
 export const CATALOG_PHOTOS = [
   '/images/catalog/digital-forex.webp',
@@ -23,7 +24,8 @@ export function fallbackCover(seed: string): string {
 
 export function courseCoverSrc(course: { _id?: string; id?: string; title?: string; thumbnail?: string | null }): string {
   const thumbnail = typeof course.thumbnail === 'string' ? course.thumbnail.trim() : '';
-  return thumbnail || fallbackCover(String(course._id || course.id || course.title || ''));
+  // Cloudinary uploads are requested at display size in an automatic format, not as the original.
+  return thumbnail ? cloudinaryDisplayUrl(thumbnail) : fallbackCover(String(course._id || course.id || course.title || ''));
 }
 
 interface CourseCoverProps {
