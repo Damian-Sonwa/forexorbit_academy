@@ -10,6 +10,7 @@ import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 import { analyzeTrade, isAIConfigured } from '@/lib/ai';
+import { findByIds, objectIdsFrom } from '@/lib/batch-lookup';
 
 async function getJournal(req: AuthRequest, res: NextApiResponse) {
   try {
@@ -27,34 +28,30 @@ async function getJournal(req: AuthRequest, res: NextApiResponse) {
       .sort({ createdAt: -1 })
       .toArray();
 
-    // Populate task titles if taskId exists, and include grade/feedback
-    const entriesWithTasks = await Promise.all(
-      entries.map(async (entry) => {
-        if (entry.taskId) {
-          const task = await tasks.findOne(
-            { _id: new ObjectId(entry.taskId) },
-            { projection: { title: 1 } }
-          );
-          return {
-            ...entry,
-            _id: entry._id.toString(),
-            taskTitle: task?.title || 'Unknown Task',
-            grade: entry.grade || null,
-            feedback: entry.feedback || null,
-            reviewedAt: entry.reviewedAt || null,
-            aiFeedback: entry.aiFeedback || null,
-          };
-        }
+    // Populate task titles (one demoTasks query for all entries) and include grade/feedback
+    const taskTitles = await findByIds(tasks, objectIdsFrom(entries.map((entry) => entry.taskId)), { title: 1 });
+    const entriesWithTasks = entries.map((entry) => {
+      if (entry.taskId) {
+        const task = taskTitles.get(String(entry.taskId));
         return {
           ...entry,
           _id: entry._id.toString(),
+          taskTitle: task?.title || 'Unknown Task',
           grade: entry.grade || null,
           feedback: entry.feedback || null,
           reviewedAt: entry.reviewedAt || null,
           aiFeedback: entry.aiFeedback || null,
         };
-      })
-    );
+      }
+      return {
+        ...entry,
+        _id: entry._id.toString(),
+        grade: entry.grade || null,
+        feedback: entry.feedback || null,
+        reviewedAt: entry.reviewedAt || null,
+        aiFeedback: entry.aiFeedback || null,
+      };
+    });
 
     res.json(entriesWithTasks);
   } catch (error: any) {

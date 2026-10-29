@@ -8,7 +8,7 @@ import { unexpectedBody } from '@/lib/public-error';
 import type { NextApiResponse } from 'next';
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
-import { ObjectId } from 'mongodb';
+import { findByIds, objectIdsFrom } from '@/lib/batch-lookup';
 
 async function getLeaderboard(req: AuthRequest, res: NextApiResponse) {
   try {
@@ -24,7 +24,7 @@ async function getLeaderboard(req: AuthRequest, res: NextApiResponse) {
     if (type === 'points') {
       // Leaderboard by points
       const usersList = await users
-        .find({ role: 'student' }, { projection: { password: 0 } })
+        .find({ role: 'student' }, { projection: { name: 1, email: 1, points: 1, avatar: 1 } })
         .sort({ points: -1 })
         .limit(100)
         .toArray();
@@ -50,12 +50,10 @@ async function getLeaderboard(req: AuthRequest, res: NextApiResponse) {
         { $limit: 100 },
       ]).toArray();
 
-      rankings = await Promise.all(
-        completedCourses.map(async (item, index) => {
-          const user = await users.findOne(
-            { _id: item._id },
-            { projection: { name: 1, email: 1, avatar: 1 } }
-          );
+      // One users query for all rows; ids are matched as stored, as the per-row lookup did.
+      const people = await findByIds(users, completedCourses.map((item) => item._id), { name: 1, email: 1, avatar: 1 });
+      rankings = completedCourses.map((item, index) => {
+          const user = people.get(String(item._id));
           return {
             rank: index + 1,
             userId: item._id.toString(),
@@ -64,8 +62,7 @@ async function getLeaderboard(req: AuthRequest, res: NextApiResponse) {
             completions: item.count,
             avatar: user?.avatar || null,
           };
-        })
-      );
+        });
     } else if (type === 'quizzes') {
       // Leaderboard by quiz average scores
       const quizStats = await quizScores.aggregate([
@@ -80,12 +77,9 @@ async function getLeaderboard(req: AuthRequest, res: NextApiResponse) {
         { $limit: 100 },
       ]).toArray();
 
-      rankings = await Promise.all(
-        quizStats.map(async (item, index) => {
-          const user = await users.findOne(
-            { _id: item._id },
-            { projection: { name: 1, email: 1, avatar: 1 } }
-          );
+      const people = await findByIds(users, quizStats.map((item) => item._id), { name: 1, email: 1, avatar: 1 });
+      rankings = quizStats.map((item, index) => {
+          const user = people.get(String(item._id));
           return {
             rank: index + 1,
             userId: item._id.toString(),
@@ -95,8 +89,7 @@ async function getLeaderboard(req: AuthRequest, res: NextApiResponse) {
             totalQuizzes: item.totalQuizzes,
             avatar: user?.avatar || null,
           };
-        })
-      );
+        });
     } else if (type === 'course' && courseId) {
       // Course-specific leaderboard
       const courseProgress = await progress
@@ -105,12 +98,9 @@ async function getLeaderboard(req: AuthRequest, res: NextApiResponse) {
         .limit(100)
         .toArray();
 
-      rankings = await Promise.all(
-        courseProgress.map(async (item, index) => {
-          const user = await users.findOne(
-            { _id: new ObjectId(item.userId) },
-            { projection: { name: 1, email: 1, avatar: 1 } }
-          );
+      const people = await findByIds(users, objectIdsFrom(courseProgress.map((item) => item.userId)), { name: 1, email: 1, avatar: 1 });
+      rankings = courseProgress.map((item, index) => {
+          const user = people.get(String(item.userId));
           return {
             rank: index + 1,
             userId: item.userId,
@@ -119,8 +109,7 @@ async function getLeaderboard(req: AuthRequest, res: NextApiResponse) {
             progress: Math.round(item.progress),
             avatar: user?.avatar || null,
           };
-        })
-      );
+        });
     }
 
     res.json(rankings);

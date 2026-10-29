@@ -11,7 +11,6 @@ import Sidebar from '@/components/Sidebar';
 import Footer from '@/components/Footer';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import TradingInterface from '@/components/TradingInterface';
-import MarketSignal from '@/components/MarketSignal';
 import SetupGuide from '@/components/student/SetupGuide';
 import TodoList from '@/components/TodoList';
 import RemindersPanel from '@/components/RemindersPanel';
@@ -21,6 +20,13 @@ import { apiClient } from '@/lib/api-client';
 import { format } from 'date-fns';
 import Image from 'next/image';
 import { AlertTriangle, BarChart3, BookOpen, Bot, Calendar, CheckCircle2, ClipboardList, Clock, FileText, Image as ImageIcon, Lightbulb, MessageSquare, Save, User, Zap } from 'lucide-react';
+import dynamic from 'next/dynamic';
+
+// The market signal chart pulls in recharts; load it after the page instead of in the page bundle.
+const MarketSignal = dynamic(() => import('@/components/MarketSignal'), {
+  ssr: false,
+  loading: () => <div className="card orbit-skeleton h-48" aria-hidden />,
+});
 
 interface DemoTask {
   _id: string;

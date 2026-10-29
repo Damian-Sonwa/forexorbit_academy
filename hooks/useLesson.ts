@@ -55,11 +55,16 @@ export function useLesson(lessonId: string | string[] | undefined, enabled = tru
 
   const refetchLesson = useCallback(async () => {
     if (!enabled || !lessonId || Array.isArray(lessonId)) return;
+    // A 401 triggers the api-client login redirect; keep the loading state instead of flashing an error.
+    // Every other outcome, including the early returns below, must clear it (finally).
+    let redirecting = false;
     try {
       setLoading(true);
       const res = await apiClient.getAllowingError<Lesson>(`/lessons/${lessonId}`);
-      // A 401 triggers the api-client login redirect; keep the loading state instead of flashing an error.
-      if (!res.ok && res.status === 401) return;
+      if (!res.ok && res.status === 401) {
+        redirecting = true;
+        return;
+      }
       if (res.ok && res.status === 200) {
         setLesson(res.data);
         setAccessDenied(null);
@@ -99,8 +104,9 @@ export function useLesson(lessonId: string | string[] | undefined, enabled = tru
       setLesson(null);
       setAccessDenied(null);
       setError(msg);
+    } finally {
+      if (!redirecting) setLoading(false);
     }
-    setLoading(false);
   }, [lessonId, enabled]);
 
   useEffect(() => {

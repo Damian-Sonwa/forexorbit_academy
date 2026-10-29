@@ -11,7 +11,6 @@ import Footer from '@/components/Footer';
 import Sidebar from '@/components/Sidebar';
 import BackButton from '@/components/BackButton';
 import VideoPlayer from '@/components/VideoPlayer';
-import MarketSignal from '@/components/MarketSignal';
 import Quiz from '@/components/Quiz';
 import { useLesson, useLessons } from '@/hooks/useLesson';
 // import { useCourse } from '@/hooks/useCourses'; // Reserved for future use
@@ -27,6 +26,13 @@ import { PaystackCourseUnlock } from '@/components/monetization/PaystackCourseUn
 import type { LessonAccessDeniedPayload, LessonMonetization } from '@/hooks/useLesson';
 import { COURSE_PRICE_LABEL } from '@/lib/course-price';
 import { loginHref } from '@/lib/login-redirect';
+import dynamic from 'next/dynamic';
+
+// The market signal chart pulls in recharts; load it after the page instead of in the page bundle.
+const MarketSignal = dynamic(() => import('@/components/MarketSignal'), {
+  ssr: false,
+  loading: () => <div className="card orbit-skeleton h-48" aria-hidden />,
+});
 
 export default function LessonPage() {
   const router = useRouter();

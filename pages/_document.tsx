@@ -12,8 +12,19 @@ export default function Document() {
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-        <link rel="alternate icon" href="/favicon.ico" />
+        <link rel="alternate icon" type="image/png" href="/brand/favicon-64.png" />
         <link rel="manifest" href="/manifest.json" />
+        {/*
+          Fonts load from here. The @import in globals.css came after other rules in the built
+          CSS, so browsers ignored it and Inter/Poppins never loaded. display=swap keeps text
+          visible while they download; only the weights the UI uses are requested.
+        */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap"
+        />
         <link rel="apple-touch-icon" href="/icons/icon-192.png" />
         <meta name="theme-color" content="#07080c" />
         <script

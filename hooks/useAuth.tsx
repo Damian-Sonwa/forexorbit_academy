@@ -3,7 +3,7 @@
  * Manages authentication state and user session
  */
 
-import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
+import { useState, useEffect, useCallback, useRef, createContext, useContext, ReactNode } from 'react';
 import { apiClient } from '@/lib/api-client';
 
 interface User {
@@ -15,6 +15,30 @@ interface User {
   studentDetails?: any; // Student onboarding data
   onboardingCompleted?: boolean; // Onboarding completion status
   learningLevel?: 'beginner' | 'intermediate' | 'advanced'; // Learning level for community access
+  profilePhoto?: string | null;
+}
+
+/** Re-read the profile when the tab regains focus, at most this often. */
+const PROFILE_REFRESH_MIN_MS = 60_000;
+
+/** Key-order-independent JSON, used to tell whether a fresh profile actually differs. */
+function stableJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`;
+  if (value && typeof value === 'object') {
+    return `{${Object.keys(value as Record<string, unknown>).sort()
+      .map((key) => `${JSON.stringify(key)}:${stableJson((value as Record<string, unknown>)[key])}`).join(',')}}`;
+  }
+  return JSON.stringify(value) ?? 'null';
+}
+
+/**
+ * Merges fresh /auth/me data into the current user. When nothing changed, the existing object is
+ * returned unchanged: about 35 page effects depend on `user`, and a new object with identical
+ * contents made every page load its data twice.
+ */
+function mergeUser(current: User, fresh: User): User {
+  const merged: User = { ...current, ...fresh };
+  return stableJson(merged) === stableJson(current) ? current : merged;
 }
 
 interface AuthContextType {
@@ -23,6 +47,8 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   signup: (email: string, password: string, name: string, role?: string) => Promise<void>;
   logout: () => void;
+  /** Re-reads /auth/me into the shared user (after a profile or photo change). */
+  refreshUser: () => Promise<void>;
   isAuthenticated: boolean;
 }
 
@@ -31,6 +57,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const lastProfileReadAt = useRef(0);
 
   const logout = () => {
     localStorage.removeItem('token');
@@ -62,9 +89,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     setUser(parsedUser);
     finish();
+    lastProfileReadAt.current = Date.now();
     apiClient.get<User>('/auth/me').then((userData) => {
       if (cancelled) return;
-      const updatedUser: User = { ...parsedUser, ...userData };
+      const updatedUser = mergeUser(parsedUser, userData);
+      if (updatedUser === parsedUser) return;
       setUser(updatedUser);
       localStorage.setItem('user', JSON.stringify(updatedUser));
     }).catch(() => {
@@ -75,6 +104,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       cancelled = true;
     };
   }, []);
+
+  const refreshUser = useCallback(async () => {
+    if (typeof window === 'undefined' || !localStorage.getItem('token')) return;
+    lastProfileReadAt.current = Date.now();
+    try {
+      const userData = await apiClient.get<User>('/auth/me');
+      setUser((current) => {
+        if (!current) return current;
+        const updated = mergeUser(current, userData);
+        if (updated !== current) localStorage.setItem('user', JSON.stringify(updated));
+        return updated;
+      });
+    } catch {
+      // A 401 is handled by the API client (sign-out and redirect); other failures keep the current profile.
+    }
+  }, []);
+
+  // One shared profile for every component. It is refreshed when the tab becomes visible again
+  // (throttled), instead of each Sidebar polling /auth/me every few seconds.
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (Date.now() - lastProfileReadAt.current < PROFILE_REFRESH_MIN_MS) return;
+      void refreshUser();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onVisible);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onVisible);
+    };
+  }, [refreshUser]);
 
   const login = async (email: string, password: string) => {
     // Normalize email (trim + lowercase)
@@ -154,6 +215,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         login,
         signup,
         logout,
+        refreshUser,
         isAuthenticated: !!user,
       }}
     >

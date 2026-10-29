@@ -7,7 +7,7 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap');
+/* Inter and Poppins are loaded from pages/_document.tsx. */
 
 :root {
   --color-primary: #c24e00;

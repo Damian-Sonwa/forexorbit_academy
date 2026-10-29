@@ -126,16 +126,21 @@ export default function TradingInterface() {
     }
   }, [loadPrices]);
 
+  // Load once on mount. loadData sets `account` to a new object, so listing `account` here
+  // re-ran the load in a loop (three API calls each time) while a demo account was connected.
   useEffect(() => {
     loadData();
-    // Refresh prices every 5 seconds
+  }, [loadData]);
+
+  // Refresh prices every 5 seconds while a demo account is connected.
+  const hasAccount = Boolean(account);
+  useEffect(() => {
+    if (!hasAccount) return;
     const priceInterval = setInterval(() => {
-      if (account) {
-        loadPrices();
-      }
+      loadPrices();
     }, 5000);
     return () => clearInterval(priceInterval);
-  }, [account, loadData, loadPrices]);
+  }, [hasAccount, loadPrices]);
 
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();

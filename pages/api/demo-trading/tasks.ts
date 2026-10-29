@@ -8,8 +8,8 @@ import { unexpectedBody } from '@/lib/public-error';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
-import { ObjectId } from 'mongodb';
 import { createNotification } from '@/lib/notifications';
+import { findByIds, objectIdsFrom } from '@/lib/batch-lookup';
 
 async function getTasks(req: AuthRequest, res: NextApiResponse) {
   try {
@@ -29,52 +29,44 @@ async function getTasks(req: AuthRequest, res: NextApiResponse) {
         .sort({ createdAt: -1 })
         .toArray();
 
-      // Populate assignedBy names
-      const tasksWithNames = await Promise.all(
-        taskList.map(async (task) => {
-          if (task.assignedBy) {
-            const instructor = await users.findOne(
-              { _id: new ObjectId(task.assignedBy) },
-              { projection: { name: 1 } }
-            );
-            return {
-              ...task,
-              _id: task._id.toString(),
-              assignedByName: instructor?.name || 'Instructor',
-            };
-          }
+      // Populate assignedBy names with one users query for all tasks.
+      const names = await findByIds(users, objectIdsFrom(taskList.map((task) => task.assignedBy)), { name: 1 });
+      const tasksWithNames = taskList.map((task) => {
+        if (task.assignedBy) {
+          const instructor = names.get(String(task.assignedBy));
           return {
             ...task,
             _id: task._id.toString(),
+            assignedByName: instructor?.name || 'Instructor',
           };
-        })
-      );
+        }
+        return {
+          ...task,
+          _id: task._id.toString(),
+        };
+      });
 
       return res.json(tasksWithNames);
     } else if (req.user!.role === 'instructor' || req.user!.role === 'admin') {
       // Instructors/Admins see all tasks
       const taskList = await tasks.find({}).sort({ createdAt: -1 }).toArray();
 
-      // Populate assignedBy and assignedTo names
-      const tasksWithNames = await Promise.all(
-        taskList.map(async (task) => {
-          const [instructor, student] = await Promise.all([
-            task.assignedBy
-              ? users.findOne({ _id: new ObjectId(task.assignedBy) }, { projection: { name: 1 } })
-              : null,
-            task.assignedTo
-              ? users.findOne({ _id: new ObjectId(task.assignedTo) }, { projection: { name: 1 } })
-              : null,
-          ]);
-
-          return {
-            ...task,
-            _id: task._id.toString(),
-            assignedByName: instructor?.name || 'Unknown',
-            assignedToName: student?.name || 'All Students',
-          };
-        })
+      // Populate assignedBy and assignedTo names with one users query for all tasks.
+      const names = await findByIds(
+        users,
+        objectIdsFrom(taskList.flatMap((task) => [task.assignedBy, task.assignedTo])),
+        { name: 1 }
       );
+      const tasksWithNames = taskList.map((task) => {
+        const instructor = task.assignedBy ? names.get(String(task.assignedBy)) : null;
+        const student = task.assignedTo ? names.get(String(task.assignedTo)) : null;
+        return {
+          ...task,
+          _id: task._id.toString(),
+          assignedByName: instructor?.name || 'Unknown',
+          assignedToName: student?.name || 'All Students',
+        };
+      });
 
       return res.json(tasksWithNames);
     } else {

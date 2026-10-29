@@ -15,9 +15,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useAuth } from '@/hooks/useAuth';
 import { useEffect, useState } from 'react';
-import { apiClient } from '@/lib/api-client';
 import { isNavHrefDisabled } from '@/lib/config/features';
-import { isAbortedRequest } from '@/lib/request-status';
 
 interface SidebarProps {
   courseId?: string;
@@ -121,7 +119,6 @@ export default function Sidebar({ }: SidebarProps) {
   // courseId, lessons, currentLessonId parameters reserved for future use
   const router = useRouter();
   const { user, logout } = useAuth();
-  const [profileData, setProfileData] = useState<any>(null);
   const [isOpen, setIsOpen] = useState(false); // Mobile menu state
   const [isCollapsed, setIsCollapsed] = useState(false); // Desktop collapse state
   // const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['main'])); // Reserved for future use
@@ -192,33 +189,6 @@ export default function Sidebar({ }: SidebarProps) {
     return studentNavItems; // Default to student
   };
 
-  useEffect(() => {
-    if (user) {
-      loadProfileData();
-    }
-  }, [user]);
-
-  // FIX: Refresh profile data periodically to update profile photo live
-  useEffect(() => {
-    if (user) {
-      // Refresh profile data every 5 seconds to catch profile photo updates
-      const interval = setInterval(() => {
-        loadProfileData();
-      }, 5000);
-      
-      // Also refresh when window gains focus (user returns to tab)
-      const handleFocus = () => {
-        loadProfileData();
-      };
-      window.addEventListener('focus', handleFocus);
-      
-      return () => {
-        clearInterval(interval);
-        window.removeEventListener('focus', handleFocus);
-      };
-    }
-  }, [user]);
-
   // Close mobile menu when route changes
   useEffect(() => {
     setIsOpen(false);
@@ -235,16 +205,6 @@ export default function Sidebar({ }: SidebarProps) {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const loadProfileData = async () => {
-    try {
-      const data = await apiClient.get('/auth/me');
-      setProfileData(data);
-    } catch (error) {
-      if (isAbortedRequest(error)) return;
-      console.error('Failed to load profile data');
-    }
-  };
-
   // const toggleSection = (section: string) => { // Reserved for future use
   //   setExpandedSections((prev) => {
   //     const newSet = new Set(prev);
@@ -258,11 +218,13 @@ export default function Sidebar({ }: SidebarProps) {
   // };
 
   const navItems = getNavItems();
-  const profilePhoto = profileData?.profilePhoto;
-  const displayName = profileData?.studentDetails?.fullName || user?.name || 'User';
+  // Profile fields come from the shared auth context (one /auth/me read per session, refreshed
+  // on tab focus and after profile changes) rather than a per-page fetch and 5-second polling.
+  const profilePhoto = user?.profilePhoto;
+  const displayName = user?.studentDetails?.fullName || user?.name || 'User';
   const displayEmail = user?.email || '';
   // Use learningLevel if set, otherwise fall back to tradingLevel from onboarding
-  const tradingLevel = profileData?.learningLevel || profileData?.studentDetails?.tradingLevel;
+  const tradingLevel = user?.learningLevel || user?.studentDetails?.tradingLevel;
 
   // Check if a route is active (handles query params for admin tabs and instructor dashboard sections)
   const isActiveRoute = (href: string, tab?: string) => {
@@ -350,7 +312,7 @@ export default function Sidebar({ }: SidebarProps) {
               className="flex items-center space-x-2 sm:space-x-3 p-2 sm:p-3 rounded-xl transition-all group hover:bg-neutral-50"
             >
               <div className="relative flex-shrink-0">
-                {/* FIX: Profile picture placeholder with live update - uses profilePhoto from profileData */}
+                {/* Profile photo from the shared auth profile; falls back to the initial if it fails to load */}
                 <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-full overflow-hidden bg-primary-500 flex items-center justify-center ring-2 ring-white dark:ring-neutral-900 shadow-soft">
                   {profilePhoto ? (
                     <img

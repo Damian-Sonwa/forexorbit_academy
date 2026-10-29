@@ -26,21 +26,15 @@ declare global {
   var _mongoClientPromise: Promise<MongoClient> | undefined;
 }
 
-if (process.env.NODE_ENV === 'development') {
-  // In development mode, use a global variable so that the value
-  // is preserved across module reloads caused by HMR (Hot Module Replacement)
-  if (!(global as any)._mongoClientPromise) {
-    client = new MongoClient(uri);
-    (global as any)._mongoClientPromise = client.connect();
-    console.log('✓ MongoDB client connected (development)');
-  }
-  clientPromise = (global as any)._mongoClientPromise;
-} else {
-  // In production mode, it's best to not use a global variable
+// One client per process, in every environment. server.js (lib/mongodb.js) and the Next API
+// routes share it through this global, so the process keeps one connection pool and pays the
+// connection set-up once instead of once per client. In development it also survives HMR.
+if (!(global as any)._mongoClientPromise) {
   client = new MongoClient(uri);
-  clientPromise = client.connect();
-  console.log('✓ MongoDB client connected (production)');
+  (global as any)._mongoClientPromise = client.connect();
+  console.log(`✓ MongoDB client connected (${process.env.NODE_ENV || 'development'})`);
 }
+clientPromise = (global as any)._mongoClientPromise;
 
 // Export the client promise for use in API routes and services
 export default clientPromise;

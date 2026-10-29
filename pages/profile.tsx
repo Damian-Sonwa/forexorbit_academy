@@ -31,7 +31,7 @@ interface ProfileData {
 }
 
 export default function Profile() {
-  const { user, isAuthenticated, loading: authLoading } = useAuth();
+  const { user, isAuthenticated, loading: authLoading, refreshUser } = useAuth();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -163,6 +163,7 @@ export default function Profile() {
       setFormData((prev) => ({ ...prev, profilePhoto: (response as any).imageUrl }));
       setSelectedPhoto(null);
       setSuccess('Profile photo uploaded successfully!');
+      void refreshUser();
       setTimeout(() => setSuccess(''), 3000);
     } catch (error: any) {
       setError(error.response?.data?.message || error.response?.data?.error || error.message || 'Failed to upload photo');
@@ -186,6 +187,7 @@ export default function Profile() {
       localStorage.setItem('user', JSON.stringify({ ...user, ...userData }));
       setIsEditing(false);
       setSuccess('Profile updated successfully!');
+      void refreshUser();
       setTimeout(() => setSuccess(''), 3000);
     } catch (error: any) {
       setError(error.response?.data?.message || error.response?.data?.error || error.message || 'Failed to save profile');

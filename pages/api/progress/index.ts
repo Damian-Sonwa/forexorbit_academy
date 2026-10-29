@@ -10,48 +10,16 @@ import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 import { decideAccountAccess, decideProgressUpdate } from '@/lib/account-access';
-import { enrollmentDecisionRecord, presentEnrollmentProgress, quizHistoryQuery } from '@/lib/enrollment-state';
+import { enrollmentDecisionRecord } from '@/lib/enrollment-state';
+import { loadEnrollmentProgress } from '@/lib/progress-views';
 import { updateLearningLevelIfEligible } from '@/lib/learning-level';
 
 async function getProgress(req: AuthRequest, res: NextApiResponse) {
   try {
     const userId = req.user!.userId;
     const db = await getDb();
-    const progress = db.collection('progress');
-    const courses = db.collection('courses');
-    const lessons = db.collection('lessons');
-    const quizScores = db.collection('quizScores');
-
-    const userProgress = await progress.find({ userId }).toArray();
-
-    // Enrich with course details, lesson info, and quiz scores
-    const enrichedProgress = await Promise.all(
-      userProgress.map(async (p) => {
-        const courseIdStr = p.courseId == null ? '' : String(p.courseId);
-        let course = null;
-        if (/^[a-fA-F0-9]{24}$/.test(courseIdStr)) {
-          course = await courses.findOne({ _id: new ObjectId(courseIdStr) });
-        }
-        const courseLessons = courseIdStr
-          ? await lessons.find({ courseId: courseIdStr }).toArray()
-          : [];
-        const userQuizScores = courseIdStr
-          ? await quizScores.find(quizHistoryQuery(userId, courseIdStr)).toArray()
-          : [];
-
-        return presentEnrollmentProgress(p, {
-          course: course ? {
-            id: course._id.toString(),
-            title: course.title,
-            thumbnail: course.thumbnail,
-            difficulty: course.difficulty,
-            category: course.category,
-          } : null,
-          totalLessons: courseLessons.length,
-          quizScores: userQuizScores,
-        });
-      })
-    );
+    // Batched: a fixed number of queries per request instead of three per enrollment.
+    const enrichedProgress = await loadEnrollmentProgress(db, userId);
 
     res.json(enrichedProgress);
   } catch (error: any) {
