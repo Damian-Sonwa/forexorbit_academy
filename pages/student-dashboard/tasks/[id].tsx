@@ -389,7 +389,7 @@ export default function TaskDetail() {
 
               {/* Instructor Feedback */}
               {(submission.grade || submission.feedback) && (
-                <div className="mt-4 pt-4 border-t border-green-200 bg-green-50 rounded-lg p-4">
+                <div className="mt-4 pt-4 border-t border-green-200 bg-green-50 rounded-lg p-4 dark:bg-emerald-400/10 dark:border-emerald-400/40">
                   <div className="flex items-center justify-between mb-2">
                     <p className="text-sm font-semibold text-green-800">Instructor Feedback</p>
                     {submission.grade && (
@@ -416,7 +416,7 @@ export default function TaskDetail() {
                 <div className="mt-4 pt-4 border-t border-gray-200">
                   <button
                     onClick={handleDeleteSubmission}
-                    className="inline-flex items-center space-x-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-semibold transition-all"
+                    className="btn btn-danger-quiet"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -437,7 +437,7 @@ export default function TaskDetail() {
                   {hasSubmission ? 'Update Submission' : 'Submit Task'}
                 </h2>
                 {hasSubmission && !isReviewed && !isGraded && (
-                  <span className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-semibold">
+                  <span className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-semibold dark:bg-amber-400/15 dark:text-amber-200 dark:border-amber-400/30">
                     You can edit your submission
                   </span>
                 )}

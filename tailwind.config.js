@@ -10,23 +10,23 @@ module.exports = {
     extend: {
       colors: {
         /**
-         * Orange / white / black system.
-         * 400 (#F28C28) is the brand accent. It fails WCAG with white text (2.45:1),
-         * so filled buttons and small text use 600 (#B85C0E, 4.59:1 with white)
-         * and 500 (#D96F12) for borders, focus, and progress (3.37:1 on white).
+         * Brand orange, anchored on the logo (#FF7012 = 500).
+         * 400/500 are fills with ink text (500 + #111111 = 6.8:1) and orange on dark surfaces
+         * (400 on #07080C = 8.5:1). 600/700 carry white text and orange text on light surfaces
+         * (600 = 4.8:1 on white, 4.5:1 on #FAF8F4).
          */
         primary: {
-          50: '#FFF8F1',
-          100: '#FFEDD8',
-          200: '#FDD8B0',
-          300: '#F8B56A',
-          400: '#F28C28',
-          500: '#D96F12',
-          600: '#B85C0E',
-          700: '#A34E09',
-          800: '#7C3C08',
-          900: '#4A2506',
-          950: '#2A1503',
+          50: '#FFF6EE',
+          100: '#FFE8D5',
+          200: '#FFCDA6',
+          300: '#FFAB6B',
+          400: '#FF8A33',
+          500: '#FF7012',
+          600: '#C24E00',
+          700: '#A33F00',
+          800: '#7C3000',
+          900: '#4F2004',
+          950: '#2B1102',
         },
         secondary: {
           50: '#F7F7F7',
@@ -55,17 +55,17 @@ module.exports = {
           900: '#450A0A',
         },
         orange: {
-          50: '#FFF8F1',
-          100: '#FFEDD8',
-          200: '#FDD8B0',
-          300: '#F8B56A',
-          400: '#F28C28',
-          500: '#D96F12',
-          600: '#B85C0E',
-          700: '#A34E09',
-          800: '#7C3C08',
-          900: '#4A2506',
-          950: '#2A1503',
+          50: '#FFF6EE',
+          100: '#FFE8D5',
+          200: '#FFCDA6',
+          300: '#FFAB6B',
+          400: '#FF8A33',
+          500: '#FF7012',
+          600: '#C24E00',
+          700: '#A33F00',
+          800: '#7C3000',
+          900: '#4F2004',
+          950: '#2B1102',
         },
         gray: {
           50: '#FAF8F4',
@@ -107,9 +107,9 @@ module.exports = {
           surface: '#FFFFFF',
         },
         'level-basic': {
-          DEFAULT: '#F28C28',
-          light: '#FFF8F1',
-          dark: '#9A4E0C',
+          DEFAULT: '#FF7012',
+          light: '#FFF6EE',
+          dark: '#A33F00',
         },
         'level-intermediate': {
           DEFAULT: '#A3A3A3',
@@ -134,6 +134,7 @@ module.exports = {
       boxShadow: {
         soft: '0 1px 2px rgba(23, 23, 23, 0.04)',
         card: '0 1px 2px rgba(23, 23, 23, 0.04), 0 8px 24px rgba(23, 23, 23, 0.04)',
+        raised: '0 1px 2px rgba(23, 23, 23, 0.06), 0 12px 32px -12px rgba(23, 23, 23, 0.18)',
       },
       animation: {
         'spin-slow': 'spin 3s linear infinite',

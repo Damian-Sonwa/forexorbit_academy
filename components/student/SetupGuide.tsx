@@ -88,7 +88,7 @@ export default function SetupGuide() {
                 href="https://www.metatrader4.com/en/download"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center justify-center space-x-2 bg-green-600 hover:bg-green-700 text-white px-6 py-4 rounded-lg font-medium transition-colors shadow-md hover:shadow-lg"
+                className="btn btn-secondary px-6 py-4"
               >
                 <Monitor className="h-4 w-4 shrink-0 text-white" aria-hidden />
                 <span>Download MetaTrader</span>
@@ -110,7 +110,7 @@ export default function SetupGuide() {
               </ol>
             </div>
 
-            <div className="bg-green-50 border-l-4 border-green-400 p-4 rounded">
+            <div className="bg-green-50 border-l-4 border-green-400 p-4 rounded dark:bg-emerald-400/10 dark:border-emerald-400/40">
               <h4 className="font-semibold mb-2 text-green-900">Option B: MetaTrader Demo Account (Recommended for Desktop Trading)</h4>
               <ol className="list-decimal list-inside space-y-2 text-sm text-green-800">
                 <li>Click the &quot;Download MetaTrader&quot; button above</li>
@@ -167,7 +167,7 @@ export default function SetupGuide() {
             <div className="space-y-4">
               <div className="bg-white rounded-lg p-4 border border-neutral-200">
                 <h5 className="font-semibold mb-2 text-neutral-900 flex items-center">
-                  <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary-50 text-xs font-semibold text-primary-800">1</span>
+                  <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary-50 text-xs font-semibold text-primary-800 dark:bg-primary-400/15">1</span>
                   Navigate to Trading Dashboard
                 </h5>
                 <p className="text-sm text-gray-700 mb-2">
@@ -180,7 +180,7 @@ export default function SetupGuide() {
 
               <div className="bg-white rounded-lg p-4 border border-neutral-200">
                 <h5 className="font-semibold mb-2 text-neutral-900 flex items-center">
-                  <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary-50 text-xs font-semibold text-primary-800">2</span>
+                  <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary-50 text-xs font-semibold text-primary-800 dark:bg-primary-400/15">2</span>
                   View Your Assigned Tasks
                 </h5>
                 <p className="text-sm text-gray-700 mb-2">
@@ -189,13 +189,13 @@ export default function SetupGuide() {
                 <ul className="text-xs text-gray-600 list-disc list-inside space-y-1">
                   <li>Tasks are organized by status: <strong>Pending</strong> and <strong>Submitted</strong></li>
                   <li>Each task shows: Title, Description, Level (Beginner/Intermediate/Advanced), and Due Date</li>
-                  <li>Pending tasks have a <span className="px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded text-xs">Pending</span> badge</li>
+                  <li>Pending tasks have a <span className="px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded text-xs dark:bg-amber-400/15 dark:text-amber-200 dark:border-amber-400/30">Pending</span> badge</li>
                 </ul>
               </div>
 
               <div className="bg-white rounded-lg p-4 border border-neutral-200">
                 <h5 className="font-semibold mb-2 text-neutral-900 flex items-center">
-                  <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary-50 text-xs font-semibold text-primary-800">3</span>
+                  <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary-50 text-xs font-semibold text-primary-800 dark:bg-primary-400/15">3</span>
                   Open Task Details
                 </h5>
                 <p className="text-sm text-gray-700 mb-2">
@@ -213,7 +213,7 @@ export default function SetupGuide() {
 
               <div className="bg-white rounded-lg p-4 border border-neutral-200">
                 <h5 className="font-semibold mb-2 text-neutral-900 flex items-center">
-                  <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary-50 text-xs font-semibold text-primary-800">4</span>
+                  <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary-50 text-xs font-semibold text-primary-800 dark:bg-primary-400/15">4</span>
                   Complete the Task
                 </h5>
                 <p className="text-sm text-gray-700 mb-2">
@@ -232,7 +232,7 @@ export default function SetupGuide() {
 
               <div className="bg-white rounded-lg p-4 border border-neutral-200">
                 <h5 className="font-semibold mb-2 text-neutral-900 flex items-center">
-                  <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary-50 text-xs font-semibold text-primary-800">5</span>
+                  <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary-50 text-xs font-semibold text-primary-800 dark:bg-primary-400/15">5</span>
                   Submit Your Work
                 </h5>
                 <p className="text-sm text-gray-700 mb-2">
@@ -249,16 +249,16 @@ export default function SetupGuide() {
 
               <div className="bg-white rounded-lg p-4 border border-neutral-200">
                 <h5 className="font-semibold mb-2 text-neutral-900 flex items-center">
-                  <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary-50 text-xs font-semibold text-primary-800">6</span>
+                  <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary-50 text-xs font-semibold text-primary-800 dark:bg-primary-400/15">6</span>
                   Track Your Submission Status
                 </h5>
                 <p className="text-sm text-gray-700 mb-2">
                   After submission, you can track the status of your work:
                 </p>
                 <div className="flex flex-wrap gap-2 mt-2">
-                  <span className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-medium">Submitted</span>
+                  <span className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-medium dark:bg-amber-400/15 dark:text-amber-200 dark:border-amber-400/30">Submitted</span>
                   <span className="px-3 py-1 bg-neutral-100 text-neutral-800 rounded-full text-xs font-medium">Reviewed</span>
-                  <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">Graded</span>
+                  <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium dark:bg-emerald-400/15 dark:text-emerald-200">Graded</span>
                 </div>
                 <p className="text-xs text-gray-600 mt-2">
                   Once reviewed, you&apos;ll see instructor feedback and grades on the task detail page.
@@ -290,7 +290,7 @@ export default function SetupGuide() {
             <CheckCircle2 className="mr-2 h-4 w-4 shrink-0 text-green-700" aria-hidden />
             <p><strong>Practice makes perfect</strong> - use demo accounts to test strategies, learn the platform, and build confidence before trading with real money.</p>
           </div>
-          <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded mt-4">
+          <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded mt-4 dark:bg-amber-400/10 dark:border-amber-400/40">
             <p className="text-sm text-yellow-800">
               <strong><Lightbulb className="mr-2 inline h-4 w-4 shrink-0 text-primary-600" aria-hidden />Important:</strong> Demo accounts are essential for your ForexOrbit Academy journey. 
               They allow you to complete practice tasks, log trades in your journal, and demonstrate your 
@@ -349,11 +349,11 @@ export default function SetupGuide() {
         ))}
       </div>
 
-      <div className="mt-6 p-4 bg-gradient-to-r from-primary-50 to-neutral-50 rounded-lg border border-primary-200">
+      <div className="mt-6 rounded-xl border border-primary-200 bg-primary-50 p-4 dark:border-primary-400/25 dark:bg-primary-400/[0.06]">
         <p className="text-sm text-gray-700">
           <strong>Ready to get started?</strong> Once you&apos;ve set up your demo account, head to the{' '}
-          <Link href="/student-dashboard" className="text-primary-600 hover:text-primary-700 font-semibold underline">
-            Trading Dashboard
+          <Link href="/student-dashboard" className="text-primary-700 hover:text-primary-800 font-semibold underline dark:text-primary-400 dark:hover:text-primary-300">
+            Practice desk
           </Link>{' '}
           to view your assigned tasks and start practicing!
         </p>

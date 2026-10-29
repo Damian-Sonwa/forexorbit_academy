@@ -6,114 +6,67 @@
 import Link from 'next/link';
 import BrandLogo from '@/components/BrandLogo';
 
+const columns = [
+  {
+    title: 'Learn',
+    links: [
+      { href: '/courses', label: 'Courses' },
+      { href: '/dashboard', label: 'Dashboard' },
+      { href: '/about', label: 'About' },
+    ],
+  },
+  {
+    title: 'Support',
+    links: [
+      { href: '/help', label: 'Help Center' },
+      { href: '/support', label: 'Contact support' },
+      { href: '/help#troubleshooting', label: 'Troubleshooting' },
+    ],
+  },
+  {
+    title: 'Legal',
+    links: [
+      { href: '/privacy', label: 'Privacy Policy' },
+      { href: '/terms', label: 'Terms of Service' },
+    ],
+  },
+];
+
 export default function Footer() {
   return (
     <footer className="bg-nav-bg text-nav-text border-t border-white/10">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
-          {/* Brand */}
-          <div>
-            <Link href="/" aria-label="FX Orbit Academy home" className="mb-6 inline-flex transition-opacity duration-200 hover:opacity-85">
-              <BrandLogo variant="light" className="h-11" />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
+        <div className="grid grid-cols-2 gap-10 md:grid-cols-4 md:gap-12">
+          <div className="col-span-2 md:col-span-1">
+            <Link href="/" aria-label="FX Orbit Academy home" className="mb-5 inline-flex transition-opacity duration-200 hover:opacity-85">
+              <BrandLogo variant="light" className="h-10" />
             </Link>
-            <p className="text-sm text-nav-muted leading-relaxed">
-              Learn Forex trading with expert instructors and real-time market signals.
+            <p className="max-w-xs text-sm text-nav-muted leading-relaxed">
+              Structured Forex education: courses, guided practice, and a learning community with expert instructors.
             </p>
           </div>
 
-          {/* Quick Links */}
-          <div>
-            <h3 className="text-nav-text font-bold mb-6 text-lg">Quick Links</h3>
-            <ul className="space-y-3">
-              <li>
-                <Link href="/courses" className="text-sm text-nav-muted hover:text-primary-300 transition-colors flex items-center group">
-                  <svg className="w-4 h-4 mr-2 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                  Courses
-                </Link>
-              </li>
-              <li>
-                <Link href="/dashboard" className="text-sm text-nav-muted hover:text-primary-300 transition-colors flex items-center group">
-                  <svg className="w-4 h-4 mr-2 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                  Dashboard
-                </Link>
-              </li>
-              <li>
-                <Link href="/about" className="text-sm text-nav-muted hover:text-primary-300 transition-colors flex items-center group">
-                  <svg className="w-4 h-4 mr-2 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                  About
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-          {/* Support */}
-          <div>
-            <h3 className="text-nav-text font-bold mb-6 text-lg">Support</h3>
-            <ul className="space-y-3">
-              <li>
-                <Link href="/help" className="text-sm text-nav-muted hover:text-primary-300 transition-colors flex items-center group">
-                  <svg className="w-4 h-4 mr-2 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                  Help Center
-                </Link>
-              </li>
-              <li>
-                <Link href="/contact" className="text-sm text-nav-muted hover:text-primary-300 transition-colors flex items-center group">
-                  <svg className="w-4 h-4 mr-2 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                  Contact Us
-                </Link>
-              </li>
-              <li>
-                <Link href="/faq" className="text-sm text-nav-muted hover:text-primary-300 transition-colors flex items-center group">
-                  <svg className="w-4 h-4 mr-2 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                  FAQ
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-          {/* Legal */}
-          <div>
-            <h3 className="text-nav-text font-bold mb-6 text-lg">Legal</h3>
-            <ul className="space-y-3">
-              <li>
-                <Link href="/privacy" className="text-sm text-nav-muted hover:text-primary-300 transition-colors flex items-center group">
-                  <svg className="w-4 h-4 mr-2 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                  Privacy Policy
-                </Link>
-              </li>
-              <li>
-                <Link href="/terms" className="text-sm text-nav-muted hover:text-primary-300 transition-colors flex items-center group">
-                  <svg className="w-4 h-4 mr-2 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                  Terms of Service
-                </Link>
-              </li>
-            </ul>
-          </div>
+          {columns.map((column) => (
+            <nav key={column.title} aria-label={column.title}>
+              <h3 className="mb-4 text-xs font-semibold uppercase tracking-[0.16em] text-nav-muted">{column.title}</h3>
+              <ul className="space-y-2.5">
+                {column.links.map((link) => (
+                  <li key={link.href}>
+                    <Link href={link.href} className="text-sm text-neutral-300 hover:text-primary-400">
+                      {link.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          ))}
         </div>
 
-        <div className="mt-12 pt-8 border-t border-white/10 text-center">
-          <p className="text-sm text-nav-muted">
-            &copy; {new Date().getFullYear()} ForexOrbit Academy. All rights reserved.
-          </p>
+        <div className="mt-12 flex flex-col gap-2 border-t border-white/10 pt-6 text-xs text-nav-muted sm:flex-row sm:items-center sm:justify-between">
+          <p>&copy; {new Date().getFullYear()} ForexOrbit Academy. All rights reserved.</p>
+          <p>Educational content only. Not financial advice.</p>
         </div>
       </div>
     </footer>
   );
 }
-

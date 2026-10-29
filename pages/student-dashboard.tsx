@@ -326,7 +326,7 @@ export default function StudentDashboard() {
           <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="page-kicker mb-2">Practice</p>
-              <h1 className="page-title">Trading dashboard</h1>
+              <h1 className="page-title">Practice desk</h1>
               <p className="mt-2 max-w-xl text-sm text-neutral-600">
                 Paper trading, instructor tasks, and a journal. No real money is deposited or withdrawn.
               </p>
@@ -364,7 +364,7 @@ export default function StudentDashboard() {
                   `}
                 >
                   <Zap className="h-4 w-4 shrink-0" aria-hidden />
-                  <span>Live Trading</span>
+                  <span>Practice account</span>
                 </button>
                 <button
                   onClick={() => setActiveSection('tasks')}
@@ -379,7 +379,7 @@ export default function StudentDashboard() {
                   <ClipboardList className="h-4 w-4 shrink-0" aria-hidden />
                   <span>Tasks</span>
                   {pendingTasks.length > 0 && (
-                    <span className="ml-2 px-2.5 py-0.5 bg-red-500 text-white text-xs font-bold rounded-full animate-pulse">
+                    <span className="ml-2 px-2.5 py-0.5 bg-red-500 text-white text-xs font-bold rounded-full motion-safe:animate-pulse">
                       {pendingTasks.length}
                     </span>
                   )}
@@ -484,7 +484,7 @@ export default function StudentDashboard() {
                       <div className="flex items-center space-x-3 mb-6">
                         <div className="w-1 h-8 bg-primary-500 rounded-full"></div>
                         <h3 className="text-xl font-bold text-gray-900">Pending Tasks</h3>
-                        <span className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-bold">
+                        <span className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-bold dark:bg-amber-400/15 dark:text-amber-200 dark:border-amber-400/30">
                           {pendingTasks.length}
                         </span>
                       </div>
@@ -511,7 +511,7 @@ export default function StudentDashboard() {
                                         {task.level.charAt(0).toUpperCase() + task.level.slice(1)}
                                       </span>
                                     )}
-                                    <span className="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-bold border border-yellow-300">
+                                    <span className="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-bold border border-yellow-300 dark:bg-amber-400/15 dark:text-amber-200 dark:border-amber-400/30">
                                       {status.charAt(0).toUpperCase() + status.slice(1)}
                                     </span>
                                   </div>
@@ -563,7 +563,7 @@ export default function StudentDashboard() {
                       <div className="flex items-center space-x-3 mb-6">
                         <div className="w-1 h-8 bg-green-600 rounded-full"></div>
                         <h3 className="text-xl font-bold text-gray-900">Submitted Tasks</h3>
-                        <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs font-bold">
+                        <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs font-bold dark:bg-emerald-400/15 dark:text-emerald-200">
                           {submittedTasks.length}
                         </span>
                       </div>
@@ -877,7 +877,7 @@ export default function StudentDashboard() {
                               </button>
                               <button
                                 onClick={() => handleDeleteJournalEntry(trade._id)}
-                                className="inline-flex items-center space-x-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-semibold transition-all"
+                                className="btn btn-danger-quiet"
                               >
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />

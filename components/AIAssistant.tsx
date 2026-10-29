@@ -158,7 +158,7 @@ export default function AIAssistant() {
       <div className="px-4 py-3 border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900 text-neutral-900 dark:text-white rounded-t-xl">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-primary-50 text-primary-700 rounded-full flex items-center justify-center">
+            <div className="w-8 h-8 bg-primary-50 text-primary-700 rounded-full flex items-center justify-center dark:bg-primary-400/10">
               <Bot className="h-5 w-5 shrink-0" aria-hidden />
             </div>
             <div>

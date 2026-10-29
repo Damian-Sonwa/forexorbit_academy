@@ -10,13 +10,14 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap');
 
 :root {
-  --color-primary: #b85c0e;
-  --color-primary-hover: #a34e09;
-  --color-primary-accent: #f28c28;
+  --color-primary: #c24e00;
+  --color-primary-hover: #a33f00;
+  --color-primary-accent: #ff7012;
   --color-bg: #faf8f4;
   --color-dark: #171717;
-  --color-accent: #f28c28;
-  --color-accent-hover: #d96f12;
+  --color-accent: #ff7012;
+  --color-accent-hover: #ff8a33;
+  --color-focus: #c24e00;
   --color-secondary: #171717;
   --color-surface: #ffffff;
   --color-surface-muted: #f3f0ea;
@@ -33,8 +34,9 @@
 }
 
 .dark {
-  --color-primary: #f28c28;
-  --color-primary-hover: #d96f12;
+  --color-primary: #ff8a33;
+  --color-primary-hover: #ff7012;
+  --color-focus: #ff8a33;
   --color-bg: #07080c;
   --color-dark: #f5f5f5;
   --color-surface: #101214;
@@ -65,9 +67,25 @@
     padding-right: env(safe-area-inset-right, 0);
   }
 
-  /* Dark mode support for all elements */
-  * {
-    @apply transition-colors duration-200;
+  /* Colour transitions on interactive elements only; animating every node is costly. */
+  a,
+  button,
+  input,
+  select,
+  textarea,
+  [role='button'],
+  [role='tab'] {
+    @apply transition-colors duration-150;
+  }
+
+  /* One visible keyboard focus style everywhere; pointer clicks do not show it. */
+  :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+
+  img {
+    color: transparent;
   }
 }
 
@@ -98,24 +116,48 @@
   }
 
   ::selection {
-    background: #f28c28;
-    color: #171717;
+    background: #ff7012;
+    color: #111111;
   }
 
+  /*
+   * Buttons. Primary is the brand fill with ink text; outline and ghost are for secondary
+   * actions; danger-quiet keeps destructive actions available without making them the loudest
+   * control on the screen.
+   */
   .btn {
-    @apply px-4 py-2 rounded-lg font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-400 focus:ring-offset-[#FAF8F4] dark:focus:ring-offset-neutral-900 disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl font-semibold text-sm transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed;
   }
 
   .btn-primary {
-    @apply bg-primary-400 text-neutral-900 hover:bg-primary-500 focus:ring-primary-400;
+    @apply bg-primary-500 text-neutral-950 hover:bg-primary-400 active:bg-primary-600 active:text-white;
   }
 
   .btn-secondary {
-    @apply bg-secondary-600 text-white hover:bg-secondary-700 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-white focus:ring-neutral-500;
+    @apply bg-neutral-900 text-white hover:bg-neutral-800 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-white;
   }
 
   .btn-outline {
-    @apply border-2 border-primary-600 text-primary-700 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 focus:ring-primary-500;
+    @apply border border-primary-600 text-primary-700 hover:bg-primary-50 dark:border-primary-400/70 dark:text-primary-400 dark:hover:bg-primary-400/10;
+  }
+
+  .btn-ghost {
+    @apply text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 dark:text-neutral-300 dark:hover:bg-white/10 dark:hover:text-white;
+  }
+
+  .btn-danger-quiet {
+    @apply border border-red-200 text-red-700 hover:bg-red-50 dark:border-red-400/30 dark:text-red-300 dark:hover:bg-red-500/10;
+  }
+
+  /* Small status pill: neutral by default, brand-tinted with .chip-brand. */
+  .chip {
+    @apply inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold capitalize;
+    border-color: var(--color-border);
+    color: var(--color-text-muted);
+  }
+
+  .chip-brand {
+    @apply border-primary-200 bg-primary-50 text-primary-700 dark:border-primary-400/30 dark:bg-primary-400/10 dark:text-primary-300;
   }
 
   .page-kicker {
@@ -127,14 +169,14 @@
   }
 
   .card {
-    @apply rounded-2xl p-6 border;
+    @apply rounded-2xl p-5 sm:p-6 border;
     background-color: var(--color-surface);
     border-color: var(--color-border);
     box-shadow: var(--shadow-card);
   }
 
   .input {
-    @apply w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent;
+    @apply w-full px-4 py-2.5 border rounded-xl text-sm placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-primary-500/60 focus:border-primary-500;
     border-color: var(--color-border);
     background-color: var(--color-surface);
     color: var(--color-text);
@@ -339,10 +381,8 @@
 .dark .bg-primary-400,
 .dark .bg-primary-400 .text-neutral-900,
 .dark .bg-primary-500,
-.dark .bg-primary-500 .text-neutral-900,
-.dark .bg-\[\#F28C28\],
-.dark .bg-\[\#F28C28\] .text-neutral-900 {
-  color: #171717;
+.dark .bg-primary-500 .text-neutral-900 {
+  color: #111111;
 }
 
 .dark .border-neutral-200,
@@ -373,6 +413,40 @@
 .dark .shadow-lg,
 .dark .shadow-md {
   --tw-shadow-color: rgba(0, 0, 0, 0.45);
+}
+
+/*
+ * Semantic tints (success, warning, info) written for light surfaces. In the dark theme their
+ * dark text would sit on a dark tint, so it is lifted to a readable shade. :where() keeps the
+ * specificity low, so an explicit dark: utility on an element still wins.
+ */
+.dark :where(.text-green-700, .text-green-800, .text-green-900, .text-emerald-700, .text-emerald-800) {
+  color: #6ee7b7;
+}
+
+.dark :where(.text-yellow-700, .text-yellow-800, .text-yellow-900, .text-amber-700, .text-amber-800) {
+  color: #fcd34d;
+}
+
+.dark :where(.text-blue-700, .text-blue-800, .text-blue-900) {
+  color: #93c5fd;
+}
+
+.dark :where(.text-red-700, .text-red-800, .text-red-900) {
+  color: #fca5a5;
+}
+
+.dark :where(.text-primary-800, .text-primary-900, .text-orange-800, .text-orange-900) {
+  color: #ffab6b;
+}
+
+/*
+ * Orange text written for light surfaces (600/700) is too dark on the dark theme's surfaces.
+ * Areas that stay light in both themes (auth, community, parts of the landing page) are marked
+ * .theme-light-island and keep the darker shade.
+ */
+.dark :where(.text-primary-600, .text-primary-700):where(:not(.theme-light-island, .theme-light-island *)) {
+  color: #ff8a33;
 }
 
 html:not(.dark) .landing-shell {
@@ -408,7 +482,7 @@ html:not(.dark) .landing-shell .hover\:text-white:hover {
 }
 
 html:not(.dark) .landing-shell [class*='radial-gradient'] {
-  background-image: radial-gradient(circle at center, rgba(242, 140, 40, 0.16), transparent 70%);
+  background-image: radial-gradient(circle at center, rgba(255, 112, 18, 0.14), transparent 70%);
 }
 
 @media (prefers-reduced-motion: reduce) {

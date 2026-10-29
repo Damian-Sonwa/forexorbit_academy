@@ -3,14 +3,14 @@ import type { ReactNode } from 'react';
 import BrandLogo from '@/components/BrandLogo';
 
 export const authFieldClass =
-  'mt-1 w-full border-0 border-b border-[#d9d3c8] bg-transparent py-1.5 text-base text-[#171717] outline-none transition-colors placeholder:text-[#737373] focus:border-[#F28C28]';
+  'mt-1.5 w-full rounded-xl border border-[#d9d3c8] bg-[#ffffff] px-3.5 py-2.5 text-base text-[#171717] outline-none transition-colors placeholder:text-[#8a8a8a] focus:border-primary-600 focus:ring-2 focus:ring-primary-500/30';
 
 export const authLabelClass = 'block text-sm font-medium text-[#525252]';
 
 export const authHelperClass = 'mt-1 text-sm leading-snug text-[#525252]';
 
 export const authButtonClass =
-  'mt-5 flex min-h-11 w-full items-center justify-center rounded-full bg-[#F28C28] px-6 py-2.5 text-base font-semibold text-[#102017] transition-colors hover:bg-[#e07d1c] disabled:cursor-not-allowed disabled:opacity-50';
+  'mt-5 flex min-h-11 w-full items-center justify-center rounded-full bg-primary-500 px-6 py-2.5 text-base font-semibold text-neutral-950 transition-colors hover:bg-primary-400 disabled:cursor-not-allowed disabled:opacity-50';
 
 export function AuthFrame({
   title,
@@ -24,7 +24,7 @@ export function AuthFrame({
   switcher: ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-[#faf8f4] text-[#171717]">
+    <div className="theme-light-island min-h-screen bg-[#faf8f4] text-[#171717]">
       <header className="px-6 pt-6 sm:px-10 lg:px-12">
         <Link href="/" aria-label="FX Orbit Academy home" className="inline-flex transition-opacity duration-200 hover:opacity-85">
           <BrandLogo variant="dark" priority className="h-9 sm:h-10" />

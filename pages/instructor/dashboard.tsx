@@ -736,7 +736,7 @@ export default function InstructorDashboard() {
           </div>
           <button
             onClick={() => setShowClassForm(!showClassForm)}
-            className="w-full sm:w-auto px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold text-sm transition-colors flex items-center justify-center space-x-2"
+            className="btn btn-primary w-full sm:w-auto"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -902,7 +902,7 @@ export default function InstructorDashboard() {
                         </button>
                         <button
                           onClick={() => handleDeleteClass(cls._id)}
-                          className="px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold text-sm transition-colors flex items-center space-x-1"
+                          className="btn btn-danger-quiet px-3"
                           title="Delete Class"
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -967,7 +967,7 @@ export default function InstructorDashboard() {
                           </p>
                         </div>
                         <span className={`px-3 py-1 rounded text-xs font-medium ${
-                          submission.result === 'win' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-primary-600' :
+                          submission.result === 'win' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-primary-400' :
                           submission.result === 'loss' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' :
                           'bg-gray-100 text-gray-800 dark:bg-gray-600 dark:text-gray-200'
                         }`}>

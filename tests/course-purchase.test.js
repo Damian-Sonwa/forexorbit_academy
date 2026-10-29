@@ -791,13 +791,88 @@ test('an earlier non-entitled access row is upgraded and its old reference is ke
 // Closed checkouts and concurrent checkout starts (D3)
 // ---------------------------------------------------------------------------
 
-test('starting checkout again reuses an unexpired intent that Paystack has not seen', async () => {
+test('starting checkout again never hands out a reference Paystack has not seen; the earlier one is superseded', async () => {
   const db = memoryDb();
   const first = await startCheckout(db);
   const again = await payment.createCourseIntent(db, { userId: STUDENT, courseId: COURSE, fetchTransaction: provider({}), makeReference, now: new Date(NOW.getTime() + 5 * MINUTES) });
-  assert.equal(again.reference, first.reference);
-  assert.equal(again.reused, true);
-  assert.equal(db.rows(COLLECTIONS.intents).length, 1);
+  assert.equal(again.ok, true);
+  assert.notEqual(again.reference, first.reference);
+  assert.equal(again.reused, false);
+  const intents = db.rows(COLLECTIONS.intents);
+  assert.equal(intents.length, 2);
+  assert.equal(intents.find((row) => row.reference === first.reference).status, 'superseded');
+  assert.deepEqual(intents.filter((row) => row.status === 'pending').map((row) => row.reference), [again.reference]);
+});
+
+test('concurrent retries after a closed checkout hand out one payable reference, with or without the indexes', async () => {
+  for (const options of [{ racyUpserts: true }, { racyUpserts: true, uniqueIndexes: COURSE_PAYMENT_INDEXES }]) {
+    const db = memoryDb(options);
+    const first = await startCheckout(db);
+    const later = new Date(NOW.getTime() + 5 * MINUTES);
+    const start = () => payment.createCourseIntent(db, { userId: STUDENT, courseId: COURSE, fetchTransaction: provider({}), makeReference, now: later });
+    const results = await Promise.all([start(), start(), start(), start()]);
+    assert.equal(results.every((r) => r.ok), true);
+    assert.equal(new Set(results.map((r) => r.reference)).size, 1, 'every concurrent retry gets the same reference');
+    assert.notEqual(results[0].reference, first.reference);
+    const pending = db.rows(COLLECTIONS.intents).filter((row) => row.status === 'pending');
+    assert.deepEqual(pending.map((row) => row.reference), [results[0].reference]);
+  }
+});
+
+test('a late success on a checkout closed by a retry is held once and never grants twice, in either order', async () => {
+  for (const order of ['late_first', 'current_first']) {
+    const db = memoryDb();
+    const first = await startCheckout(db);
+    const later = new Date(NOW.getTime() + 5 * MINUTES);
+    const retry = await payment.createCourseIntent(db, { userId: STUDENT, courseId: COURSE, fetchTransaction: provider({}), makeReference, now: later });
+    const closed = await db.collection(COLLECTIONS.intents).findOne({ reference: first.reference });
+    const current = await db.collection(COLLECTIONS.intents).findOne({ reference: retry.reference });
+    assert.equal(closed.status, 'superseded');
+    const lateData = successData(first, { id: 9200 });
+    const currentData = successData(current, { id: 9201 });
+    const late = async () => {
+      const results = [
+        await confirm(db, closed, lateData, { now: later }),
+        await payment.processWebhookEvent(db, { event: 'charge.success', data: lateData }, later),
+        await payment.processWebhookEvent(db, { event: 'charge.success', data: lateData }, later),
+      ];
+      if (order === 'late_first') {
+        assert.equal(results[0].ok, false);
+        assert.equal(results[0].code, 'needs_review');
+        for (const webhook of results.slice(1)) assert.deepEqual(webhook, { ack: true, code: 'needs_review' });
+      } else {
+        // The student already owns the course: told so, and the extra charge is held as a duplicate.
+        assert.equal(results[0].duplicatePayment, true);
+        for (const webhook of results.slice(1)) assert.deepEqual(webhook, { ack: true, code: 'duplicate_payment' });
+      }
+    };
+    const pay = async () => {
+      assert.equal((await confirm(db, current, currentData, { now: later })).ok, true, order);
+      assert.equal((await payment.processWebhookEvent(db, { event: 'charge.success', data: currentData }, later)).ack, true);
+      assert.equal((await payment.processWebhookEvent(db, { event: 'charge.success', data: currentData }, later)).ack, true);
+    };
+    if (order === 'late_first') {
+      await late();
+      assert.equal(await payment.hasCourseEntitlement(db, STUDENT, COURSE), false, 'the late payment alone grants nothing');
+      await pay();
+    } else {
+      await pay();
+      await late();
+    }
+
+    assert.equal(await payment.hasCourseEntitlement(db, STUDENT, COURSE), true);
+    assert.equal(db.rows(COLLECTIONS.courseAccess).length, 1, order);
+    assert.equal(db.rows(COLLECTIONS.coursePurchases).length, 1, order);
+    const payments = db.rows(COLLECTIONS.payments);
+    assert.equal(payments.length, 2, order);
+    assert.equal(payments.find((row) => row.reference === current.reference).entitlementApplied, true);
+    const held = payments.find((row) => row.reference === first.reference);
+    assert.equal(held.entitlementApplied, false);
+    assert.equal(held.heldReason, order === 'late_first' ? 'superseded_intent_paid' : 'duplicate_payment');
+    const exceptions = exceptionsFor(db, held.heldReason);
+    assert.equal(exceptions.length, 1, order);
+    assert.equal(exceptions[0].occurrences, 1, 'replays of the late charge are not counted again');
+  }
 });
 
 test('a payment on a superseded checkout is kept for review and does not grant access', async () => {

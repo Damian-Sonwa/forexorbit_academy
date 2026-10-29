@@ -231,7 +231,7 @@ export default function Profile() {
         {/* Success/Error Messages */}
         {success && (
           <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-xl">
-            <p className="text-green-800 dark:text-primary-600 text-sm">{success}</p>
+            <p className="text-green-800 dark:text-primary-400 text-sm">{success}</p>
           </div>
         )}
         {error && (

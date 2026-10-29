@@ -8,6 +8,8 @@ import Link from 'next/link';
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
 import Footer from '@/components/Footer';
+import CourseCover from '@/components/CourseCover';
+import { decodeHtmlEntities } from '@/lib/plain-text';
 import BackButton from '@/components/BackButton';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { ButtonLoadingState, LessonSkeleton } from '@/components/loading';
@@ -156,7 +158,7 @@ export default function CourseDetailPage() {
             <div className="max-w-md text-center">
               <p className="text-lg font-semibold text-neutral-900">{error ? 'This course could not be loaded' : 'Course not found'}</p>
               {error && (
-                <button type="button" onClick={() => refetchCourse()} className="mt-4 inline-flex rounded-lg bg-primary-400 px-4 py-2 text-sm font-semibold text-neutral-900">Try again</button>
+                <button type="button" onClick={() => refetchCourse()} className="btn btn-primary mt-4">Try again</button>
               )}
             </div>
           </main>
@@ -166,9 +168,9 @@ export default function CourseDetailPage() {
   }
 
   const difficultyColors = {
-    beginner: 'bg-green-100 text-green-800',
-    intermediate: 'bg-yellow-100 text-yellow-800',
-    advanced: 'bg-red-100 text-red-800',
+    beginner: 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-300',
+    intermediate: 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-300',
+    advanced: 'border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-400/30 dark:bg-rose-400/10 dark:text-rose-300',
   };
 
   const difficultyKey = ((course && (course.difficulty as any)) || 'beginner') as 'beginner' | 'intermediate' | 'advanced';
@@ -188,18 +190,15 @@ export default function CourseDetailPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
           {/* Main Content */}
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 mb-4">
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex-1">
-                  <h1 className="text-2xl sm:text-3xl md:text-4xl font-display font-bold text-gray-900 mb-2 break-words">{course.title}</h1>
-                  <div className="flex items-center gap-3 mb-3">
-                      <span className={`px-4 py-1.5 rounded-full text-sm font-semibold ${difficultyClass}`}>
-                      {course.difficulty}
-                    </span>
-                    <span className="text-sm text-gray-500">•</span>
-                    <span className="text-sm text-gray-600">{course.category}</span>
-                  </div>
+            <div className="mb-4 overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-soft">
+              <CourseCover course={course} aspect="aspect-[16/9] sm:aspect-[21/9]" priority />
+              <div className="p-5 sm:p-7">
+              <div className="mb-3">
+                <div className="mb-3 flex flex-wrap items-center gap-2">
+                  <span className={`chip ${difficultyClass}`}>{course.difficulty}</span>
+                  {course.category && <span className="text-sm capitalize text-neutral-500">{course.category}</span>}
                 </div>
+                <h1 className="page-title break-words sm:text-4xl">{course.title}</h1>
               </div>
 
               {course.description && hasVisibleHtml(sanitizeForStudentView(course.description)) && (
@@ -210,24 +209,32 @@ export default function CourseDetailPage() {
 
               {/* Progress Bar */}
               {course.progress !== undefined && course.progress > 0 && (
-                <div className="mb-0 p-3 bg-gray-50 rounded-xl">
-                  <div className="flex justify-between text-sm mb-2">
-                    <span className="font-semibold text-gray-700">Your Progress</span>
-                    <span className="font-bold text-primary-600">{Math.round(course.progress)}%</span>
+                <div className="mt-5 rounded-xl border border-neutral-200 bg-neutral-50 p-4">
+                  <div className="mb-2 flex justify-between text-sm">
+                    <span className="font-semibold text-neutral-700">Your progress</span>
+                    <span className="font-semibold text-neutral-900">{Math.round(course.progress)}%</span>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                  <div
+                    className="h-2 w-full overflow-hidden rounded-full bg-neutral-200"
+                    role="progressbar"
+                    aria-valuenow={Math.round(course.progress)}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-label="Course progress"
+                  >
                     <div
-                      className="bg-primary-500 h-3 rounded-full transition-all duration-500 shadow-sm"
+                      className="h-2 rounded-full bg-primary-500 transition-[width] duration-500"
                       style={{ width: `${course.progress}%` }}
                     />
                   </div>
                 </div>
               )}
+              </div>
             </div>
 
             {/* Lessons — source: GET /api/courses/:id/lessons { lessons } */}
-            <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6">
-              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-3">Course Lessons</h2>
+            <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-soft sm:p-7">
+              <h2 className="mb-4 font-display text-xl font-semibold text-neutral-900 sm:text-2xl">Course lessons</h2>
               {lessonsLoading ? (
                 <p className="py-10 text-center text-gray-500">Loading lessons…</p>
               ) : lessons.length > 0 ? (
@@ -237,16 +244,16 @@ export default function CourseDetailPage() {
                     const key = String(lesson._id || lesson.id || index);
                     const lessonDesc = getLessonDescriptionHtml(lesson as any);
                     const lessonDescStudent = sanitizeForStudentView(lessonDesc);
-                    const previewPlain = stripHtml(lessonDescStudent).replace(/\s+/g, ' ').trim();
+                    const previewPlain = decodeHtmlEntities(stripHtml(lessonDescStudent)).replace(/\s+/g, ' ').trim();
                     return (
                       <div key={key}>
                         <button
                           type="button"
-                          className="relative flex w-full items-center justify-between gap-3 rounded-xl border-2 border-gray-200 p-5 text-left transition-all hover:border-primary-300 hover:bg-primary-50 group"
+                          className="group relative flex w-full items-center justify-between gap-3 rounded-xl border border-neutral-200 p-4 text-left transition-colors hover:border-primary-300 hover:bg-primary-50 dark:hover:border-primary-400/40 dark:hover:bg-primary-400/5 sm:p-5"
                           onClick={() => openLesson(href)}
                         >
                           <div className="flex min-w-0 flex-1 items-center space-x-4">
-                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-neutral-300 text-sm font-semibold text-neutral-800">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-50 text-sm font-semibold text-primary-700 dark:bg-primary-400/10 dark:text-primary-300">
                               {index + 1}
                             </div>
                             <div className="min-w-0 flex-1 text-left">
@@ -275,7 +282,7 @@ export default function CourseDetailPage() {
                     );
                   })}
                   {!paid && lessons.length > 1 && (
-                    <div className="rounded-xl border-2 border-amber-200 bg-amber-50/60 p-5 dark:border-amber-800/50 dark:bg-amber-950/30">
+                    <div className="rounded-xl border border-primary-200 bg-primary-50/70 p-5 dark:border-primary-400/25 dark:bg-primary-400/[0.06]">
                       <p className="mb-1 text-sm text-gray-700 dark:text-gray-300">
                         {lessons.length - 1} more lesson{lessons.length > 2 ? 's' : ''} in this course
                       </p>
@@ -291,13 +298,14 @@ export default function CourseDetailPage() {
                           value={fixRef}
                           onChange={(e) => setFixRef(e.target.value)}
                           placeholder="Paystack reference"
-                          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800"
+                          className="input"
+                          aria-label="Paystack reference"
                         />
                         <button
                           type="button"
                           disabled={verifyBusy || !fixRef.trim()}
                           onClick={() => void handleManualVerify()}
-                          className="shrink-0 rounded-lg border border-primary-600 px-4 py-2 text-sm font-semibold text-primary-700 hover:bg-primary-50 disabled:opacity-50 dark:text-primary-300 dark:hover:bg-primary-950/40"
+                          className="btn btn-outline shrink-0"
                         >
                           {verifyBusy ? 'Verifying…' : 'Fix payment'}
                         </button>
@@ -318,39 +326,37 @@ export default function CourseDetailPage() {
 
           {/* Sidebar */}
           <div>
-            <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 sticky top-20 sm:top-24">
-              <div className="space-y-3">
+            <div className="sticky top-20 rounded-2xl border border-neutral-200 bg-white p-5 shadow-soft sm:top-24 sm:p-6">
+              <dl className="grid grid-cols-3 gap-3 lg:grid-cols-1 lg:gap-4">
                 <div>
-                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Category</span>
-                  <p className="font-bold text-gray-900 mt-1">{course.category}</p>
+                  <dt className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Category</dt>
+                  <dd className="mt-1 font-semibold capitalize text-neutral-900">{course.category}</dd>
                 </div>
                 <div>
-                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Difficulty</span>
-                  <p className="font-bold text-gray-900 mt-1 capitalize">{course.difficulty}</p>
+                  <dt className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Level</dt>
+                  <dd className="mt-1 font-semibold capitalize text-neutral-900">{course.difficulty}</dd>
                 </div>
                 <div>
-                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Lessons</span>
-                  <p className="font-bold text-gray-900 mt-1">
+                  <dt className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Lessons</dt>
+                  <dd className="mt-1 font-semibold text-neutral-900">
                     {lessonsLoading ? '…' : lessons.length} lessons
-                  </p>
+                  </dd>
                 </div>
+              </dl>
+              <div className="space-y-3">
 
-                <div className="pt-3 border-t border-gray-200">
+                <div className="mt-5 border-t border-neutral-200 pt-5">
                   {isAuthenticated ? (
                     <button
                       type="button"
                       onClick={() => void handleEnroll()}
                       disabled={enrolling}
-                      className={`w-full px-6 py-4 rounded-xl font-bold text-lg transition-all shadow-lg ${
-                        course.enrolled
-                          ? 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-                          : 'bg-primary-600 hover:bg-primary-700 text-white hover:shadow-xl transform hover:scale-105'
-                      } disabled:opacity-50 disabled:cursor-not-allowed`}
+                      className={`btn w-full py-3 ${course.enrolled ? 'btn-ghost border border-neutral-200' : 'btn-primary text-base'}`}
                     >
                       {enrolling ? <ButtonLoadingState loading loadingLabel={course.enrolled ? 'Leaving course' : 'Enrolling'} /> : course.enrolled ? 'Unenroll' : 'Enroll Now'}
                     </button>
                   ) : (
-                    <Link href={loginHref(router.asPath)} className="block w-full px-6 py-4 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-bold text-lg text-center transition-colors shadow-lg hover:shadow-xl">
+                    <Link href={loginHref(router.asPath)} className="btn btn-primary w-full py-3 text-base">
                       Login to Enroll
                     </Link>
                   )}

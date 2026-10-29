@@ -220,7 +220,7 @@ export default function TradingInterface() {
           </div>
 
           {/* MetaTrader Option */}
-          <div className="border-2 border-green-200 rounded-xl p-6 bg-green-50 hover:bg-green-100 transition-colors">
+          <div className="border-2 border-green-200 rounded-xl p-6 bg-green-50 hover:bg-green-100 transition-colors dark:bg-emerald-400/10 dark:border-emerald-400/40">
             <div className="mb-4">
               <h4 className="text-lg font-bold text-gray-900 mb-2">MetaTrader Demo Account</h4>
               <p className="text-sm text-gray-600 mb-4">
@@ -231,7 +231,7 @@ export default function TradingInterface() {
               href="https://www.metatrader4.com/en/download"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-block w-full px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium text-center transition-colors mb-2"
+              className="btn btn-secondary mb-2 w-full py-3"
             >
               Download MT4/MT5 →
             </a>
@@ -266,7 +266,7 @@ export default function TradingInterface() {
           </div>
         )}
 
-        <div className="mt-6 bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded">
+        <div className="mt-6 bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded dark:bg-amber-400/10 dark:border-amber-400/40">
           <p className="text-sm text-yellow-800">
             <strong>Note:</strong> After creating your demo account, you can use it to practice trading. 
             If you&apos;ve already created an account, make sure you&apos;re logged in to the broker&apos;s platform.

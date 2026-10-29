@@ -140,7 +140,7 @@ export default function AssignmentAnalytics() {
                 <p className="text-red-600 dark:text-red-400">{error}</p>
                 <button
                   onClick={() => router.back()}
-                  className="mt-4 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+                  className="btn btn-secondary mt-4"
                 >
                   Go Back
                 </button>

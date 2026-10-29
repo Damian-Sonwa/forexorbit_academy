@@ -8,6 +8,8 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import CourseCover from '@/components/CourseCover';
+import { previewText } from '@/lib/plain-text';
 import Sidebar from '@/components/Sidebar';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { useAuth } from '@/hooks/useAuth';
@@ -697,7 +699,7 @@ export default function AdminPanel() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
                 <div>
-                  <h3 className="text-lg font-bold text-yellow-900 dark:text-primary-600">
+                  <h3 className="text-lg font-bold text-yellow-900 dark:text-amber-200">
                     {pendingUsers.length} Pending {pendingUsers.length === 1 ? 'Request' : 'Requests'} for Approval
                   </h3>
                   <p className="text-sm text-yellow-800 dark:text-yellow-300 mt-1">
@@ -714,7 +716,7 @@ export default function AdminPanel() {
                     router.push('/admin?tab=approvals', undefined, { shallow: true });
                     loadPendingUsers();
                   }}
-                  className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg font-semibold transition-colors shadow-md"
+                  className="btn btn-primary"
                 >
                   Review Now
                 </button>
@@ -741,7 +743,7 @@ export default function AdminPanel() {
                   }}
             className={`flex-1 px-6 py-3 rounded-lg font-semibold transition-all ${
               activeTab === 'courses'
-                ? 'bg-white dark:bg-gray-700 text-primary-600 dark:text-primary-400 shadow-sm'
+                ? 'bg-white dark:bg-primary-400/15 text-primary-700 dark:text-primary-300 shadow-sm'
                 : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
             }`}
           >
@@ -754,7 +756,7 @@ export default function AdminPanel() {
             }}
             className={`flex-1 px-6 py-3 rounded-lg font-semibold transition-all ${
               activeTab === 'users'
-                ? 'bg-white dark:bg-gray-700 text-primary-600 dark:text-primary-400 shadow-sm'
+                ? 'bg-white dark:bg-primary-400/15 text-primary-700 dark:text-primary-300 shadow-sm'
                 : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
             }`}
           >
@@ -767,7 +769,7 @@ export default function AdminPanel() {
             }}
             className={`flex-1 px-6 py-3 rounded-lg font-semibold transition-all ${
               activeTab === 'instructors'
-                ? 'bg-white dark:bg-gray-700 text-primary-600 dark:text-primary-400 shadow-sm'
+                ? 'bg-white dark:bg-primary-400/15 text-primary-700 dark:text-primary-300 shadow-sm'
                 : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
             }`}
           >
@@ -780,7 +782,7 @@ export default function AdminPanel() {
             }}
             className={`flex-1 px-6 py-3 rounded-lg font-semibold transition-all ${
               activeTab === 'analytics'
-                ? 'bg-white dark:bg-gray-700 text-primary-600 dark:text-primary-400 shadow-sm'
+                ? 'bg-white dark:bg-primary-400/15 text-primary-700 dark:text-primary-300 shadow-sm'
                 : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
             }`}
           >
@@ -793,7 +795,7 @@ export default function AdminPanel() {
             }}
             className={`flex-1 px-6 py-3 rounded-lg font-semibold transition-all ${
               activeTab === 'certificates'
-                ? 'bg-white dark:bg-gray-700 text-primary-600 dark:text-primary-400 shadow-sm'
+                ? 'bg-white dark:bg-primary-400/15 text-primary-700 dark:text-primary-300 shadow-sm'
                 : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
             }`}
           >
@@ -807,13 +809,13 @@ export default function AdminPanel() {
             }}
             className={`flex-1 px-6 py-3 rounded-lg font-semibold transition-all relative ${
               activeTab === 'approvals'
-                ? 'bg-white dark:bg-gray-700 text-primary-600 dark:text-primary-400 shadow-sm'
+                ? 'bg-white dark:bg-primary-400/15 text-primary-700 dark:text-primary-300 shadow-sm'
                 : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
             }`}
           >
             Approvals
             {pendingUsers.length > 0 && (
-              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center animate-pulse">
+              <span className="absolute -top-1 -right-1 bg-red-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center motion-safe:animate-pulse">
                 {pendingUsers.length}
               </span>
             )}
@@ -827,7 +829,7 @@ export default function AdminPanel() {
             }}
             className={`flex-1 px-6 py-3 rounded-lg font-semibold transition-all ${
               activeTab === 'classes'
-                ? 'bg-white dark:bg-gray-700 text-primary-600 dark:text-primary-400 shadow-sm'
+                ? 'bg-white dark:bg-primary-400/15 text-primary-700 dark:text-primary-300 shadow-sm'
                 : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
             }`}
           >
@@ -842,7 +844,7 @@ export default function AdminPanel() {
             }}
             className={`flex-1 px-6 py-3 rounded-lg font-semibold transition-all ${
               activeTab === 'consultations'
-                ? 'bg-white dark:bg-gray-700 text-primary-600 dark:text-primary-400 shadow-sm'
+                ? 'bg-white dark:bg-primary-400/15 text-primary-700 dark:text-primary-300 shadow-sm'
                 : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
             }`}
           >
@@ -926,15 +928,17 @@ export default function AdminPanel() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {courses.map((course) => (
-                <div key={course._id || course.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-lg transition-shadow">
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">{course.title}</h3>
-                  <p className="text-sm text-gray-600 mb-4 line-clamp-2">{course.description}</p>
+                <div key={course._id || course.id} className="flex flex-col overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-soft transition-shadow hover:shadow-raised">
+                  <CourseCover course={course} aspect="aspect-[16/7]" />
+                  <div className="flex flex-1 flex-col p-5">
+                  <h3 className="mb-1.5 font-display text-lg font-semibold text-neutral-900">{course.title}</h3>
+                  <p className="mb-4 line-clamp-2 flex-1 text-sm text-neutral-600">{previewText(course.description)}</p>
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs text-gray-500 capitalize">{course.difficulty}</span>
+                    <span className="chip">{course.difficulty}</span>
                     <div className="flex gap-2">
                       <Link
                         href={`/courses/${course._id || course.id}`}
-                        className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-semibold transition-colors"
+                        className="btn btn-primary"
                       >
                         Manage
                       </Link>
@@ -945,11 +949,12 @@ export default function AdminPanel() {
                             handleDeleteCourse(courseId);
                           }
                         }}
-                        className="px-4 py-2 bg-red-100 text-red-700 hover:bg-red-200 rounded-lg text-sm font-semibold transition-colors"
+                        className="btn btn-danger-quiet"
                       >
                         Delete
                       </button>
                     </div>
+                  </div>
                   </div>
                 </div>
               ))}
@@ -1096,7 +1101,7 @@ export default function AdminPanel() {
                       </button>
                       <button
                         onClick={() => handleDeleteInstructor(instructor._id || instructor.id)}
-                        className="px-4 py-2 bg-red-100 text-red-700 hover:bg-red-200 rounded-lg text-sm font-semibold transition-colors"
+                        className="btn btn-danger-quiet"
                       >
                         Delete
                       </button>
@@ -1167,7 +1172,7 @@ export default function AdminPanel() {
                           <td className="px-6 py-4 whitespace-nowrap text-sm">
                             <button
                               onClick={() => handleDeleteUser(userItem._id || userItem.id)}
-                              className="px-3 py-1 bg-red-100 text-red-700 hover:bg-red-200 rounded-lg font-medium transition-colors dark:bg-red-900 dark:text-red-300 dark:hover:bg-red-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                              className="btn btn-danger-quiet px-3 py-1 text-xs"
                               disabled={userItem.role === 'superadmin' || (user && user.id === (userItem._id || userItem.id))}
                               title={
                                 userItem.role === 'superadmin'
@@ -1446,8 +1451,8 @@ export default function AdminPanel() {
                             <span
                               className={`px-3 py-1 rounded-full text-xs font-semibold ${
                                 pendingUser.role === 'instructor'
-                                  ? 'bg-neutral-100 text-neutral-800 dark:bg-neutral-900 dark:text-primary-600'
-                                  : 'bg-neutral-100 text-neutral-800 dark:bg-neutral-900 dark:text-primary-600'
+                                  ? 'bg-neutral-100 text-neutral-800 dark:bg-neutral-900 dark:text-primary-400'
+                                  : 'bg-neutral-100 text-neutral-800 dark:bg-neutral-900 dark:text-primary-400'
                               }`}
                             >
                               {pendingUser.role.charAt(0).toUpperCase() + pendingUser.role.slice(1)}
@@ -1464,13 +1469,13 @@ export default function AdminPanel() {
                             <div className="flex space-x-2">
                               <button
                                 onClick={() => handleApproveUser(pendingUser.id)}
-                                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition-colors"
+                                className="btn btn-primary"
                               >
                                 Approve
                               </button>
                               <button
                                 onClick={() => handleRejectUser(pendingUser.id)}
-                                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold transition-colors"
+                                className="btn btn-danger-quiet"
                               >
                                 Reject
                               </button>
@@ -1583,7 +1588,7 @@ export default function AdminPanel() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 <div>
-                  <h3 className="text-sm font-semibold text-neutral-900 dark:text-primary-600 mb-1">How it works</h3>
+                  <h3 className="text-sm font-semibold text-neutral-900 dark:text-primary-400 mb-1">How it works</h3>
                   <ul className="text-xs text-neutral-800 dark:text-neutral-300 space-y-1">
                     <li>• Enter the student's ID (MongoDB ObjectId) or email address</li>
                     <li>• Select the course for which to issue the certificate</li>
@@ -1757,7 +1762,7 @@ export default function AdminPanel() {
                           </button>
                           <button
                             onClick={() => handleDeleteClass(cls._id)}
-                            className="px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold text-sm transition-colors flex items-center space-x-1"
+                            className="btn btn-danger-quiet px-3"
                             title="Delete Class"
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1826,11 +1831,11 @@ export default function AdminPanel() {
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-3">
                           <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                            request.status === 'pending' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-primary-600' :
-                            request.status === 'accepted' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-primary-600' :
+                            request.status === 'pending' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-primary-400' :
+                            request.status === 'accepted' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-primary-400' :
                             request.status === 'rejected' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' :
                             request.status === 'cancelled' ? 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200' :
-                            'bg-neutral-100 text-neutral-800 dark:bg-neutral-900 dark:text-primary-600'
+                            'bg-neutral-100 text-neutral-800 dark:bg-neutral-900 dark:text-primary-400'
                           }`}>
                             {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
                           </span>
@@ -1916,7 +1921,7 @@ export default function AdminPanel() {
                             <button
                               onClick={() => handleConsultationAction(request._id, 'accept')}
                               disabled={loadingConsultations}
-                              className="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+                              className="btn btn-primary w-full"
                             >
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -1926,7 +1931,7 @@ export default function AdminPanel() {
                             <button
                               onClick={() => handleConsultationAction(request._id, 'cancel')}
                               disabled={loadingConsultations}
-                              className="w-full px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+                              className="btn btn-danger-quiet w-full"
                             >
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -2081,7 +2086,7 @@ export default function AdminPanel() {
                                 alert(error.response?.data?.message || error.response?.data?.error || error.message || 'Failed to delete news');
                               }
                             }}
-                            className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded-md text-xs font-semibold transition-colors flex items-center space-x-1 shadow-sm"
+                            className="btn btn-danger-quiet px-3 py-1 text-xs"
                             title="Delete this update"
                           >
                             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">

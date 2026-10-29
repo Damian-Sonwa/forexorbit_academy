@@ -164,7 +164,7 @@ export default function CommunityPage() {
             {COMMUNITY_CATEGORIES.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
           </select>
           <nav className="hidden lg:block" aria-label="Discussion topics">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#9A4E0C]">Topics</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary-700">Topics</p>
             <ul className="mt-3 space-y-1">
               <li>
                 <button type="button" className={`w-full rounded-lg px-3 py-2 text-left text-sm ${category === '' ? 'bg-[#fff4ea] font-semibold' : 'hover:bg-[#faf8f4]'}`} onClick={() => pushQuery({ category: '' })}>All topics</button>
@@ -196,7 +196,7 @@ export default function CommunityPage() {
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="Search questions and discussions"
-                className="w-full rounded-full border border-[#e5e5e5] bg-[#ffffff] py-2.5 pl-10 pr-4 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#9A4E0C]"
+                className="w-full rounded-full border border-[#e5e5e5] bg-[#ffffff] py-2.5 pl-10 pr-4 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600"
               />
             </div>
             <button type="submit" className="rounded-full border border-[#e5e5e5] px-4 py-2 text-sm font-semibold">Search</button>
@@ -240,7 +240,7 @@ export default function CommunityPage() {
           {error ? (
             <div className="mt-6 rounded-2xl border border-[#e5e5e5] bg-[#fff4ea] px-4 py-3 text-sm" role="alert">
               <p>{error}</p>
-              <button type="button" className="mt-2 font-semibold text-[#9A4E0C]" onClick={() => setReloadKey((current) => current + 1)}>Try again</button>
+              <button type="button" className="mt-2 font-semibold text-primary-700" onClick={() => setReloadKey((current) => current + 1)}>Try again</button>
             </div>
           ) : null}
 
@@ -252,7 +252,7 @@ export default function CommunityPage() {
 
           {!loading && isAuthenticated && questions.length === 0 && !error ? (
             <div className="mt-8 rounded-2xl border border-dashed border-[#e5e5e5] px-6 py-14 text-center">
-              <MessageCircle className="mx-auto h-6 w-6 text-[#C85E0E]" aria-hidden />
+              <MessageCircle className="mx-auto h-6 w-6 text-primary-600" aria-hidden />
               <p className="mt-3 text-lg font-semibold">{empty}</p>
             </div>
           ) : null}
@@ -262,14 +262,14 @@ export default function CommunityPage() {
               <li key={item.id} className="rounded-2xl border border-[#e5e5e5] bg-[#ffffff] p-4 shadow-[0_8px_20px_-18px_rgba(23,23,23,0.35)] sm:p-5">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[#9A4E0C]">
+                    <div className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-wide text-primary-700">
                       <span>{item.categoryLabel}</span>
                       <span className="rounded-full border border-[#e5e5e5] px-2 py-0.5 normal-case tracking-normal text-[#525252]">
                         {item.answered ? 'Answered' : 'Unanswered'}
                       </span>
                     </div>
                     <h2 className="mt-2 font-display text-xl font-bold leading-snug">
-                      <Link className="hover:text-[#9A4E0C] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#9A4E0C]" href={`/community/questions/${item.id}?from=${encodeURIComponent(returnPath)}`}>
+                      <Link className="hover:text-primary-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600" href={`/community/questions/${item.id}?from=${encodeURIComponent(returnPath)}`}>
                         {item.title}
                       </Link>
                     </h2>

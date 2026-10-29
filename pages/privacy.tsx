@@ -159,7 +159,7 @@ export default function PrivacyPolicy() {
                 <li><strong>Data Portability:</strong> Request your data in a portable format</li>
               </ul>
               <p className="mt-4">
-                To exercise these rights, please contact us at <a href="mailto:madudamian25@gmail.com" className="text-primary-600 dark:text-primary-400 hover:underline">madudamian25@gmail.com</a>
+                To exercise these rights, please contact us at <a href="mailto:madudamian25@gmail.com" className="text-primary-700 dark:text-primary-400 hover:underline">madudamian25@gmail.com</a>
               </p>
             </div>
           </section>
@@ -210,8 +210,8 @@ export default function PrivacyPolicy() {
               If you have questions or concerns about this Privacy Policy or our data practices, please contact us:
             </p>
             <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 space-y-2">
-              <p className="text-gray-900 dark:text-white"><strong>Email:</strong> <a href="mailto:madudamian25@gmail.com" className="text-primary-600 dark:text-primary-400 hover:underline">madudamian25@gmail.com</a></p>
-              <p className="text-gray-900 dark:text-white"><strong>Phone:</strong> <a href="tel:+2348132446354" className="text-primary-600 dark:text-primary-400 hover:underline">+234 813 244 6354</a></p>
+              <p className="text-gray-900 dark:text-white"><strong>Email:</strong> <a href="mailto:madudamian25@gmail.com" className="text-primary-700 dark:text-primary-400 hover:underline">madudamian25@gmail.com</a></p>
+              <p className="text-gray-900 dark:text-white"><strong>Phone:</strong> <a href="tel:+2348132446354" className="text-primary-700 dark:text-primary-400 hover:underline">+234 813 244 6354</a></p>
             </div>
           </section>
         </div>

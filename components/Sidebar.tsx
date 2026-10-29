@@ -284,22 +284,25 @@ export default function Sidebar({ }: SidebarProps) {
     return router.pathname.startsWith(href + '/') && href !== '/admin';
   };
 
+  if (!user) return null;
+
   return (
     <>
       {/* Mobile Hamburger Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="lg:hidden fixed top-[3.5rem] left-2 sm:left-4 z-50 p-2 bg-white rounded-lg shadow-lg border border-primary-400 text-neutral-900 hover:bg-primary-50 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-700"
-        aria-label="Toggle sidebar"
+        className="lg:hidden fixed top-[4.25rem] left-3 sm:left-4 z-50 inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-white/95 px-3 py-2 text-sm font-semibold text-neutral-800 shadow-soft backdrop-blur hover:bg-neutral-50"
+        aria-label={isOpen ? 'Close navigation' : 'Open navigation'}
         aria-expanded={isOpen}
       >
-        {isOpen ? <CloseIcon className="w-5 h-5 sm:w-6 sm:h-6" /> : <MenuIcon className="w-5 h-5 sm:w-6 sm:h-6" />}
+        {isOpen ? <CloseIcon className="w-5 h-5" /> : <MenuIcon className="w-5 h-5" />}
+        <span>Menu</span>
       </button>
 
       {/* Mobile Overlay */}
       {isOpen && (
         <div
-          className="lg:hidden fixed inset-0 bg-black/50 z-40 transition-opacity"
+          className="lg:hidden fixed inset-0 bg-neutral-950/60 backdrop-blur-[2px] z-40 transition-opacity"
           onClick={() => setIsOpen(false)}
         />
       )}
@@ -348,7 +351,7 @@ export default function Sidebar({ }: SidebarProps) {
             >
               <div className="relative flex-shrink-0">
                 {/* FIX: Profile picture placeholder with live update - uses profilePhoto from profileData */}
-                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full overflow-hidden bg-primary-400 flex items-center justify-center ring-2 ring-primary-200 group-hover:ring-primary-300 transition-all shadow-md">
+                <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-full overflow-hidden bg-primary-500 flex items-center justify-center ring-2 ring-white dark:ring-neutral-900 shadow-soft">
                   {profilePhoto ? (
                     <img
                       src={profilePhoto}
@@ -373,8 +376,6 @@ export default function Sidebar({ }: SidebarProps) {
                     </span>
                   )}
                 </div>
-                {/* FIX: Live update indicator - green dot shows user is online */}
-                <div className="absolute bottom-0 right-0 w-2.5 h-2.5 sm:w-3 sm:h-3 bg-green-500 rounded-full border-2 border-white shadow-sm"></div>
               </div>
               {!isCollapsed && (
                 <div className="flex-1 min-w-0">
@@ -385,7 +386,7 @@ export default function Sidebar({ }: SidebarProps) {
                     {displayEmail}
                   </p>
                   {tradingLevel && (
-                    <p className="text-xs mt-1 capitalize font-medium text-primary-600">
+                    <p className="chip chip-brand mt-1.5">
                       {tradingLevel}
                     </p>
                   )}
@@ -426,7 +427,7 @@ export default function Sidebar({ }: SidebarProps) {
             const group = (item as { group?: string }).group;
             const previousGroup = index > 0 ? (navItems[index - 1] as { group?: string }).group : undefined;
             const groupLabel = !isCollapsed && group && group !== previousGroup ? (
-              <p key={`${group}-label`} className={`px-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-neutral-400 ${index === 0 ? 'pt-1 pb-1' : 'pt-5 pb-1'}`}>
+              <p key={`${group}-label`} className={`px-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-neutral-500 ${index === 0 ? 'pt-1 pb-1' : 'pt-5 pb-1'}`}>
                 {group}
               </p>
             ) : null;
@@ -488,22 +489,21 @@ export default function Sidebar({ }: SidebarProps) {
                     transition-colors duration-200
                     group
                     ${isActive
-                      ? 'bg-primary-400 text-neutral-900'
-                      : 'text-neutral-700 hover:bg-primary-50 hover:text-neutral-900'
+                      ? 'bg-primary-50 text-primary-800 shadow-[inset_3px_0_0_0_theme(colors.primary.500)] dark:bg-primary-400/10 dark:text-primary-300'
+                      : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-white'
                     }
                     ${isCollapsed ? 'justify-center' : ''}
                   `}
                   title={isCollapsed ? item.label : undefined}
+                  aria-current={isActive ? 'page' : undefined}
                 >
-                  <Icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-neutral-900' : 'text-current'}`} />
+                  <Icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-primary-600 dark:text-primary-400' : 'text-current'}`} />
                   {!isCollapsed && (
                     <span className={`font-medium ${isActive ? 'font-semibold' : ''}`}>
                       {item.label}
                     </span>
                   )}
-                  {isActive && !isCollapsed && (
-                    <div className="ml-auto w-2 h-2 bg-neutral-900 rounded-full"></div>
-                  )}
+
                 </Link>
               )];
             }
@@ -517,22 +517,21 @@ export default function Sidebar({ }: SidebarProps) {
                   transition-colors duration-200
                   group
                   ${isActive
-                    ? 'bg-primary-400 text-neutral-900'
-                    : 'text-neutral-700 hover:bg-primary-50 hover:text-neutral-900'
+                    ? 'bg-primary-50 text-primary-800 shadow-[inset_3px_0_0_0_theme(colors.primary.500)] dark:bg-primary-400/10 dark:text-primary-300'
+                    : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-white'
                   }
                   ${isCollapsed ? 'justify-center' : ''}
                 `}
                 title={isCollapsed ? item.label : undefined}
+                aria-current={isActive ? 'page' : undefined}
               >
-                <Icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-neutral-900' : 'text-current'}`} />
+                <Icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-primary-600 dark:text-primary-400' : 'text-current'}`} />
                 {!isCollapsed && (
                   <span className={`font-medium ${isActive ? 'font-semibold' : ''}`}>
                     {item.label}
                   </span>
                 )}
-                {isActive && !isCollapsed && (
-                  <div className="ml-auto w-2 h-2 bg-neutral-900 rounded-full"></div>
-                )}
+
               </Link>
             )];
           })}
@@ -542,21 +541,18 @@ export default function Sidebar({ }: SidebarProps) {
         <div className="border-t border-neutral-200 flex-shrink-0">
           {!isCollapsed ? (
             <div className="p-3 sm:p-4 lg:p-6">
-              <p className="text-xs text-center mb-3 text-neutral-500">
-                ForexOrbit Academy
-              </p>
               {/* Logout Button */}
               <button
                 onClick={() => {
                   logout();
                   router.push('/login');
                 }}
-                className="w-full flex items-center justify-center space-x-2 px-4 py-2.5 rounded-lg transition-all duration-200 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200"
+                className="w-full flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl border border-neutral-200 text-neutral-700 hover:border-red-200 hover:bg-red-50 hover:text-red-700 dark:text-neutral-300 dark:hover:border-red-400/30 dark:hover:bg-red-500/10 dark:hover:text-red-300"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                 </svg>
-                <span className="font-medium text-sm">Logout</span>
+                <span className="font-medium text-sm">Sign out</span>
               </button>
             </div>
           ) : (
@@ -568,7 +564,8 @@ export default function Sidebar({ }: SidebarProps) {
                   router.push('/login');
                 }}
                 className="p-2 rounded-lg transition-all duration-200 text-neutral-500 hover:bg-neutral-100"
-                title="Logout"
+                title="Sign out"
+                aria-label="Sign out"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />

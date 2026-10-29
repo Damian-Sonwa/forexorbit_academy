@@ -162,7 +162,7 @@ export default function Header() {
   };
 
   return (
-    <header className="bg-white/95 text-neutral-900 dark:bg-neutral-950 dark:text-white sticky top-0 z-50 border-b border-neutral-200 dark:border-white/10 backdrop-blur-sm">
+    <header className="bg-white/90 text-neutral-900 dark:bg-[#07080c]/90 dark:text-white sticky top-0 z-50 border-b border-neutral-200/80 dark:border-white/10 backdrop-blur-md">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-14 py-2">
           {/* Logo */}
@@ -176,7 +176,7 @@ export default function Header() {
 
           {/* Navigation - Hidden for students, shown for other roles */}
           {user?.role !== 'student' && (
-            <nav className="hidden md:flex items-center space-x-1">
+            <nav className="hidden md:flex lg:hidden items-center space-x-1" aria-label="Staff">
               {isAuthenticated && (
                 <>
                   {user?.role === 'instructor' && (
@@ -239,7 +239,8 @@ export default function Header() {
                 <button
                   onClick={() => setNotificationsOpen(!notificationsOpen)}
                   className="relative p-1.5 sm:p-2 rounded-lg transition-colors hover:bg-neutral-100 dark:hover:bg-white/10 text-neutral-600 dark:text-neutral-300"
-                  aria-label="Notifications"
+                  aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'}
+                  aria-expanded={notificationsOpen}
                 >
                   <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
@@ -252,9 +253,9 @@ export default function Header() {
                 </button>
 
                 {notificationsOpen && (
-                  <div className="absolute right-0 mt-2 w-[calc(100vw-3rem)] sm:w-80 md:w-96 max-w-[90vw] sm:max-w-sm bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden z-50 max-h-[calc(100vh-6rem)] flex flex-col">
+                  <div className="absolute right-0 mt-2 w-[calc(100vw-3rem)] sm:w-80 md:w-96 max-w-[90vw] sm:max-w-sm bg-white dark:bg-[#101214] rounded-xl shadow-xl border border-gray-200 dark:border-white/10 overflow-hidden z-50 max-h-[calc(100vh-6rem)] flex flex-col">
                     {/* Header */}
-                    <div className="px-3 sm:px-4 py-2 sm:py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 flex items-center justify-between flex-shrink-0">
+                    <div className="px-3 sm:px-4 py-2 sm:py-3 border-b border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/[0.03] flex items-center justify-between flex-shrink-0">
                       <h3 className="text-sm font-bold text-gray-900 dark:text-white">Notifications</h3>
                       {unreadCount > 0 && (
                         <button
@@ -284,7 +285,7 @@ export default function Header() {
                               const destination = notificationDestination(notification);
                               if (destination) router.push(destination);
                             }}
-                            className={`px-3 sm:px-4 py-2.5 sm:py-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer border-l-2 ${
+                            className={`px-3 sm:px-4 py-2.5 sm:py-3 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors cursor-pointer border-l-2 ${
                               !notification.read 
                                 ? 'bg-primary-50 dark:bg-primary-950/40 border-primary-500' 
                                 : 'border-transparent'
@@ -333,12 +334,12 @@ export default function Header() {
                 </button>
 
                 {languageOpen && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 py-2 overflow-hidden z-50">
+                  <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-[#101214] rounded-xl shadow-xl border border-gray-200 dark:border-white/10 py-2 overflow-hidden z-50">
                     {languages.map((lang) => (
                       <button
                         key={lang.code}
                         onClick={() => handleLanguageChange(lang.code)}
-                        className={`w-full flex items-center space-x-3 px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-left ${
+                        className={`w-full flex items-center space-x-3 px-4 py-2 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors text-left ${
                           selectedLanguage === lang.code ? 'bg-primary-50 dark:bg-primary-950/40' : ''
                         }`}
                       >
@@ -359,7 +360,7 @@ export default function Header() {
             <button
               onClick={toggleTheme}
               className="p-1.5 rounded-lg transition-colors hover:bg-neutral-100 dark:hover:bg-white/10 text-neutral-600 dark:text-neutral-300"
-              aria-label="Toggle dark mode"
+              aria-label={isDark ? 'Switch to light theme' : 'Switch to dark theme'}
             >
               {isDark ? (
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -377,8 +378,10 @@ export default function Header() {
                 <button
                   onClick={() => setMenuOpen(!menuOpen)}
                   className="flex items-center space-x-2 px-2 py-1 rounded-lg transition-colors hover:bg-neutral-100 dark:hover:bg-white/10"
+                  aria-label="Account menu"
+                  aria-expanded={menuOpen}
                 >
-                  <div className="w-8 h-8 sm:w-9 sm:h-9 bg-primary-400 rounded-full flex items-center justify-center text-neutral-900 font-bold text-xs sm:text-sm">
+                  <div className="w-8 h-8 sm:w-9 sm:h-9 bg-primary-500 rounded-full flex items-center justify-center text-neutral-950 font-bold text-xs sm:text-sm">
                     {user?.name?.charAt(0).toUpperCase()}
                   </div>
                   <span className="hidden lg:block text-neutral-700 dark:text-neutral-300 text-sm">{user?.name}</span>
@@ -388,14 +391,14 @@ export default function Header() {
                 </button>
 
                 {menuOpen && (
-                  <div className="absolute right-0 mt-2 w-48 sm:w-56 bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 py-2 overflow-hidden z-50">
-                    <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
+                  <div className="absolute right-0 mt-2 w-48 sm:w-56 bg-white dark:bg-[#101214] rounded-xl sm:rounded-2xl shadow-xl border border-gray-200 dark:border-white/10 py-2 overflow-hidden z-50">
+                    <div className="px-4 py-3 border-b border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/[0.03]">
                       <p className="text-sm font-bold text-gray-900 dark:text-white">{user?.name}</p>
                       <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{user?.email}</p>
                     </div>
                     <Link
                       href="/dashboard"
-                      className="flex items-center px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-primary-50 dark:hover:bg-gray-700 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+                      className="flex items-center px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-primary-50 dark:hover:bg-white/5 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
                       onClick={() => setMenuOpen(false)}
                     >
                       <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -410,18 +413,18 @@ export default function Header() {
                       <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                       </svg>
-                      Logout
+                      Sign out
                     </button>
                   </div>
                 )}
               </div>
             ) : (
               <div className="flex items-center space-x-2">
-                <Link href="/login" className="px-3 sm:px-4 py-1.5 sm:py-2 text-sm sm:text-base text-neutral-700 hover:text-neutral-900 border border-neutral-300 hover:border-neutral-400 rounded-lg transition-colors">
-                  Login
+                <Link href="/login" className="btn btn-ghost px-3 sm:px-4">
+                  Sign in
                 </Link>
-                <Link href="/signup" className="px-3 sm:px-4 py-1.5 sm:py-2 text-sm sm:text-base bg-primary-400 hover:bg-primary-500 text-neutral-900 rounded-lg transition-colors font-medium">
-                  Sign Up
+                <Link href="/signup" className="btn btn-primary px-3 sm:px-4">
+                  Sign up
                 </Link>
               </div>
             )}

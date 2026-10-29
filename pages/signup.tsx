@@ -106,7 +106,7 @@ export default function Signup() {
       switcher={
         <>
           Already have an account?{' '}
-          <Link href={loginHref(nextPath ?? undefined)} className="font-medium text-[#9A4E0C] hover:underline">
+          <Link href={loginHref(nextPath ?? undefined)} className="font-medium text-primary-700 hover:underline">
             Sign in
           </Link>
         </>

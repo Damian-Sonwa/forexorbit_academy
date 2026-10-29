@@ -33,11 +33,11 @@ export default function AskQuestionPage() {
 
   return (
     <CommunityShell>
-      <Link href={back} className="text-sm font-semibold text-[#9A4E0C]">Back to community</Link>
+      <Link href={back} className="text-sm font-semibold text-primary-700">Back to community</Link>
       <h1 className="mt-3 font-display text-4xl font-bold tracking-tight">Ask a question</h1>
       <p className="mt-2 max-w-xl text-[#525252]">Explain what you have already tried. A specific question is easier for someone else to answer.</p>
       {!loading && !isAuthenticated ? (
-        <p className="mt-8 text-sm">Sign in before asking a question. <Link className="font-semibold text-[#9A4E0C]" href="/login">Sign in</Link></p>
+        <p className="mt-8 text-sm">Sign in before asking a question. <Link className="font-semibold text-primary-700" href="/login">Sign in</Link></p>
       ) : (
         <form className="mt-8 max-w-2xl space-y-5" onSubmit={onSubmit}>
           <label className="block text-sm font-semibold">
@@ -48,7 +48,7 @@ export default function AskQuestionPage() {
               maxLength={140}
               value={title}
               onChange={(event) => setTitle(event.target.value)}
-              className="mt-2 w-full rounded-xl border border-[#e5e5e5] px-3 py-2 text-base font-normal focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#9A4E0C]"
+              className="mt-2 w-full rounded-xl border border-[#e5e5e5] px-3 py-2 text-base font-normal focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600"
             />
           </label>
           <label className="block text-sm font-semibold">
@@ -70,11 +70,11 @@ export default function AskQuestionPage() {
               rows={8}
               value={body}
               onChange={(event) => setBody(event.target.value)}
-              className="mt-2 w-full rounded-xl border border-[#e5e5e5] px-3 py-2 text-base font-normal leading-relaxed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#9A4E0C]"
+              className="mt-2 w-full rounded-xl border border-[#e5e5e5] px-3 py-2 text-base font-normal leading-relaxed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600"
             />
           </label>
-          {error ? <p className="text-sm text-[#9A4E0C]" role="alert">{error}</p> : null}
-          <button type="submit" disabled={submitting} className="rounded-full bg-[#F28C28] px-5 py-2.5 text-sm font-semibold text-[#102017] disabled:opacity-60">
+          {error ? <p className="text-sm text-primary-700" role="alert">{error}</p> : null}
+          <button type="submit" disabled={submitting} className="rounded-full bg-primary-500 px-5 py-2.5 text-sm font-semibold text-neutral-950 disabled:opacity-60">
             {submitting ? 'Posting question…' : 'Post question'}
           </button>
         </form>

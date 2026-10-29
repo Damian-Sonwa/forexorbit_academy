@@ -118,7 +118,7 @@ export default function HowItWorks() {
           <Link
             href="/"
             aria-label="FX Orbit Academy home"
-            className="flex shrink-0 items-center rounded-md transition-opacity duration-200 hover:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F28C28] focus-visible:ring-offset-2 focus-visible:ring-offset-[#faf8f4] dark:focus-visible:ring-offset-[#07080c]"
+            className="flex shrink-0 items-center rounded-md transition-opacity duration-200 hover:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 focus-visible:ring-offset-[#faf8f4] dark:focus-visible:ring-offset-[#07080c]"
           >
             <BrandLogo priority className="h-8 sm:h-9" />
           </Link>
@@ -131,9 +131,9 @@ export default function HowItWorks() {
           </nav>
           <div className="hidden items-center gap-3 sm:flex">
             {!isAuthenticated && (
-              <Link href="/login" className="rounded-full border border-[#F28C28]/70 px-4 py-2 text-sm font-semibold hover:bg-white/5">Sign in</Link>
+              <Link href="/login" className="rounded-full border border-primary-500/70 px-4 py-2 text-sm font-semibold hover:bg-white/5">Sign in</Link>
             )}
-            <Link href={accountHref} className="rounded-full bg-[#F28C28] px-4 py-2 text-sm font-semibold text-[#102017] hover:bg-white">{isAuthenticated ? 'Dashboard' : 'Sign up'}</Link>
+            <Link href={accountHref} className="rounded-full bg-primary-500 px-4 py-2 text-sm font-semibold text-neutral-950 hover:bg-white">{isAuthenticated ? 'Dashboard' : 'Sign up'}</Link>
           </div>
           <button type="button" className="rounded-lg border border-white/15 p-2 lg:hidden" aria-expanded={menuOpen} aria-label="Open menu" onClick={() => setMenuOpen((open) => !open)}>
             {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -147,29 +147,29 @@ export default function HowItWorks() {
             <Link href="/consultations" className="block">Consultations</Link>
             <Link href="/about" className="block">About</Link>
             <div className="flex gap-3 pt-2">
-              {!isAuthenticated && <Link href="/login" className="rounded-full border border-[#F28C28]/70 px-4 py-2">Sign in</Link>}
-              <Link href={accountHref} className="rounded-full bg-[#F28C28] px-4 py-2 font-semibold text-[#102017]">{isAuthenticated ? 'Dashboard' : 'Sign up'}</Link>
+              {!isAuthenticated && <Link href="/login" className="rounded-full border border-primary-500/70 px-4 py-2">Sign in</Link>}
+              <Link href={accountHref} className="rounded-full bg-primary-500 px-4 py-2 font-semibold text-neutral-950">{isAuthenticated ? 'Dashboard' : 'Sign up'}</Link>
             </div>
           </div>
         )}
       </header>
 
       <main>
-        <section className="bg-[#faf8f4] text-[#171717]">
+        <section className="theme-light-island bg-[#faf8f4] text-[#171717]">
           <div className="mx-auto max-w-4xl px-4 py-16 text-center sm:px-6 sm:py-20">
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#9A4E0C]">How it works</p>
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-primary-700">How it works</p>
             <h1 className="mt-4 font-display text-4xl font-bold leading-[1.1] tracking-tight sm:text-5xl">
-              From your first lesson to <span className="text-[#C85E0E]">a routine you can repeat.</span>
+              From your first lesson to <span className="text-primary-600">a routine you can repeat.</span>
             </h1>
             <p className="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-[#525252] sm:text-lg">
               ForexOrbit pairs structured courses with a demo desk, level-based community rooms, and expert consultations. Here is the path a student follows, step by step.
             </p>
             <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
-              <Link href={accountHref} className="inline-flex items-center justify-center gap-2 rounded-full bg-[#F28C28] px-6 py-3 font-semibold text-[#102017]">
+              <Link href={accountHref} className="inline-flex items-center justify-center gap-2 rounded-full bg-primary-500 px-6 py-3 font-semibold text-neutral-950">
                 {isAuthenticated ? 'Open dashboard' : 'Create a free account'}
                 <ArrowRight className="h-4 w-4" aria-hidden />
               </Link>
-              <Link href="/#courses" className="inline-flex items-center justify-center rounded-full border border-[#C85E0E]/50 px-6 py-3 font-semibold hover:bg-[#F28C28]/10">
+              <Link href="/#courses" className="inline-flex items-center justify-center rounded-full border border-primary-600/50 px-6 py-3 font-semibold hover:bg-primary-500/10">
                 Browse courses
               </Link>
             </div>
@@ -178,23 +178,23 @@ export default function HowItWorks() {
 
         <section className="bg-[#07080c] py-20 lg:py-24">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#F28C28]">For students</p>
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-primary-600 dark:text-primary-400">For students</p>
             <h2 className="mt-4 max-w-2xl font-display text-3xl font-bold leading-[1.15] tracking-tight sm:text-4xl">Six steps, in the order the app takes you through them.</h2>
             <ol className="mt-12 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
               {studentSteps.map((step, index) => (
-                <li key={step.title} className="flex flex-col rounded-2xl border border-[#eadfce] bg-[#f6f3ec] p-6 text-[#1c1917] shadow-[0_10px_24px_-18px_rgba(0,0,0,0.45)]">
+                <li key={step.title} className="theme-light-island flex flex-col rounded-2xl border border-[#eadfce] bg-[#f6f3ec] p-6 text-[#1c1917] shadow-[0_10px_24px_-18px_rgba(0,0,0,0.45)]">
                   <div className="flex items-center gap-3">
-                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#F28C28] text-[#102017]">
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary-500 text-neutral-950">
                       <step.icon className="h-5 w-5" aria-hidden />
                     </span>
-                    <span className="text-sm font-semibold text-[#9A4E0C]">Step {index + 1}</span>
+                    <span className="text-sm font-semibold text-primary-700">Step {index + 1}</span>
                   </div>
                   <h3 className="mt-5 font-display text-xl font-bold">{step.title}</h3>
                   <p className="mt-3 text-sm leading-relaxed text-[#525252]">{step.text}</p>
                   <ul className="mt-4 space-y-2 border-t border-[#eadfce] pt-4 text-sm text-[#3f3a35]">
                     {step.points.map((point) => (
                       <li key={point} className="flex gap-2">
-                        <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#F28C28]" aria-hidden />
+                        <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-primary-500" aria-hidden />
                         {point}
                       </li>
                     ))}
@@ -205,19 +205,19 @@ export default function HowItWorks() {
           </div>
         </section>
 
-        <section className="bg-[#ffffff] py-20 text-[#171717] lg:py-24">
+        <section className="theme-light-island bg-[#ffffff] py-20 text-[#171717] lg:py-24">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
-            <p className="text-center text-sm font-semibold uppercase tracking-[0.18em] text-[#9A4E0C]">When you get stuck</p>
+            <p className="text-center text-sm font-semibold uppercase tracking-[0.18em] text-primary-700">When you get stuck</p>
             <h2 className="mx-auto mt-4 max-w-2xl text-center font-display text-3xl font-bold leading-[1.15] tracking-tight sm:text-4xl">People to ask, at every level.</h2>
             <div className="mt-12 grid gap-5 md:grid-cols-3">
               {support.map((item) => (
                 <article key={item.title} className="flex flex-col rounded-2xl border border-[#e5e5e5] p-6 shadow-[0_10px_24px_-18px_rgba(23,23,23,0.28)]">
-                  <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[#F28C28] text-[#102017]">
+                  <span className="flex h-12 w-12 items-center justify-center rounded-full bg-primary-500 text-neutral-950">
                     <item.icon className="h-5 w-5" aria-hidden />
                   </span>
                   <h3 className="mt-5 font-display text-xl font-bold">{item.title}</h3>
                   <p className="mt-3 flex-1 text-sm leading-relaxed text-[#525252]">{item.text}</p>
-                  <Link href={item.href} className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-[#9A4E0C] hover:underline">
+                  <Link href={item.href} className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-primary-700 hover:underline">
                     {item.cta} <ArrowRight className="h-4 w-4" aria-hidden />
                   </Link>
                 </article>
@@ -229,12 +229,12 @@ export default function HowItWorks() {
         <section className="bg-[#07080c] py-20">
           <div className="mx-auto grid max-w-6xl gap-10 px-4 sm:px-6 lg:grid-cols-2 lg:gap-16">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#F28C28]">For instructors</p>
+              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-primary-600 dark:text-primary-400">For instructors</p>
               <h2 className="mt-4 font-display text-3xl font-bold leading-[1.15] tracking-tight sm:text-4xl">Teach the chart you know.</h2>
               <ul className="mt-8 space-y-4">
                 {instructorSteps.map((item, index) => (
                   <li key={item} className="flex gap-4">
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#F28C28]/60 text-sm font-semibold text-[#F28C28]">{index + 1}</span>
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-primary-500/60 text-sm font-semibold text-primary-600 dark:text-primary-400">{index + 1}</span>
                     <p className="pt-1 text-white/80">{item}</p>
                   </li>
                 ))}
@@ -245,9 +245,9 @@ export default function HowItWorks() {
                 <h3 className="font-display text-lg font-bold">Certificates are on the way</h3>
                 <p className="mt-2 text-sm leading-relaxed text-white/70">Course completion is already tracked on your account. Downloadable certificates will arrive in a later release.</p>
               </div>
-              <div className="rounded-2xl border border-[#F28C28]/30 bg-[#F28C28]/[0.06] p-6">
+              <div className="rounded-2xl border border-primary-500/30 bg-primary-500/[0.06] p-6">
                 <div className="flex items-center gap-2">
-                  <ShieldAlert className="h-5 w-5 text-[#F28C28]" aria-hidden />
+                  <ShieldAlert className="h-5 w-5 text-primary-600 dark:text-primary-400" aria-hidden />
                   <h3 className="font-display text-lg font-bold">Education only</h3>
                 </div>
                 <p className="mt-2 text-sm leading-relaxed text-white/70">
@@ -262,7 +262,7 @@ export default function HowItWorks() {
           <div className="mx-auto max-w-3xl px-4 text-center sm:px-6">
             <h2 className="font-display text-3xl font-bold sm:text-4xl">Your first lesson is ready when you are.</h2>
             <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
-              <Link href={accountHref} className="inline-flex items-center justify-center gap-2 rounded-full bg-[#F28C28] px-6 py-3 font-semibold text-[#102017]">
+              <Link href={accountHref} className="inline-flex items-center justify-center gap-2 rounded-full bg-primary-500 px-6 py-3 font-semibold text-neutral-950">
                 {isAuthenticated ? 'Open dashboard' : 'Start learning'}
                 <ArrowRight className="h-4 w-4" aria-hidden />
               </Link>

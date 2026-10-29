@@ -8,12 +8,12 @@ type VoteControlProps = {
 };
 
 export function VoteControl({ score, vote, disabled, onVote }: VoteControlProps) {
-  const button = 'inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#e5e5e5] text-[#171717] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#9A4E0C] disabled:opacity-50';
+  const button = 'inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#e5e5e5] text-[#171717] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600 disabled:opacity-50';
   return (
     <div className="flex items-center gap-2">
       <button
         type="button"
-        className={`${button} ${vote === 1 ? 'border-[#C85E0E] bg-[#fff4ea]' : 'bg-[#ffffff]'}`}
+        className={`${button} ${vote === 1 ? 'border-primary-600 bg-[#fff4ea]' : 'bg-[#ffffff]'}`}
         aria-pressed={vote === 1}
         aria-label={vote === 1 ? 'Remove upvote' : 'Upvote'}
         disabled={disabled}
@@ -27,7 +27,7 @@ export function VoteControl({ score, vote, disabled, onVote }: VoteControlProps)
       </span>
       <button
         type="button"
-        className={`${button} ${vote === -1 ? 'border-[#C85E0E] bg-[#fff4ea]' : 'bg-[#ffffff]'}`}
+        className={`${button} ${vote === -1 ? 'border-primary-600 bg-[#fff4ea]' : 'bg-[#ffffff]'}`}
         aria-pressed={vote === -1}
         aria-label={vote === -1 ? 'Remove downvote' : 'Downvote'}
         disabled={disabled}

@@ -214,14 +214,14 @@ export default function DiscussionPage() {
 
   return (
     <CommunityShell>
-      <Link href={back} className="text-sm font-semibold text-[#9A4E0C]">Back to community</Link>
+      <Link href={back} className="text-sm font-semibold text-primary-700">Back to community</Link>
       {loading ? <div className="mt-6 h-40 motion-safe:animate-pulse rounded-2xl bg-[#f6f6f6]" aria-hidden /> : null}
-      {error ? <p className="mt-4 text-sm text-[#9A4E0C]" role="alert">{error} <button type="button" className="font-semibold" onClick={() => load(replyPage)}>Try again</button></p> : null}
+      {error ? <p className="mt-4 text-sm text-primary-700" role="alert">{error} <button type="button" className="font-semibold" onClick={() => load(replyPage)}>Try again</button></p> : null}
       {notice ? <p className="mt-4 text-sm font-semibold text-[#171717]" role="status">{notice}</p> : null}
-      {!authLoading && !isAuthenticated ? <p className="mt-8">Sign in to read this discussion. <Link className="font-semibold text-[#9A4E0C]" href="/login">Sign in</Link></p> : null}
+      {!authLoading && !isAuthenticated ? <p className="mt-8">Sign in to read this discussion. <Link className="font-semibold text-primary-700" href="/login">Sign in</Link></p> : null}
       {question ? (
         <article className="mt-6">
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#9A4E0C]">{question.categoryLabel}</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary-700">{question.categoryLabel}</p>
           <div className="mt-2 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <h1 className="font-display text-3xl font-bold leading-tight sm:text-4xl">{question.title}</h1>
             <VoteControl score={question.score} vote={question.viewerVote} disabled={submitting} onVote={(value) => vote('question', question.id, value)} />
@@ -247,7 +247,7 @@ export default function DiscussionPage() {
                 <textarea id="question-body" className="mt-2 w-full rounded-xl border border-[#e5e5e5] px-3 py-2 font-normal" rows={6} value={questionDraft} onChange={(event) => setQuestionDraft(event.target.value)} />
               </label>
               <div className="mt-3 flex gap-2">
-                <button type="submit" disabled={submitting} className="rounded-full bg-[#F28C28] px-4 py-2 text-sm font-semibold text-[#102017]">Save</button>
+                <button type="submit" disabled={submitting} className="rounded-full bg-primary-500 px-4 py-2 text-sm font-semibold text-neutral-950">Save</button>
                 <button type="button" className="rounded-full border border-[#e5e5e5] px-4 py-2 text-sm" onClick={() => setEditingQuestion(false)}>Cancel</button>
               </div>
             </form>
@@ -256,7 +256,7 @@ export default function DiscussionPage() {
           )}
           {question.canEdit ? (
             <div className="mt-4 flex gap-3 text-sm">
-              <button type="button" className="font-semibold text-[#9A4E0C]" onClick={() => setEditingQuestion(true)}>Edit question</button>
+              <button type="button" className="font-semibold text-primary-700" onClick={() => setEditingQuestion(true)}>Edit question</button>
               <button type="button" className="font-semibold text-[#525252]" onClick={removeQuestion}>Delete question</button>
             </div>
           ) : null}
@@ -265,11 +265,11 @@ export default function DiscussionPage() {
           {replies.length === 0 ? <p className="mt-3 text-sm text-[#525252]">No replies yet. Be the first to answer.</p> : null}
           <ul className="mt-4 space-y-4">
             {replies.map((reply) => (
-              <li key={reply.id} className={`rounded-2xl border p-4 ${reply.accepted ? 'border-[#C85E0E] bg-[#fff8f1]' : 'border-[#e5e5e5] bg-[#ffffff]'}`}>
+              <li key={reply.id} className={`rounded-2xl border p-4 ${reply.accepted ? 'border-primary-600 bg-[#fff8f1]' : 'border-[#e5e5e5] bg-[#ffffff]'}`}>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0">
                     {reply.accepted ? (
-                      <p className="mb-2 inline-flex items-center gap-1 text-sm font-semibold text-[#9A4E0C]">
+                      <p className="mb-2 inline-flex items-center gap-1 text-sm font-semibold text-primary-700">
                         <Check className="h-4 w-4" aria-hidden />
                         Accepted answer
                       </p>
@@ -280,7 +280,7 @@ export default function DiscussionPage() {
                         <label className="sr-only" htmlFor={`reply-${reply.id}`}>Reply text</label>
                         <textarea id={`reply-${reply.id}`} className="w-full rounded-xl border border-[#e5e5e5] px-3 py-2" rows={4} value={replyDraft} onChange={(event) => setReplyDraft(event.target.value)} />
                         <div className="mt-2 flex gap-2">
-                          <button type="button" className="rounded-full bg-[#F28C28] px-4 py-2 text-sm font-semibold text-[#102017]" onClick={() => saveReply(reply.id)}>Save reply</button>
+                          <button type="button" className="rounded-full bg-primary-500 px-4 py-2 text-sm font-semibold text-neutral-950" onClick={() => saveReply(reply.id)}>Save reply</button>
                           <button type="button" className="text-sm" onClick={() => setEditingReply('')}>Cancel</button>
                         </div>
                       </div>
@@ -289,7 +289,7 @@ export default function DiscussionPage() {
                     )}
                     <div className="mt-3 flex flex-wrap gap-3 text-sm">
                       {question.canAccept ? (
-                        <button type="button" className="font-semibold text-[#9A4E0C]" onClick={() => accept(reply.accepted ? null : reply.id)}>
+                        <button type="button" className="font-semibold text-primary-700" onClick={() => accept(reply.accepted ? null : reply.id)}>
                           {reply.accepted ? 'Clear accepted answer' : 'Accept answer'}
                         </button>
                       ) : null}
@@ -308,8 +308,8 @@ export default function DiscussionPage() {
           </ul>
           {hasMore || replyPage > 1 ? (
             <div className="mt-4 flex gap-3">
-              <button type="button" className="text-sm font-semibold text-[#9A4E0C] disabled:opacity-40" disabled={replyPage <= 1} onClick={() => load(replyPage - 1)}>Previous replies</button>
-              <button type="button" className="text-sm font-semibold text-[#9A4E0C] disabled:opacity-40" disabled={!hasMore} onClick={() => load(replyPage + 1)}>Next replies</button>
+              <button type="button" className="text-sm font-semibold text-primary-700 disabled:opacity-40" disabled={replyPage <= 1} onClick={() => load(replyPage - 1)}>Previous replies</button>
+              <button type="button" className="text-sm font-semibold text-primary-700 disabled:opacity-40" disabled={!hasMore} onClick={() => load(replyPage + 1)}>Next replies</button>
             </div>
           ) : null}
 
@@ -325,7 +325,7 @@ export default function DiscussionPage() {
               onChange={(event) => setReplyBody(event.target.value)}
               className="mt-2 w-full rounded-xl border border-[#e5e5e5] px-3 py-2"
             />
-            <button type="submit" disabled={submitting} className="mt-3 rounded-full bg-[#F28C28] px-5 py-2.5 text-sm font-semibold text-[#102017] disabled:opacity-60">
+            <button type="submit" disabled={submitting} className="mt-3 rounded-full bg-primary-500 px-5 py-2.5 text-sm font-semibold text-neutral-950 disabled:opacity-60">
               {submitting ? 'Posting reply…' : 'Post reply'}
             </button>
           </form>

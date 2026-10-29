@@ -560,7 +560,7 @@ export default function AgoraCall({ appId, channel, token, uid, callType, onCall
       {/* Video Error Warning */}
       {videoError && (
         <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-3 mb-4 border border-yellow-200 dark:border-yellow-800">
-          <p className="text-sm text-yellow-800 dark:text-primary-600">{videoError}</p>
+          <p className="text-sm text-yellow-800 dark:text-primary-400">{videoError}</p>
         </div>
       )}
 

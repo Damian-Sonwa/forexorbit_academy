@@ -85,7 +85,7 @@ export default function Login() {
       switcher={
         <>
           New to ForexOrbit?{' '}
-          <Link href={signupHref(nextPath ?? undefined)} className="font-medium text-[#9A4E0C] hover:underline">
+          <Link href={signupHref(nextPath ?? undefined)} className="font-medium text-primary-700 hover:underline">
             Create an account
           </Link>
         </>
@@ -110,7 +110,7 @@ export default function Login() {
         <div>
           <div className="flex items-baseline justify-between gap-3">
             <label className={authLabelClass} htmlFor="login-password">Password</label>
-            <Link href="/forgot-password" className="text-sm font-medium text-[#9A4E0C] hover:underline">
+            <Link href="/forgot-password" className="text-sm font-medium text-primary-700 hover:underline">
               Forgot password?
             </Link>
           </div>

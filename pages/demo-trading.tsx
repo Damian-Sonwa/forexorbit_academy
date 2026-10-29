@@ -347,12 +347,12 @@ export default function DemoTrading() {
         <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:ml-0 pt-14 lg:pt-6 bg-white lg:bg-gray-50 overflow-y-auto w-full">
           {/* Header */}
           <div className="mb-6">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Demo Trading</h1>
-            <p className="text-gray-600">Practice trading with virtual money using MetaTrader demo accounts</p>
+            <h1 className="page-title mb-2">Demo practice</h1>
+            <p className="text-gray-600">Apply what you learn in a simulated account with virtual money. No real money is involved.</p>
           </div>
 
           {/* Disclaimer */}
-          <div className="mb-6 bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-lg">
+          <div className="mb-6 bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-lg dark:bg-amber-400/10 dark:border-amber-400/40">
             <div className="flex">
               <div className="flex-shrink-0">
                 <AlertTriangle className="h-6 w-6 shrink-0 text-amber-700" aria-hidden />
@@ -380,7 +380,7 @@ export default function DemoTrading() {
             <nav className="-mb-px flex space-x-8">
               {[
                 { id: 'guide', label: 'Setup Guide', icon: BookOpen },
-                { id: 'live', label: 'Live Trading', icon: Zap },
+                { id: 'live', label: 'Practice account', icon: Zap },
                 { id: 'tasks', label: 'Tasks', icon: ClipboardList },
                 { id: 'journal', label: 'Trade Journal', icon: BarChart3 },
               ].map((tab) => (
@@ -462,7 +462,7 @@ export default function DemoTrading() {
                           </ul>
                         </div>
                         <div className="bg-white rounded-lg p-4 border border-orange-200">
-                          <h5 className="font-semibold mb-2 text-orange-900"><Wrench className="mr-2 inline h-4 w-4 shrink-0 text-neutral-700" aria-hidden />For Platform Mastery</h5>
+                          <h5 className="font-semibold mb-2 text-orange-900 dark:text-primary-300"><Wrench className="mr-2 inline h-4 w-4 shrink-0 text-neutral-700" aria-hidden />For Platform Mastery</h5>
                           <ul className="text-sm space-y-1 list-disc list-inside text-gray-700">
                             <li>Familiarize with MetaTrader interface</li>
                             <li>Learn order types and execution</li>
@@ -473,7 +473,7 @@ export default function DemoTrading() {
                       </div>
                     </div>
 
-                    <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded mt-4">
+                    <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded mt-4 dark:bg-amber-400/10 dark:border-amber-400/40">
                       <p className="text-sm text-yellow-800">
                         <strong><Lightbulb className="mr-2 inline h-4 w-4 shrink-0 text-primary-600" aria-hidden />Important:</strong> Demo accounts are essential for your ForexOrbit Academy journey. 
                         They allow you to complete practice tasks, log trades in your journal, and demonstrate your 
@@ -533,7 +533,7 @@ export default function DemoTrading() {
                             href="https://www.metatrader4.com/en/download"
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex items-center justify-center space-x-2 bg-green-600 hover:bg-green-700 text-white px-6 py-4 rounded-lg font-medium transition-colors shadow-md hover:shadow-lg"
+                            className="btn btn-secondary px-6 py-4"
                           >
                             <Monitor className="h-4 w-4 shrink-0 text-white" aria-hidden />
                             <span>Download MetaTrader</span>
@@ -569,7 +569,7 @@ export default function DemoTrading() {
                         </div>
                       </div>
 
-                      <div className="bg-green-50 border-l-4 border-green-400 p-4 rounded">
+                      <div className="bg-green-50 border-l-4 border-green-400 p-4 rounded dark:bg-emerald-400/10 dark:border-emerald-400/40">
                         <h4 className="font-semibold mb-2">Option B: MetaTrader Demo Account (Recommended for Desktop Trading)</h4>
                         <ol className="list-decimal list-inside space-y-2 text-sm text-gray-700 mb-4">
                           <li>Click the "Download MetaTrader" button above, or</li>
@@ -586,7 +586,7 @@ export default function DemoTrading() {
                             href="https://www.metatrader4.com/en/download"
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center space-x-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                            className="btn btn-secondary "
                           >
                             <span>Download MetaTrader</span>
                             <span>→</span>
@@ -613,7 +613,7 @@ export default function DemoTrading() {
                         </ol>
                       </div>
 
-                      <div className="bg-green-50 border-l-4 border-green-400 p-4 rounded">
+                      <div className="bg-green-50 border-l-4 border-green-400 p-4 rounded dark:bg-emerald-400/10 dark:border-emerald-400/40">
                         <h4 className="font-semibold mb-2">Option B: Mobile Apps (MT4/MT5)</h4>
                         <ol className="list-decimal list-inside space-y-2 text-sm text-gray-700">
                           <li>Download MetaTrader 4 or MetaTrader 5 from:
@@ -815,7 +815,7 @@ export default function DemoTrading() {
                                 <div className="flex-1">
                                   <div className="flex items-center space-x-2 mb-1">
                                     <h4 className="font-semibold text-gray-900">{task.title}</h4>
-                                    <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">Completed</span>
+                                    <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded dark:bg-emerald-400/15 dark:text-emerald-200">Completed</span>
                                   </div>
                                   <p className="text-sm text-gray-600">{task.description}</p>
                                   {task.completedAt && (
@@ -989,7 +989,7 @@ export default function DemoTrading() {
                               {(trade.grade || trade.feedback) && (
                                 <div className="mt-4 pt-4 border-t border-green-200 bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
                                   <div className="flex items-center justify-between mb-2">
-                                    <p className="text-sm font-semibold text-green-800 dark:text-primary-600">
+                                    <p className="text-sm font-semibold text-green-800 dark:text-primary-400">
                                       Instructor Feedback
                                     </p>
                                     {trade.grade && (

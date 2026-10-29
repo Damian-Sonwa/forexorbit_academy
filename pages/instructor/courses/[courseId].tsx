@@ -545,7 +545,7 @@ export default function InstructorCoursePage() {
                   <button
                     type="button"
                     onClick={handleDeleteCourse}
-                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold transition-colors"
+                    className="btn btn-danger-quiet"
                   >
                     Delete Course
                   </button>

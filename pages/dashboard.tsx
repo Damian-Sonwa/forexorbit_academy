@@ -9,6 +9,7 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import CourseCover from '@/components/CourseCover';
 import Sidebar from '@/components/Sidebar';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { LoadingStatus, MetricSkeleton } from '@/components/loading';
@@ -19,7 +20,8 @@ import { useProgress } from '@/hooks/useProgress';
 import { useCourses } from '@/hooks/useCourses';
 import { countsTowardActiveTotals, sumActiveCompletedLessons } from '@/lib/enrollment-state';
 import { apiClient } from '@/lib/api-client';
-import { sanitizeForStudentView, stripHtml } from '@/lib/html-sanitizer';
+import { sanitizeForStudentView } from '@/lib/html-sanitizer';
+import { previewText } from '@/lib/plain-text';
 import { ArrowRight } from 'lucide-react';
 
 interface UpcomingLesson {
@@ -150,7 +152,7 @@ export default function Dashboard() {
         <Header />
         <div className="flex flex-1 relative overflow-hidden lg:items-start">
           <Sidebar />
-          <main className="flex-1 max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-10 pt-16 lg:pt-10 w-full">
+          <main className="flex-1 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-10 pt-16 lg:pt-10 w-full">
             <p className="page-kicker mb-2">Learning home</p>
             <h1 className="page-title">Welcome back, {firstName}</h1>
             <div className="mt-8 space-y-8">
@@ -182,7 +184,7 @@ export default function Dashboard() {
       <Header />
       <div className="flex flex-1 relative overflow-hidden lg:items-start">
         <Sidebar />
-        <main className="flex-1 max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-10 pt-16 lg:pt-10 overflow-y-auto w-full">
+        <main className="flex-1 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-10 pt-16 lg:pt-10 overflow-y-auto w-full">
           <header className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="page-kicker mb-2">Learning home</p>
@@ -210,19 +212,32 @@ export default function Dashboard() {
           {nextLesson ? (
             <section className="mb-10 border-t border-neutral-200 pt-8">
               <p className="page-kicker">Continue learning</p>
-              <div className="mt-4 flex flex-col gap-5 sm:flex-row sm:items-start">
-                {continueCourse?.thumbnail ? (
-                  <img src={continueCourse.thumbnail} alt="" className="h-28 w-full rounded-xl object-cover sm:h-32 sm:w-44" />
-                ) : null}
+              <div className="mt-4 flex flex-col gap-5 rounded-2xl border border-neutral-200 bg-white p-4 shadow-soft sm:flex-row sm:items-center sm:p-5">
+                <CourseCover
+                  course={continueCourse || { id: nextLesson.courseId, title: nextLesson.courseTitle }}
+                  className="w-full shrink-0 rounded-xl sm:w-60"
+                />
                 <div className="min-w-0 flex-1">
                   <p className="text-sm text-neutral-500">{nextLesson.courseTitle}</p>
                   <h2 className="mt-1 font-display text-2xl font-semibold tracking-tight text-neutral-900" dangerouslySetInnerHTML={{ __html: sanitizeForStudentView(nextLesson.lessonTitle) }} />
                   {typeof continueProgress?.progress === 'number' ? (
-                    <p className="mt-3 text-sm text-neutral-600">{Math.round(continueProgress.progress)}% of this course</p>
+                    <div className="mt-3 max-w-sm">
+                      <p className="text-sm text-neutral-600">{Math.round(continueProgress.progress)}% of this course</p>
+                      <div
+                        className="mt-2 h-1.5 overflow-hidden rounded-full bg-neutral-100"
+                        role="progressbar"
+                        aria-valuenow={Math.round(continueProgress.progress)}
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-label={`${nextLesson.courseTitle} progress`}
+                      >
+                        <div className="h-full rounded-full bg-primary-500" style={{ width: `${Math.min(100, Math.max(0, continueProgress.progress))}%` }} />
+                      </div>
+                    </div>
                   ) : null}
                   <Link
                     href={`/courses/${nextLesson.courseId}/lessons/${nextLesson.lessonId}`}
-                    className="mt-5 inline-flex items-center gap-2 rounded-full bg-primary-400 px-5 py-2.5 text-sm font-semibold text-neutral-900 hover:bg-primary-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-700"
+                    className="btn btn-primary mt-5 rounded-full px-5 py-2.5"
                   >
                     Continue learning
                     <ArrowRight className="h-4 w-4" aria-hidden />
@@ -235,14 +250,14 @@ export default function Dashboard() {
               <p className="page-kicker">Progress</p>
               <h2 className="mt-2 font-display text-2xl font-semibold tracking-tight text-neutral-900">Progress could not be loaded</h2>
               <p className="mt-2 max-w-xl text-sm text-neutral-600">Your enrollments are unchanged. Try again before treating this as an empty enrollment list.</p>
-              <button type="button" onClick={() => refetchProgress()} className="mt-5 inline-flex rounded-full bg-primary-400 px-5 py-2.5 text-sm font-semibold text-neutral-900 hover:bg-primary-500">Try again</button>
+              <button type="button" onClick={() => refetchProgress()} className="btn btn-primary mt-5 rounded-full px-5 py-2.5">Try again</button>
             </section>
           ) : enrolledCourses.length > 0 ? (
             <section className="mb-10 border-t border-neutral-200 pt-8">
               <p className="page-kicker">Continue learning</p>
               <h2 className="mt-2 font-display text-2xl font-semibold tracking-tight text-neutral-900">You have finished the lessons in your current courses</h2>
               <p className="mt-2 max-w-xl text-sm text-neutral-600">Review a course, or open another one from the library.</p>
-              <Link href="/courses" className="mt-5 inline-flex items-center gap-2 rounded-full bg-primary-400 px-5 py-2.5 text-sm font-semibold text-neutral-900 hover:bg-primary-500">
+              <Link href="/courses" className="btn btn-primary mt-5 rounded-full px-5 py-2.5">
                 View your courses
                 <ArrowRight className="h-4 w-4" aria-hidden />
               </Link>
@@ -254,23 +269,23 @@ export default function Dashboard() {
               <p className="mt-2 max-w-xl text-sm leading-relaxed text-neutral-600">
                 Lessons, practice on the demo desk, and questions in the community all start from a course. Progress is kept on this page and on My progress.
               </p>
-              <Link href="/courses" className="mt-5 inline-flex items-center gap-2 rounded-full bg-primary-400 px-5 py-2.5 text-sm font-semibold text-neutral-900 hover:bg-primary-500">
+              <Link href="/courses" className="btn btn-primary mt-5 rounded-full px-5 py-2.5">
                 Browse courses
                 <ArrowRight className="h-4 w-4" aria-hidden />
               </Link>
             </section>
           )}
 
-          <section className="mb-10 grid grid-cols-3 gap-4 border-y border-neutral-200 py-5" aria-label="Learning progress">
-            <div>
+          <section className="mb-10 grid grid-cols-3 gap-3 sm:gap-4" aria-label="Learning progress">
+            <div className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-soft">
               <p className="font-display text-2xl font-semibold text-neutral-900">{progressError ? '—' : enrolledCourses.length}</p>
               <p className="mt-1 text-xs text-neutral-500">Active courses</p>
             </div>
-            <div>
+            <div className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-soft">
               <p className="font-display text-2xl font-semibold text-neutral-900">{progressError ? '—' : completedLessons}</p>
               <p className="mt-1 text-xs text-neutral-500">Lessons completed</p>
             </div>
-            <div>
+            <div className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-soft">
               <p className="font-display text-2xl font-semibold text-neutral-900">{progressError ? '—' : finishedCourses}</p>
               <p className="mt-1 text-xs text-neutral-500">Courses completed</p>
             </div>
@@ -280,8 +295,8 @@ export default function Dashboard() {
             <section className="mb-10">
               <p className="page-kicker">From the catalog</p>
               <h2 className="mt-2 font-display text-xl font-semibold text-neutral-900" dangerouslySetInnerHTML={{ __html: sanitizeForStudentView(catalogSuggestion.title) }} />
-              <p className="mt-2 line-clamp-3 max-w-xl text-sm text-neutral-600">{stripHtml(sanitizeForStudentView(catalogSuggestion.description || ''))}</p>
-              <p className="mt-2 text-xs capitalize text-neutral-500">{catalogSuggestion.difficulty} · {catalogSuggestion.category}</p>
+              <p className="mt-2 line-clamp-3 max-w-xl text-sm text-neutral-600">{previewText(catalogSuggestion.description)}</p>
+              <p className="mt-2 text-xs capitalize text-neutral-600">{catalogSuggestion.difficulty} · {catalogSuggestion.category}</p>
               <Link href={`/courses/${catalogSuggestion._id || catalogSuggestion.id}`} className="mt-3 inline-flex text-sm font-semibold text-primary-700 hover:underline">
                 View this course
               </Link>
