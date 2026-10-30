@@ -9,6 +9,7 @@ import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
 import BackButton from '@/components/BackButton';
 import LoadingSpinner from '@/components/LoadingSpinner';
+import AccountSecurity from '@/components/AccountSecurity';
 import { useAuth } from '@/hooks/useAuth';
 import { apiClient } from '@/lib/api-client';
 
@@ -172,6 +173,26 @@ export default function Profile() {
     }
   };
 
+  const handlePhotoRemove = async () => {
+    if (!confirm('Remove your profile photo?')) return;
+    setUploadingPhoto(true);
+    setError('');
+    try {
+      await apiClient.delete('/upload/profile');
+      setFormData((prev) => ({ ...prev, profilePhoto: '' }));
+      setPhotoPreview('');
+      setSelectedPhoto(null);
+      setSuccess('Profile photo removed.');
+      void refreshUser();
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (error: unknown) {
+      const e = error as { response?: { data?: { error?: string } }; message?: string };
+      setError(e.response?.data?.error || e.message || 'Failed to remove photo');
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
   const handleSave = async () => {
     setLoading(true);
     setError('');
@@ -286,6 +307,17 @@ export default function Profile() {
                     className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed mb-2"
                   >
                     {uploadingPhoto ? 'Uploading...' : 'Upload Photo'}
+                  </button>
+                )}
+
+                {formData.profilePhoto && !selectedPhoto && isEditing && (
+                  <button
+                    type="button"
+                    onClick={handlePhotoRemove}
+                    disabled={uploadingPhoto}
+                    className="btn btn-danger-quiet px-4 py-2 text-sm mb-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Remove photo
                   </button>
                 )}
 
@@ -582,6 +614,8 @@ export default function Profile() {
             </div>
           </div>
         </div>
+
+        <AccountSecurity />
       </main>
       </div>
     </div>

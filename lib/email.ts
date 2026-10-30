@@ -17,7 +17,7 @@
  */
 
 import { Resend } from 'resend';
-import { passwordChangedEmail, passwordResetEmail, type RenderedEmail } from './email-templates';
+import { passwordChangedEmail, passwordResetEmail, type PasswordChangeMethod, type RenderedEmail } from './email-templates';
 
 type Env = Record<string, string | undefined>;
 
@@ -137,9 +137,9 @@ export async function sendPasswordResetEmail(
   return deliver(config, input.to, message, { kind: 'password_reset', idempotencyKey: input.idempotencyKey, timeoutMs });
 }
 
-/** Tells the account holder their password was changed through a reset link. */
+/** Tells the account holder their password was changed (by reset link, or in account settings). */
 export async function sendPasswordChangedEmail(
-  input: { to: string; name?: unknown; idempotencyKey: string },
+  input: { to: string; name?: unknown; idempotencyKey: string; method?: PasswordChangeMethod },
   { env = process.env, timeoutMs = EMAIL_SEND_TIMEOUT_MS }: SendOptions = {}
 ): Promise<EmailResult> {
   const config = readEmailConfig(env);
@@ -147,6 +147,10 @@ export async function sendPasswordChangedEmail(
     console.warn(JSON.stringify({ event: 'email_not_sent', kind: 'password_changed', reason: config.reason }));
     return { ok: false, reason: config.reason };
   }
-  const message = passwordChangedEmail({ name: input.name, forgotPasswordUrl: `${config.appBaseUrl}/forgot-password` });
+  const message = passwordChangedEmail({
+    name: input.name,
+    forgotPasswordUrl: `${config.appBaseUrl}/forgot-password`,
+    method: input.method,
+  });
   return deliver(config, input.to, message, { kind: 'password_changed', idempotencyKey: input.idempotencyKey, timeoutMs });
 }

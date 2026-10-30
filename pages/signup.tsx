@@ -10,6 +10,7 @@ import { AuthFrame, authButtonClass, authFieldClass, authHelperClass, authLabelC
 import { ButtonLoadingState } from '@/components/loading';
 import { useAuth } from '@/hooks/useAuth';
 import { loginHref, safeNextPath } from '@/lib/login-redirect';
+import { PASSWORD_MIN_CHARS, checkNewPassword } from '@/lib/password-policy';
 
 // Helper function to normalize email (trim + lowercase)
 const normalizeEmail = (email: string): string => {
@@ -50,8 +51,10 @@ export default function Signup() {
       return;
     }
 
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters long');
+    // Same rule the server applies (lib/password-policy.js).
+    const policy = checkNewPassword(password);
+    if (!policy.ok) {
+      setError(policy.error);
       return;
     }
 
@@ -148,11 +151,11 @@ export default function Signup() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            minLength={6}
+            minLength={PASSWORD_MIN_CHARS}
             autoComplete="new-password"
             className={authFieldClass}
           />
-          <p className={authHelperClass}>At least 6 characters.</p>
+          <p className={authHelperClass}>At least {PASSWORD_MIN_CHARS} characters.</p>
         </div>
         <div>
           <label className={authLabelClass} htmlFor="signup-role">Role</label>

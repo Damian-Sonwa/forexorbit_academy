@@ -12,6 +12,7 @@ import { isDuplicateKey, signupConflict } from '@/lib/signup-conflict';
 import { PUBLIC_SIGNUP_ROLES } from '@/lib/account-approval';
 import { SIGNUP_RULES, createAuthLimiter, sendRefusal } from '@/lib/auth-rate-limit';
 import { clientAddress } from '@/lib/client-ip';
+import { checkSignupFields } from '@/lib/signup-input';
 
 const signupLimiter = createAuthLimiter(SIGNUP_RULES);
 
@@ -24,7 +25,8 @@ export default async function handler(
   }
 
   try {
-    const { email, password, name, role = 'student' } = req.body;
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const { email, password, name, role = 'student' } = body;
 
     if (!email || !password || !name) {
       return res.status(400).json({ error: 'Name, email, and password are required' });
@@ -36,11 +38,13 @@ export default async function handler(
       return res.status(400).json({ error: 'Invalid role' });
     }
 
-    const emailNorm = String(email).trim().toLowerCase();
-    const nameTrim = String(name).trim();
-    if (!nameTrim) {
-      return res.status(400).json({ error: 'Name, email, and password are required' });
+    // Email format and length, name, and the same password rule as password reset.
+    const fields = checkSignupFields({ email, password, name });
+    if (!fields.ok) {
+      return res.status(fields.status).json({ error: fields.error, code: fields.code });
     }
+    const emailNorm = fields.email;
+    const nameTrim = fields.name;
 
     // Counted before the duplicate check, password hash and insert.
     const limit = await signupLimiter.consume({ ip: clientAddress(req), email: emailNorm, getDb });

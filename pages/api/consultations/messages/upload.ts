@@ -11,6 +11,7 @@ import { ObjectId } from 'mongodb';
 import formidable from 'formidable';
 import fs from 'fs';
 import path from 'path';
+import { isActiveContent, storedFileName } from '@/lib/upload-safety';
 
 export const config = {
   api: {
@@ -42,9 +43,14 @@ async function uploadMessageFile(req: AuthRequest, res: NextApiResponse) {
       return res.status(400).json({ error: 'File, sessionId, and type are required' });
     }
 
-    // Generate unique filename
-    const fileExt = path.extname(file.originalFilename || '');
-    const uniqueFilename = `${Date.now()}-${Math.random().toString(36).substring(7)}${fileExt}`;
+    // Pages, SVG and scripts would run from this site's origin; they are refused (lib/upload-safety.js).
+    if (isActiveContent({ originalFilename: file.originalFilename, mimetype: file.mimetype })) {
+      if (fs.existsSync(file.filepath)) fs.unlinkSync(file.filepath);
+      return res.status(400).json({ error: 'This file type cannot be shared. Send an image, video, audio or document file.', code: 'file_type_not_allowed' });
+    }
+
+    // Random, unguessable stored name
+    const uniqueFilename = storedFileName(file.originalFilename);
     const newPath = path.join(uploadDir, uniqueFilename);
 
     // Move file to final location

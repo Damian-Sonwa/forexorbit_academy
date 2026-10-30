@@ -342,6 +342,29 @@ export default function AdminPanel() {
     }
   };
 
+  const handleChangeUserStatus = async (userId: string, action: 'suspend' | 'reactivate') => {
+    if (!userId) return;
+    const reason = prompt(
+      action === 'suspend'
+        ? 'Reason for suspending this account (recorded in the audit log). The account is signed out everywhere.'
+        : 'Reason for reactivating this account (recorded in the audit log).'
+    );
+    if (reason === null) return;
+    try {
+      const response = await apiClient.patch<ApiResponse>(`/admin/users/${userId}`, { action, reason });
+      await loadUsers();
+      alert(response?.message || (action === 'suspend' ? 'Account suspended.' : 'Account reactivated.'));
+    } catch (error: unknown) {
+      if (decisionSavedWithoutAudit(error)) {
+        await loadUsers();
+        alert('The change was saved, but the audit entry could not be written. Do not repeat it; report this to support.');
+        return;
+      }
+      const e = error as { response?: { data?: { error?: string } }; message?: string };
+      alert(e.response?.data?.error || e.message || 'Failed to change the account status');
+    }
+  };
+
   const loadInstructors = async () => {
     try {
       const data = await apiClient.get<User[]>('/instructors');
@@ -1202,6 +1225,16 @@ export default function AdminPanel() {
                             </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm">
+                            {/* Suspending and reactivating are Super Admin only; the server refuses them for everyone else. */}
+                            {isSuperAdmin && userItem.role !== 'superadmin' && user?.id !== (userItem._id || userItem.id) &&
+                              ((userItem.status || 'approved') === 'approved' || userItem.status === 'suspended') && (
+                              <button
+                                onClick={() => handleChangeUserStatus(userItem._id || userItem.id, userItem.status === 'suspended' ? 'reactivate' : 'suspend')}
+                                className="btn btn-secondary px-3 py-1 text-xs mr-2"
+                              >
+                                {userItem.status === 'suspended' ? 'Reactivate' : 'Suspend'}
+                              </button>
+                            )}
                             {/* Deleting an account is Super Admin only; the server refuses it for everyone else. */}
                             {isSuperAdmin && (
                               <button

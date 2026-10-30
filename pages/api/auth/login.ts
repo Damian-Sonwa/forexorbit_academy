@@ -4,6 +4,7 @@
  */
 
 import type { NextApiRequest, NextApiResponse } from 'next';
+import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import { getDb } from '@/lib/mongodb';
 import { issueAuthToken } from '@/lib/jwt';
@@ -15,6 +16,20 @@ import { clientAddress } from '@/lib/client-ip';
 const loginLimiter = createAuthLimiter(LOGIN_RULES);
 
 const INVALID_LOGIN = 'Invalid email or password. Please check your credentials.';
+
+/** Longer than any password the app accepts; refused before hashing so it cannot cost bcrypt time. */
+const MAX_PASSWORD_CHARS = 1024;
+
+/**
+ * Compared when no account (or no stored password) matches, so a failed sign-in takes about as
+ * long whether or not the address has an account. Same cost factor as stored passwords (10).
+ * Made once, on first use, so it does not slow server start.
+ */
+let placeholderHash: string | null = null;
+function unknownAccountHash(): string {
+  if (!placeholderHash) placeholderHash = bcrypt.hashSync(crypto.randomBytes(24).toString('hex'), 10);
+  return placeholderHash;
+}
 
 export default async function handler(
   req: NextApiRequest,
@@ -45,17 +60,19 @@ export default async function handler(
     const limit = await loginLimiter.consume({ ip: clientAddress(req), email: emailNorm, getDb });
     if (!limit.allowed) return sendRefusal(res, limit);
 
-    const db = await getDb();
-    const users = db.collection('users');
-    const user = await users.findOne({ email: emailNorm });
-    if (!user || typeof user.password !== 'string' || !user.password) {
-      console.error('Login attempt failed');
+    if (password.length > MAX_PASSWORD_CHARS) {
+      console.warn(JSON.stringify({ event: 'login_failed', reason: 'password_too_long' }));
       return res.status(401).json({ error: INVALID_LOGIN });
     }
 
-    const isValid = await bcrypt.compare(password, user.password);
-    if (!isValid) {
-      console.error('Login attempt failed');
+    const db = await getDb();
+    const users = db.collection('users');
+    const user = await users.findOne({ email: emailNorm });
+    const hasPassword = Boolean(user && typeof user.password === 'string' && user.password);
+    // Always one bcrypt comparison, so the response time does not reveal whether the account exists.
+    const isValid = await bcrypt.compare(password, hasPassword ? user!.password : unknownAccountHash());
+    if (!user || !hasPassword || !isValid) {
+      console.warn(JSON.stringify({ event: 'login_failed', reason: 'invalid_credentials' }));
       return res.status(401).json({ error: INVALID_LOGIN });
     }
 

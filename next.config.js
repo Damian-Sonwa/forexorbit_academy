@@ -11,6 +11,23 @@ try {
   console.warn('[ForexOrbit PWA] Could not copy service-worker.js to public:', e.message);
 }
 
+/**
+ * Security headers on every response. Only directives that cannot block the site's own content:
+ * the page cannot be framed by another site (clickjacking), plugins and <base> rewriting are off,
+ * MIME sniffing is off, referrers are trimmed across origins, HTTPS is remembered, and only this
+ * site may use the camera and microphone (consultation calls). Script and style sources are not
+ * restricted yet: the site loads Paystack, fonts, ads, video and call SDKs, and an enforced
+ * script policy needs a browser-tested allowlist first (docs/audits/phase-1-3-remediation.md).
+ */
+const SECURITY_HEADERS = [
+  { key: 'Content-Security-Policy', value: "frame-ancestors 'none'; object-src 'none'; base-uri 'self'" },
+  { key: 'X-Frame-Options', value: 'DENY' },
+  { key: 'X-Content-Type-Options', value: 'nosniff' },
+  { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+  { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains' },
+  { key: 'Permissions-Policy', value: 'camera=(self), microphone=(self), geolocation=(), browsing-topics=()' },
+];
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
@@ -34,6 +51,10 @@ const nextConfig = {
   // Agora readiness is determined by the token API response.
   async headers() {
     return [
+      {
+        source: '/:path*',
+        headers: SECURITY_HEADERS,
+      },
       {
         source: '/service-worker.js',
         headers: [

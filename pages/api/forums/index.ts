@@ -26,9 +26,10 @@ async function getForumPosts(req: AuthRequest, res: NextApiResponse) {
     // Enrich with user details and replies
     const enrichedPosts = await Promise.all(
       posts.map(async (post) => {
+        // Authors are shown by name only: other members' email addresses are not shared.
         const author = await users.findOne(
           { _id: new ObjectId(post.userId) },
-          { projection: { name: 1, email: 1 } }
+          { projection: { name: 1 } }
         );
 
         // Get replies
@@ -37,18 +38,18 @@ async function getForumPosts(req: AuthRequest, res: NextApiResponse) {
           replies.map(async (reply) => {
             const replyAuthor = await users.findOne(
               { _id: new ObjectId(reply.userId) },
-              { projection: { name: 1, email: 1 } }
+              { projection: { name: 1 } }
             );
             return {
               ...reply,
-              author: replyAuthor ? { name: replyAuthor.name, email: replyAuthor.email } : null,
+              author: replyAuthor ? { name: replyAuthor.name } : null,
             };
           })
         );
 
         return {
           ...post,
-          author: author ? { name: author.name, email: author.email } : null,
+          author: author ? { name: author.name } : null,
           replies: enrichedReplies,
           replyCount: enrichedReplies.length,
         };

@@ -3,7 +3,7 @@
  * stripHtml removes tags but leaves entities such as &amp; encoded, which then show up
  * literally in the UI. React escapes the result again when rendering, so decoding here is safe.
  */
-import { sanitizeForStudentView, stripHtml } from '@/lib/html-sanitizer';
+import { stripHtml } from '@/lib/html-sanitizer';
 
 const NAMED_ENTITIES: Record<string, string> = {
   amp: '&',
@@ -32,9 +32,15 @@ export function decodeHtmlEntities(text: string): string {
   });
 }
 
-/** Student-safe plain text from a stored HTML description, for one-line or clamped previews. */
+/**
+ * Student-safe plain text from a stored HTML description, for one-line or clamped previews. The
+ * result is text (React escapes it), so no HTML sanitizing is needed: script and style contents
+ * are dropped so they never read as text, then tags are removed (stripHtml also removes visual-aid
+ * images, as in the student view) and entities decoded.
+ */
 export function previewText(html: string | null | undefined): string {
-  return decodeHtmlEntities(stripHtml(sanitizeForStudentView(html || '')))
+  const withoutCode = (html || '').replace(/<(script|style)\b[^>]*>[\s\S]*?(<\/\1\s*>|$)/gi, ' ');
+  return decodeHtmlEntities(stripHtml(withoutCode))
     .replace(/\s+/g, ' ')
     .trim();
 }

@@ -8,6 +8,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
+import { checkOnboardingInput } from '@/lib/onboarding-input';
 
 async function saveOnboarding(req: AuthRequest, res: NextApiResponse) {
   try {
@@ -16,60 +17,33 @@ async function saveOnboarding(req: AuthRequest, res: NextApiResponse) {
       return res.status(403).json({ error: 'Only students can complete onboarding' });
     }
 
-    const {
-      fullName,
-      dateOfBirth,
-      gender,
-      contactNumber,
-      educationLevel,
-      certifications,
-      tradingLevel,
-      yearsOfExperience,
-      preferredTopics,
-      notificationPreferences,
-    } = req.body;
-
-    // Validate required fields
-    if (!fullName || !dateOfBirth || !contactNumber || !educationLevel || !tradingLevel || !yearsOfExperience) {
-      return res.status(400).json({ error: 'Missing required fields' });
-    }
-
-    if (!preferredTopics || !Array.isArray(preferredTopics) || preferredTopics.length === 0) {
-      return res.status(400).json({ error: 'Please select at least one preferred learning topic' });
+    // Types, lengths and the level are checked (lib/onboarding-input.js).
+    const input = checkOnboardingInput(req.body);
+    if (!input.ok) {
+      return res.status(input.status).json({ error: input.error });
     }
 
     const db = await getDb();
     const users = db.collection('users');
+    const userId = new ObjectId(req.user!.userId);
+    const now = new Date();
 
-    // Update user with onboarding data
-    // CRITICAL: Set learningLevel from tradingLevel to determine community room access and dashboard display
+    // Onboarding answers and the display name. learningLevel is not changed here.
     const result = await users.updateOne(
-      { _id: new ObjectId(req.user!.userId) },
+      { _id: userId },
       {
         $set: {
-          name: fullName, // Update main name field
-          learningLevel: tradingLevel, // Set learningLevel from onboarding tradingLevel
-          studentDetails: {
-            fullName,
-            dateOfBirth,
-            gender: gender || null,
-            contactNumber,
-            educationLevel,
-            certifications: certifications || null,
-            tradingLevel,
-            yearsOfExperience,
-            preferredTopics,
-            notificationPreferences: notificationPreferences || {
-              email: true,
-              sms: false,
-              push: true,
-            },
-            completedAt: new Date(),
-          },
-          updatedAt: new Date(),
+          name: input.name,
+          studentDetails: { ...input.details, completedAt: now },
+          updatedAt: now,
         },
       }
     );
+    // Placement: the self-reported level sets learningLevel only if the account has none yet.
+    // Later changes come from course progress, so a student cannot raise their own level.
+    if (result.matchedCount > 0) {
+      await users.updateOne({ _id: userId, learningLevel: null }, { $set: { learningLevel: input.level, levelUpdatedAt: now } });
+    }
 
     if (result.matchedCount === 0) {
       return res.status(404).json({ error: 'User not found' });

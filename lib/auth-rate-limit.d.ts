@@ -11,6 +11,7 @@ export const WINDOW_MS: number;
 export const MAX_LOCAL_KEYS: number;
 export const LOGIN_RULES: readonly AuthRule[];
 export const SIGNUP_RULES: readonly AuthRule[];
+export const PASSWORD_CHANGE_RULES: readonly AuthRule[];
 export const RESET_REQUEST_RULES: readonly AuthRule[];
 export const RESET_COOLDOWN_RULES: readonly AuthRule[];
 export const RESET_COOLDOWN_WINDOW_MS: number;

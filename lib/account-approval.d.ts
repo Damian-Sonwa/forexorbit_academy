@@ -56,3 +56,18 @@ export function deleteAccount(
   db: Db,
   input: { actor: ApprovalActor; userId: unknown; now?: Date }
 ): Promise<{ ok: true; status: 200; user: DeletedUser } | ApprovalRefusal | SavedWithoutAudit<DeletedUser>>;
+
+export const STATUS_ACTIONS: readonly string[];
+export type StatusUser = { id: string; role: string; status: string };
+
+export function decideStatusRequest(input: {
+  actor: ApprovalActor | null | undefined;
+  userId: unknown;
+  action: unknown;
+  reason: unknown;
+}): { ok: true; reason: string } | ApprovalRefusal;
+
+export function changeAccountStatus(
+  db: Db,
+  input: { actor: ApprovalActor; userId: unknown; action: unknown; reason: unknown; now?: Date }
+): Promise<{ ok: true; status: 200; user: StatusUser } | ApprovalRefusal | SavedWithoutAudit<StatusUser>>;

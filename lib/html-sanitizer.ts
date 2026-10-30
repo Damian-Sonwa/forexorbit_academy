@@ -73,8 +73,11 @@ export function sanitizeHtml(
     }
   }
 
-  // Server-side fallback: regex-based sanitization (whitelist not applied here)
-  return sanitizeHtmlString(html);
+  // Without a DOM (server rendering) the allowlist cannot be applied reliably, so markup is shown
+  // as text rather than trusted. Pages here load lesson and course HTML in the browser, so the
+  // server only ever sees their empty initial state; a page that rendered HTML on the server would
+  // show it escaped (safe) instead of unsanitized.
+  return escapeHtml(html);
 }
 
 /**
@@ -95,13 +98,15 @@ export function sanitizeForStudentView(
 /**
  * Sanitize HTML element recursively (client-side)
  */
-function sanitizeElement(
+export function sanitizeElement(
   element: Element,
   allowedTags: string[],
   allowedAttributes: Record<string, string[]>
 ): void {
-  for (let i = 0; i < element.children.length; i++) {
-    const child = element.children[i];
+  // A snapshot, not the live `children` list: replacing a child shifts the live list, which made
+  // the loop skip the element after every removed one (so `<b>x</b><img onerror=...>` could keep
+  // its handler when the first element was removed).
+  for (const child of Array.from(element.children)) {
     const tagName = child.tagName.toLowerCase();
 
     if (!allowedTags.includes(tagName)) {
@@ -136,6 +141,10 @@ function sanitizeElement(
       if (target && !['_blank', '_self', '_parent', '_top'].includes(target)) {
         child.removeAttribute('target');
       }
+      // A link opened in a new tab must not get a handle on this page (window.opener).
+      if (tagName === 'a' && child.getAttribute('target') === '_blank') {
+        child.setAttribute('rel', 'noopener noreferrer');
+      }
 
       // Recursively sanitize children
       sanitizeElement(child, allowedTags, allowedAttributes as Record<string, string[]>);
@@ -144,45 +153,18 @@ function sanitizeElement(
 }
 
 /**
- * Regex-based HTML sanitization (server-side fallback)
- */
-function sanitizeHtmlString(html: string): string {
-  let result = html;
-
-  // Remove script tags and content
-  result = result.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
-
-  // Remove event handlers
-  result = result.replace(/\s*on\w+\s*=\s*["'][^"']*["']/gi, '');
-  result = result.replace(/\s*on\w+\s*=\s*[^\s>]*/gi, '');
-
-  // Remove style tags
-  result = result.replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '');
-
-  // Remove dangerous protocols from URLs
-  result = result.replace(/href\s*=\s*["']?javascript:/gi, 'href="javascript:void(0)"');
-  result = result.replace(/src\s*=\s*["']?javascript:/gi, 'src=""');
-
-  return result;
-}
-
-/**
  * Check if URL is valid and safe
  */
-function isValidUrl(url: string): boolean {
+export function isValidUrl(url: string): boolean {
   if (!url) return false;
 
-  // Block javascript protocol
-  if (url.toLowerCase().startsWith('javascript:')) return false;
-  if (url.toLowerCase().startsWith('data:')) return false;
-  if (url.toLowerCase().startsWith('vbscript:')) return false;
-
-  // Allow relative URLs and common protocols
-  if (url.startsWith('/') || url.startsWith('#')) return true;
-  if (url.startsWith('http://') || url.startsWith('https://')) return true;
-  if (url.startsWith('mailto:') || url.startsWith('tel:')) return true;
-
-  return true;
+  // Browsers ignore whitespace and control characters inside a scheme ("java\tscript:"), so
+  // compare without them. Only http, https, mailto and tel are allowed; relative URLs (no scheme)
+  // are allowed; every other scheme (javascript:, data:, vbscript:, file:, ...) is refused.
+  const compact = url.replace(/[\u0000- \u007f-\u009f]/g, '').toLowerCase();
+  const scheme = /^([a-z][a-z0-9+.-]*):/.exec(compact);
+  if (!scheme) return true;
+  return ['http', 'https', 'mailto', 'tel'].includes(scheme[1]);
 }
 
 /**

@@ -99,15 +99,31 @@ export function passwordResetEmail({
   return { subject, html, text };
 }
 
-export function passwordChangedEmail({ name, forgotPasswordUrl }: { name: unknown; forgotPasswordUrl: string }): RenderedEmail {
+/** How the password was changed: with an emailed reset link, or in account settings while signed in. */
+export type PasswordChangeMethod = 'reset' | 'settings';
+
+export function passwordChangedEmail({
+  name,
+  forgotPasswordUrl,
+  method = 'reset',
+}: {
+  name: unknown;
+  forgotPasswordUrl: string;
+  method?: PasswordChangeMethod;
+}): RenderedEmail {
   const who = greetingName(name);
   const subject = `Your ${BRAND} password was changed`;
+  const how = method === 'settings' ? 'in your account settings' : 'using a reset link';
+  const signedOut =
+    method === 'settings'
+      ? 'For your security, every other device has been signed out.'
+      : 'For your security, you have been signed out on every device. Sign in again with your new password.';
   const html = layout({
-    preheader: 'Your password was just changed. You have been signed out on every device.',
+    preheader: 'Your password was just changed.',
     heading: 'Your password was changed',
     body: [
       paragraph(`Hello ${escapeHtml(who)},`),
-      paragraph(`The password for your ${BRAND} account was just changed using a reset link. For your security, you have been signed out on every device. Sign in again with your new password.`),
+      paragraph(`The password for your ${BRAND} account was just changed ${how}. ${signedOut}`),
       paragraph('<strong>If you did not make this change</strong>, reset your password now and contact our support team.'),
       button(forgotPasswordUrl, 'Reset my password'),
     ].join('\n'),
@@ -117,8 +133,8 @@ export function passwordChangedEmail({ name, forgotPasswordUrl }: { name: unknow
     '',
     `Hello ${who},`,
     '',
-    `The password for your ${BRAND} account was just changed using a reset link.`,
-    'For your security, you have been signed out on every device. Sign in again with your new password.',
+    `The password for your ${BRAND} account was just changed ${how}.`,
+    signedOut,
     '',
     'If you did not make this change, reset your password now and contact our support team:',
     forgotPasswordUrl,

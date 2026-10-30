@@ -138,6 +138,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [refreshUser]);
 
+  // Keeps every open tab in step: signing out (or in) in one tab updates the others. The browser
+  // fires `storage` only in the other tabs, never in the tab that made the change.
+  useEffect(() => {
+    const onStorage = (event: StorageEvent) => {
+      if (event.storageArea !== window.localStorage) return;
+      if (event.key === 'token' || event.key === null) {
+        if (!localStorage.getItem('token')) setUser(null);
+        return;
+      }
+      if (event.key === 'user') {
+        if (!event.newValue) {
+          setUser(null);
+          return;
+        }
+        try {
+          setUser(JSON.parse(event.newValue));
+        } catch {
+          setUser(null);
+        }
+      }
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
+
   const login = async (email: string, password: string) => {
     // Normalize email (trim + lowercase)
     const normalizedEmail = email.trim().toLowerCase();

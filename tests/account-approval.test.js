@@ -770,7 +770,9 @@ test('through the route: only a signed-in Super Admin can delete an account; del
     assert.equal((await del('superadmin', new ObjectId())).statusCode, 404);
     const self = await del('superadmin', ids.superadmin);
     assert.deepEqual([self.statusCode, self.body.error], [400, 'Cannot delete your own account']);
-    assert.equal((await call(handler, { token: tokens.superadmin, method: 'PATCH', query: { id: String(ids.student) } })).statusCode, 405);
+    assert.equal((await call(handler, { token: tokens.superadmin, method: 'POST', query: { id: String(ids.student) } })).statusCode, 405);
+    // PATCH is suspension and reactivation (tests/account-security.test.js); without an action it changes nothing.
+    assert.equal((await call(handler, { token: tokens.superadmin, method: 'PATCH', query: { id: String(ids.student) } })).statusCode, 400);
 
     const ok = await del('superadmin', ids.pendingInstructor);
     assert.deepEqual([ok.statusCode, ok.body], [200, { success: true, message: 'User deleted successfully' }]);

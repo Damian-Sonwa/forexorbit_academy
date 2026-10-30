@@ -1,4 +1,4 @@
-import { publicUploadFailure } from '@/lib/public-error';
+import { publicUploadFailure, unexpectedBody } from '@/lib/public-error';
 /**
  * Profile Photo Upload API Route
  * Handles profile photo uploads for users
@@ -7,7 +7,7 @@ import { publicUploadFailure } from '@/lib/public-error';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
-import { ObjectId } from 'mongodb';
+import { currentPhotoId, removeProfilePhoto, replaceProfilePhoto } from '@/lib/profile-photo';
 import formidable from 'formidable';
 import fs from 'fs';
 import { uploadImageFromPath, validateImageFile, deleteImage, isCloudinaryConfigured } from '@/lib/cloudinary';
@@ -77,11 +77,9 @@ async function uploadProfilePhoto(req: AuthRequest, res: NextApiResponse) {
       return res.status(400).json({ error: validation.error });
     }
 
-    // Get old profile photo to delete it from Cloudinary if it exists
+    // The photo in use now; it is replaced only if the account still has it after the upload.
     const db = await getDb();
-    const users = db.collection('users');
-    const user = await users.findOne({ _id: new ObjectId(req.user!.userId) });
-    const oldProfilePhotoPublicId = user?.profilePhotoPublicId;
+    const previousPublicId = await currentPhotoId(db, req.user!.userId);
 
     // Upload to Cloudinary directly from file path (more efficient)
     const uploadResult = await uploadImageFromPath(file.filepath, 'profiles', {
@@ -97,24 +95,16 @@ async function uploadProfilePhoto(req: AuthRequest, res: NextApiResponse) {
       }
     }
 
-    // Update user profile photo in database with Cloudinary URL
-    await users.updateOne(
-      { _id: new ObjectId(req.user!.userId) },
-      {
-        $set: {
-          profilePhoto: uploadResult.secureUrl,
-          profilePhotoPublicId: uploadResult.publicId, // Store public ID for future deletion
-          updatedAt: new Date(),
-        },
-      }
-    );
-
-    // Delete old profile photo from Cloudinary asynchronously (don't block response)
-    if (oldProfilePhotoPublicId) {
-      deleteImage(oldProfilePhotoPublicId).catch((error) => {
-        console.error('Failed to delete old profile photo from Cloudinary:');
-        // Don't fail the request if deletion fails
-      });
+    // Record the new photo, then delete the old one (lib/profile-photo.js). An upload that cannot
+    // be recorded is deleted again, so no unreferenced copy is left behind.
+    const replaced = await replaceProfilePhoto(db, {
+      userId: req.user!.userId,
+      previousPublicId,
+      upload: { secureUrl: uploadResult.secureUrl, publicId: uploadResult.publicId },
+      deleteImage,
+    });
+    if (!replaced.ok) {
+      return res.status(replaced.status).json({ error: replaced.error, code: replaced.code });
     }
 
     res.json({
@@ -128,7 +118,28 @@ async function uploadProfilePhoto(req: AuthRequest, res: NextApiResponse) {
   }
 }
 
-export default withAuth(uploadProfilePhoto);
+/** DELETE: remove the account's photo (record first, then the stored file). */
+async function deleteProfilePhoto(req: AuthRequest, res: NextApiResponse) {
+  try {
+    const db = await getDb();
+    const result = await removeProfilePhoto(db, { userId: req.user!.userId, deleteImage });
+    if (!result.ok) {
+      return res.status(result.status).json({ error: result.error, code: result.code });
+    }
+    return res.json({ success: true, removed: result.removed });
+  } catch (error: unknown) {
+    return res.status(500).json(unexpectedBody('profile photo delete', error));
+  }
+}
+
+async function handler(req: AuthRequest, res: NextApiResponse) {
+  if (req.method === 'POST') return uploadProfilePhoto(req, res);
+  if (req.method === 'DELETE') return deleteProfilePhoto(req, res);
+  res.setHeader('Allow', ['POST', 'DELETE']);
+  return res.status(405).json({ error: 'Method not allowed' });
+}
+
+export default withAuth(handler);
 
 
 
