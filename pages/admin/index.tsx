@@ -297,6 +297,11 @@ export default function AdminPanel() {
       await loadUsers();
       alert(response?.message || 'User role updated successfully');
     } catch (error: unknown) {
+      if (decisionSavedWithoutAudit(error)) {
+        await loadUsers();
+        alert('The role was changed, but the audit entry could not be written. Do not repeat the change; report this to support.');
+        return;
+      }
       let errorMessage = 'Failed to update user role';
       if (error && typeof error === 'object' && 'response' in error) {
         const apiError = error as { response?: { data?: { message?: string; error?: string } }; message?: string };
@@ -326,6 +331,11 @@ export default function AdminPanel() {
       await loadUsers();
       alert(response?.message || 'User deleted successfully');
     } catch (error: any) {
+      if (decisionSavedWithoutAudit(error)) {
+        await loadUsers();
+        alert('The account was deleted, but the audit entry could not be written. Do not repeat the deletion; report this to support.');
+        return;
+      }
       const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message || 'Failed to delete user';
       alert(errorMessage);
       console.error('Delete user error');
@@ -1192,20 +1202,23 @@ export default function AdminPanel() {
                             </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm">
-                            <button
-                              onClick={() => handleDeleteUser(userItem._id || userItem.id)}
-                              className="btn btn-danger-quiet px-3 py-1 text-xs"
-                              disabled={userItem.role === 'superadmin' || (user && user.id === (userItem._id || userItem.id))}
-                              title={
-                                userItem.role === 'superadmin'
-                                  ? 'Cannot delete Super Admin'
-                                  : user && user.id === (userItem._id || userItem.id)
-                                  ? 'Cannot delete your own account'
-                                  : 'Delete user'
-                              }
-                            >
-                              Delete
-                            </button>
+                            {/* Deleting an account is Super Admin only; the server refuses it for everyone else. */}
+                            {isSuperAdmin && (
+                              <button
+                                onClick={() => handleDeleteUser(userItem._id || userItem.id)}
+                                className="btn btn-danger-quiet px-3 py-1 text-xs"
+                                disabled={userItem.role === 'superadmin' || (user && user.id === (userItem._id || userItem.id))}
+                                title={
+                                  userItem.role === 'superadmin'
+                                    ? 'Cannot delete Super Admin'
+                                    : user && user.id === (userItem._id || userItem.id)
+                                    ? 'Cannot delete your own account'
+                                    : 'Delete user'
+                                }
+                              >
+                                Delete
+                              </button>
+                            )}
                           </td>
                         </tr>
                       ))

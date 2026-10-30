@@ -1,60 +1,41 @@
 import { unexpectedBody } from '@/lib/public-error';
 /**
  * Admin User API Route (Single User)
- * PUT: Update user role
- * DELETE: Delete user
+ * PUT: Update user role (granting or removing instructor or admin needs the Super Admin)
+ * DELETE: Delete user (Super Admin only)
+ * Both are applied and audited in lib/account-approval. A change saved without its audit entry is
+ * reported with 500 and decisionSaved: true, never as a success.
  */
 
 import type { NextApiResponse } from 'next';
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
-import { ObjectId } from 'mongodb';
-import { decideRoleChange } from '@/lib/account-approval';
+import { changeAccountRole, deleteAccount } from '@/lib/account-approval';
+
+type Failure = { ok: false; status: number; error: string; code: string; decisionSaved?: true; user?: { id: string } };
+
+/** Sends a refusal, or the report of a change that was saved without its audit entry. */
+function sendFailure(res: NextApiResponse, failure: Failure, event: string) {
+  if (failure.decisionSaved) {
+    console.error(JSON.stringify({ event, result: 'audit_write_failed', userId: failure.user?.id }));
+    return res.status(failure.status).json({ error: failure.error, code: failure.code, decisionSaved: true, user: failure.user });
+  }
+  return res.status(failure.status).json({ error: failure.error, code: failure.code });
+}
 
 // PUT update user role
 async function updateUser(req: AuthRequest, res: NextApiResponse) {
   try {
     const { id } = req.query;
-    const { role } = req.body;
-
-    if (!id || typeof id !== 'string') {
-      return res.status(400).json({ error: 'Invalid user ID' });
-    }
-
-    // Validate ObjectId format
-    if (!ObjectId.isValid(id)) {
-      return res.status(400).json({ error: 'Invalid user ID format' });
-    }
-
-    if (!['admin', 'instructor', 'student'].includes(role)) {
-      return res.status(400).json({ error: 'Invalid role. Must be admin, instructor, or student' });
-    }
-
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
     const db = await getDb();
-    const users = db.collection('users');
-
-    // Check if user exists and prevent changing Super Admin role
-    const userToUpdate = await users.findOne({ _id: new ObjectId(id) });
-    if (!userToUpdate) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    const change = decideRoleChange({ actor: req.user, currentRole: userToUpdate.role, newRole: role });
-    if (!change.ok) {
-      return res.status(change.status).json({ error: change.error });
-    }
-
-    // Update user role
-    const result = await users.updateOne(
-      { _id: new ObjectId(id) },
-      { $set: { role, updatedAt: new Date() } }
-    );
-
-    if (result.matchedCount === 0) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    res.json({ success: true, message: `User role updated to ${role} successfully` });
+    const result = await changeAccountRole(db, {
+      actor: { userId: req.user!.userId, email: req.user!.email, role: req.user!.role },
+      userId: id,
+      role: (body as { role?: unknown }).role,
+    });
+    if (!result.ok) return sendFailure(res, result, 'accountRoleChange');
+    res.json({ success: true, message: `User role updated to ${result.user.role} successfully` });
   } catch (error: unknown) {
     console.error('Update user error:');
     res.status(500).json(unexpectedBody('api', error));
@@ -65,40 +46,12 @@ async function updateUser(req: AuthRequest, res: NextApiResponse) {
 async function deleteUser(req: AuthRequest, res: NextApiResponse) {
   try {
     const { id } = req.query;
-
-    if (!id || typeof id !== 'string') {
-      return res.status(400).json({ error: 'Invalid user ID' });
-    }
-
-    // Validate ObjectId format
-    if (!ObjectId.isValid(id)) {
-      return res.status(400).json({ error: 'Invalid user ID format' });
-    }
-
     const db = await getDb();
-    const users = db.collection('users');
-
-    // Check if user exists before attempting to delete
-    const userToDelete = await users.findOne({ _id: new ObjectId(id) });
-    if (!userToDelete) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    // Prevent deleting yourself
-    if (id === req.user!.userId) {
-      return res.status(400).json({ error: 'Cannot delete your own account' });
-    }
-
-    if (userToDelete.role === 'superadmin') {
-      return res.status(403).json({ error: 'Cannot delete Super Admin account' });
-    }
-
-    const result = await users.deleteOne({ _id: new ObjectId(id) });
-
-    if (result.deletedCount === 0) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
+    const result = await deleteAccount(db, {
+      actor: { userId: req.user!.userId, email: req.user!.email, role: req.user!.role },
+      userId: id,
+    });
+    if (!result.ok) return sendFailure(res, result, 'accountDeletion');
     res.json({ success: true, message: 'User deleted successfully' });
   } catch (error: unknown) {
     console.error('Delete user error:');
@@ -116,5 +69,5 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
   }
 }
 
+// Ordinary admins still reach PUT for changes that grant nothing; deletion is refused in deleteAccount.
 export default withAuth(handler, ['admin', 'superadmin']);
-

@@ -1,6 +1,6 @@
 /**
  * GET /api/admin/audit-log — Super Admin audit trail for purchase reviews, exception changes and
- * account approval decisions.
+ * account events (approval decisions, role changes and deletions).
  * Query: entityType (purchase | payment_exception | account), q (reference prefix), page, pageSize.
  */
 

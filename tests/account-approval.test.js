@@ -2,7 +2,9 @@
  * H3: account approval and rejection are reserved for the Super Admin (lib/account-approval.js,
  * POST /api/admin/approvals). Covers every caller role, every action and target role,
  * self-approval, Super Admin protection, invalid ids, already-processed accounts, simultaneous
- * decisions, audit entries, signup roles and admin-role provisioning. In-memory database only.
+ * decisions, audit entries, signup roles and admin-role provisioning. Also covers user management
+ * (PUT/DELETE /api/admin/users/:id): deletion is Super Admin only, and role changes and deletions
+ * are audited, with audit failures reported. In-memory database only.
  */
 
 const test = require('node:test');
@@ -25,6 +27,7 @@ function memoryDb(seed) {
     Object.entries(filter).every(([key, cond]) => {
       if (key === '_id') return sameId(doc._id, cond);
       if (cond && typeof cond === 'object' && Array.isArray(cond.$in)) return cond.$in.includes(doc[key]);
+      if (cond && typeof cond === 'object' && '$ne' in cond) return doc[key] !== cond.$ne;
       return doc[key] === cond;
     });
   return {
@@ -46,6 +49,12 @@ function memoryDb(seed) {
         insertOne: async (doc) => {
           rows.push({ ...doc });
           return { insertedId: new ObjectId() };
+        },
+        deleteOne: async (filter) => {
+          const index = rows.findIndex((row) => matches(row, filter));
+          if (index === -1) return { deletedCount: 0 };
+          rows.splice(index, 1);
+          return { deletedCount: 1 };
         },
       };
     },
@@ -254,8 +263,10 @@ test('every role transition that grants or removes instructor or admin access is
   }
   assert.deepEqual([...approval.PRIVILEGED_ROLES], ['instructor', 'admin']);
 
+  // The route applies role changes through changeAccountRole, which calls decideRoleChange.
   const route = read('pages/api/admin/users/[id].ts');
-  assert.match(route, /const change = decideRoleChange\(\{ actor: req\.user, currentRole: userToUpdate\.role, newRole: role \}\);/);
+  assert.match(route, /const result = await changeAccountRole\(db, \{/);
+  assert.match(read('lib/account-approval.js'), /const change = decideRoleChange\(\{ actor, currentRole: target\.role, newRole: role \}\);/);
   assert.match(route, /export default withAuth\(handler, \['admin', 'superadmin'\]\);/);
 });
 
@@ -487,6 +498,343 @@ test('through the route: role changes that grant or remove staff access need the
     // Session generation is untouched by role changes, as before.
     assert.equal(userRow(db, ids.superadmin).sessionGeneration, 3);
   } finally {
+    if (savedSecret === undefined) delete process.env.JWT_SECRET;
+    else process.env.JWT_SECRET = savedSecret;
+  }
+});
+
+// ---------------------------------------------------------------------------
+// User management: account deletion is Super Admin only; role changes and deletions are audited.
+// ---------------------------------------------------------------------------
+
+const remove = (db, who, target, extra = {}) =>
+  approval.deleteAccount(db, { actor: who, userId: typeof target === 'string' ? target : String(target), now: NOW, ...extra });
+const changeRole = (db, who, target, role) =>
+  approval.changeAccountRole(db, { actor: who, userId: String(target), role, now: NOW });
+
+/** Makes every audit insert fail, as an unavailable audit store would. */
+function failAuditWrites(db) {
+  const base = db.collection.bind(db);
+  db.collection = (name) => {
+    const col = base(name);
+    if (name === AUDIT_COLLECTION) col.insertOne = async () => { throw new Error('audit store unavailable'); };
+    return col;
+  };
+  return db;
+}
+
+const deletableTargets = ['admin', 'instructor', 'student', 'pendingStudent', 'pendingInstructor', 'pendingAdmin', 'approvedInstructor', 'rejectedInstructor', 'legacyNoStatus'];
+
+test('only the Super Admin can delete accounts: every other role is refused for every target, with nothing deleted', async () => {
+  for (const role of ['student', 'instructor', 'admin']) {
+    for (const key of deletableTargets) {
+      const db = memoryDb(seed());
+      const result = await remove(db, actor(role), ids[key]);
+      assert.deepEqual([result.ok, result.status, result.code], [false, 403, 'superadmin_required'], `${role} deletes ${key}`);
+      assert.ok(userRow(db, ids[key]), 'account still exists');
+      assert.equal(db.rows('users').length, seed().length);
+      assert.equal(db.rows(AUDIT_COLLECTION).length, 0, 'nothing audited');
+    }
+  }
+  // Refused before any lookup, for a missing actor or a role that only looks like Super Admin.
+  for (const missing of [null, undefined, {}, { userId: String(ids.superadmin), role: 'Superadmin' }, { userId: String(ids.admin), role: 'super-admin' }]) {
+    const decision = approval.decideDeletionRequest({ actor: missing, userId: String(ids.student) });
+    assert.deepEqual([decision.status, decision.code], [403, 'superadmin_required']);
+  }
+});
+
+test('the Super Admin can delete every other account; each deletion is audited with the account it removed', async () => {
+  for (const key of deletableTargets) {
+    const db = memoryDb(seed());
+    const before = { ...userRow(db, ids[key]) };
+    const result = await remove(db, actor('superadmin'), ids[key]);
+    assert.equal(result.ok, true, key);
+    assert.equal(result.status, 200);
+    assert.deepEqual(result.user, { id: String(ids[key]), email: before.email, role: before.role });
+    assert.equal(userRow(db, ids[key]), undefined, 'hard delete, as before');
+    assert.equal(db.rows('users').length, seed().length - 1, 'only that account is removed');
+
+    const audit = db.rows(AUDIT_COLLECTION);
+    assert.equal(audit.length, 1);
+    assert.deepEqual(audit[0], {
+      entityType: 'account',
+      entityId: String(ids[key]),
+      reference: null,
+      action: 'account_deleted',
+      reason: '',
+      before: { email: before.email, role: before.role, status: before.status === undefined ? null : before.status },
+      after: null,
+      actor: { userId: String(ids.superadmin), email: 'superadmin@example.com' },
+      createdAt: NOW,
+    });
+    assert.equal('password' in audit[0].before, false, 'no credentials in the audit entry');
+  }
+});
+
+test('deletion never removes the Super Admin or the caller, and rejects bad or unknown ids', async () => {
+  const db = memoryDb(seed());
+  const otherSuper = { userId: String(new ObjectId()), email: 'second-super@example.com', role: 'superadmin' };
+  const protectedResult = await remove(db, otherSuper, ids.superadmin);
+  assert.deepEqual([protectedResult.status, protectedResult.code, protectedResult.error], [403, 'superadmin_protected', 'Cannot delete Super Admin account']);
+
+  const self = await remove(db, actor('superadmin'), ids.superadmin);
+  assert.deepEqual([self.status, self.code, self.error], [400, 'self_deletion', 'Cannot delete your own account']);
+
+  // Another Super Admin record (bad data) is protected even when the caller is a Super Admin.
+  const secondSuperId = new ObjectId();
+  db.rows('users').push({ _id: secondSuperId, email: 'dup-super@example.com', role: 'superadmin', status: 'approved' });
+  assert.equal((await remove(db, actor('superadmin'), secondSuperId)).code, 'superadmin_protected');
+
+  for (const bad of [undefined, null, '', 'abc', 'not-a-hex-id', 'zzzzzzzzzzzzzzzzzzzzzzzz', `${ids.student}x`, '123456789012', 42, { $ne: null }, [String(ids.student)]]) {
+    const result = await remove(db, actor('superadmin'), bad, { userId: bad });
+    assert.deepEqual([result.status, result.code], [400, 'invalid_user_id'], `id ${JSON.stringify(bad)}`);
+  }
+  const unknown = await remove(db, actor('superadmin'), String(new ObjectId()));
+  assert.deepEqual([unknown.status, unknown.code], [404, 'not_found']);
+
+  assert.ok(userRow(db, ids.superadmin));
+  assert.ok(userRow(db, secondSuperId));
+  assert.equal(db.rows(AUDIT_COLLECTION).length, 0, 'refusals are not audited');
+});
+
+test('the Super Admin stays protected if the record becomes a Super Admin between the check and the delete', async () => {
+  const db = memoryDb(seed());
+  const base = db.collection.bind(db);
+  db.collection = (name) => {
+    const col = base(name);
+    if (name === 'users') {
+      const findOne = col.findOne;
+      col.findOne = async (filter, options) => {
+        const doc = await findOne(filter, options);
+        // Promoted by someone else right after the read.
+        userRow(db, ids.admin).role = 'superadmin';
+        return doc;
+      };
+    }
+    return col;
+  };
+  const result = await remove(db, actor('superadmin'), ids.admin);
+  assert.deepEqual([result.status, result.code], [404, 'not_found']);
+  assert.ok(userRow(db, ids.admin), 'not deleted');
+  assert.equal(db.rows(AUDIT_COLLECTION).length, 0);
+});
+
+test('two simultaneous deletions of one account delete it once and audit it once', async () => {
+  const db = memoryDb(seed());
+  const results = await Promise.all([remove(db, actor('superadmin'), ids.instructor), remove(db, actor('superadmin'), ids.instructor)]);
+  assert.deepEqual(results.map((r) => r.status).sort(), [200, 404]);
+  assert.equal(userRow(db, ids.instructor), undefined);
+  assert.equal(db.rows(AUDIT_COLLECTION).length, 1);
+});
+
+test('a deletion whose audit entry cannot be written is reported as saved without audit, never as a success', async () => {
+  const db = failAuditWrites(memoryDb(seed()));
+  const result = await remove(db, actor('superadmin'), ids.pendingInstructor);
+  assert.equal(result.ok, false);
+  assert.equal(result.status, 500);
+  assert.equal(result.code, 'audit_write_failed');
+  assert.equal(result.decisionSaved, true);
+  assert.match(result.error, /deletion was saved, but the audit entry could not be written/);
+  assert.deepEqual(result.user, { id: String(ids.pendingInstructor), email: 'pi@example.com', role: 'instructor' });
+  assert.equal(userRow(db, ids.pendingInstructor), undefined, 'the deletion stands');
+  // Repeating it finds nothing to delete and cannot be mistaken for a success.
+  assert.equal((await remove(db, actor('superadmin'), ids.pendingInstructor)).status, 404);
+});
+
+test('a role change is audited with its before and after roles; a request that changes nothing is not', async () => {
+  const transitions = [
+    ['student', 'instructor'], ['instructor', 'student'], ['student', 'admin'],
+    ['admin', 'student'], ['instructor', 'admin'], ['admin', 'instructor'],
+  ];
+  for (const [from, to] of transitions) {
+    const db = memoryDb(seed());
+    const target = { student: ids.student, instructor: ids.instructor, admin: ids.admin }[from];
+    const result = await changeRole(db, actor('superadmin'), target, to);
+    assert.deepEqual(result, { ok: true, status: 200, user: { id: String(target), role: to } }, `${from} -> ${to}`);
+    assert.equal(userRow(db, target).role, to);
+    assert.equal(userRow(db, target).updatedAt, NOW);
+    assert.deepEqual(db.rows(AUDIT_COLLECTION), [{
+      entityType: 'account',
+      entityId: String(target),
+      reference: null,
+      action: 'role_changed',
+      reason: '',
+      before: { role: from },
+      after: { role: to },
+      actor: { userId: String(ids.superadmin), email: 'superadmin@example.com' },
+      createdAt: NOW,
+    }]);
+  }
+  // Unchanged role: accepted for any staff caller, as before, and nothing is audited.
+  for (const who of ['admin', 'superadmin']) {
+    const db = memoryDb(seed());
+    const same = await changeRole(db, actor(who), ids.student, 'student');
+    assert.equal(same.ok, true, who);
+    assert.equal(db.rows(AUDIT_COLLECTION).length, 0);
+  }
+});
+
+test('refused role changes change nothing and are not audited', async () => {
+  const db = memoryDb(seed());
+  for (const [target, role] of [[ids.student, 'instructor'], [ids.instructor, 'student'], [ids.student, 'admin'], [ids.admin, 'student']]) {
+    const before = userRow(db, target).role;
+    const result = await changeRole(db, actor('admin'), target, role);
+    assert.deepEqual([result.status, result.code], [403, 'superadmin_required']);
+    assert.equal(userRow(db, target).role, before);
+  }
+  assert.equal((await changeRole(db, actor('superadmin'), ids.superadmin, 'student')).code, 'superadmin_protected');
+  for (const role of [undefined, '', 'superadmin', 'Admin', ['admin'], 1]) {
+    assert.equal((await changeRole(db, actor('superadmin'), ids.student, role)).status, 400, `role ${JSON.stringify(role)}`);
+  }
+  assert.equal((await approval.changeAccountRole(db, { actor: actor('superadmin'), userId: undefined, role: 'student' })).error, 'Invalid user ID');
+  assert.equal((await approval.changeAccountRole(db, { actor: actor('superadmin'), userId: 'not-an-id', role: 'student' })).error, 'Invalid user ID format');
+  assert.equal((await changeRole(db, actor('superadmin'), new ObjectId(), 'student')).status, 404);
+  assert.equal(userRow(db, ids.superadmin).role, 'superadmin');
+  assert.equal(db.rows(AUDIT_COLLECTION).length, 0);
+});
+
+test('two simultaneous role changes apply one and refuse the other, so the audit entry matches the account', async () => {
+  const db = memoryDb(seed());
+  const results = await Promise.all([
+    changeRole(db, actor('superadmin'), ids.student, 'instructor'),
+    changeRole(db, actor('superadmin'), ids.student, 'admin'),
+  ]);
+  assert.deepEqual(results.map((r) => r.status).sort(), [200, 409]);
+  assert.equal(results.find((r) => !r.ok).code, 'concurrent_change');
+  const audit = db.rows(AUDIT_COLLECTION);
+  assert.equal(audit.length, 1);
+  assert.deepEqual(audit[0].before, { role: 'student' });
+  assert.equal(audit[0].after.role, userRow(db, ids.student).role);
+});
+
+test('a role change whose audit entry cannot be written is reported as saved without audit, never as a success', async () => {
+  const db = failAuditWrites(memoryDb(seed()));
+  const result = await changeRole(db, actor('superadmin'), ids.student, 'instructor');
+  assert.deepEqual([result.ok, result.status, result.code, result.decisionSaved], [false, 500, 'audit_write_failed', true]);
+  assert.match(result.error, /role change was saved, but the audit entry could not be written/);
+  assert.deepEqual(result.user, { id: String(ids.student), role: 'instructor' });
+  assert.equal(userRow(db, ids.student).role, 'instructor', 'the change stands');
+});
+
+test('the admin page shows Delete only to the Super Admin and reports changes saved without audit', () => {
+  const page = read('pages/admin/index.tsx');
+  assert.match(page, /\{isSuperAdmin && \(\s*<button\s*onClick=\{\(\) => handleDeleteUser\(userItem\._id \|\| userItem\.id\)\}/);
+  assert.equal((page.match(/handleDeleteUser\(/g) || []).length, 1, 'the only call is the Super Admin-only button');
+  const handlerBody = (name) => {
+    const start = page.indexOf(`const ${name} = async`);
+    return page.slice(start, page.indexOf('\n  };', start));
+  };
+  assert.match(handlerBody('handleDeleteUser'), /if \(decisionSavedWithoutAudit\(error\)\) \{/);
+  assert.match(handlerBody('handleUpdateUserRole'), /if \(decisionSavedWithoutAudit\(error\)\) \{/);
+
+  const route = read('pages/api/admin/users/[id].ts');
+  assert.match(route, /const result = await deleteAccount\(db, \{/);
+  assert.doesNotMatch(route, /deleteOne\(/, 'the route deletes only through deleteAccount');
+  assert.doesNotMatch(route, /updateOne\(/, 'the route changes roles only through changeAccountRole');
+});
+
+test('through the route: only a signed-in Super Admin can delete an account; deletions and role changes are audited', async () => {
+  const savedSecret = process.env.JWT_SECRET;
+  process.env.JWT_SECRET = 'test-only-approval-secret';
+  try {
+    const { issueAuthToken } = require('../lib/token-core');
+    const db = routeDb();
+    const handler = loadRoute(db, 'pages/api/admin/users/[id].ts');
+    const tokens = {};
+    for (const key of Object.keys(ids)) {
+      const row = userRow(db, ids[key]);
+      tokens[key] = issueAuthToken({ userId: String(row._id), email: row.email, role: row.role, generation: row.sessionGeneration });
+    }
+    const del = (key, target) => call(handler, { token: key && tokens[key], method: 'DELETE', query: { id: String(target) } });
+    const count = () => db.rows('users').length;
+    const initial = count();
+
+    assert.equal((await del(null, ids.student)).statusCode, 401, 'no token');
+    // Students and instructors are refused by the middleware; ordinary admins by the deletion rule.
+    for (const caller of ['student', 'instructor']) {
+      assert.equal((await del(caller, ids.pendingStudent)).statusCode, 403, caller);
+    }
+    for (const key of deletableTargets.filter((k) => k !== 'admin')) {
+      const res = await del('admin', ids[key]);
+      assert.equal(res.statusCode, 403, `admin deletes ${key}`);
+      assert.equal(res.body.code, 'superadmin_required');
+    }
+    assert.equal((await del('admin', ids.superadmin)).statusCode, 403);
+    // Pending staff cannot use their tokens at all.
+    assert.equal((await del('pendingAdmin', ids.student)).statusCode, 403);
+    assert.equal(count(), initial, 'nothing deleted by any refused caller');
+    assert.equal(db.rows(AUDIT_COLLECTION).length, 0);
+
+    // Super Admin: bad id, unknown id, own account and wrong method keep their responses.
+    assert.equal((await del('superadmin', 'not-a-hex-id')).statusCode, 400);
+    assert.equal((await del('superadmin', new ObjectId())).statusCode, 404);
+    const self = await del('superadmin', ids.superadmin);
+    assert.deepEqual([self.statusCode, self.body.error], [400, 'Cannot delete your own account']);
+    assert.equal((await call(handler, { token: tokens.superadmin, method: 'PATCH', query: { id: String(ids.student) } })).statusCode, 405);
+
+    const ok = await del('superadmin', ids.pendingInstructor);
+    assert.deepEqual([ok.statusCode, ok.body], [200, { success: true, message: 'User deleted successfully' }]);
+    assert.equal(userRow(db, ids.pendingInstructor), undefined);
+    assert.equal(count(), initial - 1);
+    assert.equal((await del('superadmin', ids.pendingInstructor)).statusCode, 404, 'already deleted');
+
+    const roleRes = await call(handler, { token: tokens.superadmin, method: 'PUT', query: { id: String(ids.student) }, body: { role: 'instructor' } });
+    assert.deepEqual([roleRes.statusCode, roleRes.body], [200, { success: true, message: 'User role updated to instructor successfully' }]);
+    assert.equal((await call(handler, { token: tokens.superadmin, method: 'PUT', query: { id: String(ids.student) }, body: undefined })).statusCode, 400);
+
+    const audit = db.rows(AUDIT_COLLECTION);
+    assert.deepEqual(audit.map((row) => [row.action, row.entityId, row.actor.userId]), [
+      ['account_deleted', String(ids.pendingInstructor), String(ids.superadmin)],
+      ['role_changed', String(ids.student), String(ids.superadmin)],
+    ]);
+    assert.equal(audit[0].actor.email, 'super@example.com', 'actor is the signed-in account');
+    assert.deepEqual(audit[0].before, { email: 'pi@example.com', role: 'instructor', status: 'pending' });
+    assert.deepEqual([audit[1].before, audit[1].after], [{ role: 'student' }, { role: 'instructor' }]);
+  } finally {
+    if (savedSecret === undefined) delete process.env.JWT_SECRET;
+    else process.env.JWT_SECRET = savedSecret;
+  }
+});
+
+test('through the route: a deletion or role change saved without its audit entry returns 500 with decisionSaved', async () => {
+  const savedSecret = process.env.JWT_SECRET;
+  process.env.JWT_SECRET = 'test-only-approval-secret';
+  const originalError = console.error;
+  const logged = [];
+  console.error = (line) => logged.push(String(line));
+  try {
+    const { issueAuthToken } = require('../lib/token-core');
+    const db = failAuditWrites(routeDb());
+    const handler = loadRoute(db, 'pages/api/admin/users/[id].ts');
+    const row = userRow(db, ids.superadmin);
+    const token = issueAuthToken({ userId: String(row._id), email: row.email, role: row.role, generation: row.sessionGeneration });
+
+    const deleted = await call(handler, { token, method: 'DELETE', query: { id: String(ids.student) } });
+    assert.equal(deleted.statusCode, 500);
+    assert.deepEqual(deleted.body, {
+      error: 'The deletion was saved, but the audit entry could not be written. Do not repeat it.',
+      code: 'audit_write_failed',
+      decisionSaved: true,
+      user: { id: String(ids.student), email: 'stud@example.com', role: 'student' },
+    });
+    assert.equal(userRow(db, ids.student), undefined);
+
+    const changed = await call(handler, { token, method: 'PUT', query: { id: String(ids.instructor) }, body: { role: 'admin' } });
+    assert.equal(changed.statusCode, 500);
+    assert.deepEqual(changed.body, {
+      error: 'The role change was saved, but the audit entry could not be written. Do not repeat it.',
+      code: 'audit_write_failed',
+      decisionSaved: true,
+      user: { id: String(ids.instructor), role: 'admin' },
+    });
+    assert.equal(userRow(db, ids.instructor).role, 'admin');
+
+    assert.deepEqual(logged.map((line) => JSON.parse(line)), [
+      { event: 'accountDeletion', result: 'audit_write_failed', userId: String(ids.student) },
+      { event: 'accountRoleChange', result: 'audit_write_failed', userId: String(ids.instructor) },
+    ]);
+  } finally {
+    console.error = originalError;
     if (savedSecret === undefined) delete process.env.JWT_SECRET;
     else process.env.JWT_SECRET = savedSecret;
   }

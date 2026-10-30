@@ -6,6 +6,7 @@ export type ApprovalRefusal = { ok: false; status: number; error: string; code: 
 
 export const APPROVABLE_ROLES: readonly string[];
 export const APPROVAL_ACTIONS: readonly string[];
+export const ASSIGNABLE_ROLES: readonly string[];
 export const PRIVILEGED_ROLES: readonly string[];
 export const PUBLIC_SIGNUP_ROLES: readonly string[];
 
@@ -33,3 +34,25 @@ export function decideRoleChange(input: {
   currentRole: unknown;
   newRole: unknown;
 }): { ok: true } | ApprovalRefusal;
+
+/** A change that was saved although its audit entry could not be written. */
+export type SavedWithoutAudit<U> = { ok: false; status: 500; error: string; code: 'audit_write_failed'; decisionSaved: true; user: U };
+
+export type RoleChangeUser = { id: string; role: string };
+
+export function changeAccountRole(
+  db: Db,
+  input: { actor: ApprovalActor; userId: unknown; role: unknown; now?: Date }
+): Promise<{ ok: true; status: 200; user: RoleChangeUser } | ApprovalRefusal | SavedWithoutAudit<RoleChangeUser>>;
+
+export function decideDeletionRequest(input: {
+  actor: ApprovalActor | null | undefined;
+  userId: unknown;
+}): { ok: true } | ApprovalRefusal;
+
+export type DeletedUser = { id: string; email: string | null; role: string };
+
+export function deleteAccount(
+  db: Db,
+  input: { actor: ApprovalActor; userId: unknown; now?: Date }
+): Promise<{ ok: true; status: 200; user: DeletedUser } | ApprovalRefusal | SavedWithoutAudit<DeletedUser>>;
