@@ -207,29 +207,12 @@ test('1. a successful payment unlocks the course automatically after server conf
   assert.equal(access[0].amountKobo, 1000000);
 });
 
-test('1b. Paystack submitting the host form no longer navigates; it triggers confirmation instead', () => {
-  const listeners = [];
-  let navigated = 0;
-  const form = {
-    elements: [{ name: 'reference', value: 'fo_c_form_1_abcdef' }],
-    submit: () => {
-      navigated += 1;
-    },
-    addEventListener: (type, fn) => listeners.push({ type, fn }),
-  };
-  const seen = [];
-  checkout.neutralizeFormSubmission(form, (reference) => seen.push(reference));
-
-  form.submit();
-  form.requestSubmit();
-  let prevented = false;
-  listeners.find((l) => l.type === 'submit').fn({ preventDefault: () => { prevented = true; } });
-
-  assert.equal(navigated, 0);
-  assert.equal(prevented, true);
-  assert.deepEqual(seen, ['fo_c_form_1_abcdef', 'fo_c_form_1_abcdef', 'fo_c_form_1_abcdef']);
-  checkout.neutralizeFormSubmission(form, () => assert.fail('must not wrap twice'));
-  form.submit();
+test('1b. Paystack loads as a plain body script, so it never enters its embedded-form mode', () => {
+  const script = read('lib/paystack-inline-script.ts');
+  assert.match(script, /document\.body\.appendChild\(s\)/);
+  assert.doesNotMatch(script, /createElement\('form'\)|setAttribute\('data-|dataset\./, 'no host form and no data-* attributes');
+  const component = read('components/monetization/PaystackCourseUnlock.tsx');
+  assert.doesNotMatch(component, /onPaystackHostFormSubmit|resetPaystackHostForm|referenceForFormSignal/);
 });
 
 test('2. pending verification does not grant access and keeps the reference for a status check', async () => {
@@ -412,23 +395,6 @@ test('7. a stale reference from another course is never confirmed for the next c
   });
   checkout.rememberPendingCheckout(storage, OTHER, second.reference, NOW.getTime());
 
-  const removed = [];
-  const form = {
-    elements: [
-      { name: 'reference', value: first.reference, remove() { removed.push(this.value); } },
-      { name: 'reference', value: second.reference, remove() { removed.push(this.value); } },
-    ],
-  };
-  assert.equal(checkout.readFormReference(form), second.reference, 'latest field wins');
-  assert.equal(
-    checkout.referenceForFormSignal(first.reference, checkout.readPendingCheckout(storage, OTHER, NOW.getTime())),
-    second.reference,
-    'the stored checkout for this course is trusted over a stale form value'
-  );
-  assert.equal(checkout.referenceForFormSignal(first.reference, null), null, 'no stored checkout: nothing is confirmed');
-  checkout.clearFormReferences(form);
-  assert.deepEqual(removed, [first.reference, second.reference]);
-
   const mismatch = await checkout.settleCourseCheckout({
     post: confirmEndpoint(db, () => paid(first)),
     storage,
@@ -599,19 +565,15 @@ test('11b. a confirmation the user asked for still reports an abandoned payment 
   assert.match(component, /ABANDONED_RESUME_CODES\.has\(result\.code\)/);
 });
 
-test('source contract: checkout confirms through the existing endpoint and the host form cannot navigate', () => {
+test('source contract: checkout confirms through the existing endpoint and never decides access itself', () => {
   const component = read('components/monetization/PaystackCourseUnlock.tsx');
   const script = read('lib/paystack-inline-script.ts');
   const helper = read('lib/course-checkout.js');
   assert.match(component, /rememberPendingCheckout\(browserStorage\(\), courseId, reference\)/);
   assert.match(component, /settleCourseCheckout\(/);
   assert.match(component, /resumableReference\(/);
-  assert.match(component, /onPaystackHostFormSubmit\(/);
-  assert.match(component, /referenceForFormSignal\(/);
-  assert.match(component, /resetPaystackHostForm\(\);\s*rememberPendingCheckout/);
   assert.doesNotMatch(component, /Reference: \$\{reference\}\./, 'no trailing period glued to the reference');
   assert.match(helper, /`\/courses\/\$\{courseId\}\/pay`/);
-  assert.match(script, /neutralizeFormSubmission\(form/);
-  assert.doesNotMatch(script, /form\.method\s*=\s*'post'/);
+  assert.doesNotMatch(script, /createElement\('form'\)|querySelector\('form/);
   assert.doesNotMatch(helper, /hasCourseEntitlement|userCourseAccess|unlocked\s*=\s*true/);
 });

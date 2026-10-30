@@ -1,13 +1,12 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { apiClient } from '@/lib/api-client';
 import { COURSE_PRICE_LABEL } from '@/lib/course-price';
-import { loadPaystackInline, onPaystackHostFormSubmit, resetPaystackHostForm } from '@/lib/paystack-inline-script';
+import { loadPaystackInline, preloadPaystackInline } from '@/lib/paystack-inline-script';
+import { normalizePaystackPublicKey } from '@/lib/paystack-public-key';
 import {
   ABANDONED_RESUME_CODES,
   CONFIRM_REQUEST_TIMEOUT_MS,
   SILENT_RESUME_CODES,
-  readPendingCheckout,
-  referenceForFormSignal,
   refreshAfterUnlock,
   rememberPendingCheckout,
   resumableReference,
@@ -76,8 +75,11 @@ export function PaystackCourseUnlock({ courseId, onUnlocked, variant = 'default'
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [retryReference, setRetryReference] = useState<string | null>(null);
-  const publicKey = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY?.trim();
+  // Validated before Paystack is loaded or set up; a missing or malformed key disables checkout.
+  const publicKey = normalizePaystackPublicKey(process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY);
   const mounted = useRef(true);
+  /** Set synchronously on the first click, so rapid clicks cannot start a second checkout. */
+  const starting = useRef(false);
   const onUnlockedRef = useRef(onUnlocked);
   onUnlockedRef.current = onUnlocked;
 
@@ -137,30 +139,33 @@ export function PaystackCourseUnlock({ courseId, onUnlocked, variant = 'default'
     if (reference) void confirm(reference, true);
   }, [courseId, confirm]);
 
-  useEffect(
-    () =>
-      onPaystackHostFormSubmit((formReference) => {
-        const reference = referenceForFormSignal(formReference, readPendingCheckout(browserStorage(), courseId));
-        if (reference) void confirm(reference, true);
-      }),
-    [courseId, confirm]
-  );
+  // Checkout is on screen: load Paystack now so it is ready before the first click.
+  useEffect(() => {
+    if (publicKey) preloadPaystackInline();
+  }, [publicKey]);
 
   const startPay = useCallback(async () => {
+    if (starting.current) return;
     setError(null);
     setNotice(null);
     if (!publicKey) {
       setError('Payments are not available right now.');
       return;
     }
+    starting.current = true;
     setPhase('starting');
     try {
+      // Shares the preload when it is still running; retries cleanly after a failed load.
       await loadPaystackInline();
+      if (!mounted.current) return;
       const init = await apiClient.post<InitResponse>(
         '/payments/paystack/init-course',
         { courseId },
         { timeout: INIT_REQUEST_TIMEOUT_MS }
       );
+      // Left the page while checkout was starting: open nothing. The unused server intent is
+      // superseded by the next checkout.
+      if (!mounted.current) return;
       if (init.alreadyOwned) {
         const refreshed = await refreshAfterUnlock(() => onUnlockedRef.current());
         if (!mounted.current) return;
@@ -180,7 +185,6 @@ export function PaystackCourseUnlock({ courseId, onUnlocked, variant = 'default'
         return;
       }
       const reference = init.reference;
-      resetPaystackHostForm();
       rememberPendingCheckout(browserStorage(), courseId, reference);
       const handler = PaystackPop.setup({
         key: publicKey,
@@ -202,8 +206,11 @@ export function PaystackCourseUnlock({ courseId, onUnlocked, variant = 'default'
         setPhase('idle');
       }
     } catch (e: unknown) {
+      if (!mounted.current) return;
       setError(errorMessage(e, 'Could not start checkout.'));
       setPhase('idle');
+    } finally {
+      starting.current = false;
     }
   }, [confirm, courseId, publicKey]);
 

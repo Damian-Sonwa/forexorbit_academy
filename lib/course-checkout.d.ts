@@ -25,10 +25,6 @@ export function referenceFromQuery(search: string): string | null;
 export function resumableReference(storage: StorageLike, courseId: string, search: string, now?: number): string | null;
 export const SILENT_RESUME_CODES: ReadonlySet<string>;
 export const ABANDONED_RESUME_CODES: ReadonlySet<string>;
-export function clearFormReferences(form: { elements?: ArrayLike<unknown> } | null): void;
-export function referenceForFormSignal(formReference: string | null, pendingReference: string | null): string | null;
-export function readFormReference(form: { elements?: ArrayLike<{ name?: string; value?: string }> } | null): string | null;
-export function neutralizeFormSubmission<T extends HTMLFormElement>(form: T, onAttempt?: (reference: string | null) => void): T;
 export function confirmCourseCheckout(input: {
   post: Post;
   courseId: string;
