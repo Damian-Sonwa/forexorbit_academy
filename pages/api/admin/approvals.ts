@@ -1,36 +1,26 @@
 import { unexpectedBody } from '@/lib/public-error';
 /**
- * Super Admin Approval API Route
- * Handles fetching pending users and approval/rejection actions
- * Accessible to accounts whose current role is admin or superadmin.
+ * Account Approval API Route
+ * GET: pending registrations. POST: approve or reject one pending account.
+ * Approving and rejecting accounts is reserved for the Super Admin (lib/account-approval).
  */
 
 import type { NextApiResponse } from 'next';
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
-import { ObjectId } from 'mongodb';
+import { decideAccountApproval } from '@/lib/account-approval';
 
-/**
- * GET: Fetch pending instructor/admin registrations
- * All admins can view pending users, but only Super Admin can approve/reject
- */
+/** GET: pending registrations awaiting the Super Admin's decision. */
 async function getPendingUsers(req: AuthRequest, res: NextApiResponse) {
   try {
-    // Allow all admins to view pending users (for notifications)
-    // Only Super Admin can approve/reject (checked in handleApproval)
-    if (req.user!.role !== 'admin' && req.user!.role !== 'superadmin') {
-      return res.status(403).json({ error: 'Admin access required' });
-    }
-
     const db = await getDb();
     const users = db.collection('users');
 
-    // Fetch pending instructors and admins
     const pendingUsers = await users
-      .find({
-        role: { $in: ['instructor', 'admin'] },
-        status: 'pending',
-      })
+      .find(
+        { status: 'pending', role: { $in: ['student', 'instructor', 'admin'] } },
+        { projection: { email: 1, name: 1, role: 1, status: 1, createdAt: 1 } }
+      )
       .sort({ createdAt: -1 })
       .toArray();
 
@@ -51,56 +41,32 @@ async function getPendingUsers(req: AuthRequest, res: NextApiResponse) {
 }
 
 /**
- * POST: Approve or reject a pending user
+ * POST: approve or reject a pending account.
  * Body: { userId: string, action: 'approve' | 'reject' }
- * All admins can approve/reject pending registrations
+ * 400 invalid id or action, 403 not the Super Admin / own account / Super Admin target,
+ * 404 unknown account, 409 already processed.
  */
 async function handleApproval(req: AuthRequest, res: NextApiResponse) {
   try {
-    // Allow all admins to approve/reject (not just Super Admin)
-    if (req.user!.role !== 'admin' && req.user!.role !== 'superadmin') {
-      return res.status(403).json({ error: 'Admin access required' });
-    }
-
-    const { userId, action } = req.body;
-
-    if (!userId || !action || !['approve', 'reject'].includes(action)) {
-      return res.status(400).json({ error: 'Invalid request. userId and action (approve/reject) required.' });
-    }
-
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const { userId, action } = body as { userId?: unknown; action?: unknown };
     const db = await getDb();
-    const users = db.collection('users');
-
-    // Find the user
-    const user = await users.findOne({ _id: new ObjectId(userId) });
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    // Update user status
-    const newStatus = action === 'approve' ? 'approved' : 'rejected';
-    await users.updateOne(
-      { _id: new ObjectId(userId) },
-      {
-        $set: {
-          status: newStatus,
-          updatedAt: new Date(),
-          reviewedBy: req.user!.email,
-          reviewedAt: new Date(),
-        },
+    const result = await decideAccountApproval(db, {
+      actor: { userId: req.user!.userId, email: req.user!.email, role: req.user!.role },
+      userId,
+      action,
+    });
+    if (!result.ok) {
+      if ('decisionSaved' in result) {
+        console.error(JSON.stringify({ event: 'accountApproval', result: 'audit_write_failed', userId: result.user.id }));
+        return res.status(result.status).json({ error: result.error, code: result.code, decisionSaved: true, user: result.user });
       }
-    );
-
+      return res.status(result.status).json({ error: result.error, code: result.code });
+    }
     res.json({
       success: true,
-      message: `User ${action === 'approve' ? 'approved' : 'rejected'} successfully`,
-      user: {
-        id: user._id.toString(),
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        status: newStatus,
-      },
+      message: `User ${result.user.status === 'approved' ? 'approved' : 'rejected'} successfully`,
+      user: result.user,
     });
   } catch (error: unknown) {
     console.error('Approval action error:');
@@ -109,6 +75,7 @@ async function handleApproval(req: AuthRequest, res: NextApiResponse) {
 }
 
 async function handler(req: AuthRequest, res: NextApiResponse) {
+  res.setHeader('Cache-Control', 'no-store');
   if (req.method === 'GET') {
     return getPendingUsers(req, res);
   } else if (req.method === 'POST') {
@@ -118,5 +85,4 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
   }
 }
 
-export default withAuth(handler);
-
+export default withAuth(handler, ['superadmin']);

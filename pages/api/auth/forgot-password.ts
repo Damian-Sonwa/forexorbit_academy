@@ -18,21 +18,25 @@ import {
 } from '@/lib/password-otp';
 import { unexpectedBody } from '@/lib/public-error';
 import { findUserByPhoneInput } from '@/lib/user-phone-lookup';
+import {
+  RESET_COOLDOWN_RULES,
+  RESET_COOLDOWN_WINDOW_MS,
+  RESET_REQUEST_RULES,
+  createAuthLimiter,
+  sendRefusal,
+} from '@/lib/auth-rate-limit';
+import { clientAddress } from '@/lib/client-ip';
 
-function getClientIp(req: NextApiRequest): string | undefined {
-  const x = req.headers['x-forwarded-for'];
-  if (typeof x === 'string') return x.split(',')[0].trim();
-  if (Array.isArray(x)) return x[0];
-  const ra = req.socket?.remoteAddress;
-  return typeof ra === 'string' ? ra : undefined;
-}
+const requestLimiter = createAuthLimiter(RESET_REQUEST_RULES);
+/** At most one code per number per minute, counted atomically (the log check below is a second layer). */
+const perNumberLimiter = createAuthLimiter(RESET_COOLDOWN_RULES, { windowMs: RESET_COOLDOWN_WINDOW_MS });
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const ip = getClientIp(req);
+  const ip = clientAddress(req) ?? undefined;
   const genericMsg = 'If an account exists for that number, a verification code was sent.';
 
   try {
@@ -46,6 +50,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ error: 'Invalid phone number' });
     }
     const phoneE164 = parsed.e164;
+
+    // Counted for every valid number, before the account lookup and any SMS, so a refusal says
+    // nothing about whether the number has an account.
+    const limit = await requestLimiter.consume({ ip: ip ?? null, phone: phoneE164, getDb });
+    if (!limit.allowed) return sendRefusal(res, limit);
+    const perNumber = await perNumberLimiter.consume({ ip: null, phone: phoneE164, getDb });
+    if (!perNumber.allowed) {
+      // Store unreachable: refused like the other limits. Within the minute: the usual silent answer.
+      if (perNumber.status === 503) return sendRefusal(res, perNumber);
+      return res.status(200).json({ message: genericMsg });
+    }
 
     const db = await getDb();
     const users = db.collection('users');

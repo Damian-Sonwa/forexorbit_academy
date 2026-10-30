@@ -9,6 +9,10 @@ import { getDb } from '@/lib/mongodb';
 import { issueAuthToken } from '@/lib/jwt';
 import { decideAccountAccess } from '@/lib/account-access';
 import { unexpectedBody } from '@/lib/public-error';
+import { LOGIN_RULES, createAuthLimiter, sendRefusal } from '@/lib/auth-rate-limit';
+import { clientAddress } from '@/lib/client-ip';
+
+const loginLimiter = createAuthLimiter(LOGIN_RULES);
 
 const INVALID_LOGIN = 'Invalid email or password. Please check your credentials.';
 
@@ -37,6 +41,10 @@ export default async function handler(
     }
 
     const emailNorm = email.trim().toLowerCase();
+    // Counted before the user lookup and password check, whether or not the account exists.
+    const limit = await loginLimiter.consume({ ip: clientAddress(req), email: emailNorm, getDb });
+    if (!limit.allowed) return sendRefusal(res, limit);
+
     const db = await getDb();
     const users = db.collection('users');
     const user = await users.findOne({ email: emailNorm });

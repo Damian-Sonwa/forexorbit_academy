@@ -81,11 +81,11 @@ Do these in order. Stop at any failure.
    The script also manages **R1**, a TTL index on `rateLimits.expiresAt` (`ttl_rate_limit_window`, `expireAfterSeconds: 0`), built last. It is not unique. Without it, rate-limit counters still work but expired windows are never deleted. The app role has no `createIndex` on `rateLimits`, so R1 must be built here, before the shared rate limit is switched on.
 6. **Check the result.** The script verifies every index after building. Afterwards, watch the logs for `E11000` for a week.
 7. **Clean up the shell:** `Remove-Item Env:MONGO_URI`.
-8. **Switch on the shared rate limit.** Only after R1 is verified, and after the role section below if you apply it now, set `SHARED_RATE_LIMIT=mongodb` in the Render environment. Render restarts the service.
+8. **Switch on the shared rate limit.** *(Updated 30 October: R1 can now be built on its own with `scripts/rate-limit-index.js`, without the payment indexes. Follow `r1-shared-rate-limit-activation.md` for R1 and this switch.)* Only after R1 is verified, and after the role section below if you apply it now, set `SHARED_RATE_LIMIT=mongodb` in the Render environment. Render restarts the service.
    - **Check:** payment init and confirm work as before, and the `rateLimits` collection receives documents.
    - **Rollback:** remove the variable. Routes return to the per-process limit.
 
-**Rollback:** `node scripts/course-payment-indexes.js --database Forex_elearning --rollback` drops only the seven managed indexes (I1–I6 and R1) by name. It changes no documents.
+**Rollback:** `node scripts/course-payment-indexes.js --database Forex_elearning --rollback` drops only the seven managed indexes (I1–I6 and R1) by name. It changes no documents. Note that this also drops R1; to keep the shared rate limit's cleanup, leave R1 in place (see `r1-shared-rate-limit-activation.md`).
 
 ## Production: app role (D9)
 

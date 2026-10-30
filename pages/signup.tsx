@@ -102,7 +102,7 @@ export default function Signup() {
   return (
     <AuthFrame
       title="Create your account"
-      lead="Students, instructors, and admins each use this same form."
+      lead="Students and instructors use this form. Instructor accounts are activated after Super Admin approval."
       switcher={
         <>
           Already have an account?{' '}
@@ -164,7 +164,6 @@ export default function Signup() {
           >
             <option value="student">Student</option>
             <option value="instructor">Instructor</option>
-            <option value="admin">Admin</option>
           </select>
         </div>
         <button

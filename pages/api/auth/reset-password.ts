@@ -1,6 +1,10 @@
 /**
  * Reset Password — after OTP verification (resetTicket + resetSecret from verify-password-otp)
  * POST /api/auth/reset-password  { resetTicket, resetSecret, password }
+ *
+ * The ticket is single-use: after the secret is checked, the reset record is claimed with one
+ * atomic delete (ticket unexpired), so only one request can set the password for it. A successful
+ * reset raises sessionGeneration, which signs out every existing session.
  */
 
 import type { NextApiRequest, NextApiResponse } from 'next';
@@ -11,21 +15,21 @@ import { logPasswordResetEvent } from '@/lib/password-reset-log';
 import { maskPhoneTail } from '@/lib/phone';
 import { PASSWORD_PHONE_RESETS_COLLECTION } from '@/lib/password-otp';
 import { unexpectedBody } from '@/lib/public-error';
+import { RESET_COMPLETE_RULES, createAuthLimiter, sendRefusal } from '@/lib/auth-rate-limit';
+import { clientAddress } from '@/lib/client-ip';
 
-function getClientIp(req: NextApiRequest): string | undefined {
-  const x = req.headers['x-forwarded-for'];
-  if (typeof x === 'string') return x.split(',')[0].trim();
-  if (Array.isArray(x)) return x[0];
-  const ra = req.socket?.remoteAddress;
-  return typeof ra === 'string' ? ra : undefined;
-}
+const completeLimiter = createAuthLimiter(RESET_COMPLETE_RULES);
+
+const TICKET_PATTERN = /^[a-f0-9]{48}$/;
+const SECRET_PATTERN = /^[a-f0-9]{64}$/;
+const INVALID_SESSION = 'This reset link is invalid or expired. Start again from Forgot password.';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const ip = getClientIp(req);
+  const ip = clientAddress(req) ?? undefined;
 
   try {
     const { resetTicket, resetSecret, password } = req.body;
@@ -38,38 +42,53 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ error: 'Password must be at least 6 characters long' });
     }
 
+    const ticket = typeof resetTicket === 'string' ? resetTicket : '';
+    const secret = typeof resetSecret === 'string' ? resetSecret : '';
+    if (!TICKET_PATTERN.test(ticket) || !SECRET_PATTERN.test(secret)) {
+      return res.status(400).json({ error: INVALID_SESSION });
+    }
+
+    const limit = await completeLimiter.consume({ ip: ip ?? null, ticket, getDb });
+    if (!limit.allowed) return sendRefusal(res, limit);
+
     const db = await getDb();
     const users = db.collection('users');
     const resets = db.collection(PASSWORD_PHONE_RESETS_COLLECTION);
+    const now = new Date();
 
-    const doc = await resets.findOne({ ticket: String(resetTicket) });
+    const doc = await resets.findOne({ ticket });
 
     if (!doc?.secretHash) {
-      return res.status(400).json({
-        error: 'This reset link is invalid or expired. Start again from Forgot password.',
-      });
+      return res.status(400).json({ error: INVALID_SESSION });
     }
 
-    if (!doc.passwordStepExpiresAt || new Date(doc.passwordStepExpiresAt) < new Date()) {
+    if (!doc.passwordStepExpiresAt || new Date(doc.passwordStepExpiresAt) <= now) {
       await resets.deleteMany({ userId: doc.userId });
       return res.status(400).json({
         error: 'Your reset session expired. Verify your code again from the beginning.',
       });
     }
 
-    const secretOk = await bcrypt.compare(String(resetSecret), doc.secretHash);
+    const secretOk = await bcrypt.compare(secret, doc.secretHash);
     if (!secretOk) {
       return res.status(400).json({
         error: 'Invalid reset session. Open the reset password page again from your phone flow.',
       });
     }
 
-    const user = await users.findOne({ _id: doc.userId as ObjectId });
+    // Claim the ticket: only one request can remove this record, so it is used at most once.
+    const claimed = await resets.findOneAndDelete(
+      { _id: doc._id, ticket, secretHash: doc.secretHash, passwordStepExpiresAt: { $gt: now } },
+      { includeResultMetadata: false }
+    );
+    if (!claimed) {
+      return res.status(400).json({ error: INVALID_SESSION });
+    }
+
+    const user = await users.findOne({ _id: claimed.userId as ObjectId });
     if (!user) {
-      await resets.deleteMany({ userId: doc.userId });
-      return res.status(400).json({
-        error: 'This reset link is invalid or expired. Start again from Forgot password.',
-      });
+      await resets.deleteMany({ userId: claimed.userId });
+      return res.status(400).json({ error: INVALID_SESSION });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -82,6 +101,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     );
 
+    // Any other reset record for this account (an older code) is no longer needed.
     await resets.deleteMany({ userId: user._id });
 
     await logPasswordResetEvent(db, {

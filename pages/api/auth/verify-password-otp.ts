@@ -1,6 +1,12 @@
 /**
  * Verify SMS OTP — returns one-time ticket + secret for /reset-password
  * POST /api/auth/verify-password-otp  { phone, otp }
+ *
+ * Each code allows MAX_OTP_VERIFY_ATTEMPTS comparisons. An attempt is reserved with one atomic
+ * update on the reset record (otpAttempts < max, code unexpired and unused) before the code is
+ * compared, so simultaneous requests cannot compare more often than that. A correct code is
+ * consumed by a second conditional update, so it yields exactly one ticket. Every failure gets the
+ * same response, whether or not the number has an account or a code.
  */
 
 import type { NextApiRequest, NextApiResponse } from 'next';
@@ -16,21 +22,22 @@ import {
 } from '@/lib/password-otp';
 import { unexpectedBody } from '@/lib/public-error';
 import { findUserByPhoneInput } from '@/lib/user-phone-lookup';
+import { RESET_VERIFY_RULES, createAuthLimiter, sendRefusal } from '@/lib/auth-rate-limit';
+import { clientAddress } from '@/lib/client-ip';
 
-function getClientIp(req: NextApiRequest): string | undefined {
-  const x = req.headers['x-forwarded-for'];
-  if (typeof x === 'string') return x.split(',')[0].trim();
-  if (Array.isArray(x)) return x[0];
-  const ra = req.socket?.remoteAddress;
-  return typeof ra === 'string' ? ra : undefined;
-}
+const verifyLimiter = createAuthLimiter(RESET_VERIFY_RULES);
+
+const INVALID_CODE = 'Invalid or expired code. Check the SMS or request a new code.';
+
+/** Compared when there is no code to check, so failures take about as long either way. */
+const PLACEHOLDER_HASH = bcrypt.hashSync('placeholder-never-matches', 8);
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const ip = getClientIp(req);
+  const ip = clientAddress(req) ?? undefined;
 
   try {
     const { phone, otp } = req.body;
@@ -52,73 +59,59 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
     const phoneE164 = parsed.e164;
 
+    const limit = await verifyLimiter.consume({ ip: ip ?? null, phone: phoneE164, getDb });
+    if (!limit.allowed) return sendRefusal(res, limit);
+
     const db = await getDb();
     const users = db.collection('users');
     const resets = db.collection(PASSWORD_PHONE_RESETS_COLLECTION);
+    const now = new Date();
 
     const user = await findUserByPhoneInput(users, phoneE164, phone);
-    if (!user) {
-      return res.status(400).json({ error: 'Invalid or expired code. Request a new code.' });
-    }
 
-    const doc = await resets.findOne({ userId: user._id });
-    if (!doc?.otpHash) {
-      return res.status(400).json({ error: 'Invalid or expired code. Request a new code.' });
-    }
+    // Reserve one attempt on the newest live code, or nothing.
+    const reserved = user
+      ? await resets.findOneAndUpdate(
+          {
+            userId: user._id,
+            otpHash: { $type: 'string' },
+            otpExpiresAt: { $gt: now },
+            otpAttempts: { $lt: MAX_OTP_VERIFY_ATTEMPTS },
+          },
+          { $inc: { otpAttempts: 1 }, $set: { updatedAt: now } },
+          { sort: { createdAt: -1 }, returnDocument: 'after', includeResultMetadata: false }
+        )
+      : null;
 
-    if (doc.otpExpiresAt && new Date(doc.otpExpiresAt) < new Date()) {
-      await resets.deleteMany({ userId: user._id });
-      await logPasswordResetEvent(db, {
-        event: 'otp_verify_fail',
-        userId: user._id,
-        phoneE164: maskPhoneTail(phoneE164),
-        ip,
-        detail: 'expired',
-      });
-      return res.status(400).json({ error: 'Invalid or expired code. Request a new code.' });
-    }
-
-    if (doc.otpAttempts >= MAX_OTP_VERIFY_ATTEMPTS) {
-      await resets.deleteMany({ userId: user._id });
-      return res.status(400).json({
-        error: 'Too many incorrect attempts. Request a new code.',
-        locked: true,
-      });
-    }
-
-    const ok = await bcrypt.compare(code, doc.otpHash);
-    if (!ok) {
-      const newAttempts = (doc.otpAttempts || 0) + 1;
-      await resets.updateOne(
-        { _id: doc._id },
-        { $set: { otpAttempts: newAttempts, updatedAt: new Date() } }
-      );
-      await logPasswordResetEvent(db, {
-        event: 'otp_verify_fail',
-        userId: user._id,
-        phoneE164: maskPhoneTail(phoneE164),
-        ip,
-        detail: `wrong_code_attempt_${newAttempts}`,
-      });
-
-      if (newAttempts >= MAX_OTP_VERIFY_ATTEMPTS) {
-        await resets.deleteMany({ userId: user._id });
+    if (!reserved) {
+      await bcrypt.compare(code, PLACEHOLDER_HASH);
+      if (user) {
+        // Expired codes are removed. A code whose attempts are used up is left in place: it can no
+        // longer be reserved, and a correct attempt reserved earlier may still be finishing. It is
+        // replaced by the next code request and removed by a completed reset.
+        await resets.deleteMany({ userId: user._id, otpHash: { $type: 'string' }, otpExpiresAt: { $lte: now } });
         await logPasswordResetEvent(db, {
-          event: 'otp_locked',
+          event: 'otp_verify_fail',
           userId: user._id,
           phoneE164: maskPhoneTail(phoneE164),
           ip,
-        });
-        return res.status(400).json({
-          error: 'Too many incorrect attempts. Request a new code.',
-          locked: true,
+          detail: 'no_live_code',
         });
       }
+      return res.status(400).json({ error: INVALID_CODE });
+    }
 
-      return res.status(400).json({
-        error: 'Invalid code. Check the SMS and try again.',
-        attemptsRemaining: MAX_OTP_VERIFY_ATTEMPTS - newAttempts,
+    const ok = await bcrypt.compare(code, String(reserved.otpHash));
+    if (!ok) {
+      const exhausted = reserved.otpAttempts >= MAX_OTP_VERIFY_ATTEMPTS;
+      await logPasswordResetEvent(db, {
+        event: exhausted ? 'otp_locked' : 'otp_verify_fail',
+        userId: user!._id,
+        phoneE164: maskPhoneTail(phoneE164),
+        ip,
+        detail: `wrong_code_attempt_${reserved.otpAttempts}`,
       });
+      return res.status(400).json({ error: INVALID_CODE });
     }
 
     const resetTicket = crypto.randomBytes(24).toString('hex');
@@ -126,13 +119,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const secretHash = await bcrypt.hash(resetSecret, 10);
     const passwordStepExpiresAt = new Date(Date.now() + PASSWORD_STEP_TTL_MS);
 
-    await resets.updateOne(
-      { _id: doc._id },
+    // Consume the code: only the first correct request matches, so one code yields one ticket.
+    const consumed = await resets.updateOne(
+      { _id: reserved._id, otpHash: reserved.otpHash, otpExpiresAt: { $gt: now } },
       {
         $set: {
           otpHash: null,
           otpExpiresAt: null,
-          otpAttempts: 0,
           ticket: resetTicket,
           secretHash,
           passwordStepExpiresAt,
@@ -140,10 +133,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         },
       }
     );
+    if (!consumed.matchedCount) {
+      return res.status(400).json({ error: INVALID_CODE });
+    }
 
     await logPasswordResetEvent(db, {
       event: 'otp_verify_success',
-      userId: user._id,
+      userId: user!._id,
       phoneE164: maskPhoneTail(phoneE164),
       ip,
     });

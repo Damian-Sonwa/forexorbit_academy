@@ -9,6 +9,11 @@ import { getDb } from '@/lib/mongodb';
 import { issueAuthToken } from '@/lib/jwt';
 import { unexpectedBody } from '@/lib/public-error';
 import { isDuplicateKey, signupConflict } from '@/lib/signup-conflict';
+import { PUBLIC_SIGNUP_ROLES } from '@/lib/account-approval';
+import { SIGNUP_RULES, createAuthLimiter, sendRefusal } from '@/lib/auth-rate-limit';
+import { clientAddress } from '@/lib/client-ip';
+
+const signupLimiter = createAuthLimiter(SIGNUP_RULES);
 
 export default async function handler(
   req: NextApiRequest,
@@ -25,7 +30,9 @@ export default async function handler(
       return res.status(400).json({ error: 'Name, email, and password are required' });
     }
 
-    if (!['admin', 'instructor', 'student'].includes(role)) {
+    // Public signup creates students and instructors only. Admin accounts are provisioned by the
+    // Super Admin through user management; Super Admin is set up by its own script.
+    if (!PUBLIC_SIGNUP_ROLES.includes(role)) {
       return res.status(400).json({ error: 'Invalid role' });
     }
 
@@ -34,6 +41,10 @@ export default async function handler(
     if (!nameTrim) {
       return res.status(400).json({ error: 'Name, email, and password are required' });
     }
+
+    // Counted before the duplicate check, password hash and insert.
+    const limit = await signupLimiter.consume({ ip: clientAddress(req), email: emailNorm, getDb });
+    if (!limit.allowed) return sendRefusal(res, limit);
 
     const db = await getDb();
     const users = db.collection('users');
@@ -49,7 +60,7 @@ export default async function handler(
 
     // Determine approval status:
     // - Students: automatically approved
-    // - Instructors/Admins: require Super Admin approval (pending)
+    // - Instructors: require Super Admin approval (pending)
     const status = role === 'student' ? 'approved' : 'pending';
 
     // Create user
@@ -69,7 +80,7 @@ export default async function handler(
       token = issueAuthToken({
         userId: result.insertedId.toString(),
         email: emailNorm,
-        role: role as 'admin' | 'instructor' | 'student',
+        role: role as 'instructor' | 'student',
         generation: 0,
       });
     }

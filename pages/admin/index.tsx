@@ -160,6 +160,11 @@ export default function AdminPanel() {
     }
   }, [router.query.tab]);
 
+  // Approvals belong to the Super Admin; an ordinary admin following a link lands on Courses.
+  useEffect(() => {
+    if (activeTab === 'approvals' && user && user.role !== 'superadmin') setActiveTab('courses');
+  }, [activeTab, user]);
+
   // Consultation requests state for admin
   const [consultationRequests, setConsultationRequests] = useState<any[]>([]);
   const [consultationSessions, setConsultationSessions] = useState<any[]>([]);
@@ -172,8 +177,8 @@ export default function AdminPanel() {
       loadInstructors();
       loadNews();
       loadUpcomingClasses();
-      // Load pending approvals for all admins (Super Admin can approve, regular admins can see notifications)
-      loadPendingUsers();
+      // Approvals are reserved for the Super Admin; ordinary admins neither see nor decide them.
+      if (user.role === 'superadmin') loadPendingUsers();
       loadConsultationRequests();
       loadConsultationSessions();
     }
@@ -224,9 +229,9 @@ export default function AdminPanel() {
     }
   };
 
-  // Auto-refresh pending users every 30 seconds to show new requests
+  // Auto-refresh pending users every 30 seconds to show new requests (Super Admin only)
   useEffect(() => {
-    if (user?.role === 'admin' || user?.role === 'superadmin') {
+    if (user?.role === 'superadmin') {
       const interval = setInterval(() => {
         loadPendingUsers();
       }, 30000); // Refresh every 30 seconds
@@ -416,6 +421,10 @@ export default function AdminPanel() {
     }
   };
 
+  /** The server saved the decision but could not write its audit entry (code audit_write_failed). */
+  const decisionSavedWithoutAudit = (error: unknown) =>
+    (error as { response?: { data?: { decisionSaved?: boolean } } })?.response?.data?.decisionSaved === true;
+
   const handleApproveUser = async (userId: string) => {
     try {
       await apiClient.post<ApiResponse>('/admin/approvals', { userId, action: 'approve' });
@@ -423,6 +432,12 @@ export default function AdminPanel() {
       await loadUsers(); // Refresh users list
       alert('User approved successfully');
     } catch (error: unknown) {
+      if (decisionSavedWithoutAudit(error)) {
+        await loadPendingUsers();
+        await loadUsers();
+        alert('The account was approved, but the audit entry could not be written. Do not repeat the decision; report this to support.');
+        return;
+      }
       let errorMessage = 'Failed to approve user';
       if (error instanceof Error) {
         errorMessage = error.message || errorMessage;
@@ -441,6 +456,12 @@ export default function AdminPanel() {
       await loadUsers(); // Refresh users list
       alert('User rejected successfully');
     } catch (error: unknown) {
+      if (decisionSavedWithoutAudit(error)) {
+        await loadPendingUsers();
+        await loadUsers();
+        alert('The account was rejected, but the audit entry could not be written. Do not repeat the decision; report this to support.');
+        return;
+      }
       let errorMessage = 'Failed to reject user';
       if (error instanceof Error) {
         errorMessage = error.message || errorMessage;
@@ -628,6 +649,7 @@ export default function AdminPanel() {
 
   // Check if user is admin or superadmin
   const isAdminOrSuperAdmin = user?.role === 'admin' || user?.role === 'superadmin';
+  const isSuperAdmin = user?.role === 'superadmin';
 
   if (authLoading || !isAuthenticated || !isAdminOrSuperAdmin) {
     return <LoadingSpinner message="Loading admin panel..." fullScreen />;
@@ -682,8 +704,8 @@ export default function AdminPanel() {
           </div>
         </div>
 
-        {/* Pending Approvals Notification Banner */}
-        {pendingUsers.length > 0 && (
+        {/* Pending Approvals Notification Banner (Super Admin only) */}
+        {isSuperAdmin && pendingUsers.length > 0 && (
           <div className="mb-6 bg-amber-50 dark:bg-amber-950/30 border-l-4 border-yellow-500 dark:border-yellow-400 rounded-lg p-4 shadow-lg">
             <div className="flex items-center justify-between">
               <div className="flex items-center">
@@ -695,9 +717,9 @@ export default function AdminPanel() {
                     {pendingUsers.length} Pending {pendingUsers.length === 1 ? 'Request' : 'Requests'} for Approval
                   </h3>
                   <p className="text-sm text-yellow-800 dark:text-yellow-300 mt-1">
-                    {pendingUsers.length === 1 
-                      ? 'There is 1 instructor or admin registration waiting for approval.'
-                      : `There are ${pendingUsers.length} instructor or admin registrations waiting for approval.`}
+                    {pendingUsers.length === 1
+                      ? 'There is 1 registration waiting for your approval.'
+                      : `There are ${pendingUsers.length} registrations waiting for your approval.`}
                   </p>
                 </div>
               </div>
@@ -793,6 +815,7 @@ export default function AdminPanel() {
           >
             Certificates
           </button>
+          {isSuperAdmin && (
           <button
             onClick={() => {
               setActiveTab('approvals');
@@ -812,6 +835,7 @@ export default function AdminPanel() {
               </span>
             )}
           </button>
+          )}
           {/* FIX: Added Upcoming Classes tab */}
           <button
             onClick={() => {
@@ -1142,8 +1166,14 @@ export default function AdminPanel() {
                               value={userItem.role}
                               onChange={(e) => handleUpdateUserRole(userItem._id || userItem.id, e.target.value)}
                               className="px-3 py-1 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
-                              disabled={userItem.role === 'superadmin'}
-                              title={userItem.role === 'superadmin' ? 'Cannot change Super Admin role' : ''}
+                              disabled={userItem.role === 'superadmin' || !isSuperAdmin}
+                              title={
+                                userItem.role === 'superadmin'
+                                  ? 'Cannot change Super Admin role'
+                                  : !isSuperAdmin
+                                  ? 'Only the Super Admin can change roles'
+                                  : ''
+                              }
                             >
                               <option value="student">Student</option>
                               <option value="instructor">Instructor</option>
@@ -1241,14 +1271,14 @@ export default function AdminPanel() {
           </div>
         )}
 
-        {/* Approvals Tab - All Admins */}
-        {activeTab === 'approvals' && (
+        {/* Approvals Tab - Super Admin only */}
+        {activeTab === 'approvals' && isSuperAdmin && (
           <div className="space-y-6">
             <div className="flex justify-between items-center mb-6">
               <div>
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Pending Approvals</h2>
                 <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">
-                  Review and approve/reject instructor and admin registrations
+                  Review and approve or reject pending registrations
                 </p>
               </div>
               <button

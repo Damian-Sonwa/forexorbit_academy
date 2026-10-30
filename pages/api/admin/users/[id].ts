@@ -9,6 +9,7 @@ import type { NextApiResponse } from 'next';
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
+import { decideRoleChange } from '@/lib/account-approval';
 
 // PUT update user role
 async function updateUser(req: AuthRequest, res: NextApiResponse) {
@@ -38,8 +39,9 @@ async function updateUser(req: AuthRequest, res: NextApiResponse) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    if (userToUpdate.role === 'superadmin') {
-      return res.status(403).json({ error: 'Cannot change Super Admin role' });
+    const change = decideRoleChange({ actor: req.user, currentRole: userToUpdate.role, newRole: role });
+    if (!change.ok) {
+      return res.status(change.status).json({ error: change.error });
     }
 
     // Update user role
