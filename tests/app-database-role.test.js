@@ -89,6 +89,8 @@ test('the role covers every collection the app uses', () => {
     AUDIT_COLLECTION: 'adminAuditLog',
     COLLECTION: 'passwordResetSecurityLogs',
     PASSWORD_PHONE_RESETS_COLLECTION: 'passwordPhoneResets',
+    RESET_TOKENS_COLLECTION: 'passwordResetTokens',
+    SECURITY_LOG_COLLECTION: 'passwordResetSecurityLogs',
     QUESTIONS: 'communityQuestions',
     REPLIES: 'communityReplies',
     VOTES: 'communityVotes',

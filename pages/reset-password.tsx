@@ -1,18 +1,33 @@
 /**
- * Reset Password — after OTP verification (session from forgot-password flow)
+ * Reset Password — landing page for the emailed link (/reset-password#token=...).
+ * The token is read from the URL fragment, which browsers never send to a server, and is removed
+ * from the address bar at once. It is sent only with the new password.
  */
 
 import { useState, useEffect } from 'react';
+import Head from 'next/head';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { ButtonLoadingState } from '@/components/loading';
 import { apiClient } from '@/lib/api-client';
+import { PASSWORD_MIN_CHARS, checkNewPassword } from '@/lib/password-policy';
 
-const PWD_RESET_STORAGE = 'forexorbitPwdReset';
+/** Link problems the server reports; each ends the form and offers a new link. */
+const LINK_PROBLEMS: Record<string, string> = {
+  invalid_token: 'This reset link is not valid. Request a new link to reset your password.',
+  expired_token: 'This reset link has expired. Request a new link to reset your password.',
+  used_token: 'This reset link has already been used. Request a new link if you still need to reset your password.',
+  superseded_token: 'A newer reset link has been sent. Use the most recent email, or request a new link.',
+};
 
-type StoredReset = { resetTicket: string; resetSecret: string; expiresAt: number };
+const TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
+
+function tokenFromFragment(hash: string): string {
+  const value = new URLSearchParams(hash.replace(/^#/, '')).get('token') || '';
+  return TOKEN_PATTERN.test(value) ? value : '';
+}
 
 export default function ResetPassword() {
   const [password, setPassword] = useState('');
@@ -20,67 +35,55 @@ export default function ResetPassword() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [session, setSession] = useState<StoredReset | null>(null);
-  const [sessionError, setSessionError] = useState('');
+  const [token, setToken] = useState('');
+  const [linkProblem, setLinkProblem] = useState('');
   const router = useRouter();
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    try {
-      const raw = sessionStorage.getItem(PWD_RESET_STORAGE);
-      if (!raw) {
-        setSessionError('missing');
-        return;
-      }
-      const parsed = JSON.parse(raw) as StoredReset;
-      if (!parsed.resetTicket || !parsed.resetSecret) {
-        setSessionError('invalid');
-        return;
-      }
-      if (parsed.expiresAt && Date.now() > parsed.expiresAt) {
-        sessionStorage.removeItem(PWD_RESET_STORAGE);
-        setSessionError('expired');
-        return;
-      }
-      setSession(parsed);
-    } catch {
-      setSessionError('invalid');
+    const found = tokenFromFragment(window.location.hash);
+    if (window.location.hash) {
+      // Keep the token out of browser history and anything copied from the address bar.
+      window.history.replaceState(window.history.state, '', window.location.pathname);
     }
+    if (found) setToken(found);
+    else setLinkProblem(LINK_PROBLEMS.invalid_token);
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    if (!session) return;
+    if (!token) return;
 
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters long');
+    const policy = checkNewPassword(password);
+    if (!policy.ok) {
+      setError(policy.error);
       return;
     }
     if (password !== confirmPassword) {
-      setError('Passwords do not match');
+      setError('Passwords do not match.');
       return;
     }
 
     setLoading(true);
     try {
-      await apiClient.post('/auth/reset-password', {
-        resetTicket: session.resetTicket,
-        resetSecret: session.resetSecret,
-        password,
-      });
-      try {
-        sessionStorage.removeItem(PWD_RESET_STORAGE);
-      } catch {
-        /* ignore */
-      }
+      await apiClient.post('/auth/reset-password', { token, password });
+      setToken('');
+      setPassword('');
+      setConfirmPassword('');
       setSuccess(true);
       setTimeout(() => {
         router.push('/login');
       }, 2500);
     } catch (err: unknown) {
-      const ax = err as { response?: { data?: { message?: string; error?: string } } };
-      setError(ax.response?.data?.message || ax.response?.data?.error || 'Failed to reset password');
+      const ax = err as { response?: { data?: { message?: string; error?: string; code?: string } } };
+      const code = ax.response?.data?.code;
+      if (code && LINK_PROBLEMS[code]) {
+        setToken('');
+        setLinkProblem(LINK_PROBLEMS[code]);
+      } else {
+        setError(ax.response?.data?.message || ax.response?.data?.error || 'Failed to reset password. Try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -88,6 +91,9 @@ export default function ResetPassword() {
 
   return (
     <div className="min-h-screen flex flex-col">
+      <Head>
+        <meta name="referrer" content="no-referrer" />
+      </Head>
       <Header />
 
       <main className="flex-1 flex items-center justify-center bg-neutral-50 py-8 sm:py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
@@ -107,9 +113,9 @@ export default function ResetPassword() {
 
             {success ? (
               <div className="space-y-4">
-                <div className="p-4 bg-green-50 border border-green-200 rounded-xl dark:bg-green-900/30 dark:border-green-700">
+                <div className="p-4 bg-green-50 border border-green-200 rounded-xl dark:bg-green-900/30 dark:border-green-700" role="status">
                   <p className="text-green-800 text-sm text-center dark:text-green-300">
-                    Password updated. Redirecting to sign in…
+                    Password updated. You have been signed out everywhere. Redirecting to sign in…
                   </p>
                 </div>
                 <Link
@@ -119,56 +125,54 @@ export default function ResetPassword() {
                   Go to sign in
                 </Link>
               </div>
-            ) : sessionError ? (
+            ) : linkProblem ? (
               <div className="space-y-4">
-                <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl dark:bg-yellow-900/30 dark:border-yellow-700">
-                  <p className="text-amber-900 text-sm text-center dark:text-primary-300">
-                    {sessionError === 'expired'
-                      ? 'This step timed out. Verify your code again from Forgot password.'
-                      : 'Open Forgot password, verify your SMS code, then you’ll land here automatically.'}
-                  </p>
+                <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl dark:bg-yellow-900/30 dark:border-yellow-700" role="alert">
+                  <p className="text-amber-900 text-sm text-center dark:text-primary-300">{linkProblem}</p>
                 </div>
                 <Link
                   href="/forgot-password"
                   className="block w-full text-center px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-semibold transition-colors min-h-[48px] flex items-center justify-center"
                 >
-                  Start over
+                  Request a new link
                 </Link>
               </div>
-            ) : !session ? (
+            ) : !token ? (
               <p className="text-neutral-500 text-sm text-center">Loading…</p>
             ) : (
               <>
                 {error && (
-                  <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
+                  <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl" role="alert">
                     <p className="text-red-700 text-sm">{error}</p>
                   </div>
                 )}
 
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div>
-                    <label className="block text-sm font-semibold text-neutral-500 mb-2">New password</label>
+                    <label htmlFor="new-password" className="block text-sm font-semibold text-neutral-500 mb-2">New password</label>
                     <input
+                      id="new-password"
                       type="password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
-                      minLength={6}
+                      minLength={PASSWORD_MIN_CHARS}
                       autoComplete="new-password"
                       className="bg-white border border-neutral-300 text-neutral-900 rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary-400/50 focus:border-transparent w-full mb-2 placeholder:text-neutral-400 text-base min-h-[48px]"
                       placeholder="••••••••"
                     />
-                    <p className="text-xs text-neutral-500">At least 6 characters</p>
+                    <p className="text-xs text-neutral-500">At least {PASSWORD_MIN_CHARS} characters</p>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-semibold text-neutral-500 mb-2">Confirm password</label>
+                    <label htmlFor="confirm-password" className="block text-sm font-semibold text-neutral-500 mb-2">Confirm password</label>
                     <input
+                      id="confirm-password"
                       type="password"
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       required
-                      minLength={6}
+                      minLength={PASSWORD_MIN_CHARS}
                       autoComplete="new-password"
                       className="bg-white border border-neutral-300 text-neutral-900 rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary-400/50 focus:border-transparent w-full placeholder:text-neutral-400 text-base min-h-[48px]"
                       placeholder="••••••••"

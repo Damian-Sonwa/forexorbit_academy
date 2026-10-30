@@ -1,32 +1,34 @@
 /**
- * H2: password reset (forgot-password, verify-password-otp, reset-password).
+ * Password reset by email (lib/password-reset.js, lib/password-reset-token.js, the two routes).
  *
- * The real route handlers run against an in-memory database. Every database operation yields to
- * the event loop first and then applies atomically, as MongoDB does for one document, so
- * simultaneous requests interleave between operations the way real requests can. This is a
- * mocked store: it shows the routes' logic is safe under that interleaving; it does not run
- * MongoDB itself (see docs/audits/password-reset-h2.md). SMS is a recording stub.
+ * The service runs against an in-memory database. Every operation yields to the event loop first
+ * and then applies atomically, as MongoDB does for one document, so simultaneous requests
+ * interleave between operations the way real requests can. The unique indexes T1 and T2 are
+ * enforced on insert unless a test turns them off. This is a mocked store: it shows the logic is
+ * safe under that interleaving; it does not run MongoDB itself. Email is a recording stub; the
+ * route tests use the real lib/email.ts with the Resend SDK replaced. Nothing is sent anywhere.
  */
 
 const test = require('node:test');
 const { mock } = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('fs');
-const path = require('path');
-const Module = require('module');
-const ts = require('typescript');
+const crypto = require('crypto');
 const realBcrypt = require('bcryptjs');
 const { ObjectId } = require('mongodb');
 
 const { RATE_LIMIT_COLLECTION } = require('../lib/shared-rate-limit');
-const authLimit = require('../lib/auth-rate-limit');
+const { decideSessionBinding, sessionBinding } = require('../lib/token-core');
+const { checkNewPassword, PASSWORD_MAX_BYTES } = require('../lib/password-policy');
+const tokens = require('../lib/password-reset-token');
+const reset = require('../lib/password-reset');
+const { loadModule, mockResponse } = require('./helpers/ts-loader');
 
-const ROOT = path.join(__dirname, '..');
 const T0 = Date.UTC(2026, 9, 30, 12, 0, 0);
-const MAX_ATTEMPTS = 3;
-const PHONE_A = '+2348031234567';
-const PHONE_B = '+2348051234567';
-const UNKNOWN_PHONE = '+2348091234567';
+const SECRET = 'test-only-reset-secret';
+const ENV = { JWT_SECRET: SECRET, SHARED_RATE_LIMIT: 'mongodb' };
+const GENERIC = { message: reset.RESET_REQUESTED };
+const TOKENS = tokens.RESET_TOKENS_COLLECTION;
+const LOGS = reset.SECURITY_LOG_COLLECTION;
 
 // ---------------------------------------------------------------------------
 // In-memory MongoDB stand-in
@@ -35,22 +37,22 @@ const UNKNOWN_PHONE = '+2348091234567';
 const tick = () => new Promise((resolve) => setImmediate(resolve));
 const cmp = (v) => (v instanceof Date ? v.getTime() : v);
 const same = (a, b) => (a instanceof ObjectId || b instanceof ObjectId ? String(a) === String(b) : cmp(a) === cmp(b));
+const isOperatorObject = (cond) =>
+  cond && typeof cond === 'object' && !(cond instanceof Date) && !(cond instanceof ObjectId) && Object.keys(cond).some((k) => k.startsWith('$'));
 
 function matches(doc, filter) {
   return Object.entries(filter).every(([key, cond]) => {
-    if (key === '$or') return cond.some((sub) => matches(doc, sub));
     const value = doc[key];
-    if (cond && typeof cond === 'object' && !(cond instanceof Date) && !(cond instanceof ObjectId) && Object.keys(cond).some((k) => k.startsWith('$'))) {
+    if (isOperatorObject(cond)) {
       return Object.entries(cond).every(([op, arg]) => {
-        if (op === '$type') return arg === 'string' ? typeof value === 'string' : false;
         if (op === '$gt') return value != null && cmp(value) > cmp(arg);
-        if (op === '$gte') return value != null && cmp(value) >= cmp(arg);
-        if (op === '$lt') return value != null && cmp(value) < cmp(arg);
         if (op === '$lte') return value != null && cmp(value) <= cmp(arg);
         if (op === '$ne') return !same(value, arg);
         throw new Error(`unsupported operator ${op}`);
       });
     }
+    // As in MongoDB, null matches a missing field too.
+    if (cond === null) return value === null || value === undefined;
     return same(value, cond);
   });
 }
@@ -60,31 +62,48 @@ function applyUpdate(doc, update) {
   for (const [k, n] of Object.entries(update.$inc || {})) doc[k] = (doc[k] || 0) + n;
 }
 
-function memoryDb(options = {}) {
-  const data = { users: [], passwordPhoneResets: [], passwordResetSecurityLogs: [], [RATE_LIMIT_COLLECTION]: [] };
-  const fail = options.fail || {};
+function duplicateKey() {
+  return Object.assign(new Error('E11000 duplicate key'), { code: 11000 });
+}
+
+function memoryDb({ fail = {}, uniqueIndexes = true } = {}) {
+  const data = { users: [], [TOKENS]: [], [LOGS]: [], [RATE_LIMIT_COLLECTION]: [] };
+  const counts = {};
   const db = {
     data,
+    counts,
     collection(name) {
       data[name] = data[name] || [];
       const rows = data[name];
       const check = async (op) => {
         await tick();
+        counts[`${name}.${op}`] = (counts[`${name}.${op}`] || 0) + 1;
         if (fail[`${name}.${op}`]) throw new Error(`${name}.${op} failed`);
       };
-      const pick = (filter, sort) => {
-        let found = rows.filter((row) => matches(row, filter));
-        if (sort && sort.createdAt === -1) found = found.sort((a, b) => cmp(b.createdAt) - cmp(a.createdAt));
-        return found[0];
-      };
+      const pick = (filter) => rows.find((row) => matches(row, filter));
       return {
-        async findOne(filter, opts = {}) {
+        find(filter) {
+          let limit = Infinity;
+          const cursor = {
+            limit(n) { limit = n; return cursor; },
+            async toArray() {
+              await check('find');
+              return rows.filter((row) => matches(row, filter)).slice(0, limit).map((row) => ({ ...row }));
+            },
+          };
+          return cursor;
+        },
+        async findOne(filter) {
           await check('findOne');
-          const doc = pick(filter, opts.sort);
+          const doc = pick(filter);
           return doc ? { ...doc } : null;
         },
         async insertOne(doc) {
           await check('insertOne');
+          if (name === TOKENS && uniqueIndexes) {
+            if (rows.some((row) => row.tokenHash === doc.tokenHash)) throw duplicateKey();
+            if (doc.status === 'active' && rows.some((row) => row.status === 'active' && same(row.userId, doc.userId))) throw duplicateKey();
+          }
           const row = { _id: new ObjectId(), ...doc };
           rows.push(row);
           return { insertedId: row._id };
@@ -96,7 +115,13 @@ function memoryDb(options = {}) {
           applyUpdate(doc, update);
           return { matchedCount: 1, modifiedCount: 1 };
         },
-        async findOneAndUpdate(filter, update, opts = {}) {
+        async updateMany(filter, update) {
+          await check('updateMany');
+          const found = rows.filter((row) => matches(row, filter));
+          found.forEach((doc) => applyUpdate(doc, update));
+          return { matchedCount: found.length, modifiedCount: found.length };
+        },
+        async findOneAndUpdate(filter, update) {
           await check('findOneAndUpdate');
           if (name === RATE_LIMIT_COLLECTION) {
             let doc = rows.find((row) => row._id === filter._id);
@@ -107,33 +132,16 @@ function memoryDb(options = {}) {
             doc.count += update.$inc.count;
             return { ...doc };
           }
-          const doc = pick(filter, opts.sort);
+          const doc = pick(filter);
           if (!doc) return null;
           applyUpdate(doc, update);
           return { ...doc };
-        },
-        async findOneAndDelete(filter) {
-          await check('findOneAndDelete');
-          const index = rows.findIndex((row) => matches(row, filter));
-          if (index < 0) return null;
-          return { ...rows.splice(index, 1)[0] };
         },
         async deleteOne(filter) {
           await check('deleteOne');
           const index = rows.findIndex((row) => matches(row, filter));
           if (index >= 0) rows.splice(index, 1);
           return { deletedCount: index >= 0 ? 1 : 0 };
-        },
-        async deleteMany(filter) {
-          await check('deleteMany');
-          const keep = rows.filter((row) => !matches(row, filter));
-          const deletedCount = rows.length - keep.length;
-          rows.splice(0, rows.length, ...keep);
-          return { deletedCount };
-        },
-        async countDocuments(filter) {
-          await check('countDocuments');
-          return rows.filter((row) => matches(row, filter)).length;
         },
       };
     },
@@ -142,109 +150,572 @@ function memoryDb(options = {}) {
 }
 
 // ---------------------------------------------------------------------------
-// Routes, SMS and bcrypt
+// Service harness: recording mailer, recorded (not real) waiting, fast bcrypt
 // ---------------------------------------------------------------------------
 
-function harness({ fail, smsConfigured = true, smsFails = false } = {}) {
-  const db = memoryDb({ fail });
-  const sms = { sent: [] };
-  const otpHashes = new Set();
-  const calls = { otpCompares: 0, compares: 0, hashes: 0 };
-  const bcrypt = {
-    ...realBcrypt,
-    hashSync: (value, rounds) => realBcrypt.hashSync(value, Math.min(rounds, 4)),
-    hash: async (value, rounds) => {
-      calls.hashes += 1;
-      const hash = await realBcrypt.hash(value, Math.min(rounds, 4));
-      if (/^\d{6}$/.test(value)) otpHashes.add(hash);
-      return hash;
+function harness({ fail, uniqueIndexes, ready = { ok: true }, resetResult = { ok: true }, changedResult = { ok: true }, env = {} } = {}) {
+  const db = memoryDb({ fail, uniqueIndexes });
+  const mail = { reset: [], changed: [], readyChecks: 0 };
+  const mailer = {
+    passwordResetEmailReady: () => {
+      mail.readyChecks += 1;
+      return ready;
     },
-    compare: async (value, hash) => {
-      calls.compares += 1;
-      if (otpHashes.has(hash)) calls.otpCompares += 1;
+    sendPasswordResetEmail: async (input) => {
       await tick();
-      return realBcrypt.compare(value, hash);
+      mail.reset.push(input);
+      return typeof resetResult === 'function' ? resetResult(input) : resetResult;
+    },
+    sendPasswordChangedEmail: async (input) => {
+      await tick();
+      mail.changed.push(input);
+      return changedResult;
     },
   };
-  const stubs = {
-    [path.join(ROOT, 'lib/mongodb')]: { getDb: async () => db },
-    [path.join(ROOT, 'lib/sms')]: {
-      isSmsConfigured: () => smsConfigured,
-      sendPasswordResetOtpSms: async (to, otp) => {
-        if (smsFails) throw new Error('provider said no to +2348031234567');
-        sms.sent.push({ to, otp });
-      },
-    },
-  };
-  const load = (route) => {
-    const cache = new Map();
-    const loadFile = (filename) => {
-      if (cache.has(filename)) return cache.get(filename).exports;
-      const source = fs.readFileSync(filename, 'utf8');
-      const code = /\.tsx?$/.test(filename)
-        ? ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, esModuleInterop: true } }).outputText
-        : source;
-      const mod = new Module(filename);
-      mod.filename = filename;
-      mod.paths = Module._nodeModulePaths(path.dirname(filename));
-      cache.set(filename, mod);
-      mod.require = (id) => {
-        if (id === 'bcryptjs') return bcrypt;
-        const base = id.startsWith('@/') ? path.join(ROOT, id.slice(2)) : id.startsWith('.') ? path.join(path.dirname(filename), id) : null;
-        if (!base) return require(id);
-        const bare = base.replace(/\.(ts|js)$/, '');
-        if (stubs[bare]) return stubs[bare];
-        for (const ext of ['.ts', '.tsx', '.js']) if (fs.existsSync(bare + ext)) return loadFile(bare + ext);
-        return require(base);
-      };
-      mod._compile(code, filename);
-      return mod.exports;
-    };
-    return loadFile(path.join(ROOT, route)).default;
-  };
+  const sleeps = [];
+  let elapsed = 0;
+  const service = reset.createPasswordResetService({
+    getDb: async () => db,
+    mailer,
+    env: { ...ENV, ...env },
+    sleep: async (ms) => { sleeps.push(ms); },
+    clock: () => elapsed,
+    hashPassword: (password) => realBcrypt.hash(password, 4),
+  });
   return {
     db,
-    sms,
-    calls,
-    forgot: load('pages/api/auth/forgot-password.ts'),
-    verify: load('pages/api/auth/verify-password-otp.ts'),
-    reset: load('pages/api/auth/reset-password.ts'),
-    resetsFor: (userId) => db.data.passwordPhoneResets.filter((r) => String(r.userId) === String(userId)),
+    mail,
+    sleeps,
+    service,
+    takeTime: (ms) => { elapsed += ms; },
+    tokensFor: (user) => db.data[TOKENS].filter((row) => same(row.userId, user._id)),
+    logs: () => db.data[LOGS],
   };
 }
 
-async function call(handler, body, { ip = '203.0.113.10', headers = {} } = {}) {
-  const res = {
-    statusCode: 200,
-    headers: {},
-    body: undefined,
-    setHeader(k, v) { this.headers[k.toLowerCase()] = v; },
-    getHeader(k) { return this.headers[k.toLowerCase()]; },
-    status(code) { this.statusCode = code; return this; },
-    json(payload) { this.body = payload; return this; },
+const request = (h, email, ip = '203.0.113.10') => h.service.requestReset({ body: { email }, ip });
+const complete = (h, token, password = 'new-password-123', ip = '203.0.113.10') => h.service.completeReset({ body: { token, password }, ip });
+
+async function addUser(h, extra = {}) {
+  const user = {
+    _id: new ObjectId(),
+    email: `user${h.db.data.users.length + 1}@example.com`,
+    password: await realBcrypt.hash('old-password-1', 4),
+    name: 'Reset User',
+    role: 'student',
+    status: 'approved',
+    sessionGeneration: 4,
+    phoneE164: '+2348031234567',
+    ...extra,
   };
-  const reqHeaders = { ...headers };
-  if (ip && !('x-forwarded-for' in reqHeaders)) reqHeaders['x-forwarded-for'] = ip;
-  await handler({ method: 'POST', headers: reqHeaders, body, query: {}, socket: { remoteAddress: '10.0.0.2' } }, res);
-  return res;
+  h.db.data.users.push(user);
+  return user;
 }
 
-const ENV = { JWT_SECRET: 'test-only-h2-secret', SHARED_RATE_LIMIT: 'mongodb', TRUSTED_PROXY_HOPS: undefined };
+/** Requests a link and returns its raw token from the recording mailer (null if none was sent). */
+async function linkFor(h, email, ip) {
+  const before = h.mail.reset.length;
+  const res = await request(h, email, ip);
+  assert.deepEqual(res, { status: 200, body: GENERIC });
+  return h.mail.reset.length > before ? h.mail.reset[h.mail.reset.length - 1].token : null;
+}
 
-async function withEnv(fn, env = ENV) {
-  const saved = {};
-  for (const key of Object.keys(env)) {
-    saved[key] = process.env[key];
-    if (env[key] === undefined) delete process.env[key];
-    else process.env[key] = env[key];
-  }
-  // Both Date.now() and new Date() follow the test clock; timers are left real.
+/** Runs with Date following a test clock (timers stay real). */
+async function withClock(fn) {
   let now = T0;
   mock.timers.enable({ apis: ['Date'], now });
   try {
     return await fn({ advance: (ms) => { now += ms; mock.timers.setTime(now); } });
   } finally {
     mock.timers.reset();
+  }
+}
+
+const userRow = (h, user) => h.db.data.users.find((row) => same(row._id, user._id));
+const passwordIs = (h, user, password) => realBcrypt.compare(password, userRow(h, user).password);
+
+// ---------------------------------------------------------------------------
+// Requesting a link
+// ---------------------------------------------------------------------------
+
+test('registered, unregistered and ineligible addresses get the same response and the same wait', async () => {
+  const h = harness();
+  const active = await addUser(h);
+  const others = [
+    await addUser(h, { status: 'pending', role: 'instructor' }),
+    await addUser(h, { status: 'rejected' }),
+    await addUser(h, { status: 'suspended' }),
+    await addUser(h, { status: 'deactivated' }),
+    await addUser(h, { role: 'not-a-role' }),
+  ];
+  const addresses = [active.email, 'nobody@example.com', ...others.map((u) => u.email)];
+  for (const [i, email] of addresses.entries()) {
+    const res = await request(h, email, `203.0.113.${20 + i}`);
+    assert.deepEqual(res, { status: 200, body: GENERIC }, email);
+  }
+  assert.deepEqual(h.sleeps, addresses.map(() => reset.MIN_RESPONSE_MS), 'every answer waits out the same minimum time');
+  assert.deepEqual(h.mail.reset.map((m) => m.to), [active.email], 'only the active account gets an email');
+  for (const user of others) assert.equal(h.tokensFor(user).length, 0, `no link for ${user.status}`);
+  const refused = h.logs().filter((row) => row.detail === 'account_not_active');
+  assert.equal(refused.length, others.length);
+});
+
+test('the minimum wait covers only what is left, and a slow email is not delayed further', async () => {
+  const h = harness();
+  const quick = await addUser(h);
+  const slow = await addUser(h);
+  let elapsed = 0;
+  const sleeps = [];
+  const service = (sendMs) => reset.createPasswordResetService({
+    getDb: async () => h.db,
+    mailer: {
+      passwordResetEmailReady: () => ({ ok: true }),
+      sendPasswordResetEmail: async () => { elapsed += sendMs; return { ok: true }; },
+      sendPasswordChangedEmail: async () => ({ ok: true }),
+    },
+    env: ENV,
+    sleep: async (ms) => { sleeps.push(ms); },
+    clock: () => elapsed,
+  });
+  // The email took 900 ms of the 1200 ms minimum: 300 ms are left.
+  await service(900).requestReset({ body: { email: quick.email }, ip: '203.0.113.30' });
+  assert.deepEqual(sleeps, [300]);
+  // The email took 5 s: no further wait. An unknown address waits the full minimum.
+  sleeps.length = 0;
+  const fiveSeconds = service(5000);
+  await fiveSeconds.requestReset({ body: { email: slow.email }, ip: '203.0.113.31' });
+  await fiveSeconds.requestReset({ body: { email: 'nobody@example.com' }, ip: '203.0.113.31' });
+  assert.deepEqual(sleeps, [1200]);
+});
+
+test('malformed addresses get 400 without a lookup, a count or an email', async () => {
+  const h = harness();
+  for (const email of [undefined, null, '', '   ', 'no-at-sign', 'a@b', 'two@@example.com', 'sp ace@example.com', 'x@exam\u0000ple.com', 'x@exa\nmple.com', `${'a'.repeat(250)}@example.com`, 42, ['a@example.com'], { $ne: null }]) {
+    const res = await h.service.requestReset({ body: { email }, ip: '203.0.113.10' });
+    assert.deepEqual(res, { status: 400, body: { error: reset.INVALID_EMAIL, code: 'invalid_email' } }, JSON.stringify(email));
+  }
+  assert.deepEqual(await h.service.requestReset({ body: undefined, ip: '203.0.113.10' }), { status: 400, body: { error: reset.INVALID_EMAIL, code: 'invalid_email' } });
+  assert.equal(h.db.counts['users.find'], undefined);
+  assert.equal(h.db.data[RATE_LIMIT_COLLECTION].length, 0);
+  assert.equal(h.mail.reset.length, 0);
+  // Case and surrounding spaces do not matter, as at login.
+  const user = await addUser(h, { email: 'mixed@example.com' });
+  assert.ok(await linkFor(h, '  MiXeD@Example.COM '));
+  assert.equal(h.mail.reset[0].to, user.email);
+});
+
+test('a link is a 256-bit random token; only its SHA-256 hash is stored, with a 30-minute expiry', async () => {
+  await withClock(async () => {
+    const h = harness();
+    const user = await addUser(h);
+    const token = await linkFor(h, user.email);
+    assert.match(token, /^[A-Za-z0-9_-]{43}$/);
+    assert.equal(Buffer.from(token, 'base64url').length, 32);
+
+    const rows = h.tokensFor(user);
+    assert.equal(rows.length, 1);
+    const row = rows[0];
+    assert.equal(row.tokenHash, crypto.createHash('sha256').update(token).digest('hex'));
+    assert.deepEqual(
+      { status: row.status, sessionGeneration: row.sessionGeneration, createdAt: row.createdAt.getTime(), expiresAt: row.expiresAt.getTime() },
+      { status: 'active', sessionGeneration: 4, createdAt: T0, expiresAt: T0 + 30 * 60 * 1000 }
+    );
+    assert.equal(tokens.RESET_TOKEN_TTL_MS, 30 * 60 * 1000);
+    assert.equal(h.mail.reset[0].expiresAt.getTime(), T0 + 30 * 60 * 1000);
+    assert.equal(h.mail.reset[0].idempotencyKey, `password-reset/${row._id}`);
+
+    // The raw token, the address and the hash's source appear nowhere in the database.
+    const everything = JSON.stringify(h.db.data);
+    assert.equal(everything.includes(token), false, 'raw token not stored');
+    for (const name of [LOGS, RATE_LIMIT_COLLECTION]) {
+      const text = JSON.stringify(h.db.data[name]);
+      assert.equal(text.includes(user.email), false, `${name} holds no email address`);
+      assert.equal(text.includes(row.tokenHash), false, `${name} holds no token hash`);
+    }
+
+    // Different requests never produce the same token.
+    const seen = new Set([token]);
+    for (let i = 0; i < 20; i += 1) {
+      const other = await addUser(h);
+      const t = await linkFor(h, other.email, `198.51.100.${i}`);
+      assert.equal(seen.has(t), false);
+      seen.add(t);
+    }
+  });
+});
+
+test('per-address, per-email and service-wide limits refuse with 429 before any lookup', async () => {
+  const h = harness();
+  const user = await addUser(h);
+  // Per client address: 10 per window.
+  for (let i = 0; i < 10; i += 1) assert.equal((await request(h, `p${i}@example.com`, '203.0.113.50')).status, 200);
+  const ipLimited = await request(h, user.email, '203.0.113.50');
+  assert.equal(ipLimited.refusal.status, 429);
+  assert.ok(ipLimited.refusal.retryAfterSec > 0);
+  assert.equal(h.mail.reset.length, 0, 'the 11th request did not reach the account');
+
+  // Per email from many addresses: 5 per window. The refused request above already counted once
+  // for this address (every rule counts each attempt). The minute gate lets only one email out.
+  for (let i = 0; i < 4; i += 1) assert.equal((await request(h, user.email, `198.51.100.${i}`)).status, 200);
+  assert.equal((await request(h, user.email, '198.51.100.99')).refusal.status, 429);
+  assert.equal(h.mail.reset.length, 1);
+
+  // Service-wide: 300 per window across all addresses.
+  const wide = harness();
+  for (let i = 0; i < 300; i += 1) {
+    assert.equal((await request(wide, `w${i}@example.com`, `10.${Math.floor(i / 250)}.${i % 250}.1`)).status, 200);
+  }
+  assert.equal((await request(wide, 'one-more@example.com', '10.9.9.9')).refusal.status, 429);
+});
+
+test('simultaneous requests for one address send one email and leave one live link', async () => {
+  const h = harness();
+  const user = await addUser(h);
+  // Five: the per-email limit for one window.
+  const results = await Promise.all(Array.from({ length: 5 }, (_, i) => request(h, user.email, `203.0.113.${60 + i}`)));
+  results.forEach((res) => assert.deepEqual(res, { status: 200, body: GENERIC }));
+  assert.equal(h.mail.reset.length, 1);
+  assert.equal(h.tokensFor(user).filter((row) => row.status === 'active').length, 1);
+});
+
+test('a second request after the minute replaces the first link', async () => {
+  await withClock(async ({ advance }) => {
+    const h = harness();
+    const user = await addUser(h);
+    const first = await linkFor(h, user.email);
+    advance(61 * 1000);
+    const second = await linkFor(h, user.email);
+    assert.notEqual(first, second);
+    assert.deepEqual(h.tokensFor(user).map((row) => row.status), ['superseded', 'active']);
+    assert.deepEqual((await complete(h, first)).body.code, 'superseded_token');
+    assert.equal((await complete(h, second)).status, 200);
+  });
+});
+
+test('if the email cannot be sent, the link is removed and the answer is unchanged', async () => {
+  for (const reason of ['send_failed', 'timeout']) {
+    const h = harness({ resetResult: { ok: false, reason } });
+    const user = await addUser(h);
+    const res = await request(h, user.email);
+    assert.deepEqual(res, { status: 200, body: GENERIC });
+    assert.equal(h.mail.reset.length, 1, 'a send was attempted');
+    assert.equal(h.tokensFor(user).length, 0, 'no usable link was left behind');
+    assert.equal((await complete(h, h.mail.reset[0].token)).body.code, 'invalid_token');
+    const entry = h.logs().find((row) => row.event === 'reset_email_not_sent');
+    assert.deepEqual([entry.detail, String(entry.userId)], [reason, String(user._id)]);
+  }
+});
+
+test('when email is not configured, no link is created and nothing is sent', async () => {
+  for (const reason of ['missing_api_key', 'missing_sender', 'test_sender_in_production', 'missing_app_base_url', 'invalid_app_base_url']) {
+    const h = harness({ ready: { ok: false, reason } });
+    const user = await addUser(h);
+    assert.deepEqual(await request(h, user.email), { status: 200, body: GENERIC });
+    assert.equal(h.mail.reset.length, 0);
+    assert.equal(h.db.data[TOKENS].length, 0);
+    assert.equal(h.logs().find((row) => row.event === 'reset_email_not_sent').detail, reason);
+  }
+});
+
+test('an address shared by two accounts sends nothing rather than guess', async () => {
+  const h = harness();
+  await addUser(h, { email: 'shared@example.com' });
+  await addUser(h, { email: 'shared@example.com' });
+  assert.deepEqual(await request(h, 'shared@example.com'), { status: 200, body: GENERIC });
+  assert.equal(h.mail.reset.length, 0);
+  assert.equal(h.db.data[TOKENS].length, 0);
+  assert.equal(h.logs().find((row) => row.event === 'reset_refused').detail, 'ambiguous_email');
+});
+
+// ---------------------------------------------------------------------------
+// Using a link
+// ---------------------------------------------------------------------------
+
+test('a link sets the password, raises sessionGeneration once and signs out existing sessions', async () => {
+  const h = harness();
+  const user = await addUser(h);
+  // The binding carried by every token issued before the reset (generation 4).
+  const oldBinding = sessionBinding(String(user._id), 4, SECRET);
+  const token = await linkFor(h, user.email);
+
+  assert.deepEqual(await complete(h, token, 'brand-new-pass'), { status: 200, body: { message: reset.RESET_COMPLETE } });
+  assert.equal(await passwordIs(h, user, 'brand-new-pass'), true);
+  assert.equal(await passwordIs(h, user, 'old-password-1'), false);
+  assert.equal(userRow(h, user).sessionGeneration, 5);
+  assert.equal(
+    decideSessionBinding({ userId: String(user._id), binding: oldBinding, generation: userRow(h, user).sessionGeneration, key: SECRET }).status,
+    401,
+    'a token issued before the reset is refused'
+  );
+  assert.equal(h.tokensFor(user)[0].status, 'used');
+  assert.equal(userRow(h, user).phoneE164, '+2348031234567', 'phone fields are left alone');
+
+  // The password changed notice goes to the account, once, keyed to this link.
+  assert.deepEqual(h.mail.changed.map((m) => [m.to, m.idempotencyKey]), [[user.email, `password-changed/${h.tokensFor(user)[0]._id}`]]);
+  assert.ok(h.logs().some((row) => row.event === 'password_reset_complete' && same(row.userId, user._id)));
+});
+
+test('a link works once: replay, expiry, unknown and malformed tokens are refused with their reason', async () => {
+  await withClock(async ({ advance }) => {
+    const h = harness();
+    const user = await addUser(h);
+    const token = await linkFor(h, user.email);
+    assert.equal((await complete(h, token)).status, 200);
+    const replay = await complete(h, token, 'another-password');
+    assert.deepEqual(replay, { status: 400, body: { error: tokens.LINK_REFUSALS.used_token, code: 'used_token' } });
+    assert.equal(await passwordIs(h, user, 'new-password-123'), true, 'the replay changed nothing');
+    assert.equal(userRow(h, user).sessionGeneration, 5);
+
+    const other = await addUser(h);
+    const late = await linkFor(h, other.email);
+    advance(30 * 60 * 1000);
+    assert.equal((await complete(h, late)).body.code, 'expired_token', 'expired at exactly 30 minutes');
+    assert.equal(await passwordIs(h, other, 'old-password-1'), true);
+    assert.equal(userRow(h, other).sessionGeneration, 4);
+
+    const unknown = crypto.randomBytes(32).toString('base64url');
+    assert.equal((await complete(h, unknown)).body.code, 'invalid_token');
+    const before = h.db.data[RATE_LIMIT_COLLECTION].length;
+    for (const bad of [undefined, null, '', 'short', `${unknown}x`, unknown.slice(1), `${unknown.slice(0, 42)}=`, `${unknown.slice(0, 42)}+`, 42, { $ne: null }]) {
+      assert.deepEqual(await h.service.completeReset({ body: { token: bad, password: 'new-password-123' }, ip: '203.0.113.10' }), {
+        status: 400,
+        body: { error: tokens.LINK_REFUSALS.invalid_token, code: 'invalid_token' },
+      });
+    }
+    assert.equal(h.db.data[RATE_LIMIT_COLLECTION].length, before, 'malformed tokens are refused before any count or lookup');
+  });
+});
+
+test('simultaneous uses of one link: exactly one sets the password', async () => {
+  const h = harness();
+  const user = await addUser(h);
+  const token = await linkFor(h, user.email);
+  // Five: the per-link limit for one window, so every request reaches the claim.
+  const passwords = Array.from({ length: 5 }, (_, i) => `concurrent-pass-${i}`);
+  const results = await Promise.all(passwords.map((p, i) => complete(h, token, p, `198.51.100.${i}`)));
+  assert.equal(results.filter((r) => r.status === 200).length, 1);
+  assert.ok(results.filter((r) => r.status !== 200).every((r) => r.body.code === 'used_token'));
+  assert.equal(userRow(h, user).sessionGeneration, 5, 'raised exactly once');
+  const matching = [];
+  for (const p of passwords) if (await passwordIs(h, user, p)) matching.push(p);
+  assert.equal(matching.length, 1);
+  assert.equal(h.mail.changed.length, 1);
+  // Beyond the limit, extra simultaneous requests are refused before the claim.
+  const more = await Promise.all(Array.from({ length: 3 }, (_, i) => complete(h, token, 'late-pass-123', `198.51.100.${40 + i}`)));
+  assert.ok(more.every((r) => r.refusal && r.refusal.status === 429));
+});
+
+test('20 simultaneous claims of one token in the store: exactly one succeeds', async () => {
+  const db = memoryDb();
+  const userId = new ObjectId();
+  const { token } = await tokens.issueResetToken(db, { userId, sessionGeneration: 0 });
+  const claims = await Promise.all(Array.from({ length: 20 }, () => tokens.claimResetToken(db, { token })));
+  assert.equal(claims.filter((c) => c.ok).length, 1);
+  assert.deepEqual([...new Set(claims.filter((c) => !c.ok).map((c) => c.code))], ['used_token']);
+  assert.equal(db.data[TOKENS][0].status, 'used');
+});
+
+test('the password rule is checked before the link is used: 8 characters to 72 bytes', async () => {
+  const h = harness();
+  const user = await addUser(h);
+  const token = await linkFor(h, user.email);
+  const cases = [
+    ['seven77', false],
+    ['        ', false],
+    [12345678, false],
+    [undefined, false],
+    ['a'.repeat(73), false],
+    ['é'.repeat(37), false], // 74 bytes
+    ['eight888', true],
+    ['a'.repeat(72), true],
+    ['é'.repeat(36), true], // 72 bytes
+    ['😀'.repeat(8), true], // 8 characters, 32 bytes
+  ];
+  for (const [password, ok] of cases) assert.equal(checkNewPassword(password).ok, ok, JSON.stringify(password));
+  assert.equal(PASSWORD_MAX_BYTES, 72);
+
+  for (const [password] of cases.filter(([, ok]) => !ok)) {
+    const res = await h.service.completeReset({ body: { token, password }, ip: '203.0.113.10' });
+    assert.equal(res.status, 400);
+    assert.equal(res.body.code, 'weak_password');
+  }
+  assert.equal(h.tokensFor(user)[0].status, 'active', 'rejected passwords did not spend the link');
+  assert.equal((await complete(h, token, 'é'.repeat(36))).status, 200);
+  assert.equal(await passwordIs(h, user, 'é'.repeat(36)), true);
+});
+
+test('only active accounts can finish a reset; status or session changes after the email void the link', async () => {
+  for (const status of ['suspended', 'pending', 'rejected', 'deactivated']) {
+    const h = harness();
+    const user = await addUser(h);
+    const token = await linkFor(h, user.email);
+    userRow(h, user).status = status;
+    const res = await complete(h, token);
+    assert.deepEqual(res.body.code, 'invalid_token', status);
+    assert.equal(await passwordIs(h, user, 'old-password-1'), true);
+    assert.equal(userRow(h, user).sessionGeneration, 4);
+    assert.equal(h.mail.changed.length, 0);
+    assert.equal(h.tokensFor(user)[0].status, 'used', 'the link cannot be retried after reactivation');
+  }
+
+  const deleted = harness();
+  const gone = await addUser(deleted);
+  const goneToken = await linkFor(deleted, gone.email);
+  deleted.db.data.users.length = 0;
+  assert.equal((await complete(deleted, goneToken)).body.code, 'invalid_token');
+
+  // Signed out by another reset (or any other session reset) after the email was sent.
+  const h = harness();
+  const user = await addUser(h);
+  const token = await linkFor(h, user.email);
+  userRow(h, user).sessionGeneration = 9;
+  assert.equal((await complete(h, token)).body.code, 'invalid_token');
+  assert.equal(await passwordIs(h, user, 'old-password-1'), true);
+  assert.equal(userRow(h, user).sessionGeneration, 9);
+});
+
+test('an account suspended between the check and the write keeps its password', async () => {
+  const h = harness();
+  const user = await addUser(h);
+  const token = await linkFor(h, user.email);
+  // Suspend the account right after the service reads it.
+  const base = h.db.collection.bind(h.db);
+  h.db.collection = (name) => {
+    const col = base(name);
+    if (name === 'users') {
+      const findOne = col.findOne;
+      col.findOne = async (...args) => {
+        const doc = await findOne(...args);
+        userRow(h, user).status = 'suspended';
+        return doc;
+      };
+    }
+    return col;
+  };
+  assert.equal((await complete(h, token)).body.code, 'invalid_token');
+  assert.equal(await passwordIs(h, user, 'old-password-1'), true);
+  assert.equal(userRow(h, user).sessionGeneration, 4);
+});
+
+test('a legacy account with no status or session counter can reset', async () => {
+  const h = harness();
+  const user = await addUser(h, { status: undefined, sessionGeneration: undefined });
+  delete userRow(h, user).status;
+  delete userRow(h, user).sessionGeneration;
+  const token = await linkFor(h, user.email);
+  assert.equal(h.tokensFor(user)[0].sessionGeneration, 0);
+  assert.equal((await complete(h, token)).status, 200);
+  assert.equal(userRow(h, user).sessionGeneration, 1);
+});
+
+test('a successful reset replaces any other live link for the account', async () => {
+  const h = harness({ uniqueIndexes: false });
+  const user = await addUser(h);
+  const token = await linkFor(h, user.email);
+  // A second live link that slipped in without the T2 index.
+  const extra = await tokens.issueResetToken(h.db, { userId: user._id, sessionGeneration: 4 });
+  h.tokensFor(user).forEach((row) => { row.status = 'active'; });
+  assert.equal((await complete(h, token)).status, 200);
+  assert.equal((await complete(h, extra.token)).body.code, 'superseded_token');
+});
+
+test('issuing links at the same moment leaves one live link (with or without index T2)', async () => {
+  for (const uniqueIndexes of [true, false]) {
+    const db = memoryDb({ uniqueIndexes });
+    const userId = new ObjectId();
+    const issued = await Promise.all([1, 2, 3].map(() => tokens.issueResetToken(db, { userId, sessionGeneration: 0 })));
+    assert.equal(issued.length, 3);
+    const active = db.data[TOKENS].filter((row) => row.status === 'active');
+    if (uniqueIndexes) assert.equal(active.length, 1, 'T2 turns a simultaneous insert into a replacement');
+    else assert.ok(active.length >= 1);
+  }
+});
+
+test('a failed password write after the claim returns an error and the link cannot be replayed', async () => {
+  const h = harness();
+  const user = await addUser(h);
+  const token = await linkFor(h, user.email);
+  const failing = harness({ fail: { 'users.updateOne': true } });
+  failing.db.data.users.push(...h.db.data.users);
+  failing.db.data[TOKENS].push(...h.db.data[TOKENS]);
+  await assert.rejects(complete(failing, token), /users.updateOne failed/);
+  assert.equal(await passwordIs(failing, user, 'old-password-1'), true);
+  assert.equal((await complete(failing, token)).body.code, 'used_token');
+});
+
+test('a failed password changed notice is logged and does not undo the reset', async () => {
+  const h = harness({ changedResult: { ok: false, reason: 'send_failed' } });
+  const user = await addUser(h);
+  const token = await linkFor(h, user.email);
+  assert.equal((await complete(h, token)).status, 200);
+  assert.equal(await passwordIs(h, user, 'new-password-123'), true);
+  assert.equal(h.logs().find((row) => row.event === 'password_changed_email_not_sent').detail, 'send_failed');
+});
+
+test('per-address and per-link limits on completing a reset', async () => {
+  const h = harness();
+  const user = await addUser(h);
+  const token = await linkFor(h, user.email);
+  assert.equal((await complete(h, token)).status, 200);
+  // The same link again from many addresses: 5 attempts per link per window.
+  for (let i = 0; i < 4; i += 1) assert.equal((await complete(h, token, 'whatever-pass', `198.51.100.${i}`)).body.code, 'used_token');
+  assert.equal((await complete(h, token, 'whatever-pass', '198.51.100.50')).refusal.status, 429);
+  // Many links from one address: 10 per window.
+  const busy = harness();
+  for (let i = 0; i < 10; i += 1) assert.equal((await complete(busy, crypto.randomBytes(32).toString('base64url'), 'whatever-pass', '203.0.113.77')).status, 400);
+  assert.equal((await complete(busy, crypto.randomBytes(32).toString('base64url'), 'whatever-pass', '203.0.113.77')).refusal.status, 429);
+});
+
+test('shared store unavailable: both steps refuse with 503 and do nothing else', async () => {
+  const h = harness({ fail: { [`${RATE_LIMIT_COLLECTION}.findOneAndUpdate`]: true } });
+  const user = await addUser(h);
+  const res = await request(h, user.email);
+  assert.deepEqual(res.refusal, { allowed: false, status: 503 });
+  assert.equal(h.db.counts['users.find'], undefined);
+  assert.equal(h.mail.reset.length, 0);
+  assert.equal(h.db.data[TOKENS].length, 0);
+  const done = await complete(h, crypto.randomBytes(32).toString('base64url'));
+  assert.deepEqual(done.refusal, { allowed: false, status: 503 });
+  assert.equal(h.db.counts[`${TOKENS}.findOneAndUpdate`], undefined);
+});
+
+test('rate-limit keys and security logs hold no email addresses, tokens or passwords', async () => {
+  const h = harness();
+  const user = await addUser(h);
+  const token = await linkFor(h, user.email);
+  await complete(h, token, 'secret-new-pass');
+  await request(h, 'nobody@example.com');
+  const stored = JSON.stringify([h.db.data[RATE_LIMIT_COLLECTION], h.db.data[LOGS]]);
+  for (const value of [user.email, 'nobody@example.com', token, tokens.hashResetToken(token), 'secret-new-pass']) {
+    assert.equal(stored.includes(value), false, value);
+  }
+  assert.ok(h.logs().every((row) => !('email' in row) && !('token' in row)));
+});
+
+// ---------------------------------------------------------------------------
+// Through the real routes, with the real lib/email.ts and the Resend SDK replaced
+// ---------------------------------------------------------------------------
+
+const PROD_ENV = {
+  NODE_ENV: 'production',
+  JWT_SECRET: SECRET,
+  SHARED_RATE_LIMIT: 'mongodb',
+  APP_BASE_URL: 'https://app.example.test',
+  RESEND_API_KEY: 're_test_only_not_a_real_key',
+  RESEND_FROM: 'ForexOrbit Academy <no-reply@mail.example.test>',
+  TRUSTED_PROXY_HOPS: undefined,
+};
+
+async function withProcessEnv(env, fn) {
+  const saved = {};
+  for (const key of Object.keys(env)) {
+    saved[key] = process.env[key];
+    if (env[key] === undefined) delete process.env[key];
+    else process.env[key] = env[key];
+  }
+  try {
+    return await fn();
+  } finally {
     for (const [key, value] of Object.entries(saved)) {
       if (value === undefined) delete process.env[key];
       else process.env[key] = value;
@@ -252,554 +723,192 @@ async function withEnv(fn, env = ENV) {
   }
 }
 
-async function addUser(h, phoneE164, extra = {}) {
-  const user = {
-    _id: new ObjectId(),
-    email: `${phoneE164.slice(-4)}@example.com`,
-    password: await realBcrypt.hash('old-password', 4),
-    name: 'Reset User',
-    role: 'student',
-    status: 'approved',
-    phoneE164,
-    sessionGeneration: 4,
-    ...extra,
+function routes(db, resend) {
+  const stubs = {
+    'lib/mongodb': { getDb: async () => db },
+    'lib/socket-server': { getSocketServer: () => null },
+    resend: { Resend: resend },
+    bcryptjs: { ...realBcrypt, hash: (value, rounds) => realBcrypt.hash(value, Math.min(rounds, 4)) },
   };
-  h.db.data.users.push(user);
-  return user;
+  return {
+    forgot: loadModule('pages/api/auth/forgot-password.ts', stubs).default,
+    reset: loadModule('pages/api/auth/reset-password.ts', stubs).default,
+    login: loadModule('pages/api/auth/login.ts', stubs).default,
+    me: loadModule('pages/api/auth/me.ts', stubs).default,
+  };
 }
 
-/** Requests a code through the real route and returns it from the SMS stub. */
-async function requestCode(h, phone, opts) {
-  const before = h.sms.sent.length;
-  const res = await call(h.forgot, { phone }, opts);
-  assert.equal(res.statusCode, 200);
-  return h.sms.sent.length > before ? h.sms.sent[h.sms.sent.length - 1].otp : null;
+function fakeResend(outcome = () => ({ data: { id: 'email_1' }, error: null })) {
+  const calls = { keys: [], sends: [] };
+  class Resend {
+    constructor(key) {
+      calls.keys.push(key);
+      this.emails = {
+        send: async (payload, options) => {
+          calls.sends.push({ payload, options });
+          return outcome(payload);
+        },
+      };
+    }
+  }
+  return { Resend, calls };
 }
 
-const wrongCode = (otp) => String((Number(otp) + 1) % 1000000).padStart(6, '0');
-const GENERIC_FORGOT = { message: 'If an account exists for that number, a verification code was sent.' };
-const INVALID_CODE = { error: 'Invalid or expired code. Check the SMS or request a new code.' };
-
-// ---------------------------------------------------------------------------
-// OTP attempts under concurrency
-// ---------------------------------------------------------------------------
-
-test('30 simultaneous wrong codes: exactly 3 reach the code comparison, then the code is dead', async () => {
-  await withEnv(async ({ advance }) => {
-    const h = harness();
-    const user = await addUser(h, PHONE_A);
-    const otp = await requestCode(h, PHONE_A);
-    const results = await Promise.all(
-      Array.from({ length: 30 }, (_, i) => call(h.verify, { phone: PHONE_A, otp: wrongCode(otp) }, { ip: `198.51.100.${i + 1}` }))
-    );
-    assert.equal(h.calls.otpCompares, MAX_ATTEMPTS, 'comparisons against the real code');
-    assert.ok(results.every((r) => r.statusCode === 400 || r.statusCode === 429));
-    for (const r of results.filter((x) => x.statusCode === 400)) assert.deepEqual(r.body, INVALID_CODE);
-    const [record] = h.resetsFor(user._id);
-    assert.equal(record.otpAttempts, MAX_ATTEMPTS, 'every attempt is used up');
-    assert.equal(typeof record.otpHash, 'string', 'left in place but can no longer be reserved');
-    advance(authLimit.WINDOW_MS);
-    const late = await call(h.verify, { phone: PHONE_A, otp }, { ip: '198.51.100.200' });
-    assert.deepEqual([late.statusCode, late.body], [400, INVALID_CODE], 'the right code no longer works');
-  });
-});
-
-test('10 simultaneous correct codes: exactly one ticket is issued and it works', async () => {
-  await withEnv(async () => {
-    const h = harness();
-    const user = await addUser(h, PHONE_A);
-    const otp = await requestCode(h, PHONE_A);
-    const results = await Promise.all(Array.from({ length: 10 }, (_, i) => call(h.verify, { phone: PHONE_A, otp }, { ip: `192.0.2.${i + 1}` })));
-    const winners = results.filter((r) => r.statusCode === 200);
-    for (const r of results.filter((x) => x.statusCode !== 200)) assert.deepEqual(r.body, INVALID_CODE);
-    assert.equal(winners.length, 1);
-    assert.ok(h.calls.otpCompares <= MAX_ATTEMPTS);
-    const done = await call(h.reset, { resetTicket: winners[0].body.resetTicket, resetSecret: winners[0].body.resetSecret, password: 'new-password-1' });
-    assert.equal(done.statusCode, 200);
-    assert.equal(h.resetsFor(user._id).length, 0);
-  });
-});
-
-test('a correct attempt still in progress is not cancelled by simultaneous wrong guesses', async () => {
-  await withEnv(async () => {
-    const h = harness();
-    await addUser(h, PHONE_A);
-    const otp = await requestCode(h, PHONE_A);
-    // The owner's correct attempt starts first; an attacker's guesses arrive while it is running.
-    const results = await Promise.all([
-      call(h.verify, { phone: PHONE_A, otp }, { ip: '192.0.2.1' }),
-      ...Array.from({ length: 8 }, (_, i) => call(h.verify, { phone: PHONE_A, otp: wrongCode(otp) }, { ip: `198.51.100.${i + 1}` })),
-    ]);
-    assert.equal(results[0].statusCode, 200);
-    assert.equal(h.calls.otpCompares, MAX_ATTEMPTS);
-  });
-});
-
-test('the attempt boundary: the third attempt can still succeed, a fourth never runs', async () => {
-  await withEnv(async () => {
-    const h = harness();
-    await addUser(h, PHONE_A);
-    const otp = await requestCode(h, PHONE_A);
-    for (let i = 0; i < 2; i += 1) assert.equal((await call(h.verify, { phone: PHONE_A, otp: wrongCode(otp) })).statusCode, 400);
-    assert.equal((await call(h.verify, { phone: PHONE_A, otp })).statusCode, 200);
-
-    const h2 = harness();
-    await addUser(h2, PHONE_A);
-    const otp2 = await requestCode(h2, PHONE_A);
-    for (let i = 0; i < 3; i += 1) await call(h2.verify, { phone: PHONE_A, otp: wrongCode(otp2) });
-    const compares = h2.calls.otpCompares;
-    assert.deepEqual((await call(h2.verify, { phone: PHONE_A, otp: otp2 })).body, INVALID_CODE);
-    assert.equal(h2.calls.otpCompares, compares, 'no comparison after the maximum');
-  });
-});
-
-test('a verified code cannot be used again', async () => {
-  await withEnv(async () => {
-    const h = harness();
-    await addUser(h, PHONE_A);
-    const otp = await requestCode(h, PHONE_A);
-    assert.equal((await call(h.verify, { phone: PHONE_A, otp })).statusCode, 200);
-    assert.deepEqual((await call(h.verify, { phone: PHONE_A, otp })).body, INVALID_CODE);
-  });
-});
-
-test('an expired code is never compared or accepted, and failures do not extend it', async () => {
-  await withEnv(async () => {
-    const h = harness();
-    const user = await addUser(h, PHONE_A);
-    const otp = await requestCode(h, PHONE_A);
-    const [record] = h.resetsFor(user._id);
-    const expiry = record.otpExpiresAt;
-    await call(h.verify, { phone: PHONE_A, otp: wrongCode(otp) });
-    assert.equal(h.resetsFor(user._id)[0].otpExpiresAt, expiry, 'a failed attempt does not move the expiry');
-    record.otpExpiresAt = new Date(Date.UTC(2020, 0, 1));
-    const before = h.calls.otpCompares;
-    assert.deepEqual((await call(h.verify, { phone: PHONE_A, otp })).body, INVALID_CODE);
-    assert.equal(h.calls.otpCompares, before);
-    assert.equal(h.resetsFor(user._id).length, 0, 'the expired code is removed');
-  });
-});
-
-test('a new code replaces the old one, and two accounts keep separate attempt counts', async () => {
-  await withEnv(async ({ advance }) => {
-    const h = harness();
-    const a = await addUser(h, PHONE_A);
-    const b = await addUser(h, PHONE_B);
-    const first = await requestCode(h, PHONE_A);
-    advance(61 * 1000);
-    const second = await requestCode(h, PHONE_A, { ip: '198.51.100.9' });
-    assert.notEqual(first, second);
-    assert.equal(h.resetsFor(a._id).length, 1, 'one live code per account');
-    if (first !== second) assert.deepEqual((await call(h.verify, { phone: PHONE_A, otp: first })).body, INVALID_CODE, 'the old code is dead');
-
-    const otpB = await requestCode(h, PHONE_B, { ip: '198.51.100.11' });
-    await Promise.all(Array.from({ length: 10 }, (_, i) => call(h.verify, { phone: PHONE_A, otp: wrongCode(second) }, { ip: `192.0.2.${50 + i}` })));
-    assert.equal((await call(h.verify, { phone: PHONE_B, otp: otpB }, { ip: '192.0.2.99' })).statusCode, 200, 'B is unaffected by guesses on A');
-    assert.equal(h.resetsFor(b._id).length, 1);
-  });
-});
-
-test('simultaneous verification against two different codes is independent', async () => {
-  await withEnv(async () => {
-    const h = harness();
-    await addUser(h, PHONE_A);
-    await addUser(h, PHONE_B);
-    const otpA = await requestCode(h, PHONE_A, { ip: '198.51.100.1' });
-    const otpB = await requestCode(h, PHONE_B, { ip: '198.51.100.2' });
-    const [ra, rb] = await Promise.all([
-      call(h.verify, { phone: PHONE_A, otp: otpA }, { ip: '192.0.2.1' }),
-      call(h.verify, { phone: PHONE_B, otp: otpB }, { ip: '192.0.2.2' }),
-    ]);
-    assert.equal(ra.statusCode, 200);
-    assert.equal(rb.statusCode, 200);
-    assert.notEqual(ra.body.resetTicket, rb.body.resetTicket);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Forgot password
-// ---------------------------------------------------------------------------
-
-test('forgot: known and unknown numbers get the same response; only a known one gets an SMS', async () => {
-  await withEnv(async () => {
-    const h = harness();
-    await addUser(h, PHONE_A);
-    const known = await call(h.forgot, { phone: PHONE_A });
-    const unknown = await call(h.forgot, { phone: UNKNOWN_PHONE }, { ip: '198.51.100.3' });
-    assert.deepEqual([known.statusCode, known.body], [200, GENERIC_FORGOT]);
-    assert.deepEqual([unknown.statusCode, unknown.body], [200, GENERIC_FORGOT]);
-    assert.equal(h.sms.sent.length, 1);
-    assert.equal(h.sms.sent[0].to, PHONE_A);
-  });
-});
-
-test('forgot: the per-address limit refuses the 11th request without a lookup or SMS', async () => {
-  await withEnv(async () => {
-    const h = harness();
-    await addUser(h, PHONE_A);
-    for (let i = 0; i < 10; i += 1) await call(h.forgot, { phone: `+23480312345${String(10 + i)}` });
-    const sent = h.sms.sent.length;
-    const refused = await call(h.forgot, { phone: PHONE_A });
-    assert.equal(refused.statusCode, 429);
-    assert.equal(refused.body.code, 'rate_limited');
-    assert.ok(Number(refused.headers['retry-after']) > 0);
-    assert.equal(h.sms.sent.length, sent, 'no SMS when limited');
-  });
-});
-
-test('forgot: one number is limited to 5 requests per window from any address', async () => {
-  await withEnv(async ({ advance }) => {
-    const h = harness();
-    await addUser(h, PHONE_A);
-    for (let i = 0; i < 5; i += 1) {
-      assert.equal((await call(h.forgot, { phone: PHONE_A }, { ip: `192.0.2.${i + 1}` })).statusCode, 200);
-      advance(61 * 1000);
-    }
-    assert.equal(h.sms.sent.length, 5);
-    const refused = await call(h.forgot, { phone: PHONE_A }, { ip: '192.0.2.77' });
-    assert.equal(refused.statusCode, 429);
-    // The same refusal for a number with no account.
-    const h2 = harness();
-    for (let i = 0; i < 5; i += 1) {
-      await call(h2.forgot, { phone: UNKNOWN_PHONE }, { ip: `192.0.2.${i + 1}` });
-      advance(61 * 1000);
-    }
-    const refusedUnknown = await call(h2.forgot, { phone: UNKNOWN_PHONE }, { ip: '192.0.2.77' });
-    assert.deepEqual([refusedUnknown.statusCode, refusedUnknown.body.code], [429, 'rate_limited']);
-  });
-});
-
-test('forgot: simultaneous requests for one number send one SMS and leave one live code', async () => {
-  await withEnv(async () => {
-    const h = harness();
-    const user = await addUser(h, PHONE_A);
-    const results = await Promise.all(Array.from({ length: 5 }, (_, i) => call(h.forgot, { phone: PHONE_A }, { ip: `192.0.2.${i + 1}` })));
-    assert.ok(results.every((r) => r.statusCode === 200 && r.body.message === GENERIC_FORGOT.message));
-    assert.equal(h.sms.sent.length, 1);
-    assert.equal(h.resetsFor(user._id).length, 1);
-  });
-});
-
-test('forgot: the existing hourly cap and minute cooldown still apply', async () => {
-  await withEnv(async ({ advance }) => {
-    const h = harness();
-    await addUser(h, PHONE_A);
-    for (let i = 0; i < 5; i += 1) {
-      await call(h.forgot, { phone: PHONE_A }, { ip: `192.0.2.${i + 1}` });
-      advance(3 * 60 * 1000);
-    }
-    assert.equal(h.sms.sent.length, 5);
-    advance(5 * 60 * 1000);
-    const sixth = await call(h.forgot, { phone: PHONE_A }, { ip: '192.0.2.50' });
-    assert.deepEqual([sixth.statusCode, sixth.body], [200, GENERIC_FORGOT]);
-    assert.equal(h.sms.sent.length, 5, 'hourly cap: no sixth SMS within the hour');
-
-    const h2 = harness();
-    await addUser(h2, PHONE_A);
-    await call(h2.forgot, { phone: PHONE_A });
-    advance(30 * 1000);
-    const soon = await call(h2.forgot, { phone: PHONE_A }, { ip: '192.0.2.60' });
-    assert.deepEqual([soon.statusCode, soon.body], [200, GENERIC_FORGOT]);
-    assert.equal(h2.sms.sent.length, 1, 'cooldown: no second SMS within a minute');
-    const source = fs.readFileSync(path.join(ROOT, 'pages/api/auth/forgot-password.ts'), 'utf8');
-    assert.match(source, /sentLastHour >= MAX_SMS_REQUESTS_PER_HOUR/);
-    assert.match(source, /Date\.now\(\) - lastSent\.createdAt\.getTime\(\) < SMS_COOLDOWN_MS/);
-  });
-});
-
-test('forgot: the service-wide cap bounds SMS requests across many numbers', async () => {
-  await withEnv(async () => {
-    const h = harness();
-    const cap = authLimit.RESET_REQUEST_RULES.find((r) => r.id === 'reset-request-global').max;
-    let ok = 0;
-    for (let i = 0; i < cap; i += 1) {
-      const res = await call(h.forgot, { phone: `+23480${String(30000000 + i)}` }, { ip: `10.${Math.floor(i / 250)}.${i % 250}.1` });
-      if (res.statusCode === 200) ok += 1;
-    }
-    assert.equal(ok, cap);
-    const refused = await call(h.forgot, { phone: '+2348099999999' }, { ip: '172.16.0.1' });
-    assert.equal(refused.statusCode, 429);
-  });
-});
-
-test('forgot: SMS failures and missing SMS setup give the generic response and store no code', async () => {
-  await withEnv(async () => {
-    for (const options of [{ smsFails: true }, { smsConfigured: false }]) {
-      const h = harness(options);
-      const user = await addUser(h, PHONE_A);
-      const res = await call(h.forgot, { phone: PHONE_A });
-      assert.deepEqual([res.statusCode, res.body], [200, GENERIC_FORGOT]);
-      assert.equal(h.resetsFor(user._id).length, 0);
-      assert.equal(JSON.stringify(h.db.data.passwordResetSecurityLogs).includes('8031234567'), false, 'no raw number in logs');
-    }
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Verify
-// ---------------------------------------------------------------------------
-
-test('verify: unknown number, no code, wrong code and expired code all look the same', async () => {
-  await withEnv(async () => {
-    const h = harness();
-    const user = await addUser(h, PHONE_A);
-    await addUser(h, PHONE_B);
-    const otp = await requestCode(h, PHONE_A);
-    const unknown = await call(h.verify, { phone: UNKNOWN_PHONE, otp: '123456' }, { ip: '192.0.2.1' });
-    const noCode = await call(h.verify, { phone: PHONE_B, otp: '123456' }, { ip: '192.0.2.2' });
-    const wrong = await call(h.verify, { phone: PHONE_A, otp: wrongCode(otp) }, { ip: '192.0.2.3' });
-    h.resetsFor(user._id)[0].otpExpiresAt = new Date(Date.UTC(2020, 0, 1));
-    const expired = await call(h.verify, { phone: PHONE_A, otp }, { ip: '192.0.2.4' });
-    for (const r of [unknown, noCode, wrong, expired]) assert.deepEqual([r.statusCode, r.body], [400, INVALID_CODE]);
-    assert.ok(h.calls.compares >= 4, 'every failure path runs one comparison');
-  });
-});
-
-test('verify: per-address and per-number limits return 429 with Retry-After', async () => {
-  await withEnv(async ({ advance }) => {
-    const h = harness();
-    for (let i = 0; i < 20; i += 1) await call(h.verify, { phone: `+23480312345${String(10 + i)}`, otp: '123456' });
-    advance(4 * 60 * 1000);
-    const byIp = await call(h.verify, { phone: PHONE_A, otp: '123456' });
-    assert.equal(byIp.statusCode, 429);
-    assert.equal(byIp.headers['retry-after'], String(6 * 60));
-
-    for (let i = 0; i < 10; i += 1) await call(h.verify, { phone: PHONE_B, otp: '123456' }, { ip: `198.51.100.${i + 1}` });
-    const byPhone = await call(h.verify, { phone: PHONE_B, otp: '123456' }, { ip: '198.51.100.99' });
-    assert.equal(byPhone.statusCode, 429);
-    assert.equal(byPhone.body.resetTicket, undefined);
-  });
-});
-
-test('verify: a failed write when consuming the code returns 500 with no ticket', async () => {
-  await withEnv(async () => {
-    const h = harness({ fail: { 'passwordPhoneResets.updateOne': true } });
-    await addUser(h, PHONE_A);
-    // insertOne is not failed, so the code is stored.
-    const otp = await requestCode(h, PHONE_A);
-    const res = await call(h.verify, { phone: PHONE_A, otp });
-    assert.equal(res.statusCode, 500);
-    assert.equal(res.body.resetTicket, undefined);
-    assert.equal(res.body.resetSecret, undefined);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Reset password
-// ---------------------------------------------------------------------------
-
-async function verifiedTicket(h, phone, ip) {
-  const otp = await requestCode(h, phone, { ip });
-  const res = await call(h.verify, { phone, otp }, { ip });
-  assert.equal(res.statusCode, 200);
-  return res.body;
+async function callRoute(handler, { method = 'POST', body, token, ip = '203.0.113.10' } = {}) {
+  const res = mockResponse();
+  const headers = { 'x-forwarded-for': ip };
+  if (token) headers.authorization = `Bearer ${token}`;
+  await handler({ method, headers, body, query: {}, socket: { remoteAddress: '10.0.0.2' } }, res);
+  return res;
 }
 
-test('reset: sets the password, raises session generation and invalidates old tokens', async () => {
-  await withEnv(async () => {
-    const h = harness();
-    const user = await addUser(h, PHONE_A);
-    const { issueAuthToken, verifyToken, decideSessionBinding } = require('../lib/token-core');
-    const oldToken = issueAuthToken({ userId: String(user._id), email: user.email, role: 'student', generation: 4 });
-    const { resetTicket, resetSecret } = await verifiedTicket(h, PHONE_A);
-    const res = await call(h.reset, { resetTicket, resetSecret, password: 'brand-new-password' });
-    assert.equal(res.statusCode, 200);
-    assert.deepEqual(Object.keys(res.body), ['message']);
-    const row = h.db.data.users.find((u) => String(u._id) === String(user._id));
-    assert.equal(await realBcrypt.compare('brand-new-password', row.password), true);
-    assert.equal(row.sessionGeneration, 5);
-    const payload = verifyToken(oldToken);
-    assert.equal(decideSessionBinding({ userId: payload.userId, binding: payload.sv, generation: row.sessionGeneration, key: process.env.JWT_SECRET }).ok, false);
-    assert.equal(h.resetsFor(user._id).length, 0);
-  });
-});
+function captureConsole() {
+  const lines = [];
+  const saved = {};
+  for (const level of ['log', 'info', 'warn', 'error', 'debug']) {
+    saved[level] = console[level];
+    console[level] = (...args) => lines.push(args.map(String).join(' '));
+  }
+  return { lines, restore: () => Object.assign(console, saved) };
+}
 
-test('reset: a ticket works once, even when submitted simultaneously', async () => {
-  await withEnv(async () => {
+test('through the routes: email link, new password, old session refused, new sign-in works, nothing secret logged', async () => {
+  await withProcessEnv(PROD_ENV, async () => {
     const h = harness();
-    const user = await addUser(h, PHONE_A);
-    const creds = await verifiedTicket(h, PHONE_A);
-    const results = await Promise.all(
-      ['pw-one-111', 'pw-two-222', 'pw-three-333', 'pw-four-444'].map((password, i) => call(h.reset, { ...creds, password }, { ip: `192.0.2.${i + 1}` }))
-    );
-    assert.equal(results.filter((r) => r.statusCode === 200).length, 1);
-    const row = h.db.data.users.find((u) => String(u._id) === String(user._id));
-    assert.equal(row.sessionGeneration, 5, 'raised once');
-    const again = await call(h.reset, { ...creds, password: 'pw-again-555' }, { ip: '192.0.2.9' });
-    assert.equal(again.statusCode, 400);
-  });
-});
+    const user = await addUser(h, { email: 'route.user@example.com', name: '<b>Ada</b>' });
+    const resend = fakeResend();
+    const r = routes(h.db, resend.Resend);
+    const output = captureConsole();
+    let token;
+    try {
+      const signedIn = await callRoute(r.login, { body: { email: user.email, password: 'old-password-1' } });
+      assert.equal(signedIn.statusCode, 200);
+      const oldSession = signedIn.body.token;
 
-test('reset: expired, unknown, malformed and wrong-secret tickets are refused; a wrong secret does not burn the ticket', async () => {
-  await withEnv(async () => {
-    const h = harness();
-    const user = await addUser(h, PHONE_A);
-    const creds = await verifiedTicket(h, PHONE_A);
-    const wrongSecret = await call(h.reset, { ...creds, resetSecret: 'f'.repeat(64), password: 'whatever-1' });
-    assert.equal(wrongSecret.statusCode, 400);
-    assert.equal(h.resetsFor(user._id).length, 1, 'still usable by its owner');
-    assert.equal((await call(h.reset, { resetTicket: 'a'.repeat(48), resetSecret: 'b'.repeat(64), password: 'whatever-1' })).statusCode, 400);
-    for (const bad of [{ resetTicket: 'short' }, { resetTicket: { $ne: null } }, { resetSecret: 'x' }]) {
-      assert.equal((await call(h.reset, { ...creds, ...bad, password: 'whatever-1' })).statusCode, 400);
+      const unknown = await callRoute(r.forgot, { body: { email: 'nobody@example.com' } });
+      const known = await callRoute(r.forgot, { body: { email: user.email } });
+      assert.deepEqual([unknown.statusCode, unknown.body], [200, GENERIC]);
+      assert.deepEqual([known.statusCode, known.body], [200, GENERIC]);
+      assert.equal(known.headers['cache-control'], 'no-store');
+
+      assert.equal(resend.calls.sends.length, 1);
+      const { payload, options } = resend.calls.sends[0];
+      assert.equal(payload.from, PROD_ENV.RESEND_FROM);
+      assert.deepEqual(payload.to, [user.email]);
+      assert.equal(payload.subject, 'Reset your ForexOrbit Academy password');
+      const link = payload.text.match(/https:\/\/app\.example\.test\/reset-password#token=([A-Za-z0-9_-]{43})/);
+      assert.ok(link, 'the link uses APP_BASE_URL and carries the token in the fragment');
+      token = link[1];
+      assert.ok(payload.html.includes(`https://app.example.test/reset-password#token=${token}`));
+      assert.ok(payload.html.includes('&lt;b&gt;Ada&lt;/b&gt;'), 'the name is escaped');
+      assert.equal(payload.html.includes('<b>Ada</b>'), false);
+      assert.match(payload.text, /expires in 30 minutes/);
+      assert.equal(options.idempotencyKey, `password-reset/${h.tokensFor(user)[0]._id}`);
+
+      const done = await callRoute(r.reset, { body: { token, password: 'route-new-pass' } });
+      assert.deepEqual([done.statusCode, done.body], [200, { message: reset.RESET_COMPLETE }]);
+      assert.equal(resend.calls.sends[1].payload.subject, 'Your ForexOrbit Academy password was changed');
+      assert.ok(resend.calls.sends[1].payload.text.includes('https://app.example.test/forgot-password'));
+
+      assert.equal((await callRoute(r.me, { method: 'GET', token: oldSession })).statusCode, 401, 'the old session is signed out');
+      assert.equal((await callRoute(r.login, { body: { email: user.email, password: 'old-password-1' } })).statusCode, 401);
+      const fresh = await callRoute(r.login, { body: { email: user.email, password: 'route-new-pass' } });
+      assert.equal(fresh.statusCode, 200);
+      assert.equal((await callRoute(r.me, { method: 'GET', token: fresh.body.token })).statusCode, 200);
+
+      const replay = await callRoute(r.reset, { body: { token, password: 'route-new-pass-2' } });
+      assert.deepEqual([replay.statusCode, replay.body.code], [400, 'used_token']);
+    } finally {
+      output.restore();
     }
-    h.resetsFor(user._id)[0].passwordStepExpiresAt = new Date(Date.UTC(2020, 0, 1));
-    const expired = await call(h.reset, { ...creds, password: 'whatever-1' });
-    assert.equal(expired.statusCode, 400);
-    assert.equal(h.resetsFor(user._id).length, 0);
-    assert.equal(h.db.data.users.find((u) => String(u._id) === String(user._id)).sessionGeneration, 4, 'nothing changed');
-  });
-});
-
-test('reset: a ticket only ever changes its own account', async () => {
-  await withEnv(async () => {
-    const h = harness();
-    const a = await addUser(h, PHONE_A);
-    const b = await addUser(h, PHONE_B);
-    const creds = await verifiedTicket(h, PHONE_A, '198.51.100.1');
-    assert.equal((await call(h.reset, { ...creds, password: 'only-for-a-1' })).statusCode, 200);
-    const rowA = h.db.data.users.find((u) => String(u._id) === String(a._id));
-    const rowB = h.db.data.users.find((u) => String(u._id) === String(b._id));
-    assert.equal(await realBcrypt.compare('only-for-a-1', rowA.password), true);
-    assert.equal(await realBcrypt.compare('old-password', rowB.password), true);
-    assert.equal(rowB.sessionGeneration, 4);
-  });
-});
-
-test('reset: per-address and per-ticket limits', async () => {
-  await withEnv(async () => {
-    const h = harness();
-    for (let i = 0; i < 10; i += 1) await call(h.reset, { resetTicket: 'a'.repeat(47) + i, resetSecret: 'b'.repeat(64), password: 'whatever-1' });
-    const byIp = await call(h.reset, { resetTicket: 'c'.repeat(48), resetSecret: 'b'.repeat(64), password: 'whatever-1' });
-    assert.equal(byIp.statusCode, 429);
-    const ticket = 'd'.repeat(48);
-    for (let i = 0; i < 5; i += 1) await call(h.reset, { resetTicket: ticket, resetSecret: 'b'.repeat(64), password: 'whatever-1' }, { ip: `198.51.100.${i + 1}` });
-    const byTicket = await call(h.reset, { resetTicket: ticket, resetSecret: 'b'.repeat(64), password: 'whatever-1' }, { ip: '198.51.100.50' });
-    assert.equal(byTicket.statusCode, 429);
-  });
-});
-
-test('reset: a failed password write after the claim returns 500 and the ticket cannot be replayed', async () => {
-  await withEnv(async () => {
-    const h = harness();
-    await addUser(h, PHONE_A);
-    const creds = await verifiedTicket(h, PHONE_A);
-    const usersCollection = h.db.collection.bind(h.db);
-    h.db.collection = (name) => {
-      const col = usersCollection(name);
-      if (name === 'users') col.updateOne = async () => { throw new Error('write failed'); };
-      return col;
-    };
-    const res = await call(h.reset, { ...creds, password: 'new-password-x' });
-    assert.equal(res.statusCode, 500);
-    h.db.collection = usersCollection;
-    assert.equal((await call(h.reset, { ...creds, password: 'new-password-y' })).statusCode, 400, 'start again from Forgot password');
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Client address, shared store failures, keys and logs
-// ---------------------------------------------------------------------------
-
-test('spoofed left-most X-Forwarded-For values cannot get around the limits', async () => {
-  await withEnv(async () => {
-    const h = harness();
-    const results = [];
-    for (let i = 0; i < 12; i += 1) {
-      const spoofed = `1.2.3.${i}, 9.9.9.${i}, 203.0.113.10`;
-      results.push((await call(h.forgot, { phone: `+23480312345${String(10 + i)}` }, { headers: { 'x-forwarded-for': spoofed } })).statusCode);
+    const logged = output.lines.join('\n');
+    for (const secret of [token, user.email, 'nobody@example.com', PROD_ENV.RESEND_API_KEY, 'reset-password#', 'route-new-pass']) {
+      assert.equal(logged.includes(secret), false, `console output must not contain ${secret}`);
     }
-    assert.deepEqual(results.slice(0, 10), Array(10).fill(200));
-    assert.deepEqual(results.slice(10), [429, 429], 'counted under the proxy-appended address');
   });
-  await withEnv(async () => {
-    const h = harness();
-    // Two trusted proxies: the client address is second from the right.
-    for (let i = 0; i < 20; i += 1) {
-      await call(h.verify, { phone: PHONE_A, otp: '123456' }, { headers: { 'x-forwarded-for': `6.6.6.${i}, 203.0.113.20, 10.9.9.9` } });
-    }
-    const refused = await call(h.verify, { phone: PHONE_B, otp: '123456' }, { headers: { 'x-forwarded-for': '7.7.7.7, 203.0.113.20, 10.9.9.9' } });
-    assert.equal(refused.statusCode, 429);
-    const other = await call(h.verify, { phone: PHONE_B, otp: '123456' }, { headers: { 'x-forwarded-for': '203.0.113.21, 10.9.9.9' } });
-    assert.equal(other.statusCode, 400);
-  }, { ...ENV, TRUSTED_PROXY_HOPS: '2' });
-  for (const file of ['forgot-password', 'verify-password-otp', 'reset-password']) {
-    const source = fs.readFileSync(path.join(ROOT, `pages/api/auth/${file}.ts`), 'utf8');
-    assert.match(source, /const ip = clientAddress\(req\) \?\? undefined;/, file);
-    assert.doesNotMatch(source, /split\(','\)\[0\]|getClientIp/, file);
+});
+
+test('through the routes: production without a verified sender or https base URL sends nothing and creates no link', async () => {
+  const broken = [
+    { RESEND_FROM: undefined },
+    { RESEND_FROM: 'onboarding@resend.dev' },
+    { RESEND_FROM: 'ForexOrbit <onboarding@resend.dev>' },
+    { APP_BASE_URL: undefined },
+    { APP_BASE_URL: 'http://app.example.test' },
+    { APP_BASE_URL: 'https://app.example.test/some/path' },
+    { RESEND_API_KEY: undefined },
+  ];
+  for (const change of broken) {
+    await withProcessEnv({ ...PROD_ENV, ...change }, async () => {
+      const h = harness();
+      const user = await addUser(h);
+      const resend = fakeResend();
+      const r = routes(h.db, resend.Resend);
+      const output = captureConsole();
+      let res;
+      try {
+        res = await callRoute(r.forgot, { body: { email: user.email } });
+      } finally {
+        output.restore();
+      }
+      assert.deepEqual([res.statusCode, res.body], [200, GENERIC], JSON.stringify(change));
+      assert.equal(resend.calls.keys.length, 0, 'the Resend client was never created');
+      assert.equal(h.db.data[TOKENS].length, 0, 'no link exists');
+      assert.equal(output.lines.join('\n').includes(user.email), false);
+    });
   }
 });
 
-test('shared store unavailable: all three steps refuse with 503 and do nothing else', async () => {
-  await withEnv(async () => {
-    const h = harness({ fail: { [`${RATE_LIMIT_COLLECTION}.findOneAndUpdate`]: true } });
-    await addUser(h, PHONE_A);
-    const responses = [
-      await call(h.forgot, { phone: PHONE_A }),
-      await call(h.verify, { phone: PHONE_A, otp: '123456' }),
-      await call(h.reset, { resetTicket: 'a'.repeat(48), resetSecret: 'b'.repeat(64), password: 'whatever-1' }),
-    ];
-    for (const res of responses) assert.deepEqual([res.statusCode, res.body.code], [503, 'rate_limit_unavailable']);
-    assert.equal(h.sms.sent.length, 0);
-    assert.equal(h.calls.compares, 0);
-  });
-});
-
-test('forgot: a store failure on the one-minute gate is refused with 503, not answered as sent', async () => {
-  await withEnv(async () => {
+test('through the routes: a Resend error leaves no usable link and is not shown to the caller', async () => {
+  await withProcessEnv(PROD_ENV, async () => {
     const h = harness();
-    await addUser(h, PHONE_A);
-    const limits = h.db.collection.bind(h.db);
-    h.db.collection = (name) => {
-      const col = limits(name);
-      if (name === RATE_LIMIT_COLLECTION) {
-        const upsert = col.findOneAndUpdate;
-        col.findOneAndUpdate = async (filter, ...rest) => {
-          if (String(filter._id).startsWith('reset-request-cooldown:')) throw new Error('store failed');
-          return upsert(filter, ...rest);
-        };
-      }
-      return col;
-    };
-    const res = await call(h.forgot, { phone: PHONE_A });
-    assert.deepEqual([res.statusCode, res.body.code], [503, 'rate_limit_unavailable']);
-    assert.equal(h.sms.sent.length, 0);
-  });
-});
-
-test('stored rate-limit keys and security logs hold no phone numbers, codes, tickets or secrets', async () => {
-  await withEnv(async () => {
-    const h = harness();
-    await addUser(h, PHONE_A);
-    const otp = await requestCode(h, PHONE_A);
-    await call(h.verify, { phone: PHONE_A, otp: wrongCode(otp) });
-    const creds = (await call(h.verify, { phone: PHONE_A, otp })).body;
-    await call(h.reset, { ...creds, password: 'logged-nowhere-1' });
-    const stored = JSON.stringify([h.db.data[RATE_LIMIT_COLLECTION], h.db.data.passwordResetSecurityLogs]);
-    for (const secret of ['8031234567', '2348031234567', otp, creds.resetTicket, creds.resetSecret, 'logged-nowhere-1']) {
-      assert.equal(stored.includes(secret), false, `leaked ${secret.slice(0, 4)}…`);
+    const user = await addUser(h);
+    const resend = fakeResend(() => ({ data: null, error: { name: 'validation_error', message: `bad recipient ${user.email}` } }));
+    const r = routes(h.db, resend.Resend);
+    const output = captureConsole();
+    let res;
+    try {
+      res = await callRoute(r.forgot, { body: { email: user.email } });
+    } finally {
+      output.restore();
     }
-    for (const row of h.db.data[RATE_LIMIT_COLLECTION]) assert.match(row._id, /^reset-[a-z-]+:[a-f0-9]{40}:\d+$/);
+    assert.deepEqual([res.statusCode, res.body], [200, GENERIC]);
+    assert.equal(h.db.data[TOKENS].length, 0);
+    assert.equal(output.lines.join('\n').includes(user.email), false, 'the provider message is not logged');
+    assert.ok(output.lines.some((line) => line.includes('"reason":"send_failed"')));
   });
+});
+
+test('the phone reset endpoints are retired with 410 Gone', async () => {
+  for (const route of ['pages/api/auth/verify-password-otp.ts', 'pages/api/auth/update-phone.ts', 'pages/api/auth/check-email-config.ts']) {
+    const handler = loadModule(route).default;
+    for (const method of ['GET', 'POST', 'PATCH']) {
+      const res = await callRoute(handler, { method, body: { phone: '+2348031234567', otp: '123456' } });
+      assert.equal(res.statusCode, 410, `${route} ${method}`);
+      assert.equal(res.body.code, 'phone_reset_retired');
+      assert.equal(res.headers['cache-control'], 'no-store');
+    }
+  }
+  // The old request shape is now a malformed email, not a phone lookup.
+  const h = harness();
+  assert.equal((await h.service.requestReset({ body: { phone: '+2348031234567' }, ip: '203.0.113.10' })).status, 400);
 });
 
 test('policies', () => {
-  const rules = (list) => list.map((r) => [r.id, r.max, [...r.parts]]);
-  assert.deepEqual(rules(authLimit.RESET_REQUEST_RULES), [
+  const auth = require('../lib/auth-rate-limit');
+  assert.deepEqual(auth.RESET_REQUEST_RULES.map((r) => [r.id, r.max, r.parts]), [
     ['reset-request-ip', 10, ['ip']],
-    ['reset-request-phone', 5, ['phone']],
+    ['reset-request-email', 5, ['email']],
     ['reset-request-global', 300, []],
   ]);
-  assert.deepEqual(rules(authLimit.RESET_COOLDOWN_RULES), [['reset-request-cooldown', 1, ['phone']]]);
-  assert.equal(authLimit.RESET_COOLDOWN_WINDOW_MS, 60 * 1000);
-  assert.deepEqual(rules(authLimit.RESET_VERIFY_RULES), [
-    ['reset-verify-ip', 20, ['ip']],
-    ['reset-verify-phone', 10, ['phone']],
-  ]);
-  assert.deepEqual(rules(authLimit.RESET_COMPLETE_RULES), [
+  assert.deepEqual(auth.RESET_COOLDOWN_RULES.map((r) => [r.id, r.max, r.parts]), [['reset-request-cooldown', 1, ['email']]]);
+  assert.equal(auth.RESET_COOLDOWN_WINDOW_MS, 60 * 1000);
+  assert.deepEqual(auth.RESET_COMPLETE_RULES.map((r) => [r.id, r.max, r.parts]), [
     ['reset-complete-ip', 10, ['ip']],
     ['reset-complete-ticket', 5, ['ticket']],
   ]);
-  // H1 policies are unchanged.
-  assert.deepEqual(rules(authLimit.LOGIN_RULES).map((r) => r[1]), [30, 10, 50]);
-  assert.deepEqual(rules(authLimit.SIGNUP_RULES).map((r) => r[1]), [10, 5]);
+  assert.equal('RESET_VERIFY_RULES' in auth, false);
+  assert.equal(reset.MIN_RESPONSE_MS, 1200);
+  assert.equal(tokens.RESET_TOKEN_RETENTION_SECONDS, 24 * 60 * 60);
+  assert.ok(require('../lib/app-database-role').READ_WRITE_COLLECTIONS.includes(TOKENS));
 });

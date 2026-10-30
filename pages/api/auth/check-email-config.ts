@@ -1,20 +1,14 @@
 /**
- * Diagnostic: SMS provider configured for password reset (OTP)
- * GET /api/auth/check-email-config  (path kept for existing bookmarks)
+ * Retired: reported whether SMS delivery for password reset was configured. The email reset page
+ * does not need it, and the response would reveal configuration. Kept as 410 Gone.
  */
 
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { isSmsConfigured } from '@/lib/sms';
-import { unexpectedBody } from '@/lib/public-error';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
-  try {
-    res.json({ configured: isSmsConfigured() });
-  } catch (error: unknown) {
-    res.status(500).json({ ...unexpectedBody('sms-config', error), configured: false });
-  }
+export default function handler(_req: NextApiRequest, res: NextApiResponse) {
+  res.setHeader('Cache-Control', 'no-store');
+  return res.status(410).json({
+    error: 'This endpoint has been retired.',
+    code: 'phone_reset_retired',
+  });
 }

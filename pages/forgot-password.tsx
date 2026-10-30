@@ -1,24 +1,27 @@
 /**
- * Forgot Password — phone + SMS OTP
+ * Forgot Password — request a reset link by email.
+ * The confirmation is the same whether or not the address has an account.
  */
 
 import React, { useState, useRef, useEffect } from 'react';
-import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { ButtonLoadingState } from '@/components/loading';
 import { apiClient } from '@/lib/api-client';
 
-const PWD_RESET_STORAGE = 'forexorbitPwdReset';
-
 const PUBLIC_API_BASE =
   (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_API_BASE_URL) ||
   (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_API_URL) ||
   '';
 
+type ApiError = {
+  code?: string;
+  response?: { status?: number; data?: { message?: string; error?: string; retryAfterSec?: number } };
+};
+
 function mapForgotPasswordError(err: unknown): string {
-  const e = err as { code?: string; response?: { data?: { message?: string; error?: string } } };
+  const e = err as ApiError;
   const d = e.response?.data;
   const apiErr = d?.message?.trim() || d?.error?.trim();
   if (apiErr) return apiErr;
@@ -32,47 +35,25 @@ function mapForgotPasswordError(err: unknown): string {
   return 'Something went wrong. Try again.';
 }
 
-type Step = 'phone' | 'otp';
-
 export default function ForgotPassword() {
-  const router = useRouter();
-  const [step, setStep] = useState<Step>('phone');
-  const [phone, setPhone] = useState('');
-  const [otp, setOtp] = useState('');
+  const [email, setEmail] = useState('');
   const [error, setError] = useState('');
-  const [info, setInfo] = useState('');
+  const [sentMessage, setSentMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [retryAfterSeconds, setRetryAfterSeconds] = useState(0);
-  const [smsDeliveryEnabled, setSmsDeliveryEnabled] = useState<boolean | null>(null);
-  const cooldownTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const waitTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const cfg = await apiClient.get<{ smsDeliveryEnabled?: boolean; configured?: boolean }>(
-          '/auth/check-email-config'
-        );
-        if (!cancelled) {
-          setSmsDeliveryEnabled(cfg.smsDeliveryEnabled ?? cfg.configured ?? false);
-        }
-      } catch {
-        if (!cancelled) setSmsDeliveryEnabled(null);
-      }
-    })();
-    return () => {
-      cancelled = true;
-      if (cooldownTimerRef.current) clearInterval(cooldownTimerRef.current);
-    };
+  useEffect(() => () => {
+    if (waitTimerRef.current) clearInterval(waitTimerRef.current);
   }, []);
 
-  const startCooldown = (seconds: number) => {
+  const startWait = (seconds: number) => {
     setRetryAfterSeconds(seconds);
-    if (cooldownTimerRef.current) clearInterval(cooldownTimerRef.current);
-    cooldownTimerRef.current = setInterval(() => {
+    if (waitTimerRef.current) clearInterval(waitTimerRef.current);
+    waitTimerRef.current = setInterval(() => {
       setRetryAfterSeconds((prev) => {
         if (prev <= 1) {
-          if (cooldownTimerRef.current) clearInterval(cooldownTimerRef.current);
+          if (waitTimerRef.current) clearInterval(waitTimerRef.current);
           return 0;
         }
         return prev - 1;
@@ -80,118 +61,23 @@ export default function ForgotPassword() {
     }, 1000);
   };
 
-  const handleSendCode = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setInfo('');
-    if (!phone.trim()) {
-      setError('Enter the phone number on your account');
+    const address = email.trim();
+    if (!address) {
+      setError('Enter the email address on your account.');
       return;
     }
     setLoading(true);
     try {
-      const res = await apiClient.post<{
-        message: string;
-        cooldown?: number;
-        rateLimited?: boolean;
-        _devNote?: string;
-        smsDeliveryEnabled?: boolean;
-      }>('/auth/forgot-password', { phone: phone.trim() });
-
-      if (typeof res.smsDeliveryEnabled === 'boolean') {
-        setSmsDeliveryEnabled(res.smsDeliveryEnabled);
-      }
-
-      if (res._devNote) {
-        setInfo(res._devNote);
-      } else if (res.smsDeliveryEnabled === false) {
-        setInfo(
-          'Password reset by text message is unavailable right now. Please contact support to reset your password.'
-        );
-      } else {
-        setInfo('If this number is registered, you should receive an SMS within a minute.');
-      }
-
-      if (typeof res.cooldown === 'number' && res.cooldown > 0) {
-        startCooldown(res.cooldown);
-      }
-
-      setStep('otp');
+      const res = await apiClient.post<{ message: string }>('/auth/forgot-password', { email: address });
+      setSentMessage(res.message);
     } catch (err: unknown) {
+      const e = err as ApiError;
+      const wait = e.response?.status === 429 ? Number(e.response.data?.retryAfterSec) : 0;
+      if (wait > 0) startWait(wait);
       setError(mapForgotPasswordError(err));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleResend = async () => {
-    if (retryAfterSeconds > 0 || loading) return;
-    setError('');
-    setInfo('');
-    setLoading(true);
-    try {
-      const res = await apiClient.post<{ message: string; cooldown?: number }>('/auth/forgot-password', {
-        phone: phone.trim(),
-      });
-      setInfo('Code sent again. Check your SMS.');
-      if (typeof res.cooldown === 'number' && res.cooldown > 0) {
-        startCooldown(res.cooldown);
-      }
-    } catch (err: unknown) {
-      setError(mapForgotPasswordError(err));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setInfo('');
-    const code = otp.replace(/\s/g, '');
-    if (!/^\d{6}$/.test(code)) {
-      setError('Enter the 6-digit code from your SMS');
-      return;
-    }
-    setLoading(true);
-    try {
-      const res = await apiClient.post<{
-        message: string;
-        resetTicket: string;
-        resetSecret: string;
-      }>('/auth/verify-password-otp', { phone: phone.trim(), otp: code });
-
-      try {
-        sessionStorage.setItem(
-          PWD_RESET_STORAGE,
-          JSON.stringify({
-            resetTicket: res.resetTicket,
-            resetSecret: res.resetSecret,
-            expiresAt: Date.now() + 14 * 60 * 1000,
-          })
-        );
-      } catch {
-        setError('Your browser blocked storage. Allow session storage and try again.');
-        setLoading(false);
-        return;
-      }
-
-      setInfo(res.message);
-      await router.push('/reset-password');
-    } catch (err: unknown) {
-      const ax = err as {
-        response?: { data?: { error?: string; attemptsRemaining?: number; locked?: boolean } };
-      };
-      const d = ax.response?.data;
-      if (d?.attemptsRemaining != null) {
-        setError(`${d.error} (${d.attemptsRemaining} attempt(s) left)`);
-      } else {
-        setError(d?.error || 'Verification failed.');
-      }
-      if (d?.locked) {
-        setStep('phone');
-        setOtp('');
-      }
     } finally {
       setLoading(false);
     }
@@ -213,108 +99,70 @@ export default function ForgotPassword() {
           <div className="bg-white rounded-2xl shadow-soft p-6 sm:p-8 border border-neutral-200">
             <div className="text-center mb-6 sm:mb-8">
               <h2 className="text-neutral-900 font-bold text-2xl sm:text-3xl mb-3 sm:mb-4">
-                {step === 'phone' ? 'Forgot password' : 'Enter verification code'}
+                {sentMessage ? 'Check your email' : 'Forgot password'}
               </h2>
               <p className="text-sm sm:text-base text-neutral-600">
-                {step === 'phone'
-                  ? 'We’ll text a 6-digit code to the phone number on your account.'
-                  : `Code sent to your phone. It expires in 5 minutes.`}
+                {sentMessage
+                  ? 'Open the link in the email to choose a new password.'
+                  : 'Enter the email address on your account and we’ll send you a link to reset your password.'}
               </p>
             </div>
 
-            {smsDeliveryEnabled === false && (
-              <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl dark:bg-amber-900/40 dark:border-amber-600/60">
-                <p className="text-amber-800 text-sm text-center font-medium dark:text-amber-100">
-                  Password reset by text message is unavailable right now. Please{' '}
-                  <Link href="/support" className="underline">contact support</Link> to reset your password.
+            {error && (
+              <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl" role="alert">
+                <p className="text-red-700 text-sm">
+                  {error}
+                  {retryAfterSeconds > 0 ? ` You can try again in ${retryAfterSeconds}s.` : ''}
                 </p>
               </div>
             )}
 
-            {info && (
-              <div className="mb-4 p-3 bg-primary-50 border border-primary-200 rounded-xl dark:bg-primary-900/40 dark:border-primary-600/50">
-                <p className="text-neutral-500 text-sm text-center">{info}</p>
-              </div>
-            )}
-
-            {error && (
-              <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl">
-                <p className="text-red-700 text-sm">{error}</p>
-              </div>
-            )}
-
-            {step === 'phone' ? (
-              <form onSubmit={handleSendCode} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-semibold text-neutral-500 mb-2">Phone number</label>
-                  <input
-                    type="tel"
-                    inputMode="tel"
-                    autoComplete="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    required
-                    className="bg-white border border-neutral-300 text-neutral-900 rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary-400/50 focus:border-transparent w-full text-base placeholder:text-neutral-400"
-                    placeholder="+234 801 234 5678"
-                  />
-                  <p className="text-xs text-neutral-500 mt-2">
-                    Use the same number you registered with. Include country code.
-                  </p>
+            {sentMessage ? (
+              <div className="space-y-4">
+                <div className="p-4 bg-primary-50 border border-primary-200 rounded-xl dark:bg-primary-900/40 dark:border-primary-600/50" role="status">
+                  <p className="text-neutral-600 text-sm text-center dark:text-neutral-200">{sentMessage}</p>
                 </div>
-                <button
-                  type="submit"
-                  disabled={loading || !phone.trim()}
-                  className="bg-primary-600 hover:bg-primary-700 text-white w-full rounded-xl py-3 font-semibold transition-colors disabled:bg-primary-900/50 disabled:cursor-not-allowed min-h-[48px]"
-                >
-                  {loading ? <ButtonLoadingState loading loadingLabel="Sending code" /> : 'Send code'}
-                </button>
-              </form>
-            ) : (
-              <form onSubmit={handleVerifyOtp} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-semibold text-neutral-500 mb-2">6-digit code</label>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    pattern="\d*"
-                    maxLength={8}
-                    value={otp}
-                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                    required
-                    className="bg-white border border-neutral-300 text-neutral-900 rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary-400/50 focus:border-transparent w-full text-center text-2xl tracking-[0.4em] font-mono placeholder:text-neutral-400"
-                    placeholder="••••••"
-                    autoComplete="one-time-code"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  disabled={loading || otp.length !== 6}
-                  className="bg-primary-600 hover:bg-primary-700 text-white w-full rounded-xl py-3 font-semibold transition-colors disabled:bg-primary-900/50 disabled:cursor-not-allowed min-h-[48px]"
-                >
-                  {loading ? <ButtonLoadingState loading loadingLabel="Checking code" /> : 'Verify & continue'}
-                </button>
-                <div className="flex flex-col sm:flex-row gap-2 sm:justify-between sm:items-center pt-2">
+                <p className="text-xs text-neutral-500 text-center">
+                  Didn’t get it? Check your spam folder, or wait a minute and{' '}
                   <button
                     type="button"
                     onClick={() => {
-                      setStep('phone');
-                      setOtp('');
+                      setSentMessage('');
                       setError('');
-                      setInfo('');
                     }}
-                    className="text-sm text-neutral-600 hover:text-neutral-900 underline"
+                    className="font-semibold text-primary-700 hover:text-primary-600 underline dark:text-primary-300"
                   >
-                    Change number
+                    request another link
                   </button>
-                  <button
-                    type="button"
-                    onClick={handleResend}
-                    disabled={retryAfterSeconds > 0 || loading}
-                    className="text-sm font-semibold text-primary-700 hover:text-primary-600 dark:text-primary-300 disabled:text-gray-500 disabled:cursor-not-allowed"
-                  >
-                    {retryAfterSeconds > 0 ? `Resend in ${retryAfterSeconds}s` : 'Resend code'}
-                  </button>
+                  .
+                </p>
+              </div>
+            ) : (
+              <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+                <div>
+                  <label htmlFor="forgot-email" className="block text-sm font-semibold text-neutral-500 mb-2">
+                    Email address
+                  </label>
+                  <input
+                    id="forgot-email"
+                    type="email"
+                    inputMode="email"
+                    autoComplete="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    maxLength={254}
+                    className="bg-white border border-neutral-300 text-neutral-900 rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary-400/50 focus:border-transparent w-full text-base placeholder:text-neutral-400"
+                    placeholder="you@example.com"
+                  />
                 </div>
+                <button
+                  type="submit"
+                  disabled={loading || !email.trim() || retryAfterSeconds > 0}
+                  className="bg-primary-600 hover:bg-primary-700 text-white w-full rounded-xl py-3 font-semibold transition-colors disabled:bg-primary-900/50 disabled:cursor-not-allowed min-h-[48px]"
+                >
+                  {loading ? <ButtonLoadingState loading loadingLabel="Sending link" /> : 'Send reset link'}
+                </button>
               </form>
             )}
 
@@ -326,8 +174,11 @@ export default function ForgotPassword() {
                 </Link>
               </p>
               <p className="text-center text-xs text-gray-500 mt-3">
-                After too many wrong codes, request a new SMS. Multiple failed attempts are logged for
-                security.
+                No longer have access to your email?{' '}
+                <Link href="/support" className="underline">
+                  Contact support
+                </Link>
+                .
               </p>
             </div>
           </div>

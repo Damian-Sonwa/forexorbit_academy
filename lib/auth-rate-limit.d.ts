@@ -1,7 +1,7 @@
 import type { NextApiResponse } from 'next';
 import type { Db } from 'mongodb';
 
-export type AuthRule = { id: string; max: number; parts: readonly ('ip' | 'email' | 'phone' | 'ticket')[] };
+export type AuthRule = { id: string; max: number; parts: readonly ('ip' | 'email' | 'ticket')[] };
 export type AuthLimitDecision =
   | { allowed: true }
   | { allowed: false; status: 429; retryAfterSec: number }
@@ -14,7 +14,6 @@ export const SIGNUP_RULES: readonly AuthRule[];
 export const RESET_REQUEST_RULES: readonly AuthRule[];
 export const RESET_COOLDOWN_RULES: readonly AuthRule[];
 export const RESET_COOLDOWN_WINDOW_MS: number;
-export const RESET_VERIFY_RULES: readonly AuthRule[];
 export const RESET_COMPLETE_RULES: readonly AuthRule[];
 export function normalizeEmail(value: unknown): string;
 export function keyFor(rule: AuthRule, values: Record<string, string>, secret: string): string;
@@ -25,7 +24,6 @@ export function createAuthLimiter(
   consume(input: {
     ip: string | null;
     email?: unknown;
-    phone?: string | null;
     ticket?: string | null;
     getDb: () => Promise<Db>;
     env?: Record<string, string | undefined>;

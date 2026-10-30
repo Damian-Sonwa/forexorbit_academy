@@ -54,10 +54,11 @@ test('the interface has no language switcher and declares English', () => {
   assert.match(read('pages/_document.tsx'), /<Html lang="en"/);
 });
 
-test('forgot password explains unavailable SMS without exposing server configuration', () => {
+test('forgot password asks for an email without exposing server configuration', () => {
   const source = read('pages/forgot-password.tsx');
-  assert.doesNotMatch(source, /TWILIO|TERMII|Twilio|Termii|e\.g\. Render/);
-  assert.match(source, /Password reset by text message is unavailable right now/);
+  assert.doesNotMatch(source, /TWILIO|TERMII|Twilio|Termii|RESEND|Resend|e\.g\. Render/);
+  assert.doesNotMatch(source, /check-email-config/, 'the page no longer asks the server how mail is configured');
+  assert.match(source, /apiClient\.post<\{ message: string \}>\('\/auth\/forgot-password', \{ email: address \}\)/);
   assert.doesNotMatch(source, /<h2 className="text-white/, 'heading is readable in the light theme');
 });
 

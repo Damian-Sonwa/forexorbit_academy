@@ -1,52 +1,15 @@
 /**
- * Update phone for password reset (authenticated)
- * PATCH /api/auth/update-phone  { phone }
+ * Retired: setting a phone number for password reset. Password reset now uses the account's
+ * email address, so this endpoint no longer changes anything. Kept as 410 Gone for older clients.
+ * Stored phone numbers are left as they are.
  */
 
-import type { NextApiResponse } from 'next';
-import { withAuth, AuthRequest } from '@/lib/auth-middleware';
-import { getDb } from '@/lib/mongodb';
-import { ObjectId } from 'mongodb';
-import { parseToE164 } from '@/lib/phone';
-import { unexpectedBody } from '@/lib/public-error';
+import type { NextApiRequest, NextApiResponse } from 'next';
 
-async function handler(req: AuthRequest, res: NextApiResponse) {
-  if (req.method !== 'PATCH' && req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
-  try {
-    const { phone } = req.body;
-    if (!phone || typeof phone !== 'string') {
-      return res.status(400).json({ error: 'Phone number is required' });
-    }
-
-    const parsed = parseToE164(phone);
-    if (!parsed) {
-      return res.status(400).json({ error: 'Invalid phone number' });
-    }
-
-    const db = await getDb();
-    const users = db.collection('users');
-    const uid = new ObjectId(req.user!.userId);
-
-    const taken = await users.findOne({
-      phoneE164: parsed.e164,
-      _id: { $ne: uid },
-    });
-    if (taken) {
-      return res.status(400).json({ error: 'That phone number cannot be used. Choose a different number.' });
-    }
-
-    await users.updateOne(
-      { _id: uid },
-      { $set: { phoneE164: parsed.e164, updatedAt: new Date() } }
-    );
-
-    return res.status(200).json({ message: 'Phone number updated', phoneE164: parsed.e164 });
-  } catch (error: unknown) {
-    return res.status(500).json(unexpectedBody('update-phone', error));
-  }
+export default function handler(_req: NextApiRequest, res: NextApiResponse) {
+  res.setHeader('Cache-Control', 'no-store');
+  return res.status(410).json({
+    error: 'Phone numbers are no longer used for password reset. Reset links are sent to your account email.',
+    code: 'phone_reset_retired',
+  });
 }
-
-export default withAuth(handler);

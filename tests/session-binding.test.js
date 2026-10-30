@@ -114,14 +114,17 @@ test('a database failure while checking the session fails closed', () => {
 test('login, reset, and the socket handshake use the session binding', () => {
   const root = path.join(__dirname, '..');
   const login = fs.readFileSync(path.join(root, 'pages', 'api', 'auth', 'login.ts'), 'utf8');
-  const reset = fs.readFileSync(path.join(root, 'pages', 'api', 'auth', 'reset-password.ts'), 'utf8');
+  // The reset route delegates to lib/password-reset.js, which raises the generation.
+  const resetRoute = fs.readFileSync(path.join(root, 'pages', 'api', 'auth', 'reset-password.ts'), 'utf8');
+  const reset = fs.readFileSync(path.join(root, 'lib', 'password-reset.js'), 'utf8');
   const middleware = fs.readFileSync(path.join(root, 'lib', 'auth-middleware.ts'), 'utf8');
   const server = fs.readFileSync(path.join(root, 'server.js'), 'utf8');
   assert.equal(login.includes('issueAuthToken'), true);
   assert.equal(login.includes('sessionGeneration:'), false);
+  assert.equal(resetRoute.includes('passwordResetService.completeReset('), true);
   assert.equal(reset.includes('$inc: { sessionGeneration: 1 }'), true);
   assert.equal(middleware.includes('decideSessionBinding'), true);
   assert.equal(server.includes('decideSessionBinding'), true);
-  const resetResponse = reset.slice(reset.lastIndexOf('return res.status(200)'));
+  const resetResponse = reset.slice(reset.lastIndexOf('return { status: 200'));
   assert.equal(resetResponse.includes('sessionGeneration'), false);
 });
