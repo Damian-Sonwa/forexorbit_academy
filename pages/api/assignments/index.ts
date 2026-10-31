@@ -17,6 +17,7 @@ import {
   presentAssignment,
 } from '@/lib/account-access';
 import { enrollmentDecisionRecord } from '@/lib/enrollment-state';
+import { courseContentAccess } from '@/lib/course-lesson-list';
 
 async function loadCourseAccess(req: AuthRequest, courseId: string) {
   const db = await getDb();
@@ -82,8 +83,16 @@ async function getAssignments(req: AuthRequest, res: NextApiResponse) {
     if (access.staff) {
       return res.json(assignmentsList.map((assignment) => presentAssignment(assignment, true)));
     }
+    // Students see only assignments of lessons they may open; a course-level assignment needs
+    // the whole course open (Phase 6). Locked ones are left out, instructions included.
+    const content = await courseContentAccess(
+      loaded.db,
+      loaded.account.ok ? { userId: loaded.account.user.userId, role: loaded.account.user.role } : null,
+      access.courseId
+    );
+    const visible = assignmentsList.filter((assignment) => content.isOpen(assignment.lessonId ? String(assignment.lessonId) : null));
     const submissions = loaded.db.collection('assignmentSubmissions');
-    const views = await Promise.all(assignmentsList.map(async (assignment) => {
+    const views = await Promise.all(visible.map(async (assignment) => {
       const submission = await submissions.findOne({
         userId: loaded.account.ok ? loaded.account.user.userId : '',
         assignmentId: assignment._id.toString(),

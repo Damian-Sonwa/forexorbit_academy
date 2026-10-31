@@ -9,6 +9,7 @@ import {
   enrollDuplicateStatus,
   isStoredCourseId,
 } from '@/lib/enrollment-state';
+import { hasCourseEntitlement } from '@/lib/course-payment';
 
 export default withAuth(async (req: AuthRequest, res: NextApiResponse) => {
   if (req.method !== 'POST' && req.method !== 'DELETE') {
@@ -33,12 +34,14 @@ export default withAuth(async (req: AuthRequest, res: NextApiResponse) => {
 
     if (req.method === 'POST') {
       const course = await courses.findOne({ _id: courseObjectId });
+      const entitled = course ? await hasCourseEntitlement(db, userId, courseId as string) : false;
       const decision = decideEnroll({
         role: req.user!.role,
         userId,
         courseId,
         course,
         existing,
+        entitled,
       });
       if (!decision.ok || !decision.writes) {
         return res.status(decision.status).json(decision.code ? { error: decision.error, code: decision.code } : { error: decision.error });
@@ -47,11 +50,12 @@ export default withAuth(async (req: AuthRequest, res: NextApiResponse) => {
         if (decision.action === 'reactivate') {
           await progress.updateOne(
             { _id: existing!._id, userId },
-            { $set: { active: true, updatedAt: new Date() }, $unset: { withdrawnAt: '' } }
+            { $set: { active: true, updatedAt: new Date(), reactivatedVia: 'student' }, $unset: { withdrawnAt: '' } }
           );
         } else {
           await progress.insertOne({
             ...decision.document,
+            enrolledVia: 'student',
             createdAt: new Date(),
             updatedAt: new Date(),
           });

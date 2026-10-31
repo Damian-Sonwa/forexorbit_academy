@@ -17,6 +17,7 @@ import {
   presentSubmission,
 } from '@/lib/account-access';
 import { enrollmentDecisionRecord } from '@/lib/enrollment-state';
+import { courseContentAccess, LESSON_LOCKED_MESSAGE } from '@/lib/course-lesson-list';
 
 async function loadSubmissionContext(req: AuthRequest, id: string) {
   const db = await getDb();
@@ -63,6 +64,15 @@ async function submitAssignment(req: AuthRequest, res: NextApiResponse) {
     });
     if (!decision.ok) {
       return res.status(decision.status).json({ error: decision.error });
+    }
+    // Same paywall as the lesson the assignment belongs to (Phase 6).
+    const content = await courseContentAccess(
+      loaded.db,
+      { userId: decision.userId, role: 'student' },
+      decision.courseId
+    );
+    if (!content.isOpen(decision.lessonId ? String(decision.lessonId) : null)) {
+      return res.status(403).json({ error: LESSON_LOCKED_MESSAGE, code: 'assignment_locked' });
     }
     const submissions = loaded.db.collection('assignmentSubmissions');
     const existing = await submissions.findOne({

@@ -1,7 +1,7 @@
 /**
  * GET /api/admin/audit-log — Super Admin audit trail for purchase reviews, exception changes and
  * account events (approval decisions, role changes and deletions).
- * Query: entityType (purchase | payment_exception | account), q (reference prefix), page, pageSize.
+ * Query: entityType (purchase | payment_exception | account | course_access), q (reference prefix), page, pageSize.
  */
 
 import type { NextApiResponse } from 'next';

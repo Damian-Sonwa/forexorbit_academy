@@ -5,6 +5,7 @@
  */
 
 import { useEffect, useState } from 'react';
+import { messageFromUnknown } from '@/lib/public-error';
 import type { GetStaticProps } from 'next';
 import Link from 'next/link';
 import BrandLogo from '@/components/BrandLogo';
@@ -54,9 +55,23 @@ function CatalogEntry({
 }: {
   course: Course;
   isAuthenticated: boolean;
-  onEnroll: (courseId: string) => void;
+  onEnroll: (courseId: string) => void | Promise<void>;
 }) {
   const courseId = course._id || course.id || '';
+  const [enrolling, setEnrolling] = useState(false);
+  const [enrollError, setEnrollError] = useState<string | null>(null);
+  const enroll = async () => {
+    if (enrolling) return;
+    setEnrolling(true);
+    setEnrollError(null);
+    try {
+      await onEnroll(courseId);
+    } catch (error) {
+      setEnrollError(messageFromUnknown(error));
+    } finally {
+      setEnrolling(false);
+    }
+  };
   const courseHref = isAuthenticated ? `/courses/${courseId}` : loginHref(`/courses/${courseId}`);
   const description = previewText(course.description);
   const lessonCount = course.lessons?.length;
@@ -77,8 +92,8 @@ function CatalogEntry({
         {description ? <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-white/65">{description}</p> : null}
         <div className="mt-auto pt-5">
           {isAuthenticated && !course.enrolled ? (
-            <button type="button" onClick={() => onEnroll(courseId)} className="btn btn-primary">
-              Enroll
+            <button type="button" onClick={() => void enroll()} disabled={enrolling} className="btn btn-primary">
+              {enrolling ? 'Enrolling…' : 'Enroll'}
             </button>
           ) : (
             <Link href={courseHref} className={`btn ${course.enrolled ? 'btn-primary' : 'btn-outline'}`}>
@@ -86,6 +101,7 @@ function CatalogEntry({
               <ArrowRight className="h-4 w-4" aria-hidden />
             </Link>
           )}
+          {enrollError ? <p role="alert" className="mt-2 text-sm text-red-300">{enrollError}</p> : null}
         </div>
       </div>
     </article>

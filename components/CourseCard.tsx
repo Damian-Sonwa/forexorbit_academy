@@ -3,16 +3,18 @@
  * Displays course information with progress and enrollment
  */
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { Course } from '@/hooks/useCourses';
+import { messageFromUnknown } from '@/lib/public-error';
 import { useAuth } from '@/hooks/useAuth';
 import { previewText } from '@/lib/plain-text';
 import CourseCover from '@/components/CourseCover';
 
 interface CourseCardProps {
   course: Course;
-  onEnroll?: (courseId: string) => void;
-  onUnenroll?: (courseId: string) => void;
+  onEnroll?: (courseId: string) => void | Promise<void>;
+  onUnenroll?: (courseId: string) => void | Promise<void>;
 }
 
 const difficultyStyles: Record<string, string> = {
@@ -26,6 +28,22 @@ export default function CourseCard({ course, onEnroll, onUnenroll }: CourseCardP
   const courseId = course._id || course.id || '';
   const progress = Math.max(0, Math.min(100, Math.round(course.progress ?? 0)));
   const descriptionPlain = previewText(course.description);
+  // One enrollment action at a time; the server's answer is shown on the card.
+  const [busy, setBusy] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const run = async (action?: (id: string) => void | Promise<void>) => {
+    if (!action || busy) return;
+    setBusy(true);
+    setActionError(null);
+    try {
+      await action(courseId);
+    } catch (error) {
+      setActionError(messageFromUnknown(error));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const completed = Boolean(course.completed || (course.enrolled && (course.progress ?? 0) >= 100));
 
   return (
     <article className="group flex h-full flex-col overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-soft transition-shadow duration-200 hover:shadow-raised">
@@ -41,6 +59,9 @@ export default function CourseCard({ course, onEnroll, onUnenroll }: CourseCardP
           {course.category && (
             <span className="text-xs capitalize text-neutral-500">{course.category}</span>
           )}
+          {completed ? <span className="chip border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-300">Completed</span> : null}
+          {course.owned ? <span className="chip border-primary-200 bg-primary-50 text-primary-800 dark:border-primary-400/30 dark:bg-primary-400/10 dark:text-primary-300">Full access</span> : null}
+          {course.status === 'archived' ? <span className="chip border-neutral-200 bg-neutral-50 text-neutral-700">Archived</span> : null}
         </div>
 
         <h3 className="font-display text-lg font-semibold leading-snug tracking-tight text-neutral-900">
@@ -85,17 +106,18 @@ export default function CourseCard({ course, onEnroll, onUnenroll }: CourseCardP
           {isAuthenticated && (
             <>
               {course.enrolled ? (
-                <button type="button" onClick={() => onUnenroll?.(courseId)} className="btn btn-ghost px-3">
-                  Unenroll
+                <button type="button" onClick={() => void run(onUnenroll)} disabled={busy} className="btn btn-ghost px-3">
+                  {busy ? 'Leaving…' : 'Unenroll'}
                 </button>
               ) : (
-                <button type="button" onClick={() => onEnroll?.(courseId)} className="btn btn-primary">
-                  Enroll
+                <button type="button" onClick={() => void run(onEnroll)} disabled={busy} className="btn btn-primary">
+                  {busy ? 'Enrolling…' : 'Enroll'}
                 </button>
               )}
             </>
           )}
         </div>
+        {actionError ? <p role="alert" className="mt-2 text-sm text-red-700 dark:text-red-300">{actionError}</p> : null}
       </div>
     </article>
   );

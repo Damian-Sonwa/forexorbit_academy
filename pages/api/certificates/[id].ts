@@ -12,26 +12,42 @@ import { ObjectId } from 'mongodb';
 
 async function getCertificate(req: AuthRequest, res: NextApiResponse) {
   try {
-    const { id } = req.query;
+    const id = Array.isArray(req.query.id) ? req.query.id[0] : req.query.id;
+    if (typeof id !== 'string' || !/^[a-fA-F0-9]{24}$/.test(id)) {
+      return res.status(400).json({ error: 'Invalid certificate ID' });
+    }
     const db = await getDb();
     const certificates = db.collection('certificates');
     const courses = db.collection('courses');
     const users = db.collection('users');
 
-    const certificate = await certificates.findOne({ _id: new ObjectId(id as string) });
+    const certificate = await certificates.findOne({ _id: new ObjectId(id) });
 
     if (!certificate) {
       return res.status(404).json({ error: 'Certificate not found' });
     }
 
-    // Check permissions
-    if (req.user!.role === 'student' && certificate.userId !== req.user!.userId) {
+    const course = ObjectId.isValid(String(certificate.courseId))
+      ? await courses.findOne({ _id: new ObjectId(String(certificate.courseId)) })
+      : null;
+
+    // A student reads only their own certificates; an instructor only those of their own courses
+    // (the same rule as the certificate list); admins and the Super Admin read all.
+    const role = req.user!.role;
+    if (role === 'student' && String(certificate.userId) !== String(req.user!.userId)) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
+    if (role === 'instructor' && (!course || String(course.instructorId) !== String(req.user!.userId))) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
+    if (!['student', 'instructor', 'admin', 'superadmin'].includes(role)) {
       return res.status(403).json({ error: 'Not authorized' });
     }
 
     // Enrich with course and user details
-    const course = await courses.findOne({ _id: new ObjectId(certificate.courseId) });
-    const user = await users.findOne({ _id: new ObjectId(certificate.userId) });
+    const user = ObjectId.isValid(String(certificate.userId))
+      ? await users.findOne({ _id: new ObjectId(String(certificate.userId)) })
+      : null;
 
     res.json({
       ...certificate,

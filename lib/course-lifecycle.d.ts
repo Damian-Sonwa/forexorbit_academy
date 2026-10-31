@@ -20,7 +20,7 @@ export function courseVisibilityFilter(
   member: Member,
   options?: { activeCourseIds?: unknown[]; instructorIdValues?: unknown[] }
 ): { [key: string]: unknown };
-export function canSeeCourse(member: Member, course: CourseLike, options?: { activeEnrollment?: boolean }): boolean;
+export function canSeeCourse(member: Member, course: CourseLike, options?: { activeEnrollment?: boolean; owned?: boolean }): boolean;
 export function studentContentOpen(course: CourseLike): boolean;
 export function decideCourseOpenForSale(course: CourseLike): { ok: true } | Refusal;
 export function decideContentEdit(member: Member, course: CourseLike): { ok: true } | Refusal;

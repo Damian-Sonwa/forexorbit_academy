@@ -11,6 +11,7 @@ import { getDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 import { decideCourseCreate, isStoredId } from '@/lib/account-access';
 import { isActiveEnrollment } from '@/lib/enrollment-state';
+import { COLLECTIONS, GRANTED_ENTITLEMENTS } from '@/lib/course-payment';
 import { authenticateRequest, sessionTokenFrom } from '@/lib/session-auth';
 import { stripCourseVisualAidsFields } from '@/lib/strip-visual-aids-html';
 import { presentCourse } from '@/lib/course-response';
@@ -33,11 +34,13 @@ async function getCourses(req: AuthRequest, res: NextApiResponse) {
     const courses = db.collection('courses');
     const progress = db.collection('progress');
 
-    const progressByCourse = new Map<string, { progress?: number; active?: boolean; withdrawnAt?: unknown }>();
+    const progressByCourse = new Map<string, { progress?: number; active?: boolean; withdrawnAt?: unknown; completedAt?: unknown }>();
+    // Courses the student holds the full-course entitlement for (paid or granted), Phase 6.
+    const ownedCourseIds = new Set<string>();
     if (req.user) {
       const rows = await progress.find(
         { userId: req.user.userId },
-        { projection: { courseId: 1, progress: 1, active: 1, withdrawnAt: 1 } }
+        { projection: { courseId: 1, progress: 1, active: 1, withdrawnAt: 1, completedAt: 1 } }
       ).toArray();
       for (const row of rows) {
         if (row.courseId != null) {
@@ -45,8 +48,16 @@ async function getCourses(req: AuthRequest, res: NextApiResponse) {
             progress: typeof row.progress === 'number' ? row.progress : undefined,
             active: row.active === false ? false : undefined,
             withdrawnAt: row.withdrawnAt,
+            completedAt: row.completedAt,
           });
         }
+      }
+      if (req.user.role === 'student') {
+        const owned = await db.collection(COLLECTIONS.courseAccess).find(
+          { userId: String(req.user.userId), $or: [{ paid: true }, { entitlementType: { $in: [...GRANTED_ENTITLEMENTS] } }] },
+          { projection: { courseId: 1 } }
+        ).toArray();
+        for (const row of owned) if (row.courseId != null) ownedCourseIds.add(String(row.courseId));
       }
     }
 
@@ -54,9 +65,14 @@ async function getCourses(req: AuthRequest, res: NextApiResponse) {
     // Visibility (lib/course-lifecycle): the public sees published courses; a student also sees
     // archived courses they are still enrolled in; an instructor also sees their own courses in
     // any state; admins see every course.
-    const activeCourseIds = [...progressByCourse.entries()]
-      .filter(([id, row]) => isActiveEnrollment(row) && ObjectId.isValid(id))
-      .map(([id]) => new ObjectId(id));
+    // An archived course stays listed for its active students and for students who bought it.
+    const visibleArchivedIds = new Set([
+      ...[...progressByCourse.entries()].filter(([, row]) => isActiveEnrollment(row)).map(([id]) => id),
+      ...ownedCourseIds,
+    ]);
+    const activeCourseIds = [...visibleArchivedIds]
+      .filter((id) => ObjectId.isValid(id))
+      .map((id) => new ObjectId(id));
     const member = req.user ? { userId: req.user.userId, role: req.user.role } : null;
     const instructorIdValues = member && ObjectId.isValid(member.userId)
       ? [member.userId, new ObjectId(member.userId)]
@@ -87,6 +103,10 @@ async function getCourses(req: AuthRequest, res: NextApiResponse) {
         extras = {
           progress: activeEnrollment ? Math.min(100, userProgress?.progress || 0) : 0,
           enrolled: activeEnrollment,
+          ...(req.user.role === 'student' ? {
+            owned: ownedCourseIds.has(String(course._id)),
+            completed: Boolean(activeEnrollment && userProgress?.completedAt),
+          } : {}),
         };
       }
       views.push(presentCourse({ ...course, description }, extras));

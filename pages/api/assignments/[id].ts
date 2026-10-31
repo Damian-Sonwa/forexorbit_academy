@@ -19,6 +19,7 @@ import {
   presentSubmission,
 } from '@/lib/account-access';
 import { enrollmentDecisionRecord } from '@/lib/enrollment-state';
+import { courseContentAccess, LESSON_LOCKED_MESSAGE } from '@/lib/course-lesson-list';
 
 async function loadAssignment(req: AuthRequest, id: string) {
   const db = await getDb();
@@ -70,6 +71,10 @@ async function getAssignment(req: AuthRequest, res: NextApiResponse) {
     if (access.staff) {
       const submissions = await loaded.db.collection('assignmentSubmissions').find({ assignmentId: id }).toArray();
       return res.json({ ...view, submissions: submissions.map((submission) => presentSubmission(submission)) });
+    }
+    const content = await courseContentAccess(loaded.db, memberOf(loaded.account), access.courseId);
+    if (!content.isOpen(loaded.assignment.lessonId ? String(loaded.assignment.lessonId) : null)) {
+      return res.status(403).json({ error: LESSON_LOCKED_MESSAGE, code: 'assignment_locked' });
     }
     const submission = await loaded.db.collection('assignmentSubmissions').findOne({
       userId: loaded.account.ok ? loaded.account.user.userId : '',

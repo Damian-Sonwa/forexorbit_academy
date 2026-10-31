@@ -223,6 +223,7 @@ app.prepare().then(async () => {
         );
         let course = null;
         let enrollment = null;
+        let lessonOpen = false;
         if (lesson && lesson.courseId != null && ObjectId.isValid(String(lesson.courseId))) {
           course = await db.collection('courses').findOne(
             { _id: new ObjectId(String(lesson.courseId)) },
@@ -235,9 +236,13 @@ app.prepare().then(async () => {
               userId: account.user.userId,
               $or: [{ courseId }, { courseId: course._id }],
             });
+            // The lesson room follows the lesson's paywall (Phase 6, lib/course-lesson-list.js).
+            const { courseContentAccess } = require('./lib/course-lesson-list');
+            lessonOpen = (await courseContentAccess(db, account.user, courseId)).isOpen(String(lesson._id));
           }
         }
         return {
+          lessonOpen,
           member: account.ok ? {
             userId: account.user.userId,
             role: account.user.role,
@@ -255,13 +260,15 @@ app.prepare().then(async () => {
     }
 
     function lessonAccessDecision(loaded) {
-      return decideLessonRoomAccess({
+      const decision = decideLessonRoomAccess({
         member: loaded.member,
         lesson: loaded.lesson,
         course: loaded.course,
         enrollment: loaded.enrollment,
         lookupError: Boolean(loaded.lookupError),
       });
+      if (decision.ok && !loaded.lessonOpen) return { ok: false, error: 'Unable to access lesson' };
+      return decision;
     }
 
     // Drop sockets whose enrollment or account is no longer valid before a lesson event is sent.
@@ -293,12 +300,18 @@ app.prepare().then(async () => {
                 $or: [{ courseId }, { courseId: course._id }],
               });
             }
-            decisions.set(String(userId), decideLessonRoomAccess({
+            const room = decideLessonRoomAccess({
               member: account.ok ? account.user : null,
               lesson,
               course,
               enrollment,
-            }));
+            });
+            let open = false;
+            if (room.ok && account.ok && course && course._id != null && lesson && lesson._id != null) {
+              const { courseContentAccess } = require('./lib/course-lesson-list');
+              open = (await courseContentAccess(db, account.user, String(course._id))).isOpen(String(lesson._id));
+            }
+            decisions.set(String(userId), room.ok && open ? room : { ok: false });
           } catch {
             memberSocket.leave(channel);
             continue;
@@ -342,7 +355,7 @@ app.prepare().then(async () => {
           text,
           lookupError: Boolean(loaded.lookupError),
         });
-        if (!decision.ok) return;
+        if (!decision.ok || !loaded.lessonOpen) return;
         await dropUnauthorizedLessonMembers(decision.channel, loaded.lesson, loaded.course);
 
         const { getDb } = require('./lib/mongodb');

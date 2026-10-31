@@ -12,6 +12,8 @@ import { ObjectId } from 'mongodb';
 import { isActiveEnrollment } from '@/lib/enrollment-state';
 import { courseCompletion, currentCompletedIds, currentLessonIdsFor } from '@/lib/course-progress';
 import { isDuplicateKey } from '@/lib/certificate-issue';
+import { courseContentAccess } from '@/lib/course-lesson-list';
+import { findEnrollment } from '@/lib/enrollment-store';
 
 // GET certificates - role-based
 async function getCertificates(req: AuthRequest, res: NextApiResponse) {
@@ -136,11 +138,21 @@ async function generateCertificate(req: AuthRequest, res: NextApiResponse) {
     // Completion is measured against the course's current lessons, so deleted lessons cannot
     // stand in for real ones; a completion already recorded is kept when lessons are added
     // (lib/course-progress.js, Decision 4).
-    const userProgress = await progress.findOne({ userId, courseId });
+    // Either stored form of the course id (older rows may hold an ObjectId).
+    const userProgress = await findEnrollment(db, userId, courseId);
     const currentLessonIds = userProgress ? await currentLessonIdsFor(db, courseId) : [];
     const completion = courseCompletion({ enrollment: userProgress, currentLessonIds });
     if (!userProgress || !isActiveEnrollment(userProgress) || !completion.complete) {
       return res.status(400).json({ error: 'Course not completed. Complete all lessons to earn a certificate.' });
+    }
+    // A certificate is for a course the student may open in full: one they paid for or were
+    // granted, or one whose lessons are all free. A completion recorded before access was
+    // removed (a refund with access removal) does not earn one (Phase 6).
+    if (req.user!.role === 'student') {
+      const access = await courseContentAccess(db, { userId, role: 'student' }, courseId);
+      if (!access.allOpen) {
+        return res.status(403).json({ error: 'Unlock the full course to earn its certificate.', code: 'course_access_required' });
+      }
     }
     if (!userProgress.completedAt) {
       await progress.updateOne({ _id: userProgress._id, completedAt: { $exists: false } }, { $set: { completedAt: new Date() } });

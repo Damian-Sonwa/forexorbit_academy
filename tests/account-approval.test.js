@@ -333,7 +333,7 @@ test('the approvals route is Super Admin only and the admin page hides approvals
 });
 
 test('account decisions appear in the Super Admin audit log and can be filtered', () => {
-  assert.match(read('lib/admin-purchase-ledger.js'), /\['purchase', 'payment_exception', 'account'\]\.includes\(q\.entityType\)/);
+  assert.match(read('lib/admin-purchase-ledger.js'), /\['purchase', 'payment_exception', 'account', 'course_access'\]\.includes\(q\.entityType\)/);
 });
 
 // ---------------------------------------------------------------------------

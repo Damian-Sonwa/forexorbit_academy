@@ -38,6 +38,22 @@ export function readLessonDetail(
 
 export function isStaffRole(role: unknown): boolean;
 
+export type CourseContentAccess = {
+  staff: boolean;
+  entitled: boolean;
+  allOpen: boolean;
+  openLessonIds: Set<string> | null;
+  /** A lesson id: that lesson is open. No id (course-level material): every lesson is open. */
+  isOpen: (lessonId?: string | null) => boolean;
+};
+
+export function courseContentAccess(
+  db: Db,
+  member: Member,
+  courseId: unknown,
+  env?: { [key: string]: string | undefined }
+): Promise<CourseContentAccess>;
+
 export function sortLessonsByOrder<T extends LessonDoc>(lessons: T[]): T[];
 
 export function withholdLockedContent<T extends LessonDoc>(view: T): T;

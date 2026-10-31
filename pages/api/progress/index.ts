@@ -14,6 +14,7 @@ import { enrollmentDecisionRecord } from '@/lib/enrollment-state';
 import { recordLessonCompletion } from '@/lib/course-progress';
 import { loadEnrollmentProgress } from '@/lib/progress-views';
 import { updateLearningLevelIfEligible } from '@/lib/learning-level';
+import { courseContentAccess, LESSON_LOCKED_MESSAGE } from '@/lib/course-lesson-list';
 
 async function getProgress(req: AuthRequest, res: NextApiResponse) {
   try {
@@ -66,6 +67,12 @@ async function updateProgress(req: AuthRequest, res: NextApiResponse) {
     });
     if (!decision.ok) {
       return res.status(decision.status).json({ error: decision.error });
+    }
+    // Only a lesson the student may open can be completed: a free preview, a demo lesson, or a
+    // lesson of a course they hold the entitlement for (Phase 6). Enrollment alone is not enough.
+    const access = await courseContentAccess(db, account.ok ? account.user : null, decision.courseId);
+    if (!access.isOpen(decision.lessonId)) {
+      return res.status(403).json({ error: LESSON_LOCKED_MESSAGE, code: 'lesson_locked' });
     }
 
     // Atomic ($addToSet), measured against the course's current lessons and never above 100;

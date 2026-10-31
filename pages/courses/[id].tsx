@@ -18,6 +18,7 @@ import { useSocket } from '@/hooks/useSocket';
 import { useAuth } from '@/hooks/useAuth';
 import { useState, useEffect, useCallback } from 'react';
 import { apiClient } from '@/lib/api-client';
+import { messageFromUnknown } from '@/lib/public-error';
 import { sanitizeForStudentView, stripHtml } from '@/lib/html-sanitizer';
 import { getLessonDescriptionHtml, hasVisibleHtml } from '@/lib/lesson-html';
 import { useLessons } from '@/hooks/useLesson';
@@ -40,6 +41,7 @@ export default function CourseDetailPage() {
     if (router.isReady && !authLoading && !isAuthenticated) goToLogin();
   }, [router.isReady, authLoading, isAuthenticated, goToLogin]);
   const [enrolling, setEnrolling] = useState(false);
+  const [enrollError, setEnrollError] = useState<string | null>(null);
   const [verifyBusy, setVerifyBusy] = useState(false);
   const [fixRef, setFixRef] = useState('');
   const [fixMessage, setFixMessage] = useState<string | null>(null);
@@ -115,7 +117,13 @@ export default function CourseDetailPage() {
       return;
     }
 
+    if (enrolling) return;
+    if (course?.enrolled && typeof window !== 'undefined') {
+      const kept = course.owned ? ' Your purchase is kept, and you can enroll again at any time.' : ' Your progress is kept if you enroll again.';
+      if (!window.confirm(`Leave this course?${kept}`)) return;
+    }
     setEnrolling(true);
+    setEnrollError(null);
     try {
       if (course?.enrolled) {
         await apiClient.delete(`/courses/${id}/enroll`);
@@ -124,7 +132,7 @@ export default function CourseDetailPage() {
       }
       router.reload();
     } catch (error) {
-      console.error('Enrollment error:');
+      setEnrollError(messageFromUnknown(error));
     } finally {
       setEnrolling(false);
     }
@@ -351,7 +359,17 @@ export default function CourseDetailPage() {
               <div className="space-y-3">
 
                 <div className="mt-5 border-t border-neutral-200 pt-5">
-                  {isAuthenticated ? (
+                  {course.owned ? (
+                    <p className="mb-3 rounded-lg bg-primary-50 px-3 py-2 text-sm font-semibold text-primary-800 dark:bg-primary-400/10 dark:text-primary-300">
+                      You have full access to this course.
+                    </p>
+                  ) : null}
+                  {course.completedAt ? (
+                    <p className="mb-3 text-sm font-semibold text-emerald-700 dark:text-emerald-300">Completed</p>
+                  ) : null}
+                  {isAuthenticated && course.status === 'archived' && !course.enrolled && !course.owned ? (
+                    <p className="text-sm text-neutral-600">This course is archived and no longer takes new students.</p>
+                  ) : isAuthenticated ? (
                     <button
                       type="button"
                       onClick={() => void handleEnroll()}
@@ -365,6 +383,9 @@ export default function CourseDetailPage() {
                       Login to Enroll
                     </Link>
                   )}
+                  {enrollError ? (
+                    <p role="alert" className="mt-3 text-sm text-red-700 dark:text-red-300">{enrollError}</p>
+                  ) : null}
                 </div>
               </div>
             </div>

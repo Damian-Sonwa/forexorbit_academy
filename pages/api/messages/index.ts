@@ -10,6 +10,7 @@ import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 import { decideAccountAccess, decideLessonChat, decideLessonMessageRead } from '@/lib/account-access';
+import { courseContentAccess, LESSON_LOCKED_MESSAGE } from '@/lib/course-lesson-list';
 import { enrollmentDecisionRecord } from '@/lib/enrollment-state';
 
 function lessonIdFrom(value: string | string[] | undefined): string {
@@ -30,6 +31,7 @@ async function loadLessonMessageContext(userId: string, lessonId: string) {
   );
   let course = null;
   let enrollment = null;
+  let lessonOpen = false;
   if (lesson && lesson.courseId != null && ObjectId.isValid(String(lesson.courseId))) {
     course = await db.collection('courses').findOne(
       { _id: new ObjectId(String(lesson.courseId)) },
@@ -41,9 +43,12 @@ async function loadLessonMessageContext(userId: string, lessonId: string) {
         userId: account.user.userId,
         $or: [{ courseId }, { courseId: course._id }],
       });
+      // A lesson's discussion follows the lesson's paywall (Phase 6).
+      lessonOpen = (await courseContentAccess(db, account.user, courseId)).isOpen(String(lesson._id));
     }
   }
   return {
+    lessonOpen,
     member: account.ok ? {
       userId: account.user.userId,
       role: account.user.role,
@@ -77,6 +82,9 @@ async function getMessages(req: AuthRequest, res: NextApiResponse) {
     if (!decision.ok) {
       return res.status(decision.status).json({ error: decision.error });
     }
+    if (!loaded.lessonOpen) {
+      return res.status(403).json({ error: LESSON_LOCKED_MESSAGE, code: 'lesson_locked' });
+    }
 
     const db = await getDb();
     const messagesList = await db.collection('messages')
@@ -104,6 +112,9 @@ async function sendMessage(req: AuthRequest, res: NextApiResponse) {
     const read = decideLessonMessageRead(loaded);
     if (!read.ok) {
       return res.status(read.status).json({ error: read.error });
+    }
+    if (!loaded.lessonOpen) {
+      return res.status(403).json({ error: LESSON_LOCKED_MESSAGE, code: 'lesson_locked' });
     }
     const decision = decideLessonChat({
       member: loaded.member,

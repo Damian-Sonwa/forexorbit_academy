@@ -12,6 +12,8 @@ export function presentCourse(
     progress?: number;
     enrolled?: boolean;
     completedAt?: Date | string | null;
+    owned?: boolean;
+    completed?: boolean;
     lessons?: unknown[];
   }
 ): { [key: string]: any };

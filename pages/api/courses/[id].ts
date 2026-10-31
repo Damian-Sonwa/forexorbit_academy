@@ -30,6 +30,7 @@ import { decideCourseDeletion, deleteCoursePermanently } from '@/lib/course-dele
 import { assetsInDocuments, cleanupUnreferencedAssets, removedAssets } from '@/lib/media-cleanup';
 import { allowRequest, authoringLimiter } from '@/lib/content-rate-limit';
 import { deleteImage } from '@/lib/cloudinary';
+import { hasCourseEntitlement } from '@/lib/course-payment';
 
 const COURSE_MEDIA_FIELDS = ['description', 'thumbnail'];
 
@@ -66,7 +67,10 @@ async function getCourse(req: AuthRequest, res: NextApiResponse) {
     });
     // A withdrawn enrolment is kept as history but is not an enrolment (audit L1).
     const activeEnrollment = isActiveEnrollment(enrollment);
-    if (!canSeeCourse(member, course, { activeEnrollment })) {
+    // The student's full-course entitlement: shown on the course page and lets a student who
+    // bought an archived course still open it (Phase 6).
+    const owned = member.role === 'student' ? await hasCourseEntitlement(db, member.userId, courseId) : false;
+    if (!canSeeCourse(member, course, { activeEnrollment, owned })) {
       return res.status(404).json({ error: 'Course not found' });
     }
     const enrollmentRecord = enrollmentDecisionRecord(enrollment);
@@ -137,6 +141,7 @@ async function getCourse(req: AuthRequest, res: NextApiResponse) {
         progress: activeEnrollment && typeof enrollment?.progress === 'number' ? Math.min(100, enrollment.progress) : 0,
         enrolled: activeEnrollment,
         completedAt: activeEnrollment && enrollment?.completedAt ? enrollment.completedAt : null,
+        ...(member.role === 'student' ? { owned, completed: Boolean(activeEnrollment && enrollment?.completedAt) } : {}),
       }
     );
     // The lifecycle changes this member may make (the server checks every change again).

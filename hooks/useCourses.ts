@@ -23,6 +23,10 @@ export interface Course {
   completedAt?: string | null;
   progress?: number;
   enrolled?: boolean;
+  /** The student holds the full-course entitlement (paid or granted). Students only. */
+  owned?: boolean;
+  /** The student's active enrollment has a recorded completion. Students only. */
+  completed?: boolean;
   lessons?: Array<{
     _id?: string;
     title: string;
@@ -80,22 +84,15 @@ export function useCourses(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters?.category, filters?.difficulty, filters?.search]);
 
+  // Errors keep the API response, so callers can show the server's message.
   const enroll = async (courseId: string) => {
-    try {
-      await apiClient.post(`/courses/${courseId}/enroll`);
-      await fetchCourses();
-    } catch (err: any) {
-      throw new Error(err.message || 'Failed to enroll');
-    }
+    await apiClient.post(`/courses/${courseId}/enroll`);
+    await fetchCourses();
   };
 
   const unenroll = async (courseId: string) => {
-    try {
-      await apiClient.delete(`/courses/${courseId}/enroll`);
-      await fetchCourses();
-    } catch (err: any) {
-      throw new Error(err.message || 'Failed to unenroll');
-    }
+    await apiClient.delete(`/courses/${courseId}/enroll`);
+    await fetchCourses();
   };
 
   return { courses, loading, error, enroll, unenroll, refetch: fetchCourses };

@@ -21,6 +21,7 @@ export function decideEnroll(input: {
   courseId?: string;
   course?: { _id?: unknown; status?: unknown } | null;
   existing?: { [key: string]: any } | null;
+  entitled?: boolean;
 }): {
   ok: boolean;
   status: number;
@@ -37,6 +38,7 @@ export function decideUnenroll(input: {
   userId?: string;
   courseId?: string;
   existing?: { [key: string]: any } | null;
+  entitled?: boolean;
 }): {
   ok: boolean;
   status: number;
