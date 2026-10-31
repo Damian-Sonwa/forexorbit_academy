@@ -1,5 +1,7 @@
 # Rollback plan
 
+> **Superseded for the release** by `docs/release/production-rollback-runbook.md`.
+
 ## Code
 
 Redeploy the previous release (`f3e728a`, or whatever production ran before). Nothing in Phase 4.5 changes existing documents, so the old code runs unchanged against the same database.

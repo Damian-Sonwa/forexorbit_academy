@@ -1,5 +1,7 @@
 # Rollout plan
 
+> **Superseded for the release** by `docs/release/production-deployment-runbook.md` (31 October 2026: Option A on Render decided; Vercel cutover order in decision D5). Kept for design background.
+
 Status: **not started.** Nothing has been deployed, pushed or changed in production. Each stage needs the owner's explicit approval.
 
 ## 0. Hosting layout (decided: Option A)

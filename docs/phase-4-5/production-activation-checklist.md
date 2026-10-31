@@ -1,5 +1,7 @@
 # Production activation checklist
 
+> **Superseded for the release** by `docs/release/production-deployment-runbook.md`, `staging-validation-checklist.md` and `production-readiness-report.md`.
+
 Each box is an owner action or approval. Only the two ticked boxes are done. Local validation (see `implementation-report.md`) is not production readiness.
 
 ## Before deploying
