@@ -15,7 +15,8 @@ import { decideSessionBinding, extractToken, verifyToken } from '@/lib/jwt';
 import { stripCourseVisualAidsFields } from '@/lib/strip-visual-aids-html';
 import { presentCourse } from '@/lib/course-response';
 import { buildCourseListQuery } from '@/lib/course-list-filter';
-// import { ObjectId } from 'mongodb'; // Reserved for future use
+import { courseVisibilityFilter } from '@/lib/course-lifecycle';
+import { allowRequest, authoringLimiter } from '@/lib/content-rate-limit';
 
 export const config = {
   api: {
@@ -32,17 +33,6 @@ async function getCourses(req: AuthRequest, res: NextApiResponse) {
     const courses = db.collection('courses');
     const progress = db.collection('progress');
 
-    // Plain-string filters; the search text is matched literally (see lib/course-list-filter).
-    const query = buildCourseListQuery(req.query);
-
-    const coursesList = await courses.find(query).project({
-      title: 1,
-      description: 1,
-      category: 1,
-      difficulty: 1,
-      thumbnail: 1,
-      instructorId: 1,
-    }).toArray();
     const progressByCourse = new Map<string, { progress?: number; active?: boolean; withdrawnAt?: unknown }>();
     if (req.user) {
       const rows = await progress.find(
@@ -59,6 +49,31 @@ async function getCourses(req: AuthRequest, res: NextApiResponse) {
         }
       }
     }
+
+    // Plain-string filters; the search text is matched literally (see lib/course-list-filter).
+    // Visibility (lib/course-lifecycle): the public sees published courses; a student also sees
+    // archived courses they are still enrolled in; an instructor also sees their own courses in
+    // any state; admins see every course.
+    const activeCourseIds = [...progressByCourse.entries()]
+      .filter(([id, row]) => isActiveEnrollment(row) && ObjectId.isValid(id))
+      .map(([id]) => new ObjectId(id));
+    const member = req.user ? { userId: req.user.userId, role: req.user.role } : null;
+    const instructorIdValues = member && ObjectId.isValid(member.userId)
+      ? [member.userId, new ObjectId(member.userId)]
+      : [];
+    const query = {
+      $and: [buildCourseListQuery(req.query), courseVisibilityFilter(member, { activeCourseIds, instructorIdValues })],
+    };
+
+    const coursesList = await courses.find(query).project({
+      title: 1,
+      description: 1,
+      category: 1,
+      difficulty: 1,
+      thumbnail: 1,
+      instructorId: 1,
+      status: 1,
+    }).toArray();
     const views = [];
     for (const course of coursesList) {
       const description = typeof course.description === 'string'
@@ -70,7 +85,7 @@ async function getCourses(req: AuthRequest, res: NextApiResponse) {
         const userProgress = progressByCourse.get(String(course._id)) || progressByCourse.get(String(courseId));
         const activeEnrollment = isActiveEnrollment(userProgress || null);
         extras = {
-          progress: activeEnrollment ? (userProgress?.progress || 0) : 0,
+          progress: activeEnrollment ? Math.min(100, userProgress?.progress || 0) : 0,
           enrolled: activeEnrollment,
         };
       }
@@ -89,15 +104,12 @@ async function createCourse(req: AuthRequest, res: NextApiResponse) {
   const body = req.body && typeof req.body === 'object' ? req.body : {};
   try {
     const db = await getDb();
+    if (!(await allowRequest(authoringLimiter, { userId: req.user!.userId, res, getDb }))) return;
     const requestedId = typeof body.instructorId === 'string' ? body.instructorId.trim() : '';
     let assignee = null;
-    const assigningOther = (req.user!.role === 'admin' || req.user!.role === 'superadmin')
-      && requestedId
-      && requestedId !== req.user!.userId;
-    if (assigningOther) {
-      if (!isStoredId(requestedId)) {
-        return res.status(400).json({ error: 'Invalid instructor' });
-      }
+    // Admins and the Super Admin assign an instructor; the stored account decides (Decision 5).
+    const staffAdmin = req.user!.role === 'admin' || req.user!.role === 'superadmin';
+    if (staffAdmin && isStoredId(requestedId)) {
       const record = await db.collection('users').findOne(
         { _id: new ObjectId(requestedId) },
         { projection: { role: 1, status: 1 } }
@@ -112,7 +124,8 @@ async function createCourse(req: AuthRequest, res: NextApiResponse) {
       assignee,
     });
     if (!decision.ok) {
-      return res.status(decision.status).json({ error: decision.error });
+      const refusal = decision as { status: number; error: string; code?: string; field?: string };
+      return res.status(refusal.status).json({ error: refusal.error, code: refusal.code, field: refusal.field });
     }
 
     const result = await db.collection('courses').insertOne({

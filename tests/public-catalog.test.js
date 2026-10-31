@@ -66,7 +66,8 @@ test('reads only the card fields, in the stored order', async () => {
   const courses = await loadPublicCatalog(db);
   assert.equal(db.calls.length, 1);
   assert.equal(db.calls[0].name, 'courses');
-  assert.deepEqual(db.calls[0].query, {});
+  // Published courses only, including courses stored before the lifecycle existed (Phase 4).
+  assert.deepEqual(db.calls[0].query, { $or: [{ status: 'published' }, { status: { $exists: false } }] });
   assert.deepEqual(db.calls[0].options.projection, { title: 1, description: 1, category: 1, difficulty: 1, thumbnail: 1 });
   assert.deepEqual(courses.map((c) => c.id), ['a1', 'b2']);
   assert.deepEqual(Object.keys(courses[0]).sort(), ['_id', 'category', 'description', 'difficulty', 'id', 'thumbnail', 'title']);

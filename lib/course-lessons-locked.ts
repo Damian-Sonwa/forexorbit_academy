@@ -17,12 +17,13 @@ export async function buildSimpleLessonsWithLocked(
   db: Db,
   courseId: string,
   user: { userId: string; role: string } | undefined,
-  preloaded?: Record<string, unknown>[]
+  preloaded?: Record<string, unknown>[],
+  options: { explicitPreview?: boolean } = {}
 ): Promise<Record<string, unknown>[]> {
   const raw = preloaded ?? await db.collection('lessons').find({ courseId }).sort({ order: 1 }).toArray();
   const sorted = sortLessonsByOrder(raw as Record<string, unknown>[]);
   const entitlement = await loadCourseEntitlement(db, user, courseId, sorted.map((lesson) => String(lesson._id)));
-  const pricing = priceCourseLessons(sorted, entitlement);
+  const pricing = priceCourseLessons(sorted, entitlement, undefined, options);
 
   return sorted.map((lesson) => {
     const price = pricing.get(String(lesson._id))!;
@@ -31,6 +32,7 @@ export async function buildSimpleLessonsWithLocked(
       accessible: false,
       locked: price.locked,
       isFirstLesson: price.isFirstLesson,
+      isFreePreview: price.isFreePreview,
       isDemo: price.isDemo,
       monetization: price.monetization,
     };

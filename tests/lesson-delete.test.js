@@ -16,8 +16,9 @@ function lesson() {
   return { _id: LESSON_ID, courseId: COURSE_ID };
 }
 
-function course(instructorId) {
-  return { _id: COURSE_ID, instructorId };
+/** The instructor's own draft: instructors edit only drafts (Phase 4, Decision 1). */
+function course(instructorId, status = 'draft') {
+  return { _id: COURSE_ID, instructorId, status };
 }
 
 test('an assigned instructor can delete the stored lesson', () => {

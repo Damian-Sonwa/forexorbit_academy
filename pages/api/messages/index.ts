@@ -33,7 +33,7 @@ async function loadLessonMessageContext(userId: string, lessonId: string) {
   if (lesson && lesson.courseId != null && ObjectId.isValid(String(lesson.courseId))) {
     course = await db.collection('courses').findOne(
       { _id: new ObjectId(String(lesson.courseId)) },
-      { projection: { instructorId: 1, difficulty: 1 } }
+      { projection: { instructorId: 1, difficulty: 1, status: 1 } }
     );
     if (account.ok && course) {
       const courseId = String(course._id);
@@ -59,6 +59,7 @@ async function loadLessonMessageContext(userId: string, lessonId: string) {
       _id: course._id,
       instructorId: course.instructorId,
       difficulty: typeof course.difficulty === 'string' ? course.difficulty : null,
+      status: course.status,
     } : null,
     enrollment: enrollmentDecisionRecord(enrollment),
   };

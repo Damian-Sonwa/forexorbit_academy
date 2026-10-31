@@ -27,7 +27,7 @@ async function loadCourseAccess(req: AuthRequest, courseId: string) {
   const account = decideAccountAccess({ userId: req.user!.userId, record });
   const course = await db.collection('courses').findOne(
     { _id: new ObjectId(courseId) },
-    { projection: { instructorId: 1 } }
+    { projection: { instructorId: 1, status: 1 } }
   );
   const enrollment = account.ok && course
     ? await db.collection('progress').findOne({
@@ -69,7 +69,7 @@ async function getAssignments(req: AuthRequest, res: NextApiResponse) {
     const loaded = await loadCourseAccess(req, courseId);
     const access = decideAssignmentRead({
       member: loaded.account.ok ? { userId: loaded.account.user.userId, role: loaded.account.user.role } : null,
-      course: loaded.course ? { _id: loaded.course._id, instructorId: loaded.course.instructorId } : null,
+      course: loaded.course ? { _id: loaded.course._id, instructorId: loaded.course.instructorId, status: loaded.course.status } : null,
       enrollment: enrollmentDecisionRecord(loaded.enrollment),
     });
     if (!access.ok) {
@@ -114,7 +114,7 @@ async function createAssignment(req: AuthRequest, res: NextApiResponse) {
       : null;
     const decision = decideAssignmentCreate({
       member: loaded.account.ok ? { userId: loaded.account.user.userId, role: loaded.account.user.role } : null,
-      course: loaded.course ? { _id: loaded.course._id, instructorId: loaded.course.instructorId } : null,
+      course: loaded.course ? { _id: loaded.course._id, instructorId: loaded.course.instructorId, status: loaded.course.status } : null,
       lesson: lesson ? { _id: lesson._id, courseId: lesson.courseId } : null,
       body,
     });

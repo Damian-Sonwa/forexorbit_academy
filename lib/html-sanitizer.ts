@@ -1,17 +1,21 @@
 /**
- * HTML Sanitization Utility
- * Sanitizes user-generated HTML content to prevent XSS attacks
- * Whitelists safe HTML tags and removes dangerous attributes
+ * HTML sanitization for user-authored course and lesson content (instructor rich text).
+ *
+ * In the browser the fragment is cleaned by DOMPurify against an explicit allowlist: tags below,
+ * per-tag attributes below, links and images limited to http(s), mailto, tel and relative URLs
+ * (`isValidUrl`). DOMPurify parses the string as body content, so the result is the cleaned
+ * fragment itself, never a whole document.
+ *
+ * Without a DOM (server rendering) nothing is trusted: markup is escaped and shown as text.
  */
 
-// DOMPurify-like sanitizer for server and client-side use
-// This is a simplified version - for production, consider using the full DOMPurify library
-
+import DOMPurify from 'dompurify';
+import type { DOMPurify as DOMPurifyInstance } from 'dompurify';
 import { stripVisualAidsForStudentHtml } from '@/lib/strip-visual-aids-html';
 
 interface SanitizeOptions {
   allowedTags?: string[];
-  allowedAttributes?: string[];
+  allowedAttributes?: Record<string, string[]>;
   allowDataAttributes?: boolean;
 }
 
@@ -26,24 +30,69 @@ const DEFAULT_ALLOWED_TAGS = [
   'sub', 'sup',
 ];
 
+/** Quill (the editor) keeps alignment and indentation as `ql-*` classes on text blocks. */
+const BLOCK_CLASS = ['class'];
+
 const DEFAULT_ALLOWED_ATTRIBUTES: Record<string, string[]> = {
   a: ['href', 'title', 'target', 'rel'],
   img: ['src', 'alt', 'width', 'height', 'title'],
   table: ['border', 'cellpadding', 'cellspacing'],
   td: ['colspan', 'rowspan'],
   th: ['colspan', 'rowspan'],
-  div: ['class'],
-  span: ['class'],
-  'figure': ['class'],
-  'figcaption': ['class'],
+  div: BLOCK_CLASS,
+  span: BLOCK_CLASS,
+  figure: BLOCK_CLASS,
+  figcaption: BLOCK_CLASS,
+  p: BLOCK_CLASS,
+  h1: BLOCK_CLASS, h2: BLOCK_CLASS, h3: BLOCK_CLASS, h4: BLOCK_CLASS, h5: BLOCK_CLASS, h6: BLOCK_CLASS,
+  li: BLOCK_CLASS, ol: BLOCK_CLASS, ul: BLOCK_CLASS,
+  blockquote: BLOCK_CLASS, pre: BLOCK_CLASS,
 };
 
+const LINK_TARGETS = ['_blank', '_self', '_parent', '_top'];
+const URL_ATTRIBUTES = new Set(['href', 'src']);
+
+/** Rules for the call in progress; DOMPurify hooks are registered once per instance. */
+let active: { attributes: Record<string, string[]>; allowData: boolean } = {
+  attributes: DEFAULT_ALLOWED_ATTRIBUTES,
+  allowData: true,
+};
+
+let purifier: DOMPurifyInstance | null = null;
+let purifierWindow: unknown = null;
+
+function browserPurifier(): DOMPurifyInstance | null {
+  if (typeof window === 'undefined' || !window.document) return null;
+  if (purifier && purifierWindow === window) return purifier;
+  const instance = DOMPurify(window as unknown as Window & typeof globalThis);
+  if (!instance.isSupported) return null;
+  instance.addHook('uponSanitizeAttribute', (node, data) => {
+    const tag = node.nodeName.toLowerCase();
+    const name = data.attrName;
+    const isData = name.startsWith('data-');
+    const allowed = isData ? active.allowData : (active.attributes[tag] || []).includes(name);
+    if (!allowed) {
+      data.keepAttr = false;
+      return;
+    }
+    // DOMPurify's own URI check allows data: images and a few extra schemes; this policy does not.
+    if (URL_ATTRIBUTES.has(name) && !isValidUrl(data.attrValue)) data.keepAttr = false;
+    if (name === 'target' && !LINK_TARGETS.includes(data.attrValue)) data.keepAttr = false;
+  });
+  instance.addHook('afterSanitizeAttributes', (node) => {
+    // A link opened in a new tab must not get a handle on this page (window.opener).
+    if (node.nodeName.toLowerCase() === 'a' && node.getAttribute('target') === '_blank') {
+      node.setAttribute('rel', 'noopener noreferrer');
+    }
+  });
+  purifier = instance;
+  purifierWindow = window;
+  return instance;
+}
+
 /**
- * Sanitize HTML content
- * Removes dangerous tags and attributes
- * @param html - Raw HTML string
- * @param options - Sanitization options
- * @returns Sanitized HTML string
+ * Sanitize an HTML fragment. Disallowed elements are removed but their text is kept (script,
+ * style and similar lose their content too); disallowed attributes and unsafe URLs are removed.
  */
 export function sanitizeHtml(
   html: string,
@@ -53,23 +102,25 @@ export function sanitizeHtml(
     return '';
   }
 
-  const allowedTags = options.allowedTags || DEFAULT_ALLOWED_TAGS;
-  const allowedAttributes = options.allowedAttributes || DEFAULT_ALLOWED_ATTRIBUTES;
-
-  // Parse HTML using DOMParser if available (client-side)
-  if (typeof window !== 'undefined' && window.DOMParser) {
+  const instance = browserPurifier();
+  if (instance) {
+    const allowedTags = options.allowedTags || DEFAULT_ALLOWED_TAGS;
+    const attributes = options.allowedAttributes || DEFAULT_ALLOWED_ATTRIBUTES;
+    const everyAttribute = Array.from(new Set(Object.values(attributes).flat()));
+    active = { attributes, allowData: options.allowDataAttributes !== false };
     try {
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(html, 'text/html');
-      sanitizeElement(
-        doc.documentElement,
-        allowedTags,
-        allowedAttributes as Record<string, string[]>
-      );
-      return doc.body.innerHTML;
-    } catch (error) {
-      console.error('Error parsing HTML:');
+      return String(instance.sanitize(html, {
+        ALLOWED_TAGS: allowedTags,
+        ALLOWED_ATTR: everyAttribute,
+        ALLOW_DATA_ATTR: active.allowData,
+        ALLOW_UNKNOWN_PROTOCOLS: false,
+        RETURN_TRUSTED_TYPE: false,
+      }));
+    } catch {
+      console.error('Error sanitizing HTML');
       return escapeHtml(html);
+    } finally {
+      active = { attributes: DEFAULT_ALLOWED_ATTRIBUTES, allowData: true };
     }
   }
 
@@ -93,63 +144,6 @@ export function sanitizeForStudentView(
     return '';
   }
   return sanitizeHtml(stripVisualAidsForStudentHtml(html), options);
-}
-
-/**
- * Sanitize HTML element recursively (client-side)
- */
-export function sanitizeElement(
-  element: Element,
-  allowedTags: string[],
-  allowedAttributes: Record<string, string[]>
-): void {
-  // A snapshot, not the live `children` list: replacing a child shifts the live list, which made
-  // the loop skip the element after every removed one (so `<b>x</b><img onerror=...>` could keep
-  // its handler when the first element was removed).
-  for (const child of Array.from(element.children)) {
-    const tagName = child.tagName.toLowerCase();
-
-    if (!allowedTags.includes(tagName)) {
-      // Remove tag but keep text content
-      const textNode = document.createTextNode(child.textContent || '');
-      child.parentNode?.replaceChild(textNode, child);
-    } else {
-      // Remove disallowed attributes
-      const allowedAttrs = allowedAttributes[tagName] || [];
-      const attrsToRemove = Array.from(child.attributes).filter(
-        attr => !allowedAttrs.includes(attr.name) && 
-                 !attr.name.startsWith('data-')
-      );
-
-      attrsToRemove.forEach(attr => {
-        child.removeAttribute(attr.name);
-      });
-
-      // Sanitize URLs in href and src
-      const href = child.getAttribute('href');
-      const src = child.getAttribute('src');
-
-      if (href && !isValidUrl(href)) {
-        child.removeAttribute('href');
-      }
-      if (src && !isValidUrl(src)) {
-        child.removeAttribute('src');
-      }
-
-      // Special handling for target attribute - only allow _blank, _self, _parent, _top
-      const target = child.getAttribute('target');
-      if (target && !['_blank', '_self', '_parent', '_top'].includes(target)) {
-        child.removeAttribute('target');
-      }
-      // A link opened in a new tab must not get a handle on this page (window.opener).
-      if (tagName === 'a' && child.getAttribute('target') === '_blank') {
-        child.setAttribute('rel', 'noopener noreferrer');
-      }
-
-      // Recursively sanitize children
-      sanitizeElement(child, allowedTags, allowedAttributes as Record<string, string[]>);
-    }
-  }
 }
 
 /**

@@ -249,7 +249,7 @@ function byTitle(lessons) {
   return Object.fromEntries(lessons.map((lesson) => [lesson.title.replace('Lesson ', ''), lesson]));
 }
 
-const ALLOWED_LOCKED_KEYS = new Set(['_id', 'title', 'type', 'order', 'courseId', 'locked', 'accessible', 'completed', 'isFirstLesson', 'isDemo', 'monetization', 'resources', ...WITHHELD_LESSON_FIELDS]);
+const ALLOWED_LOCKED_KEYS = new Set(['_id', 'title', 'type', 'order', 'courseId', 'locked', 'accessible', 'completed', 'isFirstLesson', 'isFreePreview', 'isDemo', 'monetization', 'resources', ...WITHHELD_LESSON_FIELDS]);
 
 function assertNoProtectedContent(view, label) {
   for (const key of WITHHELD_LESSON_FIELDS) {
@@ -463,7 +463,7 @@ test('source contract: both lesson endpoints use the shared lesson presentation'
   assert.equal(indexRoute.includes('decideLessonCatalog({'), true);
   assert.equal(indexRoute.includes('loadCourseEntitlement('), true);
   assert.equal(indexRoute.includes('presentCourseLessons({'), true);
-  assert.equal(indexRoute.includes('priceCourseLessons(lessonsList, entitlement)'), true);
+  assert.equal(indexRoute.includes('priceCourseLessons(lessonsList, entitlement, undefined, { explicitPreview: course!.freePreviewExplicit === true })'), true);
   assert.equal(indexRoute.includes('buildLessonsListForCourse'), false);
 
   const builder = read('lib/course-lessons-locked.ts');

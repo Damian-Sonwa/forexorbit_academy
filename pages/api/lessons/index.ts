@@ -20,7 +20,10 @@ import { ObjectId } from 'mongodb';
 import { decideAccountAccess, decideLessonCatalog, decideLessonCreate, decideLessonRead, isStoredId, presentLessonRead } from '@/lib/account-access';
 import { enrollmentDecisionRecord } from '@/lib/enrollment-state';
 import { stripLessonVisualAidsFields } from '@/lib/strip-visual-aids-html';
-import { loadCourseEntitlement, presentCourseLessons, priceCourseLessons } from '@/lib/course-lesson-list';
+import { LESSON_LIST_COURSE_PROJECTION, loadCourseEntitlement, presentCourseLessons, priceCourseLessons } from '@/lib/course-lesson-list';
+import { nextLessonPosition } from '@/lib/lesson-order';
+import { recomputeCourseProgress } from '@/lib/course-progress';
+import { allowRequest, authoringLimiter } from '@/lib/content-rate-limit';
 
 async function getLessons(req: AuthRequest, res: NextApiResponse) {
   const requestedId = Array.isArray(req.query.courseId) ? req.query.courseId[0] : req.query.courseId;
@@ -37,7 +40,7 @@ async function getLessons(req: AuthRequest, res: NextApiResponse) {
     };
     const course = await db.collection('courses').findOne(
       { _id: new ObjectId(requestedId) },
-      { projection: { instructorId: 1, difficulty: 1 } }
+      { projection: LESSON_LIST_COURSE_PROJECTION }
     );
     const courseId = course ? String(course._id) : '';
     const enrollment = course
@@ -49,7 +52,7 @@ async function getLessons(req: AuthRequest, res: NextApiResponse) {
     const enrollmentRecord = enrollmentDecisionRecord(enrollment);
     const catalog = decideLessonCatalog({
       member,
-      course: course ? { _id: course._id, instructorId: course.instructorId } : null,
+      course: course ? { _id: course._id, instructorId: course.instructorId, status: course.status } : null,
       enrollment: enrollmentRecord,
     });
     if (!catalog.ok) {
@@ -58,13 +61,14 @@ async function getLessons(req: AuthRequest, res: NextApiResponse) {
 
     const lessonCursor = db.collection('lessons').find({ courseId: catalog.courseId });
     if (outline) {
-      lessonCursor.project({ title: 1, type: 1, order: 1, courseId: 1, requiredLevel: 1 });
+      lessonCursor.project({ title: 1, type: 1, order: 1, courseId: 1, requiredLevel: 1, isFreePreview: 1 });
     }
     const lessonsList = await lessonCursor.sort({ order: 1 }).toArray();
     const courseRecord = {
       _id: course!._id,
       instructorId: course!.instructorId,
       difficulty: typeof course!.difficulty === 'string' ? course!.difficulty : null,
+      status: course!.status,
     };
     if (outline) {
       const outlineViews = lessonsList.map((lesson) => {
@@ -93,7 +97,7 @@ async function getLessons(req: AuthRequest, res: NextApiResponse) {
       course: courseRecord,
       enrollmentRow: enrollment,
       lessons: lessonsList as Record<string, unknown>[],
-      pricing: priceCourseLessons(lessonsList, entitlement),
+      pricing: priceCourseLessons(lessonsList, entitlement, undefined, { explicitPreview: course!.freePreviewExplicit === true }),
     });
     res.json(views.map(stripLessonVisualAidsFields));
   } catch {
@@ -109,6 +113,7 @@ async function createLesson(req: AuthRequest, res: NextApiResponse) {
   }
   try {
     const db = await getDb();
+    if (!(await allowRequest(authoringLimiter, { userId: req.user!.userId, res, getDb }))) return;
     const record = await db.collection('users').findOne(
       { _id: new ObjectId(req.user!.userId) },
       { projection: { email: 1, role: 1, status: 1 } }
@@ -116,22 +121,29 @@ async function createLesson(req: AuthRequest, res: NextApiResponse) {
     const account = decideAccountAccess({ userId: req.user!.userId, record });
     const course = await db.collection('courses').findOne(
       { _id: new ObjectId(courseId) },
-      { projection: { instructorId: 1 } }
+      { projection: { instructorId: 1, status: 1 } }
     );
     const decision = decideLessonCreate({
       member: account.ok ? { userId: account.user.userId, role: account.user.role } : null,
-      course: course ? { _id: course._id, instructorId: course.instructorId } : null,
+      course: course ? { _id: course._id, instructorId: course.instructorId, status: course.status } : null,
       body: req.body,
     });
     if (!decision.ok) {
-      return res.status(decision.status).json({ error: decision.error });
+      const refused = decision as { status: number; error: string; code?: string; field?: string };
+      return res.status(refused.status).json({ error: refused.error, code: refused.code, field: refused.field });
     }
 
+    // The position is the end of the course, assigned atomically (lib/lesson-order.js); a position
+    // sent by the form is ignored, so two lessons never share one.
+    const order = await nextLessonPosition(db, decision.courseId);
     const result = await db.collection('lessons').insertOne({
       ...decision.document,
+      order,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
+    // Enrolled students now have one more lesson to cover; completions already earned are kept.
+    await recomputeCourseProgress(db, decision.courseId);
 
     res.status(201).json({
       id: result.insertedId.toString(),

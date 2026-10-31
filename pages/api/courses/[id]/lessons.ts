@@ -20,17 +20,19 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
   try {
     const courseId = Array.isArray(req.query.id) ? req.query.id[0] : req.query.id;
     const db = await getDb();
+    const outline = req.query.view === 'outline';
     const result = await listCourseLessons(db, {
       member: { userId: req.user!.userId, role: req.user!.role },
       courseId,
+      outline,
     });
     if (!result.ok) {
       return res.status(result.status).json({ message: result.error });
     }
     const lessons = result.lessons.map(stripLessonVisualAidsFields);
-    return res.status(200).json({ lessons: req.query.view === 'outline' ? lessons.map(toLessonOutline) : lessons });
-  } catch (e) {
-    console.error('[courses/:id/lessons]', e);
+    return res.status(200).json({ lessons: outline ? lessons.map(toLessonOutline) : lessons });
+  } catch {
+    console.error(JSON.stringify({ event: 'courseLessons', result: 'failed' }));
     return res.status(500).json({ message: 'Something went wrong. Please try again later.' });
   }
 }

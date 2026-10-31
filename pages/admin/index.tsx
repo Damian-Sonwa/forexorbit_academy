@@ -57,6 +57,13 @@ interface User {
   [key: string]: unknown;
 }
 
+const COURSE_STATUS_LABELS: Record<string, string> = {
+  draft: 'Draft',
+  in_review: 'In review',
+  published: 'Published',
+  archived: 'Archived',
+};
+
 interface NewsItem {
   _id?: string;
   title?: string;
@@ -120,6 +127,7 @@ export default function AdminPanel() {
     category: '',
     difficulty: 'beginner',
     thumbnail: '',
+    instructorId: '',
   });
   const [instructorForm, setInstructorForm] = useState({
     name: '',
@@ -537,20 +545,37 @@ export default function AdminPanel() {
     try {
       await apiClient.post<ApiResponse>('/courses', courseForm);
       setShowCourseForm(false);
-      setCourseForm({ title: '', description: '', category: '', difficulty: 'beginner', thumbnail: '' });
+      setCourseForm({ title: '', description: '', category: '', difficulty: 'beginner', thumbnail: '', instructorId: '' });
       refetch();
-      alert('Course created successfully');
+      alert('Course created as a draft. The assigned instructor can now add lessons and submit it for review.');
     } catch (error: any) {
       alert(error.message || 'Failed to create course');
     }
   };
 
+  /** Lifecycle change (POST /courses/:id/status); the server decides who may make which change. */
+  const handleCourseStatus = async (courseId: string, status: string, question: string) => {
+    if (!confirm(question)) return;
+    try {
+      await apiClient.post<ApiResponse>(`/courses/${courseId}/status`, { status });
+      await refetch();
+      await loadAnalytics();
+    } catch (error: any) {
+      alert(error.message || 'The course status could not be changed');
+      await refetch();
+    }
+  };
+
+  /**
+   * Permanent deletion: Super Admin only, and refused by the server for any course with student,
+   * payment or certificate records (archive those instead). Lessons, their quizzes and unused
+   * assignments of the course are deleted with it; nothing else is.
+   */
   const handleDeleteCourse = async (courseId: string) => {
-    if (!confirm('Are you sure you want to delete this course? This will also delete all associated lessons and cannot be undone.')) {
+    if (!confirm('Delete this course permanently? Its lessons, quizzes and unused assignments are deleted with it and this cannot be undone. A course with enrolments, payments or certificates cannot be deleted; archive it instead.')) {
       return;
     }
     try {
-      // Delete from backend
       await apiClient.delete<ApiResponse>(`/courses/${courseId}`);
       
       // Refetch courses to update the UI - ensure it's properly awaited
@@ -968,6 +993,26 @@ export default function AdminPanel() {
                       </select>
                     </div>
                   </div>
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-gray-700" htmlFor="course-instructor">Instructor</label>
+                    <select
+                      id="course-instructor"
+                      value={courseForm.instructorId}
+                      onChange={(e) => setCourseForm({ ...courseForm, instructorId: e.target.value })}
+                      required
+                      className="input"
+                    >
+                      <option value="">Choose an active instructor</option>
+                      {users
+                        .filter((member) => member.role === 'instructor' && (!member.status || member.status === 'approved'))
+                        .map((member) => (
+                          <option key={member._id} value={member._id}>
+                            {member.name || member.email}
+                          </option>
+                        ))}
+                    </select>
+                    <p className="mt-1 text-xs text-gray-500">Only active instructor accounts can be assigned. The course starts as a draft.</p>
+                  </div>
                   <button type="submit" className="btn btn-primary">
                     Create Course
                   </button>
@@ -982,27 +1027,53 @@ export default function AdminPanel() {
                   <div className="flex flex-1 flex-col p-5">
                   <h3 className="mb-1.5 font-display text-lg font-semibold text-neutral-900">{course.title}</h3>
                   <p className="mb-4 line-clamp-2 flex-1 text-sm text-neutral-600">{previewText(course.description)}</p>
-                  <div className="flex items-center justify-between gap-2">
+                  <div className="mb-3 flex flex-wrap items-center gap-2">
                     <span className="chip">{course.difficulty}</span>
-                    <div className="flex gap-2">
-                      <Link
-                        href={`/courses/${course._id || course.id}`}
-                        className="btn btn-primary"
-                      >
-                        Manage
-                      </Link>
-                      <button
-                        onClick={() => {
-                          const courseId = course._id || course.id;
-                          if (courseId) {
-                            handleDeleteCourse(courseId);
-                          }
-                        }}
-                        className="btn btn-danger-quiet"
-                      >
-                        Delete
-                      </button>
-                    </div>
+                    <span className="chip" data-course-status={course.status || 'published'}>
+                      {COURSE_STATUS_LABELS[course.status || 'published']}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Link
+                      href={`/instructor/courses/${course._id || course.id}`}
+                      className="btn btn-primary"
+                    >
+                      Manage
+                    </Link>
+                    {(() => {
+                      const courseId = course._id || course.id;
+                      if (!courseId) return null;
+                      const status = course.status || 'published';
+                      return (
+                        <>
+                          {status === 'in_review' && (
+                            <>
+                              <button type="button" className="btn btn-primary" onClick={() => handleCourseStatus(courseId, 'published', 'Publish this course? It becomes visible in the catalogue and open for enrolment and purchase.')}>
+                                Publish
+                              </button>
+                              <button type="button" className="btn btn-secondary" onClick={() => handleCourseStatus(courseId, 'draft', 'Return this course to its instructor as a draft for changes?')}>
+                                Return to draft
+                              </button>
+                            </>
+                          )}
+                          {status === 'published' && (
+                            <button type="button" className="btn btn-secondary" onClick={() => handleCourseStatus(courseId, 'archived', 'Archive this course? It leaves the catalogue and takes no new enrolments or purchases. Students already enrolled keep their access, progress and certificates.')}>
+                              Archive
+                            </button>
+                          )}
+                          {status === 'archived' && (
+                            <button type="button" className="btn btn-secondary" onClick={() => handleCourseStatus(courseId, 'published', 'Restore this course to the catalogue?')}>
+                              Restore
+                            </button>
+                          )}
+                          {user?.role === 'superadmin' && status !== 'published' && (
+                            <button type="button" className="btn btn-danger-quiet" onClick={() => handleDeleteCourse(courseId)}>
+                              Delete permanently
+                            </button>
+                          )}
+                        </>
+                      );
+                    })()}
                   </div>
                   </div>
                 </div>

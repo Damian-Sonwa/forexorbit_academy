@@ -40,7 +40,7 @@ async function getAssignmentAnalytics(req: AuthRequest, res: NextApiResponse) {
     );
     const decision = decideAssignmentMutation({
       member: account.ok ? { userId: account.user.userId, role: account.user.role } : null,
-      course: course ? { _id: course._id, instructorId: course.instructorId } : null,
+      course: course ? { _id: course._id, instructorId: course.instructorId, status: course.status } : null,
       assignment: { _id: assignment._id, courseId: assignment.courseId },
     });
     if (!decision.ok) {

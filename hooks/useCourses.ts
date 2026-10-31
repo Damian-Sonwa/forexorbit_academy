@@ -15,6 +15,12 @@ export interface Course {
   difficulty: 'beginner' | 'intermediate' | 'advanced';
   thumbnail?: string;
   instructorId?: string;
+  /** Lifecycle state (lib/course-lifecycle.js). */
+  status?: 'draft' | 'in_review' | 'published' | 'archived';
+  /** Changes this member may make; staff only. */
+  availableTransitions?: Array<'draft' | 'in_review' | 'published' | 'archived'>;
+  /** When the student first completed the course; kept when lessons are added later. */
+  completedAt?: string | null;
   progress?: number;
   enrolled?: boolean;
   lessons?: Array<{

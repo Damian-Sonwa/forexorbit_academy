@@ -101,7 +101,8 @@ test('the outline is a small fraction of the full row for an image-heavy lesson'
 
 test('the routes offer the lighter views and the pages request them', () => {
   const lessonsRoute = read('pages/api/courses/[id]/lessons.ts');
-  assert.match(lessonsRoute, /req\.query\.view === 'outline' \? lessons\.map\(toLessonOutline\) : lessons/);
+  assert.match(lessonsRoute, /const outline = req\.query\.view === 'outline';/);
+  assert.match(lessonsRoute, /outline \? lessons\.map\(toLessonOutline\) : lessons/);
   const courseRoute = read('pages/api/courses/[id].ts');
   assert.match(courseRoute, /const withLessons = req\.query\.lessons !== 'none';/);
   assert.match(courseRoute, /\.\.\.\(withLessons \? \{ lessons \} : \{\}\)/);
@@ -143,5 +144,5 @@ test('opening one lesson prices it without loading the sibling lesson bodies', a
   const result = await readLessonDetail(db, { userId: String(userId), lessonId: String(lessonId), env: {} });
   assert.equal(result.status, 200);
   const siblingFind = finds.find((f) => f.name === 'lessons');
-  assert.deepEqual(siblingFind.options && siblingFind.options.projection, { _id: 1, order: 1, isFirstLesson: 1, isDemo: 1 });
+  assert.deepEqual(siblingFind.options && siblingFind.options.projection, { _id: 1, order: 1, isFirstLesson: 1, isFreePreview: 1, isDemo: 1 });
 });

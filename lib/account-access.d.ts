@@ -60,7 +60,7 @@ export function clientSafeAuthError(error: { message?: string } | null): { statu
 export function decideLessonRoomAccess(input: {
   member?: { userId?: string; role?: string; email?: string } | null;
   lesson?: { _id?: unknown; courseId?: unknown; requiredLevel?: string | null } | null;
-  course?: { _id?: unknown; instructorId?: unknown; difficulty?: string | null } | null;
+  course?: { _id?: unknown; instructorId?: unknown; difficulty?: string | null; status?: unknown } | null;
   enrollment?: { userId?: unknown; courseId?: unknown; progress?: number } | null;
   lookupError?: boolean;
 }): { ok: true; lessonId: string; courseId: string; lessonChannel: string; courseChannel: string; user: { userId: string; email: string } } | { ok: false; error: string };
@@ -68,7 +68,7 @@ export function decideLessonRoomAccess(input: {
 export function decideLessonChat(input: {
   member?: { userId?: string; role?: string; email?: string; name?: string } | null;
   lesson?: { _id?: unknown; courseId?: unknown; requiredLevel?: string | null } | null;
-  course?: { _id?: unknown; instructorId?: unknown; difficulty?: string | null } | null;
+  course?: { _id?: unknown; instructorId?: unknown; difficulty?: string | null; status?: unknown } | null;
   enrollment?: { userId?: unknown; courseId?: unknown; progress?: number } | null;
   text?: unknown;
   lookupError?: boolean;
@@ -77,14 +77,14 @@ export function decideLessonChat(input: {
 export function decideLessonRead(input: {
   member?: { userId?: string; role?: string; email?: string } | null;
   lesson?: { _id?: unknown; courseId?: unknown; requiredLevel?: string | null } | null;
-  course?: { _id?: unknown; instructorId?: unknown; difficulty?: string | null } | null;
+  course?: { _id?: unknown; instructorId?: unknown; difficulty?: string | null; status?: unknown } | null;
   enrollment?: { userId?: unknown; courseId?: unknown; progress?: number } | null;
   lookupError?: boolean;
 }): { ok: true; status: 200; lessonId: string } | { ok: false; status: 403 | 404 | 500; error: string };
 
 export function decideLessonCatalog(input: {
   member?: { userId?: string; role?: string } | null;
-  course?: { _id?: unknown; instructorId?: unknown } | null;
+  course?: { _id?: unknown; instructorId?: unknown; status?: unknown; [key: string]: unknown } | null;
   enrollment?: { userId?: unknown; courseId?: unknown; progress?: number } | null;
   lookupError?: boolean;
 }): { ok: true; status: 200; courseId: string } | { ok: false; status: 403 | 404 | 500; error: string };
@@ -113,7 +113,7 @@ export function consultationPublisherResponse(input: {
 export function decideLessonMessageRead(input: {
   member?: { userId?: string; role?: string; email?: string } | null;
   lesson?: { _id?: unknown; courseId?: unknown; requiredLevel?: string | null } | null;
-  course?: { _id?: unknown; instructorId?: unknown; difficulty?: string | null } | null;
+  course?: { _id?: unknown; instructorId?: unknown; difficulty?: string | null; status?: unknown } | null;
   enrollment?: { userId?: unknown; courseId?: unknown; progress?: number } | null;
   lookupError?: boolean;
 }): { ok: true; status: 200; lessonId: string } | { ok: false; status: 403 | 404 | 500; error: string };
@@ -121,14 +121,14 @@ export function decideLessonMessageRead(input: {
 export function decideQuizMutation(input: {
   member?: { userId?: string; role?: string } | null;
   lesson?: { _id?: unknown; courseId?: unknown } | null;
-  course?: { _id?: unknown; instructorId?: unknown } | null;
+  course?: { _id?: unknown; instructorId?: unknown; status?: unknown; [key: string]: unknown } | null;
   questions?: unknown;
   lookupError?: boolean;
-}): { ok: true; status: 200; lessonId: string; courseId: string; questions: Array<{ question: string; options: string[]; correctAnswer: number }> } | { ok: false; status: 400 | 403 | 404 | 500; error: string };
+}): { ok: true; status: 200; lessonId: string; courseId: string; questions: Array<{ question: string; options: string[]; correctAnswer: number }> } | { ok: false; status: number; error: string; code?: string; field?: string };
 
 export function decideProgressUpdate(input: {
   member?: { userId?: string; role?: string } | null;
-  course?: { _id?: unknown } | null;
+  course?: { _id?: unknown; status?: unknown } | null;
   lesson?: { _id?: unknown; courseId?: unknown } | null;
   enrollment?: { userId?: unknown; courseId?: unknown; progress?: number } | null;
   lookupError?: boolean;
@@ -137,37 +137,37 @@ export function decideProgressUpdate(input: {
 export function decideLessonDelete(input: {
   member?: { userId?: string; role?: string } | null;
   lesson?: { _id?: unknown; courseId?: unknown } | null;
-  course?: { _id?: unknown; instructorId?: unknown } | null;
+  course?: { _id?: unknown; instructorId?: unknown; status?: unknown; [key: string]: unknown } | null;
   lookupError?: boolean;
-}): { ok: true; status: 200; lessonId: string } | { ok: false; status: 403 | 404 | 500; error: string };
+}): { ok: true; status: 200; lessonId: string; courseId: string } | { ok: false; status: number; error: string; code?: string; field?: string };
 
 export function isStoredId(value: unknown): value is string;
 
 export function decideLessonUpdate(input: {
   member?: { userId?: string; role?: string } | null;
   lesson?: { _id?: unknown; courseId?: unknown } | null;
-  course?: { _id?: unknown; instructorId?: unknown } | null;
+  course?: { _id?: unknown; instructorId?: unknown; status?: unknown; [key: string]: unknown } | null;
   patch?: { [key: string]: any } | null;
   lookupError?: boolean;
-}): { ok: true; status: 200; lessonId: string; courseId: string; patch: { [key: string]: any } } | { ok: false; status: 403 | 404 | 500; error: string };
+}): { ok: true; status: 200; lessonId: string; courseId: string; patch: { [key: string]: any } } | { ok: false; status: number; error: string; code?: string; field?: string };
 
 export function decideLessonCreate(input: {
   member?: { userId?: string; role?: string } | null;
-  course?: { _id?: unknown; instructorId?: unknown } | null;
+  course?: { _id?: unknown; instructorId?: unknown; status?: unknown; [key: string]: unknown } | null;
   body?: { [key: string]: any } | null;
   lookupError?: boolean;
-}): { ok: true; status: 201; courseId: string; document: { [key: string]: any } } | { ok: false; status: 400 | 403 | 404 | 500; error: string };
+}): { ok: true; status: 201; courseId: string; document: { [key: string]: any } } | { ok: false; status: number; error: string; code?: string; field?: string };
 
 export function decideCourseCreate(input: {
   member?: { userId?: string; role?: string } | null;
   body?: { [key: string]: any } | null;
   assignee?: { userId?: string; role?: string; status?: string } | null;
   lookupError?: boolean;
-}): { ok: true; status: 201; document: { title: string; description: string; category: string; difficulty: string; instructorId: string; thumbnail: string } } | { ok: false; status: 400 | 403 | 500; error: string };
+}): { ok: true; status: 201; document: { title: string; description: string; category: string; difficulty: string; instructorId: string; thumbnail: string; status: string; freePreviewExplicit: boolean } } | { ok: false; status: number; error: string; code?: string; field?: string };
 
 export function decideAssignmentRead(input: {
   member?: { userId?: string; role?: string } | null;
-  course?: { _id?: unknown; instructorId?: unknown } | null;
+  course?: { _id?: unknown; instructorId?: unknown; status?: unknown; [key: string]: unknown } | null;
   enrollment?: { userId?: unknown; courseId?: unknown; progress?: number } | null;
   lookupError?: boolean;
 }): { ok: true; status: 200; courseId: string; staff: boolean } | { ok: false; status: 403 | 404 | 500; error: string };
@@ -182,7 +182,7 @@ export function presentSubmission(submission: { [key: string]: any } | null): { 
 
 export function decideAssignmentCreate(input: {
   member?: { userId?: string; role?: string } | null;
-  course?: { _id?: unknown; instructorId?: unknown } | null;
+  course?: { _id?: unknown; instructorId?: unknown; status?: unknown; [key: string]: unknown } | null;
   lesson?: { _id?: unknown; courseId?: unknown } | null;
   body?: { [key: string]: any } | null;
   lookupError?: boolean;
@@ -190,14 +190,14 @@ export function decideAssignmentCreate(input: {
 
 export function decideAssignmentMutation(input: {
   member?: { userId?: string; role?: string } | null;
-  course?: { _id?: unknown; instructorId?: unknown } | null;
+  course?: { _id?: unknown; instructorId?: unknown; status?: unknown; [key: string]: unknown } | null;
   assignment?: { _id?: unknown; courseId?: unknown } | null;
   lookupError?: boolean;
 }): { ok: true; status: 200; assignmentId: string; courseId: string } | { ok: false; status: 403 | 404 | 500; error: string };
 
 export function decideAssignmentSubmit(input: {
   member?: { userId?: string; role?: string } | null;
-  course?: { _id?: unknown; instructorId?: unknown } | null;
+  course?: { _id?: unknown; instructorId?: unknown; status?: unknown; [key: string]: unknown } | null;
   enrollment?: { userId?: unknown; courseId?: unknown; progress?: number } | null;
   assignment?: { _id?: unknown; courseId?: unknown; lessonId?: unknown; points?: number } | null;
   body?: { [key: string]: any } | null;
@@ -206,7 +206,7 @@ export function decideAssignmentSubmit(input: {
 
 export function decideAssignmentGrade(input: {
   member?: { userId?: string; role?: string } | null;
-  course?: { _id?: unknown; instructorId?: unknown } | null;
+  course?: { _id?: unknown; instructorId?: unknown; status?: unknown; [key: string]: unknown } | null;
   assignment?: { _id?: unknown; courseId?: unknown; points?: number } | null;
   submission?: { _id?: unknown; assignmentId?: unknown; userId?: unknown } | null;
   grade?: unknown;
@@ -216,10 +216,11 @@ export function decideAssignmentGrade(input: {
 
 export function decideCourseUpdate(input: {
   member?: { userId?: string; role?: string } | null;
-  course?: { _id?: unknown; instructorId?: unknown } | null;
+  course?: { _id?: unknown; instructorId?: unknown; status?: unknown; [key: string]: unknown } | null;
   patch?: { [key: string]: any } | null;
+  assignee?: { userId?: string; role?: string; status?: string } | null;
   lookupError?: boolean;
-}): { ok: true; status: 200; courseId: string; patch: { [key: string]: any } } | { ok: false; status: 403 | 404 | 500; error: string };
+}): { ok: true; status: 200; courseId: string; patch: { [key: string]: any } } | { ok: false; status: number; error: string; code?: string; field?: string };
 
 export function decideCommunityPresence(input: {
   member?: { userId?: string; role?: string; learningLevel?: string; tradingLevel?: string } | null;
@@ -232,7 +233,7 @@ export function presenceOfflineTargets(rooms: Iterable<unknown> | null | undefin
 export function decideQuizRead(input: {
   member?: { userId?: string; role?: string; email?: string } | null;
   lesson?: { _id?: unknown; courseId?: unknown; requiredLevel?: string | null } | null;
-  course?: { _id?: unknown; instructorId?: unknown; difficulty?: string | null } | null;
+  course?: { _id?: unknown; instructorId?: unknown; difficulty?: string | null; status?: unknown } | null;
   enrollment?: { userId?: unknown; courseId?: unknown; progress?: number } | null;
   quiz?: { questions?: Array<{ question?: string; options?: string[]; correctAnswer?: number }> } | null;
   lookupError?: boolean;
@@ -241,7 +242,7 @@ export function decideQuizRead(input: {
 export function decideQuizSubmit(input: {
   member?: { userId?: string; role?: string; email?: string } | null;
   lesson?: { _id?: unknown; courseId?: unknown; requiredLevel?: string | null } | null;
-  course?: { _id?: unknown; instructorId?: unknown; difficulty?: string | null } | null;
+  course?: { _id?: unknown; instructorId?: unknown; difficulty?: string | null; status?: unknown } | null;
   enrollment?: { userId?: unknown; courseId?: unknown; progress?: number } | null;
   quiz?: { questions?: Array<{ question?: string; options?: string[]; correctAnswer?: number }> } | null;
   answers?: unknown;
@@ -251,7 +252,7 @@ export function decideQuizSubmit(input: {
 export function decideLessonStaffNotify(input: {
   member?: { userId?: string; role?: string; email?: string } | null;
   lesson?: { _id?: unknown; courseId?: unknown } | null;
-  course?: { _id?: unknown } | null;
+  course?: { _id?: unknown; status?: unknown } | null;
   lookupError?: boolean;
 }): { ok: true; lessonId: string; courseId: string; lessonChannel: string; courseChannel: string } | { ok: false; error: string };
 
@@ -261,3 +262,19 @@ export function canJoinConsultation(
 ): boolean;
 
 export function accountStatus(record: { status?: string | null } | null): string;
+
+export type InputCheck<T> = { ok: true; fields: T } | { ok: false; status: 400; code: string; field: string; error: string };
+
+export function checkCourseInput(
+  body: unknown,
+  options?: { partial?: boolean; current?: { [key: string]: unknown } | null }
+): InputCheck<{ [key: string]: string }>;
+
+export function checkLessonInput(body: unknown):
+  | { ok: true; patch: { [key: string]: any } }
+  | { ok: false; status: 400; code: string; field: string; error: string };
+
+export function decideInstructorAssignee(
+  requestedId: unknown,
+  assignee: { userId?: string; role?: string; status?: string } | null | undefined
+): { ok: true; instructorId: string } | { ok: false; status: 400; code: string; error: string };

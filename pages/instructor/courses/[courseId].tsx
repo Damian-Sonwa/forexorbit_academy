@@ -28,6 +28,8 @@ interface Lesson {
   pdfUrl?: string;
   type: 'video' | 'pdf' | 'interactive';
   order: number;
+  /** Free preview for students who have not bought the course (Phase 4, Decision 3). */
+  isFreePreview?: boolean;
   content?: string;
   resources?: Array<{
     type: 'pdf' | 'link' | 'slide';
@@ -35,6 +37,23 @@ interface Lesson {
     title: string;
   }>;
 }
+
+type CourseStatus = 'draft' | 'in_review' | 'published' | 'archived';
+
+const STATUS_LABELS: Record<CourseStatus, string> = {
+  draft: 'Draft',
+  in_review: 'In review',
+  published: 'Published',
+  archived: 'Archived',
+};
+
+/** Button text and confirmation for each lifecycle change (the server decides who may make it). */
+const TRANSITION_ACTIONS: Record<CourseStatus, { label: string; question: string }> = {
+  in_review: { label: 'Submit for review', question: 'Submit this course for review? You cannot edit it while it is in review unless you withdraw it.' },
+  draft: { label: 'Return to draft', question: 'Move this course back to draft so it can be edited?' },
+  published: { label: 'Publish', question: 'Publish this course? It becomes visible in the catalogue and open for enrolment and purchase.' },
+  archived: { label: 'Archive', question: 'Archive this course? It leaves the catalogue and takes no new enrolments or purchases. Students already enrolled keep their access, progress and certificates.' },
+};
 
 interface Quiz {
   _id?: string;
@@ -56,6 +75,8 @@ interface Course {
   category: string;
   instructorId?: string;
   thumbnail?: string;
+  status?: CourseStatus;
+  availableTransitions?: CourseStatus[];
   lessons?: Array<{
     _id?: string;
     title: string;
@@ -177,8 +198,40 @@ export default function InstructorCoursePage() {
     }
   };
 
+  /** Lifecycle change; the server checks the role and the current state again. */
+  const handleTransition = async (to: CourseStatus) => {
+    if (!courseId || !confirm(TRANSITION_ACTIONS[to].question)) return;
+    try {
+      setLoading(true);
+      await apiClient.post(`/courses/${courseId}/status`, { status: to });
+      await loadCourse();
+    } catch (error: any) {
+      alert(error.message || 'The course status could not be changed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /** Moves a lesson one place up or down; positions are rewritten by the server (lesson-order). */
+  const handleMoveLesson = async (index: number, direction: -1 | 1) => {
+    const target = index + direction;
+    if (!courseId || target < 0 || target >= courseLessons.length) return;
+    const ids = courseLessons.map((lesson) => lesson._id);
+    [ids[index], ids[target]] = [ids[target], ids[index]];
+    try {
+      setLoading(true);
+      await apiClient.put(`/courses/${courseId}/lesson-order`, { lessonIds: ids });
+    } catch (error: any) {
+      alert(error.message || 'The lessons could not be reordered');
+    } finally {
+      await loadCourseLessons();
+      setLoading(false);
+    }
+  };
+
+  /** Super Admin only; refused for courses with enrolments, payments or certificates. */
   const handleDeleteCourse = async () => {
-    if (!confirm('Are you sure you want to delete this course? This will also delete all associated lessons and cannot be undone.')) {
+    if (!confirm('Delete this course permanently? Its lessons, quizzes and unused assignments are deleted with it and this cannot be undone. A course with enrolments, payments or certificates cannot be deleted; archive it instead.')) {
       return;
     }
 
@@ -217,6 +270,7 @@ export default function InstructorCoursePage() {
         pdfUrl: lessonDetails.pdfUrl || lesson.pdfUrl || '',
         type: lessonDetails.type || lesson.type,
         order: lessonDetails.order || lesson.order,
+        isFreePreview: lessonDetails.isFreePreview === true || lesson.isFreePreview === true,
         content: bodyHtml,
         resources: lessonDetails.resources || lesson.resources || [],
       });
@@ -234,6 +288,7 @@ export default function InstructorCoursePage() {
         pdfUrl: lesson.pdfUrl || '',
         type: lesson.type,
         order: lesson.order,
+        isFreePreview: lesson.isFreePreview === true,
         content: bodyHtml,
         resources: lesson.resources || [],
       });
@@ -253,7 +308,7 @@ export default function InstructorCoursePage() {
         videoUrl: lessonForm.videoUrl,
         pdfUrl: lessonForm.pdfUrl,
         type: lessonForm.type,
-        order: lessonForm.order,
+        isFreePreview: lessonForm.isFreePreview === true,
         content: lessonForm.content,
         resources: lessonForm.resources,
         courseId: courseId,
@@ -305,10 +360,12 @@ export default function InstructorCoursePage() {
 
     try {
       setLoading(true);
+      // The server places a new lesson at the end of the course; use the arrows to move it.
+      const { order: _ignoredOrder, ...fields } = lessonForm;
+      void _ignoredOrder;
       const lessonData: any = {
-        ...lessonForm,
+        ...fields,
         courseId: courseId,
-        order: lessonForm.order || courseLessons.length + 1,
       };
 
       await apiClient.post('/lessons', lessonData);
@@ -542,13 +599,15 @@ export default function InstructorCoursePage() {
                   >
                     Cancel
                   </button>
-                  <button
-                    type="button"
-                    onClick={handleDeleteCourse}
-                    className="btn btn-danger-quiet"
-                  >
-                    Delete Course
-                  </button>
+                  {user?.role === 'superadmin' && course.status !== 'published' && (
+                    <button
+                      type="button"
+                      onClick={handleDeleteCourse}
+                      className="btn btn-danger-quiet"
+                    >
+                      Delete permanently
+                    </button>
+                  )}
                 </div>
               </form>
             ) : (
@@ -564,15 +623,36 @@ export default function InstructorCoursePage() {
                       <span className="text-sm text-gray-600 dark:text-gray-400">{course.category}</span>
                       <span className="text-sm text-gray-500 dark:text-gray-400">•</span>
                       <span className="text-sm text-gray-600 dark:text-gray-400">{courseLessons.length} lessons</span>
+                      <span className="chip" data-course-status={course.status || 'published'}>{STATUS_LABELS[course.status || 'published']}</span>
                     </div>
                     <p className="text-gray-700 dark:text-gray-300">{course.description}</p>
+                    {user?.role === 'instructor' && course.status !== 'draft' && (
+                      <p className="mt-3 text-sm text-gray-600 dark:text-gray-400">
+                        {course.status === 'in_review'
+                          ? 'This course is in review. Withdraw it to draft to make changes.'
+                          : 'Only draft courses can be edited by their instructor. Ask an administrator for changes to a published or archived course.'}
+                      </p>
+                    )}
                   </div>
-                  <button
-                    onClick={handleEditCourse}
-                    className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold transition-colors"
-                  >
-                    Edit Course
-                  </button>
+                  <div className="flex flex-col items-end gap-2">
+                    <button
+                      onClick={handleEditCourse}
+                      className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold transition-colors"
+                    >
+                      Edit Course
+                    </button>
+                    {(course.availableTransitions || []).map((to) => (
+                      <button
+                        key={to}
+                        type="button"
+                        onClick={() => handleTransition(to)}
+                        disabled={loading}
+                        className="btn btn-secondary"
+                      >
+                        {course.status === 'in_review' && to === 'draft' && user?.role === 'instructor' ? 'Withdraw from review' : TRANSITION_ACTIONS[to].label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
             )}
@@ -651,14 +731,15 @@ export default function InstructorCoursePage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Order</label>
-                    <input
-                      type="number"
-                      value={lessonForm.order || 1}
-                      onChange={(e) => setLessonForm({ ...lessonForm, order: parseInt(e.target.value) })}
-                      min={1}
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500"
-                    />
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
+                      <input
+                        type="checkbox"
+                        checked={lessonForm.isFreePreview === true}
+                        onChange={(e) => setLessonForm({ ...lessonForm, isFreePreview: e.target.checked })}
+                      />
+                      Free preview
+                    </label>
+                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Enrolled students can open this lesson without buying the course. Moving lessons does not change it.</p>
                   </div>
                 </div>
 
@@ -829,7 +910,7 @@ export default function InstructorCoursePage() {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {courseLessons.map((lesson) => (
+                    {courseLessons.map((lesson, lessonIndex) => (
                       <div
                         key={lesson._id}
                         className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:shadow-md transition-shadow"
@@ -874,10 +955,28 @@ export default function InstructorCoursePage() {
                             >
                               Delete
                             </button>
+                            <button
+                              type="button"
+                              aria-label="Move lesson up"
+                              onClick={() => handleMoveLesson(lessonIndex, -1)}
+                              disabled={loading || lessonIndex === 0}
+                              className="px-2 py-1 rounded text-sm font-semibold bg-gray-100 dark:bg-gray-700 disabled:opacity-40"
+                            >
+                              ↑
+                            </button>
+                            <button
+                              type="button"
+                              aria-label="Move lesson down"
+                              onClick={() => handleMoveLesson(lessonIndex, 1)}
+                              disabled={loading || lessonIndex === courseLessons.length - 1}
+                              className="px-2 py-1 rounded text-sm font-semibold bg-gray-100 dark:bg-gray-700 disabled:opacity-40"
+                            >
+                              ↓
+                            </button>
                           </div>
                         </div>
                         <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400">
-                          Order: {lesson.order} • Type: {lesson.type}
+                          Position: {lessonIndex + 1} • Type: {lesson.type}{lesson.isFreePreview ? ' • Free preview' : ''}
                         </div>
                       </div>
                     ))}

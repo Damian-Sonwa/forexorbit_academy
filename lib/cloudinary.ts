@@ -5,6 +5,12 @@
 
 import { v2 as cloudinary } from 'cloudinary';
 import { Readable } from 'stream';
+import { randomBytes } from 'crypto';
+
+/** 128-bit random name for a new upload (the folder is set separately). */
+export function randomPublicId(): string {
+  return randomBytes(16).toString('hex');
+}
 
 // Configure Cloudinary
 cloudinary.config({
@@ -65,10 +71,10 @@ export async function uploadImage(
         folder: `forexorbit/${folder}`,
         resource_type: options.resourceType || 'image',
         transformation: options.transformation,
-        public_id: options.userId ? `${options.userId}_${Date.now()}` : undefined,
+        // Random, so an image address cannot be derived from the uploader id and the time
+        // (audit L2). Access control never relies on this; it only avoids guessable names.
+        public_id: randomPublicId(),
         overwrite: false,
-        unique_filename: true,
-        use_filename: true,
       },
       (error, result) => {
         if (error) {
@@ -126,10 +132,10 @@ export async function uploadImageFromPath(
         folder: `forexorbit/${folder}`,
         resource_type: options.resourceType || 'image',
         transformation: options.transformation,
-        public_id: options.userId ? `${options.userId}_${Date.now()}` : undefined,
+        // Random, so an image address cannot be derived from the uploader id and the time
+        // (audit L2). Access control never relies on this; it only avoids guessable names.
+        public_id: randomPublicId(),
         overwrite: false,
-        unique_filename: true,
-        use_filename: true,
       },
       (error, result) => {
         if (error) {

@@ -10,6 +10,8 @@ import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 import { isActiveEnrollment } from '@/lib/enrollment-state';
+import { courseCompletion, currentCompletedIds, currentLessonIdsFor } from '@/lib/course-progress';
+import { isDuplicateKey } from '@/lib/certificate-issue';
 
 // GET certificates - role-based
 async function getCertificates(req: AuthRequest, res: NextApiResponse) {
@@ -116,7 +118,7 @@ async function generateCertificate(req: AuthRequest, res: NextApiResponse) {
     const { courseId } = req.body;
     const userId = req.user!.userId;
 
-    if (!courseId) {
+    if (typeof courseId !== 'string' || !ObjectId.isValid(courseId)) {
       return res.status(400).json({ error: 'Course ID required' });
     }
 
@@ -124,7 +126,6 @@ async function generateCertificate(req: AuthRequest, res: NextApiResponse) {
     const progress = db.collection('progress');
     const courses = db.collection('courses');
     const certificates = db.collection('certificates');
-    const lessons = db.collection('lessons');
 
     // Check if course exists
     const course = await courses.findOne({ _id: new ObjectId(courseId) });
@@ -132,10 +133,17 @@ async function generateCertificate(req: AuthRequest, res: NextApiResponse) {
       return res.status(404).json({ error: 'Course not found' });
     }
 
-    // Check if user has completed the course (100% progress)
+    // Completion is measured against the course's current lessons, so deleted lessons cannot
+    // stand in for real ones; a completion already recorded is kept when lessons are added
+    // (lib/course-progress.js, Decision 4).
     const userProgress = await progress.findOne({ userId, courseId });
-    if (!userProgress || !isActiveEnrollment(userProgress) || userProgress.progress < 100) {
+    const currentLessonIds = userProgress ? await currentLessonIdsFor(db, courseId) : [];
+    const completion = courseCompletion({ enrollment: userProgress, currentLessonIds });
+    if (!userProgress || !isActiveEnrollment(userProgress) || !completion.complete) {
       return res.status(400).json({ error: 'Course not completed. Complete all lessons to earn a certificate.' });
+    }
+    if (!userProgress.completedAt) {
+      await progress.updateOne({ _id: userProgress._id, completedAt: { $exists: false } }, { $set: { completedAt: new Date() } });
     }
 
     // Check if certificate already exists
@@ -144,8 +152,7 @@ async function generateCertificate(req: AuthRequest, res: NextApiResponse) {
       return res.status(400).json({ error: 'Certificate already issued' });
     }
 
-    // Get total lessons count
-    const totalLessons = await lessons.countDocuments({ courseId });
+    const totalLessons = currentLessonIds.length;
 
     // Generate certificate
     const certificate = {
@@ -153,13 +160,23 @@ async function generateCertificate(req: AuthRequest, res: NextApiResponse) {
       courseId,
       certificateId: `CERT-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       issuedAt: new Date(),
-      progress: userProgress.progress,
-      completedLessons: userProgress.completedLessons?.length || 0,
+      progress: Math.min(100, typeof userProgress.progress === 'number' ? userProgress.progress : completion.percent),
+      completedLessons: currentCompletedIds(userProgress.completedLessons, currentLessonIds).length,
+      completionBasis: completion.basis,
       totalLessons,
       createdAt: new Date(),
     };
 
-    const result = await certificates.insertOne(certificate);
+    let result;
+    try {
+      result = await certificates.insertOne(certificate);
+    } catch (insertError) {
+      // A parallel request issued it first (unique { userId, courseId } index).
+      if (isDuplicateKey(insertError)) {
+        return res.status(400).json({ error: 'Certificate already issued' });
+      }
+      throw insertError;
+    }
 
     res.status(201).json({
       ...certificate,

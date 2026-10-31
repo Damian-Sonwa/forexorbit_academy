@@ -32,7 +32,7 @@ async function loadAssignment(req: AuthRequest, id: string) {
   const course = courseId
     ? await db.collection('courses').findOne(
         { _id: new ObjectId(courseId) },
-        { projection: { instructorId: 1 } }
+        { projection: { instructorId: 1, status: 1 } }
       )
     : null;
   const enrollment = account.ok && course
@@ -57,7 +57,7 @@ async function getAssignment(req: AuthRequest, res: NextApiResponse) {
     const loaded = await loadAssignment(req, id);
     const access = decideAssignmentRead({
       member: memberOf(loaded.account),
-      course: loaded.course ? { _id: loaded.course._id, instructorId: loaded.course.instructorId } : null,
+      course: loaded.course ? { _id: loaded.course._id, instructorId: loaded.course.instructorId, status: loaded.course.status } : null,
       enrollment: enrollmentDecisionRecord(loaded.enrollment),
     });
     if (!loaded.assignment) {
@@ -91,7 +91,7 @@ async function updateAssignment(req: AuthRequest, res: NextApiResponse) {
     const loaded = await loadAssignment(req, id);
     const decision = decideAssignmentMutation({
       member: memberOf(loaded.account),
-      course: loaded.course ? { _id: loaded.course._id, instructorId: loaded.course.instructorId } : null,
+      course: loaded.course ? { _id: loaded.course._id, instructorId: loaded.course.instructorId, status: loaded.course.status } : null,
       assignment: loaded.assignment ? { _id: loaded.assignment._id, courseId: loaded.assignment.courseId } : null,
     });
     if (!decision.ok) {
@@ -124,7 +124,7 @@ async function deleteAssignment(req: AuthRequest, res: NextApiResponse) {
     const loaded = await loadAssignment(req, id);
     const decision = decideAssignmentMutation({
       member: memberOf(loaded.account),
-      course: loaded.course ? { _id: loaded.course._id, instructorId: loaded.course.instructorId } : null,
+      course: loaded.course ? { _id: loaded.course._id, instructorId: loaded.course.instructorId, status: loaded.course.status } : null,
       assignment: loaded.assignment ? { _id: loaded.assignment._id, courseId: loaded.assignment.courseId } : null,
     });
     if (!decision.ok) {

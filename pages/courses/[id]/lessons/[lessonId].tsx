@@ -18,6 +18,8 @@ import { useSocket } from '@/hooks/useSocket';
 import { useAuth } from '@/hooks/useAuth';
 import InstructorLessonEditor from '@/components/InstructorLessonEditor';
 import { sanitizeForStudentView } from '@/lib/html-sanitizer';
+import SafeExternalLink from '@/components/SafeExternalLink';
+import { safeLinkUrl } from '@/lib/safe-url';
 import { getLessonDescriptionHtml, hasVisibleHtml } from '@/lib/lesson-html';
 import { LessonSkeleton } from '@/components/loading';
 import { ContentAdBanner } from '@/components/ads/ContentAdBanner';
@@ -241,9 +243,9 @@ export default function LessonPage() {
           )}
 
           {/* Video Player - Display YouTube videos and other video URLs */}
-          {!payBlocked && displayLesson && displayLesson.videoUrl && (
+          {!payBlocked && displayLesson && safeLinkUrl(displayLesson.videoUrl) && (
             <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg border border-gray-100 p-2 mb-4 overflow-hidden">
-              <VideoPlayer url={displayLesson.videoUrl} onEnded={handleVideoEnd} />
+              <VideoPlayer url={safeLinkUrl(displayLesson.videoUrl) as string} onEnded={handleVideoEnd} />
             </div>
           )}
 
@@ -321,11 +323,9 @@ export default function LessonPage() {
               <p className="text-sm sm:text-base text-gray-600 mb-3">Downloadable resources and links for this lesson</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                 {(displayLesson as any).resources.map((resource: any, index: number) => (
-                  <a
+                  <SafeExternalLink
                     key={index}
                     href={resource.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
                     className="flex items-center p-4 bg-gray-50 hover:bg-primary-50 rounded-xl border-2 border-gray-200 hover:border-primary-300 transition-all group"
                   >
                     <div className="flex-shrink-0 w-12 h-12 bg-primary-100 group-hover:bg-primary-200 rounded-lg flex items-center justify-center mr-4 transition-colors dark:bg-primary-400/10">
@@ -359,7 +359,7 @@ export default function LessonPage() {
                     <svg className="w-5 h-5 text-gray-400 group-hover:text-primary-600 transition-colors ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                     </svg>
-                  </a>
+                  </SafeExternalLink>
                 ))}
               </div>
             </div>

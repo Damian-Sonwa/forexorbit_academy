@@ -1,5 +1,5 @@
 /**
- * Course monetization: first lesson (by order or isFirstLesson) + demo lessons free; the rest
+ * Course monetization: free-preview lessons (lib/course-lesson-list isFreePreviewSlot) + demo lessons free; the rest
  * require a full-course entitlement (verified purchase or explicit grant in userCourseAccess).
  * Legacy per-lesson purchase rows unlock only the lesson they name.
  */
@@ -8,6 +8,7 @@ import type { Db } from 'mongodb';
 import { ObjectId } from 'mongodb';
 import { COURSE_CURRENCY, COURSE_PRICE_KOBO } from '@/lib/course-price';
 import { hasCourseEntitlement, legacyLessonIdsWithAccess } from '@/lib/course-payment';
+import { isFreePreviewSlot } from '@/lib/course-lesson-list';
 
 export type MonetizationFlags = {
   unlocked: boolean;
@@ -138,20 +139,20 @@ export async function hasPaidForCourse(db: Db, userId: string, courseId: string)
  */
 export function computeMonetizationFlags(
   lessonIdStr: string,
-  sortedCourseLessons: { _id: ObjectId; isDemo?: boolean; isFirstLesson?: boolean }[],
+  sortedCourseLessons: { _id: ObjectId; isDemo?: boolean; isFirstLesson?: boolean; isFreePreview?: boolean }[],
   courseUnlocked: boolean,
   userRole: string,
-  adsEnabled: boolean
+  adsEnabled: boolean,
+  explicitPreview = false
 ): MonetizationFlags {
   const paymentsConfigured = isPaystackConfigured();
   const amountKobo = getCoursePriceKobo();
   const currency = getPaystackCurrency();
   const self = sortedCourseLessons.find((l) => l._id.toString() === lessonIdStr);
   const isDemoLesson = Boolean(self?.isDemo);
-  /** Explicit isFirstLesson on doc, or first lesson by order */
-  const isFirstLessonMarked = Boolean(self?.isFirstLesson);
-  const first = sortedCourseLessons[0]?._id.toString();
-  const isFreeIntro = isFirstLessonMarked || Boolean(first && lessonIdStr === first);
+  /** Free preview: the same rule as the lesson lists (isFreePreviewSlot in lib/course-lesson-list). */
+  const index = sortedCourseLessons.findIndex((l) => l._id.toString() === lessonIdStr);
+  const isFreeIntro = Boolean(self) && isFreePreviewSlot(self as Record<string, unknown>, index, explicitPreview);
 
   if (isStaffRole(userRole)) {
     return {
@@ -291,10 +292,17 @@ export async function getMonetizationForLessonDoc(
   sortedLessons: { _id: ObjectId; isDemo?: boolean; isFirstLesson?: boolean }[];
 }> {
   const lessonsCol = db.collection('lessons');
-  const raw = await lessonsCol.find({ courseId: lesson.courseId }).toArray();
+  // Pricing needs only these fields, never the lesson bodies.
+  const raw = await lessonsCol
+    .find({ courseId: lesson.courseId }, { projection: { _id: 1, order: 1, isDemo: 1, isFirstLesson: 1, isFreePreview: 1 } })
+    .toArray();
   const sorted = sortLessonsByOrder(
-    raw as { _id: ObjectId; order?: number; isDemo?: boolean; isFirstLesson?: boolean }[]
+    raw as { _id: ObjectId; order?: number; isDemo?: boolean; isFirstLesson?: boolean; isFreePreview?: boolean }[]
   );
+  const course = ObjectId.isValid(String(lesson.courseId))
+    ? await db.collection('courses').findOne({ _id: new ObjectId(String(lesson.courseId)) }, { projection: { freePreviewExplicit: 1 } })
+    : null;
+  const explicitPreview = Boolean(course && course.freePreviewExplicit === true);
   const lessonIdStr = lesson._id.toString();
   const courseUnlocked =
     isStaffRole(user.role) ||
@@ -302,7 +310,7 @@ export async function getMonetizationForLessonDoc(
     (await hasLessonPurchase(db, user.userId, lessonIdStr));
 
   const adsEnabled = process.env.NEXT_PUBLIC_ADS_ENABLED !== 'false';
-  const flags = computeMonetizationFlags(lessonIdStr, sorted, courseUnlocked, user.role, adsEnabled);
+  const flags = computeMonetizationFlags(lessonIdStr, sorted, courseUnlocked, user.role, adsEnabled, explicitPreview);
 
   return { flags, sortedLessons: sorted };
 }

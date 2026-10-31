@@ -14,6 +14,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useSocket } from '@/hooks/useSocket';
 import { apiClient } from '@/lib/api-client';
 import { sanitizeHtml } from '@/lib/html-sanitizer';
+import SafeExternalLink from '@/components/SafeExternalLink';
 import { getLessonDescriptionHtml, hasVisibleHtml } from '@/lib/lesson-html';
 import { useCourses } from '@/hooks/useCourses';
 import { canReadCourseLessons } from '@/lib/course-response';
@@ -692,14 +693,8 @@ export default function InstructorLessons() {
                             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Supports YouTube, Vimeo, or direct video file URLs</p>
                           </div>
                           <div>
-                            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Order</label>
-                            <input
-                              type="number"
-                              value={lessonForm.order || 1}
-                              onChange={(e) => setLessonForm({ ...lessonForm, order: parseInt(e.target.value) })}
-                              min={1}
-                              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500"
-                            />
+                            <p className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Position</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">New lessons are added at the end. Reorder lessons with the arrows on the course page.</p>
                           </div>
                         </div>
 
@@ -854,11 +849,9 @@ export default function InstructorLessons() {
                                     <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Resources:</p>
                                     <div className="flex flex-wrap gap-2">
                                       {lesson.resources.map((resource, idx) => (
-                                        <a
+                                        <SafeExternalLink
                                           key={idx}
                                           href={resource.url}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
                                           className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-600 flex items-center gap-1"
                                         >
                                           {resource.type === 'pdf' && (
@@ -877,7 +870,7 @@ export default function InstructorLessons() {
                                             </svg>
                                           )}
                                           {resource.title || resource.type}
-                                        </a>
+                                        </SafeExternalLink>
                                       ))}
                                     </div>
                                   </div>

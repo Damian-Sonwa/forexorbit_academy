@@ -29,13 +29,13 @@ async function gradeAssignment(req: AuthRequest, res: NextApiResponse) {
     const course = courseId
       ? await db.collection('courses').findOne(
           { _id: new ObjectId(courseId) },
-          { projection: { instructorId: 1 } }
+          { projection: { instructorId: 1, status: 1 } }
         )
       : null;
     const submission = await db.collection('assignmentSubmissions').findOne({ _id: new ObjectId(submissionId) });
     const decision = decideAssignmentGrade({
       member: account.ok ? { userId: account.user.userId, role: account.user.role } : null,
-      course: course ? { _id: course._id, instructorId: course.instructorId } : null,
+      course: course ? { _id: course._id, instructorId: course.instructorId, status: course.status } : null,
       assignment: assignment ? { _id: assignment._id, courseId: assignment.courseId, points: assignment.points } : null,
       submission: submission ? { _id: submission._id, assignmentId: submission.assignmentId, userId: submission.userId } : null,
       grade: body.grade,

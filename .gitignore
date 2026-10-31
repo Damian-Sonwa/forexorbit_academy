@@ -54,3 +54,9 @@ next-env.d.ts
 
 # backups
 /backups
+# database dumps and exports anywhere in the tree (production data never goes into Git)
+*.bson
+*.bson.gz
+*.ejson
+*.ejson.gz
+forexorbit_backups/

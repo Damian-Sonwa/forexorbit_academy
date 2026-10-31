@@ -19,12 +19,13 @@ export function decideEnroll(input: {
   role?: string;
   userId?: string;
   courseId?: string;
-  course?: { _id?: unknown } | null;
+  course?: { _id?: unknown; status?: unknown } | null;
   existing?: { [key: string]: any } | null;
 }): {
   ok: boolean;
   status: number;
   error?: string;
+  code?: string;
   action?: 'insert' | 'reactivate';
   courseId?: string;
   writes?: boolean;

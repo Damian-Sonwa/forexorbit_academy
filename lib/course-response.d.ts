@@ -11,6 +11,7 @@ export function presentCourse(
   options?: {
     progress?: number;
     enrolled?: boolean;
+    completedAt?: Date | string | null;
     lessons?: unknown[];
   }
 ): { [key: string]: any };

@@ -30,7 +30,7 @@ test('course filters accept plain strings only and cap their length', () => {
   const long = buildCourseListQuery({ search: 'x'.repeat(5000) });
   assert.equal(long.$or[0].title.$regex.length, SEARCH_MAX_CHARS);
   assert.deepEqual(buildCourseListQuery(undefined), {});
-  assert.match(read('pages/api/courses/index.ts'), /const query = buildCourseListQuery\(req\.query\);/);
+  assert.match(read('pages/api/courses/index.ts'), /buildCourseListQuery\(req\.query\)/);
   assert.doesNotMatch(read('pages/api/courses/index.ts'), /\$regex: search/);
 });
 

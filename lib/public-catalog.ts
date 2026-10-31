@@ -2,9 +2,12 @@
  * Public course catalog for the pre-rendered landing page (pages/index.tsx getStaticProps).
  * Reads only the fields the catalog cards show and turns each description into a short
  * plain-text preview, so the page HTML stays small however long the course descriptions are.
+ * Published courses only (lib/course-lifecycle.js): drafts, courses in review and archived
+ * courses never appear on the public page.
  */
 import type { Db } from 'mongodb';
 import { previewText } from '@/lib/plain-text';
+import { publicCourseFilter } from '@/lib/course-lifecycle';
 
 /** Characters of description kept for a card; the card shows about three lines. */
 export const CATALOG_PREVIEW_CHARS = 280;
@@ -21,7 +24,7 @@ export interface PublicCatalogCourse {
 
 export async function loadPublicCatalog(db: Pick<Db, 'collection'>): Promise<PublicCatalogCourse[]> {
   const rows = await db.collection('courses')
-    .find({}, { projection: { title: 1, description: 1, category: 1, difficulty: 1, thumbnail: 1 } })
+    .find(publicCourseFilter(), { projection: { title: 1, description: 1, category: 1, difficulty: 1, thumbnail: 1 } })
     .toArray();
   return rows.map((row) => {
     const id = String(row._id);

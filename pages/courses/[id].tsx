@@ -227,6 +227,11 @@ export default function CourseDetailPage() {
                       style={{ width: `${course.progress}%` }}
                     />
                   </div>
+                  {course.completedAt && course.progress < 100 && (
+                    <p className="mt-2 text-xs text-neutral-600">
+                      You completed this course on {new Date(course.completedAt).toLocaleDateString()}. New lessons have been added since; the bar shows how much of the current course you have covered. Your completion and certificate are kept.
+                    </p>
+                  )}
                 </div>
               )}
               </div>

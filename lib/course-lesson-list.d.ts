@@ -23,6 +23,7 @@ export type LessonMonetizationPayload = {
 export type LessonPricing = {
   locked: boolean;
   isFirstLesson: boolean;
+  isFreePreview: boolean;
   isDemo: boolean;
   monetization: LessonMonetizationPayload;
 };
@@ -48,15 +49,21 @@ export function loadCourseEntitlement(
   lessonIds: string[]
 ): Promise<CourseLessonEntitlement>;
 
+export function isFreePreviewSlot(lesson: LessonDoc, index: number, explicitPreview: boolean): boolean;
+
+export const LESSON_LIST_COURSE_PROJECTION: { readonly [key: string]: 1 };
+export const OUTLINE_LESSON_PROJECTION: { readonly [key: string]: unknown };
+
 export function priceCourseLessons(
   lessons: LessonDoc[],
   entitlement: CourseLessonEntitlement,
-  env?: { [key: string]: string | undefined }
+  env?: { [key: string]: string | undefined },
+  options?: { explicitPreview?: boolean }
 ): Map<string, LessonPricing>;
 
 export function presentCourseLessons(input: {
   member: Member;
-  course: { _id: unknown; instructorId?: unknown; difficulty?: string | null };
+  course: { _id: unknown; instructorId?: unknown; difficulty?: string | null; status?: unknown };
   enrollmentRow: LessonDoc | null;
   lessons: LessonDoc[];
   pricing: Map<string, LessonPricing>;
@@ -64,5 +71,5 @@ export function presentCourseLessons(input: {
 
 export function listCourseLessons(
   db: Db,
-  input: { member: Member; courseId: unknown; env?: { [key: string]: string | undefined } }
+  input: { member: Member; courseId: unknown; env?: { [key: string]: string | undefined }; outline?: boolean }
 ): Promise<{ ok: true; status: 200; lessons: LessonDoc[] } | { ok: false; status: 400 | 403 | 404; error: string }>;

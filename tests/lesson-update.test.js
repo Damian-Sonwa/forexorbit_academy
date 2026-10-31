@@ -23,8 +23,9 @@ function lesson() {
   return { _id: LESSON_ID, courseId: COURSE_ID };
 }
 
-function course(instructorId, id = COURSE_ID) {
-  return { _id: id, instructorId };
+/** The instructor's own draft: instructors edit only drafts (Phase 4, Decision 1). */
+function course(instructorId, id = COURSE_ID, status = 'draft') {
+  return { _id: id, instructorId, status };
 }
 
 function hostilePatch() {
@@ -185,6 +186,7 @@ test('an instructor cannot take over another course while saving it', () => {
     course: course(INSTRUCTOR_ID),
     patch: { title: 'Kept', description: 'Notes', instructorId: 'other-instructor', role: 'admin' },
   });
+  // Decision 5: an admin is not an instructor assignee, so reassigning to one is refused.
   const admin = decideCourseUpdate({
     member: { userId: 'admin-1', role: 'admin' },
     course: course(INSTRUCTOR_ID),
@@ -192,13 +194,13 @@ test('an instructor cannot take over another course while saving it', () => {
   });
   assert.equal(outsider.ok, false);
   assert.equal(owner.ok, true);
-  assert.equal(admin.ok, true);
+  assert.equal(admin.ok, false);
   if (owner.ok) {
     assert.equal(owner.patch.title, 'Kept');
     assert.equal(Object.prototype.hasOwnProperty.call(owner.patch, 'instructorId'), false);
     assert.equal(Object.prototype.hasOwnProperty.call(owner.patch, 'role'), false);
   }
-  if (admin.ok) assert.equal(admin.patch.instructorId, 'admin-1');
+  if (!admin.ok) assert.equal(admin.status, 400);
   if (!outsider.ok) assert.equal(outsider.status, 403);
 });
 

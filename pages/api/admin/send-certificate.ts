@@ -10,10 +10,16 @@ import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 import { isActiveEnrollment, decideStaffCertificate } from '@/lib/enrollment-state';
+import { courseCompletion, currentCompletedIds, currentLessonIdsFor, progressPercent as progressPercentOf } from '@/lib/course-progress';
+import { checkStaffCertificateInput, decideStaffCertificateIssue, isDuplicateKey } from '@/lib/certificate-issue';
+import { AUDIT_COLLECTION } from '@/lib/course-payment';
 
 /**
  * Send certificate to a student
- * Body: { studentIdentifier: string (ID or email), courseId: string, sendEmail?: boolean }
+ * Body: { studentIdentifier: string (ID or email), courseId: string, reason?: string, sendEmail?: boolean }
+ * Staff may issue without a recorded completion (existing policy), but then a reason is required;
+ * the certificate records how completion was established and every issue is audited
+ * (lib/certificate-issue.js).
  */
 async function sendCertificate(req: AuthRequest, res: NextApiResponse) {
   try {
@@ -22,60 +28,31 @@ async function sendCertificate(req: AuthRequest, res: NextApiResponse) {
       return res.status(decision.status).json({ error: decision.error });
     }
 
-    const { studentIdentifier, courseId, sendEmail = false } = req.body;
-
-    if (!studentIdentifier || !courseId) {
-      return res.status(400).json({ 
-        error: 'Student identifier (ID or email) and course ID are required' 
-      });
+    const input = checkStaffCertificateInput(req.body);
+    if (!input.ok) {
+      return res.status(input.status).json({ error: input.error, code: input.code, field: input.field });
     }
+    const { lookup, courseId, reason, sendEmail } = input;
 
     const db = await getDb();
     const users = db.collection('users');
     const courses = db.collection('courses');
     const certificates = db.collection('certificates');
-    const lessons = db.collection('lessons');
     const progress = db.collection('progress');
 
-    // Find student by ID or email
-    let student;
-    try {
-      // Try to find by ObjectId first (if it's a valid ID)
-      if (ObjectId.isValid(studentIdentifier) && studentIdentifier.length === 24) {
-        student = await users.findOne({ 
-          _id: new ObjectId(studentIdentifier),
-          role: 'student'
-        });
-      }
-      
-      // If not found by ID, try email
-      if (!student) {
-        student = await users.findOne({ 
-          email: studentIdentifier,
-          role: 'student'
-        });
-      }
-    } catch {
-      // If ObjectId conversion fails, try email
-      student = await users.findOne({ 
-        email: studentIdentifier,
-        role: 'student'
-      });
-    }
+    // Find the student by ID or email (plain strings only; checked above).
+    const student = 'byId' in lookup
+      ? await users.findOne({ _id: new ObjectId(lookup.byId), role: 'student' })
+      : await users.findOne({ email: lookup.byEmail, role: 'student' });
 
     if (!student) {
-      return res.status(404).json({ 
-        error: 'Student not found. Please check the student ID or email address.' 
+      return res.status(404).json({
+        error: 'Student not found. Please check the student ID or email address.'
       });
     }
 
     // Verify course exists
-    let course;
-    try {
-      course = await courses.findOne({ _id: new ObjectId(courseId) });
-    } catch {
-      return res.status(400).json({ error: 'Invalid course ID format' });
-    }
+    const course = await courses.findOne({ _id: new ObjectId(courseId) });
 
     if (!course) {
       return res.status(404).json({ error: 'Course not found' });
@@ -85,13 +62,13 @@ async function sendCertificate(req: AuthRequest, res: NextApiResponse) {
     const courseIdStr = course._id.toString();
 
     // Check if certificate already exists
-    const existingCert = await certificates.findOne({ 
+    const existingCert = await certificates.findOne({
       userId,
       courseId: courseIdStr
     });
 
     if (existingCert) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'Certificate already issued to this student for this course',
         certificate: {
           id: existingCert._id.toString(),
@@ -101,13 +78,18 @@ async function sendCertificate(req: AuthRequest, res: NextApiResponse) {
       });
     }
 
-    // Get total lessons count for the course
-    const totalLessons = await lessons.countDocuments({ courseId: courseIdStr });
-
-    // Get student progress (if exists)
+    // A manual issue by staff. The recorded figures count only the course's current lessons, so
+    // lessons deleted since cannot inflate them (lib/course-progress.js).
+    const currentLessonIds = await currentLessonIdsFor(db, courseIdStr);
+    const totalLessons = currentLessonIds.length;
     const userProgress = await progress.findOne({ userId, courseId: courseIdStr });
-    const completedLessons = userProgress?.completedLessons?.length || 0;
-    const progressPercent = userProgress?.progress || 0;
+    const completedLessons = currentCompletedIds(userProgress?.completedLessons, currentLessonIds).length;
+    const progressPercent = progressPercentOf(userProgress?.completedLessons, currentLessonIds);
+    const completion = courseCompletion({ enrollment: userProgress, currentLessonIds });
+    const issue = decideStaffCertificateIssue({ completion, reason });
+    if (!issue.ok) {
+      return res.status(issue.status).json({ error: issue.error, code: issue.code });
+    }
 
     // Generate certificate
     const certificate = {
@@ -121,10 +103,37 @@ async function sendCertificate(req: AuthRequest, res: NextApiResponse) {
       issuedBy: req.user!.email,
       issuedByRole: req.user!.role,
       enrollmentActive: isActiveEnrollment(userProgress),
+      completionBasis: issue.completionBasis,
+      completionVerified: issue.completionVerified,
+      ...(reason ? { issueReason: reason } : {}),
       createdAt: new Date(),
     };
 
-    const result = await certificates.insertOne(certificate);
+    let result;
+    try {
+      result = await certificates.insertOne(certificate);
+    } catch (insertError) {
+      // A parallel request issued it first (unique { userId, courseId } index).
+      if (isDuplicateKey(insertError)) {
+        return res.status(400).json({ error: 'Certificate already issued to this student for this course' });
+      }
+      throw insertError;
+    }
+    try {
+      await db.collection(AUDIT_COLLECTION).insertOne({
+        entityType: 'certificate',
+        entityId: result.insertedId.toString(),
+        reference: certificate.certificateId,
+        action: 'certificate_issued_by_staff',
+        reason,
+        before: null,
+        after: { userId, courseId: courseIdStr, completionBasis: issue.completionBasis, completionVerified: issue.completionVerified },
+        actor: { userId: String(req.user!.userId), email: typeof req.user!.email === 'string' ? req.user!.email : null },
+        createdAt: certificate.createdAt,
+      });
+    } catch {
+      console.error(JSON.stringify({ event: 'staffCertificate', certificateId: certificate.certificateId, result: 'audit_write_failed' }));
+    }
 
     // Note: Socket.io event emission for real-time updates would be handled by the socket server
     // The certificates page already listens for 'certificateIssued' events
@@ -141,7 +150,7 @@ async function sendCertificate(req: AuthRequest, res: NextApiResponse) {
       //   courseTitle: course.title,
       //   certificateId: certificate.certificateId,
       // });
-      console.log(`[Email] Certificate notification would be sent to ${student.email}`);
+      console.log(JSON.stringify({ event: 'staffCertificate', certificateId: certificate.certificateId, email: 'not_sent_not_implemented' }));
     }
 
     res.status(201).json({

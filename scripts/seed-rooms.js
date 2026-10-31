@@ -6,6 +6,11 @@
 
 const { MongoClient } = require('mongodb');
 
+/** Same rule as lib/mongodb getDb: MONGODB_DB_NAME, else the shared Forex_elearning database. */
+function databaseName(env = process.env) {
+  return (env.MONGODB_DB_NAME && env.MONGODB_DB_NAME.trim()) || 'Forex_elearning';
+}
+
 async function seedRooms() {
   // Validate MONGO_URI before attempting connection
   const MONGO_URI = process.env.MONGO_URI;
@@ -20,7 +25,9 @@ async function seedRooms() {
     await client.connect();
     console.log('✓ Connected to MongoDB');
     
-    const db = client.db();
+    // Never the connection string's default database: that would write outside the database the
+    // application uses (in a test environment, outside the isolated test database).
+    const db = client.db(databaseName());
     const rooms = db.collection('communityRooms');
     
     const roomNames = ['Beginner', 'Intermediate', 'Advanced'];
@@ -83,4 +90,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = { seedRooms };
+module.exports = { databaseName, seedRooms };

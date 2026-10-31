@@ -41,7 +41,7 @@ export default withAuth(async (req: AuthRequest, res: NextApiResponse) => {
         existing,
       });
       if (!decision.ok || !decision.writes) {
-        return res.status(decision.status).json({ error: decision.error });
+        return res.status(decision.status).json(decision.code ? { error: decision.error, code: decision.code } : { error: decision.error });
       }
       try {
         if (decision.action === 'reactivate') {

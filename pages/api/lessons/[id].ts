@@ -21,6 +21,18 @@ import { ObjectId } from 'mongodb';
 import { decideAccountAccess, decideLessonDelete, decideLessonUpdate, isStoredId } from '@/lib/account-access';
 import { readLessonDetail } from '@/lib/course-lesson-list';
 import { stripLessonVisualAidsFields } from '@/lib/strip-visual-aids-html';
+import { touchLessonSet } from '@/lib/lesson-order';
+import { recomputeCourseProgress } from '@/lib/course-progress';
+import { assetsInDocuments, cleanupUnreferencedAssets, removedAssets } from '@/lib/media-cleanup';
+import { allowRequest, authoringLimiter } from '@/lib/content-rate-limit';
+import { deleteImage } from '@/lib/cloudinary';
+
+/** Lesson fields that can hold uploaded course images (lib/media-cleanup.js). */
+const LESSON_MEDIA_PROJECTION = { content: 1, description: 1, summary: 1, title: 1, lessonSummary: 1, videoUrl: 1, pdfUrl: 1, resources: 1 };
+
+function refused(res: NextApiResponse, decision: { status: number; error: string; code?: string; field?: string }) {
+  return res.status(decision.status).json({ error: decision.error, code: decision.code, field: decision.field });
+}
 
 async function getLesson(req: AuthRequest, res: NextApiResponse) {
   const lessonId = Array.isArray(req.query.id) ? req.query.id[0] : req.query.id;
@@ -45,6 +57,7 @@ async function updateLesson(req: AuthRequest, res: NextApiResponse) {
   }
   try {
     const db = await getDb();
+    if (!(await allowRequest(authoringLimiter, { userId: req.user!.userId, res, getDb }))) return;
     const record = await db.collection('users').findOne(
       { _id: new ObjectId(req.user!.userId) },
       { projection: { email: 1, role: 1, status: 1 } }
@@ -52,23 +65,23 @@ async function updateLesson(req: AuthRequest, res: NextApiResponse) {
     const account = decideAccountAccess({ userId: req.user!.userId, record });
     const lesson = await db.collection('lessons').findOne(
       { _id: new ObjectId(lessonId) },
-      { projection: { courseId: 1, lessonSummary: 1 } }
+      { projection: { courseId: 1, ...LESSON_MEDIA_PROJECTION } }
     );
     let course = null;
     if (lesson && lesson.courseId != null && isStoredId(String(lesson.courseId))) {
       course = await db.collection('courses').findOne(
         { _id: new ObjectId(String(lesson.courseId)) },
-        { projection: { instructorId: 1 } }
+        { projection: { instructorId: 1, status: 1 } }
       );
     }
     const decision = decideLessonUpdate({
       member: account.ok ? { userId: account.user.userId, role: account.user.role } : null,
       lesson: lesson ? { _id: lesson._id, courseId: lesson.courseId } : null,
-      course: course ? { _id: course._id, instructorId: course.instructorId } : null,
+      course: course ? { _id: course._id, instructorId: course.instructorId, status: course.status } : null,
       patch: req.body,
     });
     if (!decision.ok) {
-      return res.status(decision.status).json({ error: decision.error });
+      return refused(res, decision);
     }
 
     const patch: Record<string, unknown> = {
@@ -87,10 +100,22 @@ async function updateLesson(req: AuthRequest, res: NextApiResponse) {
       };
     }
 
+    // An instructor's edit applies only while the course is still a draft (it may have been
+    // submitted for review meanwhile); admins edit in any state.
+    if (account.ok && account.user.role === 'instructor') {
+      const stillDraft = await db.collection('courses').countDocuments({ _id: course!._id, status: 'draft' }, { limit: 1 });
+      if (!stillDraft) {
+        return res.status(409).json({ error: 'The course is no longer a draft. Reload the page.', code: 'course_not_editable' });
+      }
+    }
     await db.collection('lessons').updateOne(
       { _id: new ObjectId(decision.lessonId) },
       { $set: patch }
     );
+    const dropped = removedAssets(lesson, { ...lesson, ...patch });
+    if (dropped.length) {
+      await cleanupUnreferencedAssets(db, dropped, { destroy: deleteImage, context: { lessonId: decision.lessonId, reason: 'lesson_update' } });
+    }
     res.json({ success: true });
   } catch {
     console.error(JSON.stringify({ event: 'lessonUpdate', result: 'failed' }));
@@ -105,6 +130,7 @@ async function deleteLesson(req: AuthRequest, res: NextApiResponse) {
   }
   try {
     const db = await getDb();
+    if (!(await allowRequest(authoringLimiter, { userId: req.user!.userId, res, getDb }))) return;
     const record = await db.collection('users').findOne(
       { _id: new ObjectId(req.user!.userId) },
       { projection: { email: 1, role: 1, status: 1 } }
@@ -112,26 +138,34 @@ async function deleteLesson(req: AuthRequest, res: NextApiResponse) {
     const account = decideAccountAccess({ userId: req.user!.userId, record });
     const lesson = await db.collection('lessons').findOne(
       { _id: new ObjectId(lessonId) },
-      { projection: { courseId: 1 } }
+      { projection: { courseId: 1, ...LESSON_MEDIA_PROJECTION } }
     );
     let course = null;
     if (lesson && lesson.courseId != null && ObjectId.isValid(String(lesson.courseId))) {
       course = await db.collection('courses').findOne(
         { _id: new ObjectId(String(lesson.courseId)) },
-        { projection: { instructorId: 1 } }
+        { projection: { instructorId: 1, status: 1 } }
       );
     }
     const decision = decideLessonDelete({
       member: account.ok ? account.user : null,
       lesson: lesson ? { _id: lesson._id, courseId: lesson.courseId } : null,
-      course: course ? { _id: course._id, instructorId: course.instructorId } : null,
+      course: course ? { _id: course._id, instructorId: course.instructorId, status: course.status } : null,
     });
     if (!decision.ok) {
-      return res.status(decision.status).json({ error: decision.error });
+      return refused(res, decision);
     }
 
     await db.collection('lessons').deleteOne({ _id: new ObjectId(decision.lessonId) });
     await db.collection('quizzes').deleteOne({ lessonId: decision.lessonId });
+    // Students' completed-lesson history keeps the id; progress is recounted against the lessons
+    // that remain, so it can no longer pass 100 (lib/course-progress.js).
+    await touchLessonSet(db, decision.courseId);
+    await recomputeCourseProgress(db, decision.courseId);
+    const assets = assetsInDocuments([lesson!]);
+    if (assets.length) {
+      await cleanupUnreferencedAssets(db, assets, { destroy: deleteImage, context: { lessonId: decision.lessonId, reason: 'lesson_delete' } });
+    }
     res.json({ success: true });
   } catch {
     console.error(JSON.stringify({ event: 'lessonDelete', result: 'failed' }));

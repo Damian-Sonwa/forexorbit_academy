@@ -29,6 +29,7 @@ const {
   presenceOfflineTargets,
   canJoinConsultation,
 } = require('./lib/account-access');
+const { recordLessonCompletion } = require('./lib/course-progress');
 
 // Validate environment variables (same URI as Next API: .env.local)
 const mongoUri = (process.env.MONGO_URI || process.env.MONGODB_URI)?.trim();
@@ -222,7 +223,8 @@ app.prepare().then(async () => {
         if (lesson && lesson.courseId != null && ObjectId.isValid(String(lesson.courseId))) {
           course = await db.collection('courses').findOne(
             { _id: new ObjectId(String(lesson.courseId)) },
-            { projection: { instructorId: 1, difficulty: 1 } }
+            // status: students may use a lesson room only in a published or archived course.
+            { projection: { instructorId: 1, difficulty: 1, status: 1 } }
           );
           if (account.ok && course) {
             const courseId = String(course._id);
@@ -380,7 +382,7 @@ app.prepare().then(async () => {
         const account = decideAccountAccess({ userId: user.userId, record });
         const course = await db.collection('courses').findOne(
           { _id: new ObjectId(courseId) },
-          { projection: { instructorId: 1 } }
+          { projection: { instructorId: 1, status: 1 } }
         );
         const lesson = await db.collection('lessons').findOne(
           { _id: new ObjectId(lessonId) },
@@ -401,37 +403,16 @@ app.prepare().then(async () => {
         });
         if (!decision.ok) return;
 
-        const progress = db.collection('progress');
-        const courseProgress = await progress.findOne({
+        // Same rule as the HTTP route (lib/course-progress.js): atomic, current lessons only, max 100.
+        const recorded = await recordLessonCompletion(db, {
           userId: decision.userId,
           courseId: decision.courseId,
+          lessonId: decision.lessonId,
         });
-        if (!courseProgress) return;
-
-        const completedLessons = Array.isArray(courseProgress.completedLessons)
-          ? courseProgress.completedLessons.slice()
-          : [];
-        if (!completedLessons.includes(decision.lessonId)) {
-          completedLessons.push(decision.lessonId);
-        }
-        const courseLessons = await db.collection('lessons').find({ courseId: decision.courseId }).toArray();
-        const progressPercent = courseLessons.length > 0
-          ? (completedLessons.length / courseLessons.length) * 100
-          : 0;
-
-        await progress.updateOne(
-          { userId: decision.userId, courseId: decision.courseId },
-          {
-            $set: {
-              completedLessons,
-              progress: progressPercent,
-              updatedAt: new Date(),
-            },
-          }
-        );
+        if (!recorded) return;
         socket.emit('progressUpdated', {
           courseId: decision.courseId,
-          progress: progressPercent,
+          progress: recorded.progress,
         });
       } catch {
         console.error(JSON.stringify({ event: 'progressUpdate', result: 'failed' }));

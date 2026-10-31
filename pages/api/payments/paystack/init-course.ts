@@ -9,6 +9,7 @@ import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 import { createCourseIntent, presentConfirmResult } from '@/lib/course-payment';
+import { decideCourseOpenForSale } from '@/lib/course-lifecycle';
 import {
   logPayment,
   lookupPaystackTransaction,
@@ -32,9 +33,11 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 
   try {
     const db = await getDb();
-    const course = await db.collection('courses').findOne({ _id: new ObjectId(courseId) }, { projection: { _id: 1 } });
-    if (!course) {
-      return res.status(404).json({ success: false, code: 'course_not_found', message: 'Course not found' });
+    const course = await db.collection('courses').findOne({ _id: new ObjectId(courseId) }, { projection: { _id: 1, status: 1 } });
+    // Only published courses are for sale (lib/course-lifecycle.js); archived ones keep existing buyers.
+    const open = decideCourseOpenForSale(course);
+    if (!open.ok) {
+      return res.status(open.status).json({ success: false, code: open.code, message: open.error });
     }
 
     const result = await createCourseIntent(db, {

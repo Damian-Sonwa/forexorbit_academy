@@ -9,6 +9,7 @@ import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 import { decideAccountAccess, decideLessonUpdate, isStoredId } from '@/lib/account-access';
+import { allowRequest, authoringLimiter } from '@/lib/content-rate-limit';
 
 async function updateLessonSummary(req: AuthRequest, res: NextApiResponse) {
   const lessonId = Array.isArray(req.query.id) ? req.query.id[0] : req.query.id;
@@ -18,6 +19,7 @@ async function updateLessonSummary(req: AuthRequest, res: NextApiResponse) {
 
   try {
     const db = await getDb();
+    if (!(await allowRequest(authoringLimiter, { userId: req.user!.userId, res, getDb }))) return;
     const record = await db.collection('users').findOne(
       { _id: new ObjectId(req.user!.userId) },
       { projection: { email: 1, role: 1, status: 1 } }
@@ -31,17 +33,18 @@ async function updateLessonSummary(req: AuthRequest, res: NextApiResponse) {
     if (lesson && lesson.courseId != null && isStoredId(String(lesson.courseId))) {
       course = await db.collection('courses').findOne(
         { _id: new ObjectId(String(lesson.courseId)) },
-        { projection: { instructorId: 1 } }
+        { projection: { instructorId: 1, status: 1 } }
       );
     }
     const decision = decideLessonUpdate({
       member: account.ok ? { userId: account.user.userId, role: account.user.role } : null,
       lesson: lesson ? { _id: lesson._id, courseId: lesson.courseId } : null,
-      course: course ? { _id: course._id, instructorId: course.instructorId } : null,
+      course: course ? { _id: course._id, instructorId: course.instructorId, status: course.status } : null,
       patch: { lessonSummary: req.body?.lessonSummary },
     });
     if (!decision.ok) {
-      return res.status(decision.status).json({ error: decision.error });
+      const refused = decision as { status: number; error: string; code?: string };
+      return res.status(refused.status).json({ error: refused.error, code: refused.code });
     }
 
     const existingSummary = lesson && lesson.lessonSummary && typeof lesson.lessonSummary === 'object'

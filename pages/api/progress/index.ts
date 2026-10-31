@@ -11,6 +11,7 @@ import { getDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 import { decideAccountAccess, decideProgressUpdate } from '@/lib/account-access';
 import { enrollmentDecisionRecord } from '@/lib/enrollment-state';
+import { recordLessonCompletion } from '@/lib/course-progress';
 import { loadEnrollmentProgress } from '@/lib/progress-views';
 import { updateLearningLevelIfEligible } from '@/lib/learning-level';
 
@@ -44,7 +45,7 @@ async function updateProgress(req: AuthRequest, res: NextApiResponse) {
     const account = decideAccountAccess({ userId: req.user!.userId, record });
     const course = await db.collection('courses').findOne(
       { _id: new ObjectId(courseId) },
-      { projection: { instructorId: 1 } }
+      { projection: { instructorId: 1, status: 1 } }
     );
     const lesson = await db.collection('lessons').findOne(
       { _id: new ObjectId(lessonId) },
@@ -59,7 +60,7 @@ async function updateProgress(req: AuthRequest, res: NextApiResponse) {
     }
     const decision = decideProgressUpdate({
       member: account.ok ? account.user : null,
-      course: course ? { _id: course._id } : null,
+      course: course ? { _id: course._id, status: course.status } : null,
       lesson: lesson ? { _id: lesson._id, courseId: lesson.courseId } : null,
       enrollment: enrollmentDecisionRecord(enrollment),
     });
@@ -67,41 +68,23 @@ async function updateProgress(req: AuthRequest, res: NextApiResponse) {
       return res.status(decision.status).json({ error: decision.error });
     }
 
-    const progress = db.collection('progress');
-    const courseProgress = await progress.findOne({
+    // Atomic ($addToSet), measured against the course's current lessons and never above 100;
+    // completedAt is recorded once and kept (lib/course-progress.js, Decision 4).
+    const recorded = await recordLessonCompletion(db, {
       userId: decision.userId,
       courseId: decision.courseId,
+      lessonId: decision.lessonId,
     });
-    if (!courseProgress) {
+    if (!recorded) {
       return res.status(403).json({ error: 'Unable to update progress' });
     }
-
-    const completedLessons = Array.isArray(courseProgress.completedLessons)
-      ? courseProgress.completedLessons.slice()
-      : [];
-    if (!completedLessons.includes(decision.lessonId)) {
-      completedLessons.push(decision.lessonId);
-    }
-    const courseLessons = await db.collection('lessons').find({ courseId: decision.courseId }).toArray();
-    const progressPercent = courseLessons.length > 0
-      ? (completedLessons.length / courseLessons.length) * 100
-      : 0;
-    await progress.updateOne(
-      { userId: decision.userId, courseId: decision.courseId },
-      {
-        $set: {
-          completedLessons,
-          progress: progressPercent,
-          updatedAt: new Date(),
-        },
-      }
-    );
+    const progressPercent = recorded.progress;
 
     updateLearningLevelIfEligible(decision.userId).catch(() => {
       console.error(JSON.stringify({ event: 'learningLevel', result: 'failed' }));
     });
 
-    res.json({ success: true, progress: progressPercent });
+    res.json({ success: true, progress: progressPercent, completedAt: recorded.completedAt });
   } catch {
     console.error(JSON.stringify({ event: 'progressUpdate', result: 'failed' }));
     res.status(500).json(unexpectedBody('api'));

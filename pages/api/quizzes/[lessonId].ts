@@ -13,6 +13,7 @@ import { ObjectId } from 'mongodb';
 import { decideAccountAccess, decideQuizMutation, decideQuizRead, decideQuizSubmit } from '@/lib/account-access';
 import { enrollmentDecisionRecord } from '@/lib/enrollment-state';
 import { assertStudentCanAccessLessonContent } from '@/lib/lesson-monetization';
+import { recordLessonCompletion } from '@/lib/course-progress';
 
 function routeLessonId(value: string | string[] | undefined): string {
   if (Array.isArray(value)) return typeof value[0] === 'string' ? value[0] : '';
@@ -35,7 +36,7 @@ async function loadQuizContext(userId: string, lessonId: string) {
   if (lesson && lesson.courseId != null && ObjectId.isValid(String(lesson.courseId))) {
     course = await db.collection('courses').findOne(
       { _id: new ObjectId(String(lesson.courseId)) },
-      { projection: { instructorId: 1, difficulty: 1 } }
+      { projection: { instructorId: 1, difficulty: 1, status: 1 } }
     );
     if (account.ok && course) {
       const courseId = String(course._id);
@@ -58,6 +59,7 @@ async function loadQuizContext(userId: string, lessonId: string) {
       _id: course._id,
       instructorId: course.instructorId,
       difficulty: typeof course.difficulty === 'string' ? course.difficulty : null,
+      status: course.status,
     } : null,
     enrollment: enrollmentDecisionRecord(enrollment),
     quiz: quiz ? { questions: quiz.questions } : null,
@@ -126,33 +128,12 @@ async function submitQuiz(req: AuthRequest, res: NextApiResponse) {
       createdAt: new Date(),
     });
 
-    const progress = loaded.db.collection('progress');
-    const courseProgress = await progress.findOne({
+    // Atomic, measured against the course's current lessons, never above 100 (lib/course-progress).
+    await recordLessonCompletion(loaded.db, {
       userId: decision.userId,
       courseId: decision.courseId,
+      lessonId: decision.lessonId,
     });
-    if (courseProgress) {
-      const completedLessons = Array.isArray(courseProgress.completedLessons)
-        ? courseProgress.completedLessons.slice()
-        : [];
-      if (!completedLessons.includes(decision.lessonId)) {
-        completedLessons.push(decision.lessonId);
-      }
-      const courseLessons = await loaded.db.collection('lessons').find({ courseId: decision.courseId }).toArray();
-      const progressPercent = courseLessons.length > 0
-        ? (completedLessons.length / courseLessons.length) * 100
-        : 0;
-      await progress.updateOne(
-        { userId: decision.userId, courseId: decision.courseId },
-        {
-          $set: {
-            completedLessons,
-            progress: progressPercent,
-            updatedAt: new Date(),
-          },
-        }
-      );
-    }
 
     res.json({
       score: decision.score,
@@ -191,7 +172,7 @@ async function createQuiz(req: AuthRequest, res: NextApiResponse) {
     if (lesson && lesson.courseId != null && ObjectId.isValid(String(lesson.courseId))) {
       course = await db.collection('courses').findOne(
         { _id: new ObjectId(String(lesson.courseId)) },
-        { projection: { instructorId: 1 } }
+        { projection: { instructorId: 1, status: 1 } }
       );
     }
     const decision = decideQuizMutation({
@@ -201,7 +182,8 @@ async function createQuiz(req: AuthRequest, res: NextApiResponse) {
       questions: req.body?.questions,
     });
     if (!decision.ok) {
-      return res.status(decision.status).json({ error: decision.error });
+      const refused = decision as { status: number; error: string; code?: string };
+      return res.status(refused.status).json(refused.code ? { error: refused.error, code: refused.code } : { error: refused.error });
     }
 
     const quizzes = db.collection('quizzes');
