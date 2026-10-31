@@ -251,7 +251,6 @@ The final regression run (after the pricing changes) passed every check through 
 
 - **Refund policy:** the owner never decided a global refund or dispute policy. Phase 5 makes it an explicit per-refund Super Admin choice. Disputes are recorded only.
 - **Fee estimate:** the displayed ₦253.81 is a Nigerian-card estimate. Other cards and channels cost more; the customer sees the exact total on Paystack. Verification does not depend on the estimate. If Paystack changes its fees, the estimate in `lib/course-price.js` needs updating.
-- **Production database role:** the final check fails on excess privileges (section 7).
 - **Partial refunds never remove access** (by design).
 - **Pending checkouts over 24 hours old** are not polled by the sweep (the existing rule expires them at the next checkout). A late success is still recoverable through "Paid but still locked?" or the ledger.
 
@@ -265,13 +264,34 @@ The final regression run (after the pricing changes) passed every check through 
 
 Before-and-after snapshots showed no change to any other index (payments, certificates, sessions, learning collections). The only other change was the new, empty `paystackRefunds` collection.
 
-**App role: final check FAILS on excess privileges** (`node scripts/check-db-role.js --database Forex_elearning`, read-only, 31 October 2026, 19:10 UTC):
+**App role: final check PASS** (`node scripts/check-db-role.js --database Forex_elearning`, read-only, 31 October 2026, 22:03 UTC):
 
-- `forexorbit_app` now holds only `forexorbitAppRole`. The temporary `forexorbitLearningIndexRole` has been removed.
-- `paystackRefunds` has `find, insert, update, remove` (granted).
+> PASS: the audit log is append-only, every app collection is covered, and nothing beyond the role is granted.
+
+- `forexorbit_app` holds only `forexorbitAppRole@admin`. The temporary `forexorbitLearningIndexRole` has been removed.
+- `paystackRefunds`: exactly `find, insert, update, remove`.
 - `sessions`, `passwordResetTokens`, `paystackPayments`, `userCourseAccess` and `certificates` keep `find, insert, update, remove`. Database-wide: `listCollections` only.
-- **FAIL:** `Forex_elearning.paystackRefunds grants more than the role: createCollection, createIndex`. The role definition (`lib/app-database-role.js`) gives those two actions only to the three consultation setup collections. The app never creates the refund collection or its indexes (they are built), so they are not needed.
-- **Owner action:** remove `createCollection` and `createIndex` from the `Forex_elearning.paystackRefunds` privilege of `forexorbitAppRole` (keep `find, insert, update, remove`). Then re-run the check; it must report PASS. Database readiness is not complete until it does.
+- History: the 19:10 UTC check failed because `createCollection` and `createIndex` were also granted on `paystackRefunds`. The owner removed them.
+- The app needs no index privilege at runtime. The only runtime index calls are in the consultation seed route, whose three collections keep `createCollection, createIndex` in the role definition.
+
+**Final index verification** (read-only, 22:03 UTC). The app user can no longer list indexes, because the index role is gone. Each index was therefore confirmed with `find().hint(<name>).explain()`, which needs only `find` and reports the key and the unique and partial flags:
+
+| Collection | Index | Key | Unique | Partial | Matches code |
+|---|---|---|---|---|---|
+| paystackRefunds | `uniq_refund_request` | `{ requestId: 1 }` | yes | no | yes (F1) |
+| paystackRefunds | `uniq_open_refund_payment` | `{ paymentReference: 1 }` | yes | yes | yes (F2) |
+| paystackRefunds | `uniq_provider_refund` | `{ providerRefundId: 1 }` | yes | yes | yes (F3) |
+| certificates | `uniq_certificate_user_course` | `{ userId: 1, courseId: 1 }` | yes | no | yes |
+| sessions | `session_user` | `{ userId: 1 }` | no | no | yes (S1) |
+| sessions | `session_family` | `{ familyId: 1 }` | no | no | yes (S2) |
+| sessions | `session_ttl` | `{ absoluteExpiresAt: 1 }` | no | no | yes (S3) |
+
+`explain()` does not show partial filter contents or TTL values. Those were verified with full index listings when the indexes were built:
+
+- F2 `{ open: true }` and F3 `{ providerRefundId: { $exists: true } }`, 18:10 UTC;
+- `session_ttl` `expireAfterSeconds: 86400`, 15:03 UTC.
+
+The app role cannot create, drop or modify indexes, so the application cannot have changed them since.
 
 **Remaining requirements:**
 
@@ -279,5 +299,5 @@ Before-and-after snapshots showed no change to any other index (payments, certif
    - Optional: `PAYMENT_RECONCILE_INTERVAL_MINUTES` (default 15).
    - Existing: `PAYSTACK_SECRET_KEY` (live, server only), `NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY` (live, must be set at build time), `APP_ORIGIN`.
 2. **Paystack dashboard** (Settings → API Keys & Webhooks, Live): webhook URL `https://forexorbit-academy.onrender.com/api/paystack/webhook`. Refund events reach the same URL. Customer-paid fees: confirmed by the owner.
-3. **Order:** role check PASS → push, merge and deploy (none authorized yet).
+3. **Order:** role check PASS (done) → push, merge and deploy (none authorized yet).
 4. **Released code:** `origin/master` (4ae2c5a, live) compares the charged amount with the price, so a fee-inclusive live payment is refused there until Phase 5 is deployed.
