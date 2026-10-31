@@ -45,7 +45,8 @@ test('the browser keeps one socket connection for the signed-in session', () => 
   const socket = read('hooks/useSocket.ts');
   const app = read('pages/_app.tsx');
   assert.equal(socket.includes('export function SocketProvider'), true);
-  assert.equal(socket.includes('auth: { token }'), true);
+  assert.equal(socket.includes('auth: { token }'), false, 'the session cookie authenticates the socket');
+  assert.equal(socket.includes('withCredentials: true'), true);
   assert.equal(app.includes('<SocketProvider>'), true);
 });
 

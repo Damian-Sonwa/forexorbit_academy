@@ -87,18 +87,21 @@ test('password hash helper requires an argument and does not target an account',
   assert.equal(/process\.argv\[2\]\s*\|\|/.test(text), false);
 });
 
-test('login still verifies a password and issues a token', () => {
+test('login still verifies a password and starts a cookie session', () => {
   const text = fs.readFileSync(path.join(root, 'pages/api/auth/login.ts'), 'utf8');
   assert.match(text, /bcrypt\.compare/);
-  assert.match(text, /issueAuthToken/);
+  assert.match(text, /startSession\(res, db,/);
+  assert.doesNotMatch(text, /issueAuthToken|token:/);
   assert.match(text, /getDb\(/);
 });
 
-test('auth middleware still rejects missing tokens before the handler', () => {
+test('auth middleware still rejects missing sessions before the handler', () => {
   const text = fs.readFileSync(path.join(root, 'lib/auth-middleware.ts'), 'utf8');
-  assert.match(text, /Authentication required/);
-  assert.match(text, /verifyToken/);
+  assert.match(text, /checkRequestOrigin\(req\)/);
+  assert.match(text, /authenticateRequest\(req, res, db\)/);
   assert.match(text, /decideAccountAccess/);
+  assert.doesNotMatch(text, /authorization|Bearer|verifyToken/i);
+  assert.match(fs.readFileSync(path.join(root, 'lib/session-auth.ts'), 'utf8'), /Authentication required/);
   const access = fs.readFileSync(path.join(root, 'lib/account-access.js'), 'utf8');
   assert.match(access, /Insufficient permissions/);
 });

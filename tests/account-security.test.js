@@ -21,6 +21,7 @@ const security = require('../lib/account-security');
 const photos = require('../lib/profile-photo');
 const { decideSessionBinding, sessionBinding } = require('../lib/token-core');
 const authLimit = require('../lib/auth-rate-limit');
+const { requestHeaders, seedSession, sessionFromResponse } = require('./helpers/session-cookie');
 
 const ROOT = path.join(__dirname, '..');
 const SECRET = 'test-only-phase13-secret';
@@ -99,6 +100,12 @@ function memoryDb({ uniqueEmail = false } = {}) {
           for (const k of Object.keys(update.$unset || {})) delete doc[k];
           return { matchedCount: 1, modifiedCount: 1 };
         },
+        async updateMany(filter, update) {
+          await tick();
+          const docs = rows.filter((row) => matches(row, filter));
+          for (const doc of docs) Object.assign(doc, update.$set || {});
+          return { matchedCount: docs.length, modifiedCount: docs.length };
+        },
         async findOneAndUpdate(filter, update) {
           await tick();
           let doc = rows.find((row) => row._id === filter._id);
@@ -127,8 +134,12 @@ async function addUser(db, extra = {}) {
     ...extra,
   };
   db.data.users.push(user);
+  owners.set(user, db);
   return user;
 }
+
+/** The database each test user lives in, so a session can be signed in for it (tokenFor). */
+const owners = new WeakMap();
 
 const row = (db, user) => db.data.users.find((r) => same(r._id, user._id));
 
@@ -174,15 +185,19 @@ function loadRoute(route, db, extra = {}) {
 
 async function call(handler, { method = 'POST', body, token, ip = '203.0.113.10', query = {} } = {}) {
   const res = mockResponse();
-  const headers = { 'x-forwarded-for': ip };
-  if (token) headers.authorization = `Bearer ${token}`;
-  await handler({ method, headers, body, query, socket: { remoteAddress: '10.0.0.2' } }, res);
+  // A same-origin browser request: session cookie (when signed in), Origin and CSRF header.
+  const headers = requestHeaders(token, { 'x-forwarded-for': ip });
+  await handler({ method, url: '/api/test', headers, body, query, socket: { remoteAddress: '10.0.0.2' } }, res);
+  // The session id the response set in its cookie (sign-in, password change), if any.
+  res.session = sessionFromResponse(res);
   return res;
 }
 
+/** Signs the user in on a new browser: a stored session for the given generation; returns its cookie value. */
 function tokenFor(user, generation = user.sessionGeneration) {
-  const { issueAuthToken } = require('../lib/token-core');
-  return issueAuthToken({ userId: String(user._id), email: user.email, role: user.role, generation, key: SECRET });
+  const db = owners.get(user);
+  db.data.sessions = db.data.sessions || [];
+  return seedSession(db.data.sessions, { userId: user._id, generation: Number.isInteger(generation) ? generation : 0 });
 }
 
 function captureConsole() {
@@ -488,7 +503,7 @@ test('password change: an inactive account is refused, and two simultaneous chan
   assert.equal(row(db, user).sessionGeneration, 4, 'raised once');
 });
 
-test('password change route: new token for this device, old tokens refused, notice sent, rate limited', async () => {
+test('password change route: new session for this device, old sessions refused, notice sent, rate limited', async () => {
   await withEnv(ENV, async () => {
     const db = memoryDb();
     const user = await addUser(db);
@@ -506,22 +521,26 @@ test('password change route: new token for this device, old tokens refused, noti
     assert.equal(ok.statusCode, 200);
     assert.equal(ok.headers['cache-control'], 'no-store');
     assert.equal((await call(me, { method: 'GET', token: oldToken })).statusCode, 401, 'old sessions are ended');
-    assert.equal((await call(me, { method: 'GET', token: ok.body.token })).statusCode, 200, 'this device stays signed in');
+    assert.equal(ok.body.token, undefined, 'no credential in the response body');
+    assert.ok(ok.session, 'a new session cookie for this device');
+    assert.notEqual(ok.session, oldToken);
+    assert.equal((await call(me, { method: 'GET', token: ok.session })).statusCode, 200, 'this device stays signed in');
+    assert.ok(db.data.sessions.filter((s) => s.revokedAt).length >= 1, 'stored sessions revoked');
     assert.deepEqual(notices.map((n) => [n.to, n.method]), [[user.email, 'settings']]);
     assert.equal(notices[0].idempotencyKey, `password-changed/settings/${user._id}/4`);
 
     // Five attempts per account per window; the sixth is refused before the password is checked.
     for (let i = 0; i < 3; i += 1) {
-      await call(route, { token: ok.body.token, body: { currentPassword: 'nope-nope-1', newPassword: 'x-new-pass-1' }, ip: `198.51.100.${i}` });
+      await call(route, { token: ok.session, body: { currentPassword: 'nope-nope-1', newPassword: 'x-new-pass-1' }, ip: `198.51.100.${i}` });
     }
-    const limited = await call(route, { token: ok.body.token, body: { currentPassword: 'nope-nope-1', newPassword: 'x-new-pass-1' } });
+    const limited = await call(route, { token: ok.session, body: { currentPassword: 'nope-nope-1', newPassword: 'x-new-pass-1' } });
     assert.equal(limited.statusCode, 429);
-    assert.equal((await call(route, { method: 'GET', token: ok.body.token })).statusCode, 405);
+    assert.equal((await call(route, { method: 'GET', token: ok.session })).statusCode, 405);
     assert.equal((await call(route, { body: {} })).statusCode, 401);
   });
 });
 
-test('sign out everywhere: every token, including the caller\'s, stops working', async () => {
+test('sign out everywhere: every session, including the caller\'s, stops working', async () => {
   await withEnv(ENV, async () => {
     const db = memoryDb();
     const user = await addUser(db);
@@ -532,6 +551,8 @@ test('sign out everywhere: every token, including the caller\'s, stops working',
     const res = await call(route, { token: tabA });
     assert.equal(res.statusCode, 200);
     assert.equal(row(db, user).sessionGeneration, 4);
+    assert.equal(res.session, null, 'this browser\'s cookie is cleared');
+    assert.ok(db.data.sessions.every((s) => s.revokedAt), 'every stored session revoked');
     for (const token of [tabA, tabB]) assert.equal((await call(me, { method: 'GET', token })).statusCode, 401);
     assert.ok(db.data.passwordResetSecurityLogs.some((e) => e.event === 'signed_out_everywhere'));
     assert.equal((await call(route, { token: tabA })).statusCode, 401, 'cannot be repeated with an ended session');
@@ -665,9 +686,10 @@ test('the password changed notice describes how the password was changed', () =>
 
 test('signing out in one tab signs out the others', () => {
   const source = read('hooks/useAuth.tsx');
-  assert.match(source, /window\.addEventListener\('storage', onStorage\)/);
-  assert.match(source, /if \(!localStorage\.getItem\('token'\)\) setUser\(null\);/);
-  assert.match(source, /window\.removeEventListener\('storage', onStorage\)/);
+  assert.match(source, /new BroadcastChannel\(AUTH_CHANNEL\)/);
+  assert.match(source, /if \(event\.data === 'signed-out'\) setUser\(null\);/);
+  assert.match(source, /announce\('signed-out'\)/);
+  assert.match(source, /bc\.close\(\)/);
 });
 
 // ---------------------------------------------------------------------------
@@ -678,10 +700,10 @@ test('signing out in one tab signs out the others', () => {
 
 test('profile controls send what the routes expect', () => {
   const security = read('components/AccountSecurity.tsx');
-  assert.match(security, /apiClient\.post<\{ message: string; token: string \}>\('\/auth\/change-password', \{ currentPassword, newPassword \}\)/);
-  assert.match(security, /localStorage\.setItem\('token', res\.token\)/, 'this tab keeps working with the new token');
+  assert.match(security, /apiClient\.post<\{ message: string \}>\('\/auth\/change-password', \{ currentPassword, newPassword \}\)/);
+  assert.doesNotMatch(security, /localStorage/, 'the server sets the new session cookie; nothing is stored by script');
   assert.match(security, /checkNewPassword\(newPassword\)/, 'same rule as the server before sending');
-  assert.match(security, /await apiClient\.post\('\/auth\/logout-all'\);\s*logout\(\);\s*router\.push\('\/login'\);/);
+  assert.match(security, /await apiClient\.post\('\/auth\/logout-all'\);\s*await logout\(\);\s*router\.push\('\/login'\);/);
   const profile = read('pages/profile.tsx');
   assert.match(profile, /<AccountSecurity \/>/);
   assert.match(profile, /await apiClient\.delete\('\/upload\/profile'\);/);
@@ -703,13 +725,14 @@ test('sign in, change password, sign out everywhere, sign in again, remove photo
     });
 
     // Two devices signed in.
-    const phone = (await call(login, { body: { email: user.email, password: 'current-pass-1' } })).body.token;
-    const laptop = (await call(login, { body: { email: user.email, password: 'current-pass-1' }, ip: '198.51.100.7' })).body.token;
+    const phone = (await call(login, { body: { email: user.email, password: 'current-pass-1' } })).session;
+    const laptop = (await call(login, { body: { email: user.email, password: 'current-pass-1' }, ip: '198.51.100.7' })).session;
+    assert.ok(phone && laptop && phone !== laptop, 'each sign-in gets its own session cookie');
 
-    // Laptop changes the password: laptop keeps working with the returned token, phone is signed out.
+    // Laptop changes the password: laptop keeps working with its new session cookie, phone is signed out.
     const changed = await call(change, { token: laptop, body: { currentPassword: 'current-pass-1', newPassword: 'brand-new-pass' } });
     assert.equal(changed.statusCode, 200);
-    let laptopToken = changed.body.token;
+    let laptopToken = changed.session;
     assert.equal((await call(me, { method: 'GET', token: laptopToken })).statusCode, 200);
     assert.equal((await call(me, { method: 'GET', token: phone })).statusCode, 401);
     assert.equal((await call(login, { body: { email: user.email, password: 'current-pass-1' } })).statusCode, 401);
@@ -724,7 +747,7 @@ test('sign in, change password, sign out everywhere, sign in again, remove photo
     assert.equal((await call(me, { method: 'GET', token: laptopToken })).statusCode, 401);
     const again = await call(login, { body: { email: user.email, password: 'brand-new-pass' } });
     assert.equal(again.statusCode, 200);
-    laptopToken = again.body.token;
+    laptopToken = again.session;
     assert.equal((await call(me, { method: 'GET', token: laptopToken })).statusCode, 200);
     assert.equal(row(db, user).sessionGeneration, 5, 'raised by the change and by sign-out everywhere');
   });
@@ -843,7 +866,7 @@ test('through the routes: a suspended account is signed out, cannot sign in or g
     const me = loadRoute('pages/api/auth/me.ts', db);
     const login = loadRoute('pages/api/auth/login.ts', db, { bcryptjs: bcryptSpy().module });
     const patch = (caller, body) => call(route, { method: 'PATCH', token: tokenFor(row(db, caller)), query: { id: String(student._id) }, body });
-    const studentToken = (await call(login, { body: { email: student.email, password: 'current-pass-1' } })).body.token;
+    const studentToken = (await call(login, { body: { email: student.email, password: 'current-pass-1' } })).session;
     assert.equal((await call(me, { method: 'GET', token: studentToken })).statusCode, 200);
 
     assert.equal((await patch(admin, { action: 'suspend', reason: 'admin tries' })).statusCode, 403);
@@ -851,8 +874,9 @@ test('through the routes: a suspended account is signed out, cannot sign in or g
     const res = await patch(superadmin, { action: 'suspend', reason: 'Owner instruction' });
     assert.deepEqual([res.statusCode, res.body.user.status], [200, 'suspended']);
 
-    // While suspended, the middleware refuses on status first (403); the session is refused either way.
-    assert.equal((await call(me, { method: 'GET', token: studentToken })).statusCode, 403, 'existing session refused');
+    // The suspension revoked the stored session at once (and raised the generation).
+    assert.equal((await call(me, { method: 'GET', token: studentToken })).statusCode, 401, 'existing session refused');
+    assert.ok(db.data.sessions.filter((s) => s.userId === String(student._id)).every((s) => s.revokedAt), 'stored sessions revoked');
     const refused = await call(login, { body: { email: student.email, password: 'current-pass-1' } });
     assert.deepEqual([refused.statusCode, refused.body.error], [403, 'Account is not active']);
 

@@ -40,9 +40,10 @@ test('client entry points do not hard-code the production socket host', () => {
   for (const relativePath of files) {
     const source = fs.readFileSync(path.join(__dirname, '..', relativePath), 'utf8');
     assert.equal(source.includes(PRODUCTION_HOST), false, relativePath);
-    assert.equal(source.includes('auth: { token }') || !relativePath.endsWith('useSocket.ts'), true);
+    assert.equal(source.includes('localStorage'), false, relativePath);
   }
+  // The socket connects to the page's own origin, where the host-only session cookie is sent.
   const socket = fs.readFileSync(path.join(__dirname, '..', 'hooks/useSocket.ts'), 'utf8');
-  assert.equal(socket.includes('auth: { token }'), true);
-  assert.equal(socket.includes('NEXT_PUBLIC_SOCKET_URL'), true);
+  assert.equal(socket.includes('auth: { token }'), false);
+  assert.equal(socket.includes('const socketUrl = window.location.origin;'), true);
 });

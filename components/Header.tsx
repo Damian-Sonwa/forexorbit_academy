@@ -40,9 +40,9 @@ export default function Header() {
   const notificationsRef = useRef<HTMLDivElement>(null);
   const hasSetupSocketListener = useRef(false);
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
     setMenuOpen(false);
+    await logout();
     // Redirect to login page after logout
     router.push('/login');
   };

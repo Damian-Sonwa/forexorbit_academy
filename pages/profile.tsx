@@ -203,9 +203,6 @@ export default function Profile() {
       if (!(user as any)?.onboardingCompleted) {
         await apiClient.put('/student/onboarding/complete');
       }
-      // Refresh user data
-      const userData = await apiClient.get('/auth/me') as any;
-      localStorage.setItem('user', JSON.stringify({ ...user, ...userData }));
       setIsEditing(false);
       setSuccess('Profile updated successfully!');
       void refreshUser();

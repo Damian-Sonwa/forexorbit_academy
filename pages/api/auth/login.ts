@@ -1,13 +1,14 @@
 /**
  * Login API Route
- * Authenticates user with email/password
+ * Authenticates user with email/password and starts a cookie session (lib/session-core.js).
+ * The response body carries the profile only; the session id is in an HttpOnly cookie.
  */
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import { getDb } from '@/lib/mongodb';
-import { issueAuthToken } from '@/lib/jwt';
+import { endCurrentSession, startSession } from '@/lib/session-auth';
 import { decideAccountAccess } from '@/lib/account-access';
 import { unexpectedBody } from '@/lib/public-error';
 import { LOGIN_RULES, createAuthLimiter, sendRefusal } from '@/lib/auth-rate-limit';
@@ -37,11 +38,6 @@ export default async function handler(
 ) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
-  }
-
-  if (!process.env.JWT_SECRET?.trim()) {
-    console.error('Login: JWT_SECRET is not set — cannot issue tokens');
-    return res.status(500).json(unexpectedBody('login'));
   }
 
   try {
@@ -93,19 +89,12 @@ export default async function handler(
       return res.status(403).json({ error: 'Account is not active' });
     }
 
-    const token = issueAuthToken({
-      userId: decision.user.userId,
-      email: decision.user.email,
-      role: decision.user.role,
-      generation: user.sessionGeneration,
-    });
-    if (!token || typeof token !== 'string' || !token.trim()) {
-      console.error('Login: generateToken returned an empty token');
-      return res.status(500).json(unexpectedBody('login'));
-    }
+    // A session this browser already had ends first, so one browser holds one session.
+    await endCurrentSession(req, res, db, 'replaced_by_login', { clearCookie: false });
+    await startSession(res, db, { userId: decision.user.userId, sessionGeneration: user.sessionGeneration });
 
+    res.setHeader('Cache-Control', 'no-store');
     res.status(200).json({
-      token: token.trim(),
       user: {
         id: decision.user.userId,
         email: decision.user.email,

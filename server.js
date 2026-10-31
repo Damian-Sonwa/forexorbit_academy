@@ -15,7 +15,9 @@ const { createServer } = require('http');
 const { parse } = require('url');
 const next = require('next');
 const { Server } = require('socket.io');
-const { verifyToken, decideSessionBinding } = require('./lib/token-core');
+const { readSessionCookie, resolveSession } = require('./lib/session-core');
+const { appOriginConfig, decideSocketOrigin, trustedOrigins } = require('./lib/request-guard');
+const { registerSessionSocketServer } = require('./lib/session-sockets');
 const {
   decideAccountAccess,
   decideCommunityRoomJoin,
@@ -50,6 +52,14 @@ if (process.env.AI_API_KEY) {
   console.warn('AI API key is not configured. AI features will be disabled.');
 }
 
+// Cookie sessions need the one canonical HTTPS origin (lib/request-guard.js). Refuse to start in
+// production without it, rather than accept or refuse requests from unknown origins.
+const appOrigin = appOriginConfig(process.env);
+if (!appOrigin.ok) {
+  console.error(`❌ Error: ${appOrigin.error}`);
+  process.exit(1);
+}
+
 const dev = process.env.NODE_ENV !== 'production';
 // Use 0.0.0.0 for production (allows external connections) or localhost for dev
 const hostname = process.env.NODE_ENV === 'production' ? '0.0.0.0' : 'localhost';
@@ -81,54 +91,22 @@ app.prepare().then(async () => {
     }
   });
 
-  // Initialize Socket.io with CORS support for multiple origins
-  // CRITICAL: Allow both Render URL and Vercel URL (or any URLs in ALLOWED_ORIGINS env var)
-  // IMPORTANT: Do NOT restrict to websocket only - allow upgrade from polling → websocket
-  // CRITICAL: CORS origins - must include all Vercel domains and Render domain
-  // CRITICAL: NO localhost origins allowed - production only
-  const allowedOrigins = process.env.ALLOWED_ORIGINS 
-    ? process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim())
-    : [
-        
-        'https://forexorbit-academy.vercel.app',
-        'https://forexorbit-academy.onrender.com',
-        // Allow any Vercel preview URLs
-        ...(process.env.VERCEL_URL ? [`https://${process.env.VERCEL_URL}`] : []),
-      ];
-  
-  // CRITICAL: Socket.IO configuration for Render WebSocket support
-  // MUST allow polling → websocket upgrade for Render compatibility
+  // Pages, API and sockets share one canonical origin (APP_ORIGIN). Only that exact origin (and,
+  // outside production, the local dev server) may open a socket: the session cookie travels with
+  // the handshake, so a foreign page must never be able to open one (cross-site WebSocket hijacking).
+  const allowedOrigins = trustedOrigins(process.env);
+
   // Canonical Socket.IO server. The package scripts start this file.
   // A Next.js API route must not attach another server.
   const io = new Server(server, {
     path: '/api/socket',
+    allowRequest: (req, callback) => {
+      const decision = decideSocketOrigin({ header: (name) => req.headers[name] });
+      if (!decision.ok) console.warn(JSON.stringify({ event: 'socketOrigin', result: 'refused', code: decision.code }));
+      callback(null, decision.ok);
+    },
     cors: {
-      origin: (origin, callback) => {
-        // Allow requests with no origin (like mobile apps or curl requests)
-        if (!origin) return callback(null, true);
-        
-        // Check if origin is in allowed list
-        if (allowedOrigins.includes(origin)) {
-          callback(null, true);
-        } else {
-          // Log for debugging
-          console.log('CORS check - origin:', origin, 'allowed:', allowedOrigins);
-          // Log for debugging but allow in development
-          if (dev) {
-            console.warn('CORS warning - origin not in allowed list:', origin);
-            callback(null, true);
-          } else {
-            // In production, be more permissive for WebSocket upgrades
-            // Some browsers send different origins for WebSocket vs HTTP
-            if (origin.includes('vercel.app') || origin.includes('onrender.com')) {
-              console.log('Allowing WebSocket origin (Vercel/Render):', origin);
-              callback(null, true);
-            } else {
-              callback(new Error('Not allowed by CORS'));
-            }
-          }
-        }
-      },
+      origin: allowedOrigins,
       methods: ['GET', 'POST'],
       credentials: true,
     },
@@ -147,44 +125,69 @@ app.prepare().then(async () => {
   // Export io instance for API routes
   const { setSocketServer } = require('./lib/socket-server.js');
   setSocketServer(io);
+  // Lets API routes disconnect the sockets of a session they end (lib/session-sockets.js).
+  registerSessionSocketServer(io);
 
-  // Socket.io authentication middleware
+  // Sockets authenticate with the same HttpOnly session cookie as HTTP (lib/session-core.js). The
+  // id is never rotated over a socket (no cookie can be set there); HTTP requests rotate it.
+  const SOCKET_SESSION_RECHECK_MS = 30 * 1000;
+  async function checkSocketSession(socket) {
+    const { getDb } = require('./lib/mongodb');
+    const result = await resolveSession(await getDb(), socket.data.sessionToken, { rotate: false });
+    socket.data.sessionCheckedAt = Date.now();
+    return result;
+  }
+  function endSocketSession(socket) {
+    socket.emit('session_ended');
+    socket.disconnect(true);
+  }
+
   io.use(async (socket, next) => {
     try {
-      const token = socket.handshake.auth.token;
+      const token = readSessionCookie(socket.handshake.headers.cookie);
       if (!token) {
         return next(new Error('Authentication error'));
       }
-      const payload = verifyToken(token);
-      const { ObjectId } = require('mongodb');
-      if (!payload || !payload.userId || !ObjectId.isValid(payload.userId)) {
+      socket.data.sessionToken = token;
+      const result = await checkSocketSession(socket);
+      if (!result.ok) {
         return next(new Error('Authentication error'));
       }
-      const { getDb } = require('./lib/mongodb');
-      const db = await getDb();
-      const record = await db.collection('users').findOne(
-        { _id: new ObjectId(payload.userId) },
-        { projection: { email: 1, role: 1, status: 1, sessionGeneration: 1 } }
-      );
-      const decision = decideAccountAccess({ userId: String(payload.userId), record });
-      if (!decision.ok) {
-        return next(new Error('Authentication error'));
-      }
-      const session = decideSessionBinding({
-        userId: decision.user.userId,
-        binding: payload.sv,
-        generation: record.sessionGeneration,
-        key: process.env.JWT_SECRET || '',
-      });
-      if (!session.ok) {
-        return next(new Error('Authentication error'));
-      }
-      socket.data.user = decision.user;
+      socket.data.user = result.user;
+      socket.data.sessionFamilyId = result.session.familyId;
       next();
     } catch (error) {
       next(new Error('Authentication error'));
     }
   });
+
+  // An ended session (sign-out, expiry, revocation, suspension) also ends its sockets: checked
+  // before an incoming event when the last check is older than the recheck interval, and for every
+  // socket on a timer, so a revocation made by another server instance still takes effect.
+  io.on('connection', (socket) => {
+    socket.use((packet, next) => {
+      if (Date.now() - (socket.data.sessionCheckedAt || 0) < SOCKET_SESSION_RECHECK_MS) return next();
+      checkSocketSession(socket)
+        .then((result) => {
+          if (result.ok) return next();
+          endSocketSession(socket);
+          return next(new Error('Authentication error'));
+        })
+        .catch(() => next(new Error('Authentication error')));
+    });
+  });
+  // The sweep re-checks every socket on each tick, so an expiry or a revocation made elsewhere
+  // ends a quiet socket within one interval.
+  setInterval(async () => {
+    for (const socket of io.of('/').sockets.values()) {
+      try {
+        const result = await checkSocketSession(socket);
+        if (!result.ok) endSocketSession(socket);
+      } catch {
+        // A failed lookup is retried on the next sweep or event.
+      }
+    }
+  }, SOCKET_SESSION_RECHECK_MS).unref();
 
   // Socket.io connection handler
   io.on('connection', async (socket) => {
@@ -854,7 +857,7 @@ app.prepare().then(async () => {
     console.log(`  ✓ Port: ${port}`);
     console.log(`  ✓ Hostname: ${hostname}`);
     console.log(`  ✓ Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`  ✓ Allowed CORS origins: ${allowedOrigins.join(', ')}`);
+    console.log(`  ✓ Trusted origins: ${allowedOrigins.join(', ') || 'none (APP_ORIGIN not set)'}`);
     console.log('═══════════════════════════════════════════════════');
     console.log('');
   });

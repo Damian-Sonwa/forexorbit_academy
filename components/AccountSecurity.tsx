@@ -55,9 +55,8 @@ export default function AccountSecurity() {
     }
     setSaving(true);
     try {
-      const res = await apiClient.post<{ message: string; token: string }>('/auth/change-password', { currentPassword, newPassword });
-      // Every earlier token has stopped working; keep this tab signed in with the new one.
-      localStorage.setItem('token', res.token);
+      // Every other session has ended; the server set a new session cookie for this browser.
+      const res = await apiClient.post<{ message: string }>('/auth/change-password', { currentPassword, newPassword });
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
@@ -76,7 +75,7 @@ export default function AccountSecurity() {
     setSigningOut(true);
     try {
       await apiClient.post('/auth/logout-all');
-      logout();
+      await logout();
       router.push('/login');
     } catch (err: unknown) {
       setError(errorText(err, 'Could not sign out other devices. Try again.'));

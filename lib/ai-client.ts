@@ -6,6 +6,7 @@
 
 import axios, { AxiosInstance } from 'axios';
 import { resolveApiBaseUrl } from '@/lib/client-origin';
+import { CSRF_HEADER, CSRF_VALUE } from '@/lib/request-guard';
 
 // Same origin unless NEXT_PUBLIC_API_BASE_URL or NEXT_PUBLIC_API_URL is set.
 const RENDER_BACKEND_URL = resolveApiBaseUrl(
@@ -16,22 +17,14 @@ class AIClient {
   private client: AxiosInstance;
 
   constructor() {
+    // The session cookie is sent by the browser; no credential is read or stored here.
     this.client = axios.create({
       baseURL: RENDER_BACKEND_URL,
+      withCredentials: true,
       headers: {
         'Content-Type': 'application/json',
+        [CSRF_HEADER]: CSRF_VALUE,
       },
-    });
-
-    // Add auth token to requests
-    this.client.interceptors.request.use((config) => {
-      if (typeof window !== 'undefined') {
-        const token = localStorage.getItem('token');
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`;
-        }
-      }
-      return config;
     });
 
     // Handle errors
@@ -42,8 +35,6 @@ class AIClient {
           if (typeof window !== 'undefined') {
             const isLoginPage = window.location.pathname === '/login';
             if (!isLoginPage) {
-              localStorage.removeItem('token');
-              localStorage.removeItem('user');
               window.location.href = '/login';
             }
           }

@@ -1,42 +1,14 @@
 /**
- * Cross-origin API + Socket: allow Vercel (and env-listed) origins to call Render / Next API.
- * Used by middleware; keep in sync with server.js Socket.IO ALLOWED_ORIGINS.
+ * CORS for credentialed API requests (Phase 4.5): only the exact trusted origins from
+ * lib/request-guard.js (APP_ORIGIN, plus the local dev server outside production). There are no
+ * platform wildcards: with cookie sessions, any echoed origin could make authenticated requests.
+ * Pages, API and sockets share one canonical origin, so most requests need no CORS at all.
  */
 
 import type { NextRequest } from 'next/server';
-
-function parseAllowedOrigins(): string[] {
-  const raw = process.env.ALLOWED_ORIGINS?.trim();
-  if (raw) {
-    return raw.split(',').map((s) => s.trim()).filter(Boolean);
-  }
-  return [
-    'https://forexorbit-academy.vercel.app',
-    'https://forexorbit-academy11.vercel.app',
-    'https://forexorbit-academy001.vercel.app',
-    'https://forexorbit-academy.onrender.com',
-  ];
-}
-
-function isVercelPreview(hostname: string): boolean {
-  return hostname.endsWith('.vercel.app');
-}
+import { corsOrigin } from './request-guard';
 
 /** Returns the Origin value to echo in Access-Control-Allow-Origin, or null if not allowed. */
 export function getAllowedCorsOrigin(request: NextRequest): string | null {
-  const origin = request.headers.get('origin');
-  if (!origin) return null;
-
-  const allowed = parseAllowedOrigins();
-  if (allowed.includes(origin)) return origin;
-
-  try {
-    const { hostname } = new URL(origin);
-    if (isVercelPreview(hostname)) return origin;
-    if (hostname.endsWith('.onrender.com')) return origin;
-  } catch {
-    return null;
-  }
-
-  return null;
+  return corsOrigin(request.headers.get('origin'));
 }

@@ -1,18 +1,19 @@
 /**
  * useSocket Hook
  * Manages Socket.io connection and real-time events.
- * Connects only after auth is ready and the user is logged in (avoids "No token" noise and matches server JWT gate).
+ * Connects only after auth is ready and the user is signed in. The handshake is authenticated by
+ * the HttpOnly session cookie, which the browser sends to the page's own origin; no token is read
+ * or passed by script. The server ends the socket (`session_ended`) when the session ends.
  */
 
 import { createContext, createElement, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from '@/hooks/useAuth';
-import { resolveSocketUrl } from '@/lib/client-origin';
 
 const SOCKET_PATH = '/api/socket';
 
 function useSocketConnection() {
-  const { isAuthenticated, loading: authLoading } = useAuth();
+  const { isAuthenticated, loading: authLoading, refreshUser } = useAuth();
   const [socket, setSocket] = useState<Socket | null>(null);
   const [connected, setConnected] = useState(false);
   const [marketSignal, setMarketSignal] = useState<any>(null);
@@ -22,16 +23,11 @@ function useSocketConnection() {
     // Only run on client side
     if (typeof window === 'undefined') return;
 
-    // Wait for AuthProvider to hydrate; only connect when logged in (token present + user session).
+    // Wait for AuthProvider to hydrate; only connect when signed in.
     if (authLoading) return;
     if (!isAuthenticated) {
       setConnected(false);
       setSocket(null);
-      return;
-    }
-
-    const token = localStorage.getItem('token')?.trim();
-    if (!token) {
       return;
     }
 
@@ -40,14 +36,12 @@ function useSocketConnection() {
 
     // Wait for page to be fully loaded before connecting (helps with Firefox)
     const connectSocket = () => {
-      const socketUrl = resolveSocketUrl(process.env.NEXT_PUBLIC_SOCKET_URL, window.location.origin);
-      console.log('Connecting to socket server:', socketUrl);
-      
-      // Initialize socket connection with production-ready configuration
-      // Force websocket + polling fallback for Render/Vercel compatibility
+      // Always the page's own origin: the session cookie is host-only and is not sent elsewhere.
+      // Split hosting proxies /api/socket to the socket server (docs/phase-4-5/rollout-plan.md).
+      const socketUrl = window.location.origin;
+
       newSocket = io(socketUrl, {
         path: SOCKET_PATH,
-        auth: { token },
         transports: ['websocket', 'polling'], // Allow upgrade from polling → websocket
         reconnection: true,
         reconnectionDelay: 1000,
@@ -56,7 +50,13 @@ function useSocketConnection() {
         timeout: 20000,
         forceNew: false,
         upgrade: true,
-        withCredentials: true, // Required for CORS with credentials
+        withCredentials: true,
+      });
+
+      // The server ended this session (sign-out elsewhere, expiry, revocation): re-check it, which
+      // signs this tab out when it has really ended.
+      newSocket.on('session_ended', () => {
+        void refreshUser();
       });
 
       newSocket.on('connect', () => {
@@ -128,7 +128,7 @@ function useSocketConnection() {
         socketRef.current = null;
       }
     };
-  }, [authLoading, isAuthenticated]);
+  }, [authLoading, isAuthenticated, refreshUser]);
 
   const joinLesson = useCallback((lessonId: string) => {
     if (socket) {

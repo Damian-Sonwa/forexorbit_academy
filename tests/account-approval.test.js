@@ -15,6 +15,7 @@ const { ObjectId } = require('mongodb');
 
 const approval = require('../lib/account-approval');
 const { AUDIT_COLLECTION } = require('../lib/course-payment');
+const { requestHeaders, seedSession } = require('./helpers/session-cookie');
 
 const read = (relative) => fs.readFileSync(path.join(__dirname, '..', relative), 'utf8');
 const NOW = new Date('2026-10-30T10:00:00Z');
@@ -44,7 +45,13 @@ function memoryDb(seed) {
           const doc = rows.find((row) => matches(row, filter));
           if (!doc) return { matchedCount: 0, modifiedCount: 0 };
           Object.assign(doc, update.$set || {});
+          for (const [k, n] of Object.entries(update.$inc || {})) doc[k] = (doc[k] || 0) + n;
           return { matchedCount: 1, modifiedCount: 1 };
+        },
+        updateMany: async (filter, update) => {
+          const docs = rows.filter((row) => matches(row, filter));
+          for (const doc of docs) Object.assign(doc, update.$set || {});
+          return { matchedCount: docs.length, modifiedCount: docs.length };
         },
         insertOne: async (doc) => {
           rows.push({ ...doc });
@@ -387,6 +394,13 @@ function routeDb() {
   return db;
 }
 
+/** A signed-in browser for this account: a stored session at its current generation. */
+function sessionFor(db, row) {
+  db.collection('sessions');
+  const generation = Number.isInteger(row.sessionGeneration) ? row.sessionGeneration : 0;
+  return seedSession(db.rows('sessions'), { userId: row._id, generation });
+}
+
 async function call(handler, { token, method = 'POST', body, query = {} }) {
   const res = {
     statusCode: 200,
@@ -397,7 +411,7 @@ async function call(handler, { token, method = 'POST', body, query = {} }) {
     status(code) { this.statusCode = code; return this; },
     json(payload) { this.body = payload; return this; },
   };
-  await handler({ method, headers: token ? { authorization: `Bearer ${token}` } : {}, body, query }, res);
+  await handler({ method, url: '/api/admin/test', headers: requestHeaders(token), body, query }, res);
   return res;
 }
 
@@ -405,12 +419,11 @@ test('through the route: only a signed-in Super Admin reaches approvals; respons
   const savedSecret = process.env.JWT_SECRET;
   process.env.JWT_SECRET = 'test-only-approval-secret';
   try {
-    const { issueAuthToken } = require('../lib/token-core');
     const db = routeDb();
     const handler = loadRoute(db);
     const tokenFor = (key) => {
       const row = userRow(db, ids[key]);
-      return issueAuthToken({ userId: String(row._id), email: row.email, role: row.role, generation: row.sessionGeneration });
+      return sessionFor(db, row);
     };
     const target = String(ids.pendingInstructor);
 
@@ -459,12 +472,11 @@ test('through the route: role changes that grant or remove staff access need the
   const savedSecret = process.env.JWT_SECRET;
   process.env.JWT_SECRET = 'test-only-approval-secret';
   try {
-    const { issueAuthToken } = require('../lib/token-core');
     const db = routeDb();
     const handler = loadRoute(db, 'pages/api/admin/users/[id].ts');
     const tokenFor = (key) => {
       const row = userRow(db, ids[key]);
-      return issueAuthToken({ userId: String(row._id), email: row.email, role: row.role, generation: row.sessionGeneration });
+      return sessionFor(db, row);
     };
     const put = (key, target, role) => call(handler, { token: tokenFor(key), method: 'PUT', query: { id: String(target) }, body: { role } });
 
@@ -737,13 +749,12 @@ test('through the route: only a signed-in Super Admin can delete an account; del
   const savedSecret = process.env.JWT_SECRET;
   process.env.JWT_SECRET = 'test-only-approval-secret';
   try {
-    const { issueAuthToken } = require('../lib/token-core');
     const db = routeDb();
     const handler = loadRoute(db, 'pages/api/admin/users/[id].ts');
     const tokens = {};
     for (const key of Object.keys(ids)) {
       const row = userRow(db, ids[key]);
-      tokens[key] = issueAuthToken({ userId: String(row._id), email: row.email, role: row.role, generation: row.sessionGeneration });
+      tokens[key] = sessionFor(db, row);
     }
     const del = (key, target) => call(handler, { token: key && tokens[key], method: 'DELETE', query: { id: String(target) } });
     const count = () => db.rows('users').length;
@@ -805,11 +816,10 @@ test('through the route: a deletion or role change saved without its audit entry
   const logged = [];
   console.error = (line) => logged.push(String(line));
   try {
-    const { issueAuthToken } = require('../lib/token-core');
     const db = failAuditWrites(routeDb());
     const handler = loadRoute(db, 'pages/api/admin/users/[id].ts');
     const row = userRow(db, ids.superadmin);
-    const token = issueAuthToken({ userId: String(row._id), email: row.email, role: row.role, generation: row.sessionGeneration });
+    const token = sessionFor(db, row);
 
     const deleted = await call(handler, { token, method: 'DELETE', query: { id: String(ids.student) } });
     assert.equal(deleted.statusCode, 500);

@@ -1,11 +1,14 @@
 /**
  * Reusable API Client
- * Centralized axios instance with authentication
+ * Centralized axios instance. The session is an HttpOnly cookie that the browser sends by itself
+ * (lib/session-core.js); this client never reads or stores a credential. Every request carries the
+ * CSRF header that state-changing API routes require (lib/request-guard.js).
  */
 
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
 import { messageFromUnknown } from '@/lib/public-error';
 import { loginHref } from '@/lib/login-redirect';
+import { CSRF_HEADER, CSRF_VALUE } from '@/lib/request-guard';
 
 /**
  * Next.js API routes live under `/api`. If the env is a host without `/api`,
@@ -27,26 +30,20 @@ const API_URL = normalizeApiBaseUrl(
   process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || '/api'
 );
 
+/** Requests whose 401 is an answer for the caller (no session yet), not a reason to redirect. */
+const SESSION_PROBE_URLS = ['/auth/login', '/auth/me', '/auth/signup', '/auth/logout', '/auth/session/upgrade'];
+
 class ApiClient {
   private client: AxiosInstance;
 
   constructor() {
     this.client = axios.create({
       baseURL: API_URL,
+      withCredentials: true,
       headers: {
         'Content-Type': 'application/json',
+        [CSRF_HEADER]: CSRF_VALUE,
       },
-    });
-
-    // Add auth token to requests
-    this.client.interceptors.request.use((config) => {
-      if (typeof window !== 'undefined') {
-        const token = localStorage.getItem('token');
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`;
-        }
-      }
-      return config;
     });
 
     // Handle auth errors
@@ -68,14 +65,13 @@ class ApiClient {
         }
         if (error.response?.status === 401) {
           if (typeof window !== 'undefined') {
-            // Don't redirect if we're already on the login page (login failed)
+            // The session ended (signed out, expired or revoked). Session probes and sign-in
+            // requests report it to their caller instead of redirecting.
             const isLoginPage = window.location.pathname === '/login';
-            const isLoginRequest = error.config?.url?.includes('/auth/login');
-            
-            if (!isLoginPage && !isLoginRequest) {
-              // Only redirect if we're not on login page and it's not a login request
-              localStorage.removeItem('token');
-              localStorage.removeItem('user');
+            const url = String(error.config?.url || '');
+            const isSessionProbe = SESSION_PROBE_URLS.some((path) => url.includes(path));
+
+            if (!isLoginPage && !isSessionProbe) {
               window.location.href = loginHref(`${window.location.pathname}${window.location.search}`);
             }
           }

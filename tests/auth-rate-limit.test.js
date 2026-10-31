@@ -20,6 +20,8 @@ const { RATE_LIMIT_COLLECTION, RATE_LIMIT_TTL_INDEX } = require('../lib/shared-r
 const authLimit = require('../lib/auth-rate-limit');
 const clientIp = require('../lib/client-ip');
 const { createRateLimiter } = require('../lib/rate-limit');
+const { hashToken } = require('../lib/session-core');
+const { sessionFromResponse, setCookies } = require('./helpers/session-cookie');
 
 const ROOT = path.join(__dirname, '..');
 const WINDOW = authLimit.WINDOW_MS;
@@ -31,16 +33,30 @@ const STUDENT_EMAIL = 'learner@example.com';
 // Harness
 // ---------------------------------------------------------------------------
 
-/** users + rateLimits; findOneAndUpdate is applied atomically per document. */
+/** users + rateLimits + sessions; findOneAndUpdate is applied atomically per document. */
 function memoryDb({ failRateLimits = false } = {}) {
   const users = [];
   const limits = new Map();
+  const sessions = [];
   const ops = { userFinds: 0, userInserts: 0, limitUpserts: 0 };
   const db = {
     users,
     limits,
+    sessions,
     ops,
     collection(name) {
+      if (name === 'sessions') {
+        return {
+          insertOne: async (doc) => {
+            sessions.push({ ...doc });
+            return { insertedId: doc._id };
+          },
+          findOne: async (filter) => {
+            const row = sessions.find((s) => s._id === filter._id);
+            return row ? { ...row } : null;
+          },
+        };
+      }
       if (name === 'users') {
         return {
           findOne: async (filter) => {
@@ -239,18 +255,24 @@ test('login: email case and whitespace are normalized for the limit exactly as f
   });
 });
 
-test('login: a successful sign-in keeps the existing response, and session binding still works', async () => {
+test('login: a successful sign-in returns the profile only and sets an HttpOnly session cookie bound to the generation', async () => {
   const h = await setup();
   await withEnv(h.env, async () => {
     for (let i = 0; i < 9; i += 1) await post(h.login[0], { body: loginBody(STUDENT_EMAIL) });
     const ok = await post(h.login[1], { body: loginBody(' Learner@example.com', PASSWORD) });
     assert.equal(ok.statusCode, 200);
-    assert.deepEqual(Object.keys(ok.body).sort(), ['token', 'user']);
+    assert.deepEqual(Object.keys(ok.body).sort(), ['user'], 'no credential in the body');
     assert.deepEqual(Object.keys(ok.body.user).sort(), ['email', 'id', 'name', 'role', 'status']);
     assert.equal(ok.body.user.email, STUDENT_EMAIL);
-    const { verifyToken, decideSessionBinding } = require('../lib/token-core');
-    const payload = verifyToken(ok.body.token);
-    assert.equal(decideSessionBinding({ userId: payload.userId, binding: payload.sv, generation: 2, key: process.env.JWT_SECRET }).ok, true);
+    const [cookie] = setCookies(ok);
+    assert.match(cookie, /^__Host-fo_session=[A-Za-z0-9_-]{43}; Path=\/; HttpOnly; Secure; SameSite=Lax; Max-Age=43200$/);
+    const id = sessionFromResponse(ok);
+    assert.equal(h.db.sessions.length, 1);
+    const stored = h.db.sessions[0];
+    assert.equal(stored._id, hashToken(id), 'only the hash is stored');
+    assert.equal(stored.generation, 2, 'bound to the account\'s sessionGeneration');
+    assert.equal(stored.userId, String(h.db.users[0]._id));
+    assert.ok(!JSON.stringify(stored).includes(id), 'the raw id is not stored');
   });
 });
 
@@ -313,12 +335,16 @@ test('signup: students and instructors still sign up as before', async () => {
   await withEnv(h.env, async () => {
     const student = await post(h.signup[0], { body: signupBody('s1@example.com') });
     assert.equal(student.statusCode, 201);
-    assert.equal(typeof student.body.token, 'string');
+    assert.equal(student.body.signedIn, true);
+    assert.equal(student.body.token, undefined, 'no credential in the body');
+    assert.ok(sessionFromResponse(student), 'an approved student is signed in by cookie');
     assert.equal(student.body.user.status, 'approved');
     const instructor = await post(h.signup[1], { body: signupBody('i1@example.com', 'instructor') });
     assert.equal(instructor.statusCode, 201);
-    assert.equal(instructor.body.token, null);
+    assert.equal(instructor.body.signedIn, false);
+    assert.equal(setCookies(instructor).length, 0, 'a pending instructor gets no session');
     assert.equal(instructor.body.user.status, 'pending');
+    assert.equal(h.db.sessions.length, 1);
   });
 });
 

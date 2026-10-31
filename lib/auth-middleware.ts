@@ -1,16 +1,16 @@
 /**
  * Authentication Middleware
- * Protects API routes with JWT verification and the current user record.
+ * Protects API routes with the HttpOnly session cookie (lib/session-core.js) and the current user
+ * record. State-changing requests must also pass the Origin and CSRF-header check.
  */
 
 import { NextApiRequest, NextApiResponse } from 'next';
-import { verifyToken, extractToken, decideSessionBinding } from './jwt';
 import { getSocketServer } from './socket-server';
 import { Server } from 'socket.io';
-import { ObjectId } from 'mongodb';
 import { getDb } from './mongodb';
 import { decideAccountAccess, clientSafeAuthError } from './account-access';
 import type { AppRole } from './account-access';
+import { authenticateRequest, checkRequestOrigin } from './session-auth';
 
 export interface AuthRequest extends NextApiRequest {
   user?: {
@@ -18,6 +18,8 @@ export interface AuthRequest extends NextApiRequest {
     email: string;
     role: AppRole;
   };
+  /** The session family (one sign-in and its rotations), for signing out this device. */
+  sessionFamilyId?: string;
   io?: Server;
 }
 
@@ -29,8 +31,8 @@ function preserveCors(res: NextApiResponse, existingCorsOrigin: string | number 
 }
 
 /**
- * Middleware to verify JWT token and the live account role.
- * The role inside the token is not used for authorization.
+ * Middleware to verify the session cookie and the live account role.
+ * Roles come from the account record on every request, never from the client.
  */
 export function withAuth(
   handler: (req: AuthRequest, res: NextApiResponse) => Promise<void>,
@@ -40,48 +42,30 @@ export function withAuth(
     const existingCorsOrigin = res.getHeader('Access-Control-Allow-Origin');
 
     try {
-      const authHeader = req.headers.authorization || (req.headers.Authorization as string) || null;
-      const token = extractToken(authHeader);
-
-      if (!token) {
+      const origin = checkRequestOrigin(req);
+      if (!origin.ok) {
         preserveCors(res, existingCorsOrigin);
-        res.status(401).json({ error: 'Authentication required' });
-        return;
-      }
-
-      const payload = verifyToken(token);
-      if (!payload?.userId || !ObjectId.isValid(payload.userId)) {
-        preserveCors(res, existingCorsOrigin);
-        res.status(401).json({ error: 'Invalid or expired token' });
+        res.status(origin.status).json({ error: origin.error, code: origin.code });
         return;
       }
 
       const db = await getDb();
-      const record = await db.collection('users').findOne(
-        { _id: new ObjectId(payload.userId) },
-        { projection: { email: 1, role: 1, status: 1, sessionGeneration: 1 } }
-      );
-      const decision = decideAccountAccess({
-        userId: payload.userId,
-        record,
-        allowedRoles,
-      });
-
-      if (!decision.ok) {
-        preserveCors(res, existingCorsOrigin);
-        res.status(decision.status).json({ error: decision.error });
-        return;
-      }
-
-      const session = decideSessionBinding({
-        userId: decision.user.userId,
-        binding: payload.sv,
-        generation: record?.sessionGeneration,
-        key: process.env.JWT_SECRET || '',
-      });
+      const session = await authenticateRequest(req, res, db);
       if (!session.ok) {
         preserveCors(res, existingCorsOrigin);
         res.status(session.status).json({ error: session.error });
+        return;
+      }
+
+      // The session already checked that the account is active; roles are checked here.
+      const decision = decideAccountAccess({
+        userId: session.user.userId,
+        record: { email: session.user.email, role: session.user.role, status: session.user.status },
+        allowedRoles,
+      });
+      if (!decision.ok) {
+        preserveCors(res, existingCorsOrigin);
+        res.status(decision.status).json({ error: decision.error });
         return;
       }
 
@@ -90,6 +74,7 @@ export function withAuth(
         email: decision.user.email,
         role: decision.user.role,
       };
+      req.sessionFamilyId = session.familyId;
       const io = getSocketServer();
       if (io) {
         req.io = io;

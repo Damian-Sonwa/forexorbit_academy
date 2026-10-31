@@ -6,7 +6,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import bcrypt from 'bcryptjs';
 import { getDb } from '@/lib/mongodb';
-import { issueAuthToken } from '@/lib/jwt';
+import { startSession } from '@/lib/session-auth';
 import { unexpectedBody } from '@/lib/public-error';
 import { isDuplicateKey, signupConflict } from '@/lib/signup-conflict';
 import { PUBLIC_SIGNUP_ROLES } from '@/lib/account-approval';
@@ -78,19 +78,16 @@ export default async function handler(
       updatedAt: new Date(),
     });
 
-    // Only generate token if user is approved (students are auto-approved)
-    let token = null;
-    if (status === 'approved') {
-      token = issueAuthToken({
-        userId: result.insertedId.toString(),
-        email: emailNorm,
-        role: role as 'instructor' | 'student',
-        generation: 0,
-      });
+    // Only an approved account (students are auto-approved) is signed in. Pending accounts wait
+    // for the Super Admin's decision and get no session.
+    const signedIn = status === 'approved';
+    if (signedIn) {
+      await startSession(res, db, { userId: result.insertedId.toString(), sessionGeneration: 0 });
     }
 
+    res.setHeader('Cache-Control', 'no-store');
     res.status(201).json({
-      token,
+      signedIn,
       user: {
         id: result.insertedId.toString(),
         email: emailNorm,

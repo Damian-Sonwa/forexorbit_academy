@@ -130,16 +130,36 @@ async function waitForServer(base, logFile, timeoutMs = 240000) {
   return false;
 }
 
+/** The session id a response set in its HttpOnly cookie (Phase 4.5), or null. */
+function sessionCookieOf(res) {
+  const all = typeof res.headers.getSetCookie === 'function' ? res.headers.getSetCookie() : [];
+  let value = null;
+  for (const cookie of all) {
+    const match = /^__Host-fo_session=([^;]*)/.exec(cookie);
+    if (match) value = match[1] || null;
+  }
+  return value;
+}
+
+/**
+ * Same-origin calls as the browser makes them: the session cookie, the page Origin and the CSRF
+ * header. `token` is the session id the harness holds for a fixture account (never a bearer token).
+ */
 function api(base) {
   return async function call(method, url, { token, body } = {}) {
     const res = await fetch(`${base}/api${url}`, {
       method,
-      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}) },
+      headers: {
+        Origin: base,
+        'X-FO-CSRF': '1',
+        ...(token ? { Cookie: `__Host-fo_session=${token}` } : {}),
+        ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+      },
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
     let data = null;
     try { data = await res.json(); } catch { data = null; }
-    return { status: res.status, data };
+    return { status: res.status, data, session: sessionCookieOf(res) };
   };
 }
 
@@ -166,8 +186,8 @@ async function workflows(call, db, accounts) {
   for (const [key, account] of Object.entries(accounts)) {
     if (!['approved'].includes((ACCOUNTS.find((a) => a[0] === key) || [])[2])) continue;
     const res = await call('POST', '/auth/login', { body: { email: account.email, password: account.password } });
-    T[key] = res.data && res.data.token;
-    record('setup', `login ${key}`, res.status === 200 && T[key], `HTTP ${res.status}`);
+    T[key] = res.session;
+    record('setup', `login ${key}`, res.status === 200 && Boolean(T[key]) && !('token' in (res.data || {})), `HTTP ${res.status}`);
   }
   const { ObjectId } = require('mongodb');
   const A = accounts;
@@ -332,7 +352,7 @@ async function workflows(call, db, accounts) {
   return { C1, L, T };
 }
 
-async function uiChecks(base, T, ids, db) {
+async function uiChecks(base, T, ids, db, accounts) {
   const NM = path.join(ROOT, 'node_modules');
   const WebSocket = require(path.join(NM, 'ws'));
   const edge = 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';
@@ -353,11 +373,15 @@ async function uiChecks(base, T, ids, db) {
     ws.on('message', (raw) => { const m = JSON.parse(raw); if (m.id && pending.has(m.id)) { pending.get(m.id)(m.result); pending.delete(m.id); } });
     const send = (method, params = {}) => new Promise((resolve) => { n += 1; pending.set(n, resolve); ws.send(JSON.stringify({ id: n, method, params })); });
     const evaluate = async (expression) => (await send('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true })).result.value;
+    // Signs in through the real login API from the page, so the browser itself stores the HttpOnly
+    // session cookie (Phase 4.5); the password is held in memory only and never logged.
+    await send('Network.enable');
     const open = async (who, url) => {
-      await send('Page.navigate', { url: `${base}/` });
-      await new Promise((r) => setTimeout(r, 1500));
-      const me = await (await fetch(`${base}/api/auth/me`, { headers: { Authorization: `Bearer ${T[who]}` } })).json();
-      await evaluate(`localStorage.setItem('token', ${JSON.stringify(T[who])}); localStorage.setItem('user', ${JSON.stringify(JSON.stringify(me))}); true`);
+      await send('Network.clearBrowserCookies');
+      await send('Page.navigate', { url: `${base}/login` });
+      await new Promise((r) => setTimeout(r, 2500));
+      const status = await evaluate(`fetch('/api/auth/login', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-FO-CSRF': '1' }, body: JSON.stringify({ email: ${JSON.stringify(accounts[who].email)}, password: ${JSON.stringify(accounts[who].password)} }) }).then((r) => r.status)`);
+      if (status !== 200) throw new Error(`browser sign-in for ${who} answered ${status}`);
       await send('Page.navigate', { url: `${base}${url}` });
       await new Promise((r) => setTimeout(r, 8000));
       return evaluate('document.body.innerText');
@@ -379,6 +403,27 @@ async function uiChecks(base, T, ids, db) {
     record('ui', 'admin has no permanent delete button', !/Delete permanently/.test(text));
     text = await open('instructorA', '/instructor/dashboard');
     record('ui', 'instructor dashboard loads', !/Something went wrong|Application error/i.test(text));
+
+    // Phase 4.5: the session lives only in an HttpOnly cookie that script cannot read.
+    const stored = await evaluate(`(async () => ({
+      cookie: document.cookie,
+      local: Object.keys(localStorage),
+      session: Object.keys(sessionStorage),
+      idb: indexedDB.databases ? (await indexedDB.databases()).map((d) => d.name) : [],
+    }))()`);
+    const jar = (await send('Network.getCookies', { urls: [base] })).cookies.filter((c) => c.name === '__Host-fo_session');
+    record('ui', 'session cookie is HttpOnly, Secure, SameSite=Lax, host-only', jar.length === 1 && jar[0].httpOnly && jar[0].secure && jar[0].sameSite === 'Lax' && !jar[0].domain.startsWith('.'), JSON.stringify(jar.map((c) => ({ httpOnly: c.httpOnly, secure: c.secure, sameSite: c.sameSite }))));
+    record('ui', 'script cannot read the session (document.cookie)', !String(stored.cookie).includes('fo_session'));
+    record('ui', 'no token or user in localStorage, sessionStorage or IndexedDB', !stored.local.some((k) => /token|user/i.test(k)) && !stored.session.some((k) => /token|user/i.test(k)) && stored.idb.length === 0, JSON.stringify(stored.local));
+    // Reload keeps the person signed in (profile re-read with the cookie).
+    await send('Page.reload');
+    await new Promise((r) => setTimeout(r, 8000));
+    record('ui', 'a reload keeps the session (refresh recovery)', !/\bSign in\b.*\bPassword\b/s.test(await evaluate('document.body.innerText')) && (await evaluate(`fetch('/api/auth/me').then((r) => r.status)`)) === 200);
+    // Sign out from the page ends the session on the server and clears the cookie.
+    const out = await evaluate(`fetch('/api/auth/logout', { method: 'POST', headers: { 'X-FO-CSRF': '1' } }).then((r) => r.status)`);
+    const after = await evaluate(`fetch('/api/auth/me').then((r) => r.status)`);
+    const left = (await send('Network.getCookies', { urls: [base] })).cookies.filter((c) => c.name === '__Host-fo_session');
+    record('ui', 'sign-out ends the session and clears the cookie', out === 200 && after === 401 && left.length === 0, `logout ${out}, me ${after}`);
     ws.close();
   } catch (error) {
     record('ui', 'browser checks completed', false, String(error && error.message));
@@ -420,7 +465,7 @@ async function uiChecks(base, T, ids, db) {
     if (!(await waitForServer(base, logFile))) throw new Error(`The application did not start; see ${logFile}`);
     record('setup', 'real application started against the test database', true, base);
     const ids = await workflows(api(base), db, accounts);
-    if (!flag('--no-ui')) await uiChecks(base, ids.T, ids, db);
+    if (!flag('--no-ui')) await uiChecks(base, ids.T, ids, db, accounts);
     const log = fs.readFileSync(logFile, 'utf8');
     const leaked = Object.values(accounts).filter((a) => log.includes(a.email)).length;
     record('security', 'no fixture email address in the server log', leaked === 0, `${leaked} found`);

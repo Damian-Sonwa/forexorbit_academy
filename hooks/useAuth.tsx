@@ -1,6 +1,12 @@
 /**
  * useAuth Hook
- * Manages authentication state and user session
+ * Manages authentication state and user session.
+ *
+ * The session is an HttpOnly cookie (lib/session-core.js): no script, including this one, can read
+ * it, and nothing about it is stored in localStorage, sessionStorage or IndexedDB. The profile
+ * shown in the UI lives in React state only and is re-read from GET /api/auth/me after a reload.
+ * Open tabs share the cookie; sign-in and sign-out are announced to the other tabs on a
+ * BroadcastChannel that carries the event name only.
  */
 
 import { useState, useEffect, useCallback, useRef, createContext, useContext, ReactNode } from 'react';
@@ -21,6 +27,38 @@ interface User {
 /** Re-read the profile when the tab regains focus, at most this often. */
 const PROFILE_REFRESH_MIN_MS = 60_000;
 
+/** Cross-tab announcements. Messages carry an event name only, never a credential or profile. */
+const AUTH_CHANNEL = 'forexorbit-auth';
+type AuthEvent = 'signed-in' | 'signed-out';
+
+/** A failed session check that is not a 401 (network, server) is retried before giving up. */
+const SESSION_CHECK_RETRY_MS = [500, 1500];
+
+/**
+ * TEMPORARY (Phase 4.5 rollout only; remove with pages/api/auth/session/upgrade.ts).
+ * Browsers signed in before Phase 4.5 hold a token under these localStorage keys. It is removed
+ * first, then exchanged once for a cookie session while the server's legacy window is open.
+ * Nothing is ever written to these keys again.
+ */
+const LEGACY_STORAGE_KEYS = ['token', 'user'];
+async function migrateLegacyStorage(): Promise<void> {
+  let legacyToken: string | null = null;
+  try {
+    legacyToken = window.localStorage.getItem('token');
+    for (const key of LEGACY_STORAGE_KEYS) window.localStorage.removeItem(key);
+  } catch {
+    return;
+  }
+  if (!legacyToken || !legacyToken.trim()) return;
+  try {
+    await apiClient.post('/auth/session/upgrade', undefined, {
+      headers: { Authorization: `Bearer ${legacyToken.trim()}` },
+    });
+  } catch {
+    // Window closed or token no longer valid: the person signs in again.
+  }
+}
+
 /** Key-order-independent JSON, used to tell whether a fresh profile actually differs. */
 function stableJson(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`;
@@ -36,7 +74,8 @@ function stableJson(value: unknown): string {
  * returned unchanged: about 35 page effects depend on `user`, and a new object with identical
  * contents made every page load its data twice.
  */
-function mergeUser(current: User, fresh: User): User {
+function mergeUser(current: User | null, fresh: User): User {
+  if (!current || current.id !== fresh.id) return fresh;
   const merged: User = { ...current, ...fresh };
   return stableJson(merged) === stableJson(current) ? current : merged;
 }
@@ -46,7 +85,8 @@ interface AuthContextType {
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   signup: (email: string, password: string, name: string, role?: string) => Promise<void>;
-  logout: () => void;
+  /** Ends this browser's session on the server and in every open tab. */
+  logout: () => Promise<void>;
   /** Re-reads /auth/me into the shared user (after a profile or photo change). */
   refreshUser: () => Promise<void>;
   isAuthenticated: boolean;
@@ -58,72 +98,77 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const lastProfileReadAt = useRef(0);
+  const channel = useRef<BroadcastChannel | null>(null);
 
-  const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    setUser(null);
-  };
+  const announce = useCallback((event: AuthEvent) => {
+    try {
+      channel.current?.postMessage(event);
+    } catch {
+      // Other tabs then learn it at their next request.
+    }
+  }, []);
+
+  /**
+   * Reads the current session's profile. 401 means signed out. Any other failure is retried, then
+   * treated as signed out for display only (the cookie, if valid, still works on the next try).
+   */
+  const loadSession = useCallback(async (): Promise<User | null> => {
+    lastProfileReadAt.current = Date.now();
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        const fresh = await apiClient.get<User>('/auth/me');
+        let next: User | null = null;
+        setUser((current) => {
+          next = mergeUser(current, fresh);
+          return next;
+        });
+        return next;
+      } catch (err: unknown) {
+        if (isUnauthorizedError(err) || attempt >= SESSION_CHECK_RETRY_MS.length) {
+          setUser(null);
+          return null;
+        }
+        await new Promise((resolve) => setTimeout(resolve, SESSION_CHECK_RETRY_MS[attempt]));
+      }
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
-    const finish = () => {
+    (async () => {
+      await migrateLegacyStorage();
+      if (!cancelled) await loadSession();
       if (!cancelled) setLoading(false);
-    };
-    const token = localStorage.getItem('token');
-    const savedUser = localStorage.getItem('user');
-
-    if (!token || !savedUser) {
-      finish();
-      return;
-    }
-
-    let parsedUser: User;
-    try {
-      parsedUser = JSON.parse(savedUser);
-    } catch {
-      logout();
-      finish();
-      return;
-    }
-
-    setUser(parsedUser);
-    finish();
-    lastProfileReadAt.current = Date.now();
-    apiClient.get<User>('/auth/me').then((userData) => {
-      if (cancelled) return;
-      const updatedUser = mergeUser(parsedUser, userData);
-      if (updatedUser === parsedUser) return;
-      setUser(updatedUser);
-      localStorage.setItem('user', JSON.stringify(updatedUser));
-    }).catch((err: unknown) => {
-      // Only a rejected session signs out; a network error or server fault keeps the saved user.
-      if (!cancelled && isUnauthorizedError(err)) logout();
-    }).finally(finish);
-
+    })();
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [loadSession]);
+
+  const logout = useCallback(async () => {
+    setUser(null);
+    try {
+      await apiClient.post('/auth/logout');
+    } catch {
+      // The cookie is cleared by the server; if the request failed, the session still ends at
+      // its idle timeout. The UI is signed out either way.
+    }
+    announce('signed-out');
+  }, [announce]);
 
   const refreshUser = useCallback(async () => {
-    if (typeof window === 'undefined' || !localStorage.getItem('token')) return;
     lastProfileReadAt.current = Date.now();
     try {
       const userData = await apiClient.get<User>('/auth/me');
-      setUser((current) => {
-        if (!current) return current;
-        const updated = mergeUser(current, userData);
-        if (updated !== current) localStorage.setItem('user', JSON.stringify(updated));
-        return updated;
-      });
-    } catch {
-      // A 401 is handled by the API client (sign-out and redirect); other failures keep the current profile.
+      setUser((current) => (current ? mergeUser(current, userData) : current));
+    } catch (err: unknown) {
+      // An ended session signs this tab out; other failures keep the current profile.
+      if (isUnauthorizedError(err)) setUser(null);
     }
   }, []);
 
   // One shared profile for every component. It is refreshed when the tab becomes visible again
-  // (throttled), instead of each Sidebar polling /auth/me every few seconds.
+  // (throttled), which also notices a session that ended while the tab was in the background.
   useEffect(() => {
     const onVisible = () => {
       if (document.visibilityState !== 'visible') return;
@@ -138,52 +183,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [refreshUser]);
 
-  // Keeps every open tab in step: signing out (or in) in one tab updates the others. The browser
-  // fires `storage` only in the other tabs, never in the tab that made the change.
+  // Keeps every open tab in step: signing out (or in) in one tab updates the others.
   useEffect(() => {
-    const onStorage = (event: StorageEvent) => {
-      if (event.storageArea !== window.localStorage) return;
-      if (event.key === 'token' || event.key === null) {
-        if (!localStorage.getItem('token')) setUser(null);
-        return;
-      }
-      if (event.key === 'user') {
-        if (!event.newValue) {
-          setUser(null);
-          return;
-        }
-        try {
-          setUser(JSON.parse(event.newValue));
-        } catch {
-          setUser(null);
-        }
-      }
+    if (typeof BroadcastChannel === 'undefined') return;
+    const bc = new BroadcastChannel(AUTH_CHANNEL);
+    channel.current = bc;
+    bc.onmessage = (event: MessageEvent) => {
+      if (event.data === 'signed-out') setUser(null);
+      else if (event.data === 'signed-in') void loadSession();
     };
-    window.addEventListener('storage', onStorage);
-    return () => window.removeEventListener('storage', onStorage);
-  }, []);
+    return () => {
+      channel.current = null;
+      bc.close();
+    };
+  }, [loadSession]);
 
   const login = async (email: string, password: string) => {
     // Normalize email (trim + lowercase)
     const normalizedEmail = email.trim().toLowerCase();
-    
+
     try {
-      const response = await apiClient.post<{ token: string; user: User }>('/auth/login', {
+      // The server sets the session cookie; the body carries the profile only.
+      const response = await apiClient.post<{ user: User }>('/auth/login', {
         email: normalizedEmail,
         password,
       });
-
-      const token =
-        response?.token != null && typeof response.token === 'string' ? response.token.trim() : '';
-      if (!token) {
-        throw new Error('Login did not return a session token. Please try again.');
-      }
-      localStorage.setItem('token', token);
       // Fetch full user data including onboarding status
       const userData = await apiClient.get<User>('/auth/me');
-      const fullUser: User = { ...response.user, ...userData };
-      localStorage.setItem('user', JSON.stringify(fullUser));
-      setUser(fullUser);
+      setUser({ ...response.user, ...userData });
+      lastProfileReadAt.current = Date.now();
+      announce('signed-in');
     } catch (error: unknown) {
       // Extract error message from API response
       let errorMessage = 'Login failed. Please check your credentials.';
@@ -200,33 +229,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signup = async (email: string, password: string, name: string, role = 'student') => {
     // Normalize email (trim + lowercase)
     const normalizedEmail = email.trim().toLowerCase();
-    
-    const response = await apiClient.post<{ token: string | null; user: User; message?: string }>('/auth/signup', {
+
+    const response = await apiClient.post<{ signedIn: boolean; user: User; message?: string }>('/auth/signup', {
       email: normalizedEmail,
       password,
       name,
       role,
     });
 
-    // Only set token if user is approved (students are auto-approved, instructors/admins need approval)
-    if (response.token) {
-      localStorage.setItem('token', response.token);
-      // Fetch full user data including onboarding status for approved users
+    // Students are approved and signed in at once (the server set the cookie). Instructors wait for
+    // the Super Admin's approval and have no session: their profile is shown for this page only.
+    if (response.signedIn) {
       try {
         const userData = await apiClient.get<User>('/auth/me');
-        const fullUser: User = { ...response.user, ...userData };
-        localStorage.setItem('user', JSON.stringify(fullUser));
-        setUser(fullUser);
+        setUser({ ...response.user, ...userData });
       } catch {
-        // If /auth/me fails, use response.user
-        localStorage.setItem('user', JSON.stringify(response.user));
         setUser(response.user);
       }
+      announce('signed-in');
     } else {
-      localStorage.setItem('user', JSON.stringify(response.user));
       setUser(response.user);
     }
-    
+
     // Show message if provided (e.g., pending approval message)
     if (response.message) {
       alert(response.message);
@@ -257,4 +281,3 @@ export function useAuth() {
   }
   return context;
 }
-

@@ -9,9 +9,9 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
-import { decideAccountAccess, decideCourseCreate, isStoredId } from '@/lib/account-access';
+import { decideCourseCreate, isStoredId } from '@/lib/account-access';
 import { isActiveEnrollment } from '@/lib/enrollment-state';
-import { decideSessionBinding, extractToken, verifyToken } from '@/lib/jwt';
+import { authenticateRequest, sessionTokenFrom } from '@/lib/session-auth';
 import { stripCourseVisualAidsFields } from '@/lib/strip-visual-aids-html';
 import { presentCourse } from '@/lib/course-response';
 import { buildCourseListQuery } from '@/lib/course-list-filter';
@@ -149,32 +149,18 @@ async function getHandler(req: NextApiRequest, res: NextApiResponse) {
   const authReq = req as AuthRequest;
   // A valid current session may attach this caller's progress. The catalog stays public.
   try {
-    const token = extractToken(req.headers.authorization || null);
-    if (token) {
-      const payload = verifyToken(token);
-      if (payload?.userId && ObjectId.isValid(payload.userId)) {
-        const record = await (await getDb()).collection('users').findOne(
-          { _id: new ObjectId(payload.userId) },
-          { projection: { email: 1, role: 1, status: 1, sessionGeneration: 1 } }
-        );
-        const account = decideAccountAccess({ userId: payload.userId, record });
-        const session = decideSessionBinding({
-          userId: payload.userId,
-          binding: payload.sv,
-          generation: record?.sessionGeneration,
-          key: process.env.JWT_SECRET || '',
-        });
-        if (account.ok && session.ok) {
-          authReq.user = {
-            userId: account.user.userId,
-            email: account.user.email,
-            role: account.user.role,
-          };
-        }
+    if (sessionTokenFrom(req)) {
+      const session = await authenticateRequest(req, res, await getDb());
+      if (session.ok) {
+        authReq.user = {
+          userId: session.user.userId,
+          email: session.user.email,
+          role: session.user.role,
+        };
       }
     }
   } catch {
-    // No token or invalid token - continue without user
+    // No session or an ended one - continue without user
   }
   return getCourses(authReq, res);
 }

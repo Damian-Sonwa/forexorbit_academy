@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import dynamic from 'next/dynamic';
+import { apiFetch } from '@/lib/api-fetch';
 import 'react-quill/dist/quill.snow.css';
 
 const ReactQuill = dynamic(
@@ -75,17 +76,9 @@ export default function RichTextEditor({
                 const formData = new FormData();
                 formData.append('image', file, file.name);
 
-                const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-                if (!token) {
-                  throw new Error('No authentication token found. Please log in again.');
-                }
-
-                const response = await fetch('/api/upload/instructor', {
+                const response = await apiFetch('/api/upload/instructor', {
                   method: 'POST',
                   body: formData,
-                  headers: {
-                    Authorization: `Bearer ${token}`,
-                  },
                 });
 
                 if (!response.ok) {

@@ -506,7 +506,7 @@ export default function Sidebar({ }: SidebarProps) {
               {/* Logout Button */}
               <button
                 onClick={() => {
-                  logout();
+                  void logout();
                   router.push('/login');
                 }}
                 className="w-full flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl border border-neutral-200 text-neutral-700 hover:border-red-200 hover:bg-red-50 hover:text-red-700 dark:text-neutral-300 dark:hover:border-red-400/30 dark:hover:bg-red-500/10 dark:hover:text-red-300"
@@ -522,7 +522,7 @@ export default function Sidebar({ }: SidebarProps) {
             <div className="p-2 flex justify-center">
               <button
                 onClick={() => {
-                  logout();
+                  void logout();
                   router.push('/login');
                 }}
                 className="p-2 rounded-lg transition-all duration-200 text-neutral-500 hover:bg-neutral-100"

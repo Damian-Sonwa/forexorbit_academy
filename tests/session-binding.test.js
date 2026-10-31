@@ -111,7 +111,7 @@ test('a database failure while checking the session fails closed', () => {
   if (!decision.ok) assert.equal(decision.status, 500);
 });
 
-test('login, reset, and the socket handshake use the session binding', () => {
+test('login, reset, the API and the socket handshake use generation-bound cookie sessions', () => {
   const root = path.join(__dirname, '..');
   const login = fs.readFileSync(path.join(root, 'pages', 'api', 'auth', 'login.ts'), 'utf8');
   // The reset route delegates to lib/password-reset.js, which raises the generation.
@@ -119,12 +119,18 @@ test('login, reset, and the socket handshake use the session binding', () => {
   const reset = fs.readFileSync(path.join(root, 'lib', 'password-reset.js'), 'utf8');
   const middleware = fs.readFileSync(path.join(root, 'lib', 'auth-middleware.ts'), 'utf8');
   const server = fs.readFileSync(path.join(root, 'server.js'), 'utf8');
-  assert.equal(login.includes('issueAuthToken'), true);
-  assert.equal(login.includes('sessionGeneration:'), false);
+  const core = fs.readFileSync(path.join(root, 'lib', 'session-core.js'), 'utf8');
+  assert.equal(login.includes('startSession(res, db, { userId: decision.user.userId, sessionGeneration: user.sessionGeneration })'), true);
+  const loginResponse = login.slice(login.indexOf('res.status(200).json('));
+  assert.equal(loginResponse.slice(0, loginResponse.indexOf('});')).includes('sessionGeneration'), false, 'not sent to the client');
   assert.equal(resetRoute.includes('passwordResetService.completeReset('), true);
   assert.equal(reset.includes('$inc: { sessionGeneration: 1 }'), true);
-  assert.equal(middleware.includes('decideSessionBinding'), true);
-  assert.equal(server.includes('decideSessionBinding'), true);
+  assert.equal(reset.includes("endAccountSessions(db, String(user._id), 'password_reset', now)"), true);
+  assert.equal(middleware.includes('authenticateRequest(req, res, db)'), true);
+  assert.equal(server.includes('readSessionCookie(socket.handshake.headers.cookie)'), true);
+  assert.equal(server.includes('resolveSession('), true);
+  assert.equal(server.includes('socket.handshake.auth'), false);
+  assert.equal(core.includes("if (generationOf(user) !== session.generation) return refuse('generation');"), true);
   const resetResponse = reset.slice(reset.lastIndexOf('return { status: 200'));
   assert.equal(resetResponse.includes('sessionGeneration'), false);
 });

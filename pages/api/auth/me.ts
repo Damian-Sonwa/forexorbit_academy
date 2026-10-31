@@ -10,6 +10,10 @@ import { getDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 
 async function handler(req: AuthRequest, res: NextApiResponse) {
+  res.setHeader('Cache-Control', 'no-store');
+  if (req.method !== 'GET') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
   try {
     const db = await getDb();
     const users = db.collection('users');

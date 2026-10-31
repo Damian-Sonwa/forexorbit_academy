@@ -12,6 +12,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useSocket } from '@/hooks/useSocket';
 import { apiClient } from '@/lib/api-client';
 import { resolveApiBaseUrl } from '@/lib/client-origin';
+import { apiFetch } from '@/lib/api-fetch';
 import { formatDistanceToNow } from 'date-fns';
 import dynamic from 'next/dynamic';
 
@@ -226,21 +227,10 @@ export default function ConsultationChat() {
       );
       const tokenUrl = `${apiBase}/api/consultations/agora-token?channel=${sessionId}`;
       
-      // Get auth token for the request
-      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
-      if (token) {
-        headers.Authorization = `Bearer ${token}`;
-      }
-      
-      // Include credentials for CORS with credentials support
-      const tokenResponse = await fetch(tokenUrl, {
+      // The session cookie authenticates the request (same origin).
+      const tokenResponse = await apiFetch(tokenUrl, {
         method: 'GET',
-        headers,
-        credentials: 'include', // Required for CORS with credentials
-        mode: 'cors', // Explicitly enable CORS mode
+        headers: { 'Content-Type': 'application/json' },
       });
       
       if (!tokenResponse.ok) {

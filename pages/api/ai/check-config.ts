@@ -6,52 +6,29 @@
  * NOTE: This endpoint should be called on Render backend, not Vercel
  * If called on Vercel, it will return configured: false (Vercel doesn't have AI_API_KEY)
  * 
- * CORS: Must allow requests from Vercel frontend
+ * CORS: exact trusted origin only (lib/request-guard.js)
  */
 
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { CSRF_HEADER, corsOrigin } from '@/lib/request-guard';
 import { isAIConfigured } from '@/lib/ai';
 
-// Allowed frontend origins - explicitly list all Vercel domains
-const ALLOWED_ORIGINS = [
-  'https://forexorbit-academy.vercel.app',
-  'https://forexorbit-academy11.vercel.app',
-  'https://forexorbit-academy001.vercel.app',
-  // Allow any Vercel preview URLs
-  ...(process.env.VERCEL_URL ? [`https://${process.env.VERCEL_URL}`] : []),
-];
-
-// CORS headers helper
+// CORS: only the exact trusted origin (lib/request-guard.js). Pages and API share one origin,
+// so the browser normally sends no cross-origin request here at all.
 function setCorsHeaders(res: NextApiResponse, origin?: string) {
-  // Check if origin is in allowed list
-  const isAllowedOrigin = origin && (
-    ALLOWED_ORIGINS.includes(origin) ||
-    origin.includes('forexorbit-academy.vercel.app') ||
-    origin.includes('.vercel.app')
-  );
-  
-  // CRITICAL: Do NOT use wildcard (*) when credentials are enabled
-  // Must explicitly set the origin that made the request
-  if (isAllowedOrigin && origin) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-  } else if (origin && origin.includes('vercel.app')) {
-    // Fallback: allow any Vercel domain (for preview deployments)
-    res.setHeader('Access-Control-Allow-Origin', origin);
-  } else {
-    // Default to main Vercel domain if origin doesn't match
-    res.setHeader('Access-Control-Allow-Origin', 'https://forexorbit-academy.vercel.app');
-  }
-  
-  // Set required CORS headers
+  const allowed = corsOrigin(origin);
+  if (!allowed) return;
+  res.setHeader('Access-Control-Allow-Origin', allowed);
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.setHeader('Access-Control-Max-Age', '86400'); // 24 hours
+  res.setHeader('Access-Control-Allow-Headers', `Content-Type, ${CSRF_HEADER}`);
+  res.setHeader('Access-Control-Max-Age', '86400');
+  res.setHeader('Vary', 'Origin');
 }
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
   // Get origin from request headers (browser automatically sends Origin header for CORS requests)
-  const origin = req.headers.origin || req.headers.referer?.split('/').slice(0, 3).join('/');
+  const origin = typeof req.headers.origin === 'string' ? req.headers.origin : undefined;
   
   // Handle preflight OPTIONS request - MUST return 200 with CORS headers
   if (req.method === 'OPTIONS') {

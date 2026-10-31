@@ -37,7 +37,7 @@ interface OnboardingData {
 }
 
 export default function Onboarding() {
-  const { user, isAuthenticated, loading: authLoading } = useAuth();
+  const { user, isAuthenticated, loading: authLoading, refreshUser } = useAuth();
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -231,11 +231,8 @@ export default function Onboarding() {
       if (!(user as any)?.onboardingCompleted) {
         await apiClient.put('/student/onboarding/complete');
       }
-      // Refresh user data
-      const userData = await apiClient.get('/auth/me') as any;
-      // Update local storage
-      const updatedUser = { ...user, ...userData };
-      localStorage.setItem('user', JSON.stringify(updatedUser));
+      // Refresh the shared profile (onboarding status) before leaving.
+      await refreshUser();
       router.push('/dashboard');
     } catch (error: any) {
       setError(error.response?.data?.message || error.response?.data?.error || error.message || 'Failed to save onboarding data');

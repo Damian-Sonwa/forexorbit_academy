@@ -15,6 +15,7 @@ import BackButton from '@/components/BackButton';
 import { useAuth } from '@/hooks/useAuth';
 import { useSocket } from '@/hooks/useSocket';
 import { apiClient } from '@/lib/api-client';
+import { apiFetch, CSRF_REQUEST_HEADER } from '@/lib/api-fetch';
 
 interface Certificate {
   _id: string;
@@ -144,7 +145,6 @@ export default function Certificates() {
       formData.append('certificate', selectedFile);
       formData.append('level', uploadLevel);
 
-      const token = localStorage.getItem('token');
       const xhr = new XMLHttpRequest();
 
       xhr.upload.addEventListener('progress', (e) => {
@@ -172,7 +172,9 @@ export default function Certificates() {
       });
 
       xhr.open('POST', '/api/certificates/upload');
-      xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      // The session cookie goes with the request; the CSRF header is required for uploads.
+      xhr.withCredentials = true;
+      xhr.setRequestHeader(CSRF_REQUEST_HEADER[0], CSRF_REQUEST_HEADER[1]);
       xhr.send(formData);
     } catch (error: any) {
       alert('Upload failed: ' + error.message);
@@ -182,10 +184,7 @@ export default function Certificates() {
 
   const handleDownload = async (certificateId: string) => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`/api/certificates/${certificateId}/download`, {
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
+      const response = await apiFetch(`/api/certificates/${certificateId}/download`);
       
       if (!response.ok) throw new Error('Download failed');
       

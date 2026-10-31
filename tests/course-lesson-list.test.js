@@ -284,7 +284,11 @@ test('source contract: the course lessons route requires authentication before a
   const route = read('pages/api/courses/[id]/lessons.ts');
   assert.match(route, /export default withAuth\(handler\);/);
   const middleware = read('lib/auth-middleware.ts');
-  assert.equal(middleware.includes("res.status(401).json({ error: 'Authentication required' });"), true);
+  // The session is resolved before the handler runs; a request without one is refused with 401.
+  assert.ok(middleware.indexOf('authenticateRequest(req, res, db)') < middleware.indexOf('return handler(req, res)'));
+  assert.equal(middleware.includes('res.status(session.status).json({ error: session.error });'), true);
+  const sessionAuth = read('lib/session-auth.ts');
+  assert.equal(sessionAuth.includes("return { ok: false as const, status: 401, error: 'Authentication required', reason: 'missing' };"), true);
 });
 
 test('a missing or unknown member is refused without reading lessons', async () => {

@@ -43,7 +43,10 @@ test('leaderboard emails go to administrators only', () => {
 
 test('a failed profile refresh signs out only when the session was rejected', () => {
   const source = read('hooks/useAuth.tsx');
-  assert.match(source, /\.catch\(\(err: unknown\) => \{[\s\S]{0,160}if \(!cancelled && isUnauthorizedError\(err\)\) logout\(\);/);
+  // Focus refresh: only a 401 clears the profile; a network or server failure keeps it.
+  assert.match(source, /catch \(err: unknown\) \{[\s\S]{0,120}if \(isUnauthorizedError\(err\)\) setUser\(null\);/);
+  // Start-up check: a non-401 failure is retried before the tab is shown as signed out.
+  assert.match(source, /if \(isUnauthorizedError\(err\) \|\| attempt >= SESSION_CHECK_RETRY_MS\.length\)/);
 });
 
 test('the interface has no language switcher and declares English', () => {

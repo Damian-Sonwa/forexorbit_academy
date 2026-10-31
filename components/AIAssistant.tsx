@@ -6,6 +6,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { apiClient } from '@/lib/api-client';
 import { resolveApiBaseUrl } from '@/lib/client-origin';
+import { apiFetch } from '@/lib/api-fetch';
 import { useAuth } from '@/hooks/useAuth';
 import { AlertTriangle, Bot } from 'lucide-react';
 
@@ -55,15 +56,9 @@ export default function AIAssistant() {
         const renderBackendUrl = resolveApiBaseUrl(
           process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL
         );
-        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-        
-        const response = await fetch(`${renderBackendUrl}/api/ai/check-config`, {
+        const response = await apiFetch(`${renderBackendUrl}/api/ai/check-config`, {
           method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-          credentials: 'include', // Include cookies if needed
+          headers: { 'Content-Type': 'application/json' },
         });
         
         if (response.ok) {
@@ -103,17 +98,11 @@ export default function AIAssistant() {
       const renderBackendUrl = resolveApiBaseUrl(
         process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL
       );
-      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
       const userLevel = user?.learningLevel || (user as any)?.studentDetails?.tradingLevel || 'beginner';
       
-      const response = await fetch(`${renderBackendUrl}/api/ai/answer-question`, {
+      const response = await apiFetch(`${renderBackendUrl}/api/ai/answer-question`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        credentials: 'include', // Include credentials for CORS
-        mode: 'cors', // Explicitly enable CORS
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           question: userMessage.content,
           userLevel,

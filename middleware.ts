@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { isFeatureApiBlocked, isFeaturePathBlocked } from '@/lib/config/features';
 import { getAllowedCorsOrigin } from '@/lib/cors-origin';
+import { CSRF_HEADER, decideRequestOrigin } from '@/lib/request-guard';
 
 const STATIC_EXT = /\.(ico|png|jpg|jpeg|gif|webp|svg|woff2?|ttf|eot|txt|xml|json|map)$/i;
 
@@ -21,7 +22,8 @@ function applyApiCorsHeaders(
 /**
  * Reduces stale HTML/API responses after a Vercel deploy (browser + CDN cache).
  * Immutable Next chunks under /_next/static stay long-cached via filename hashing.
- * CORS on /api/* allows Vercel (or ALLOWED_ORIGINS) to call a Render-hosted API.
+ * CORS on /api/* echoes only the exact trusted origin (APP_ORIGIN; lib/request-guard.js).
+ * Every state-changing /api request must come from that origin and carry the CSRF header.
  */
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -34,12 +36,20 @@ export function middleware(request: NextRequest) {
         headers: {
           'Access-Control-Allow-Origin': corsOrigin,
           'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+          'Access-Control-Allow-Headers': `Content-Type, ${CSRF_HEADER}`,
           'Access-Control-Allow-Credentials': 'true',
           'Access-Control-Max-Age': '86400',
           Vary: 'Origin',
         },
       });
+    }
+    const guard = decideRequestOrigin({
+      method: request.method,
+      pathname,
+      header: (name: string) => request.headers.get(name),
+    });
+    if (!guard.ok) {
+      return NextResponse.json({ error: guard.error, code: guard.code }, { status: guard.status });
     }
   }
 

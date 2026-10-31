@@ -18,6 +18,7 @@ const { ObjectId } = require('mongodb');
 
 const { RATE_LIMIT_COLLECTION } = require('../lib/shared-rate-limit');
 const { decideSessionBinding, sessionBinding } = require('../lib/token-core');
+const { sessionFromResponse } = require('./helpers/session-cookie');
 const { checkNewPassword, PASSWORD_MAX_BYTES } = require('../lib/password-policy');
 const tokens = require('../lib/password-reset-token');
 const reset = require('../lib/password-reset');
@@ -701,6 +702,7 @@ const PROD_ENV = {
   JWT_SECRET: SECRET,
   SHARED_RATE_LIMIT: 'mongodb',
   APP_BASE_URL: 'https://app.example.test',
+  APP_ORIGIN: 'https://app.example.test',
   RESEND_API_KEY: 're_test_only_not_a_real_key',
   RESEND_FROM: 'ForexOrbit Academy <no-reply@mail.example.test>',
   TRUSTED_PROXY_HOPS: undefined,
@@ -756,9 +758,11 @@ function fakeResend(outcome = () => ({ data: { id: 'email_1' }, error: null })) 
 
 async function callRoute(handler, { method = 'POST', body, token, ip = '203.0.113.10' } = {}) {
   const res = mockResponse();
-  const headers = { 'x-forwarded-for': ip };
-  if (token) headers.authorization = `Bearer ${token}`;
-  await handler({ method, headers, body, query: {}, socket: { remoteAddress: '10.0.0.2' } }, res);
+  // A same-origin browser request on the canonical origin, with the session cookie when signed in.
+  const headers = { 'x-forwarded-for': ip, origin: 'https://app.example.test', 'x-fo-csrf': '1' };
+  if (token) headers.cookie = `__Host-fo_session=${token}`;
+  await handler({ method, url: '/api/test', headers, body, query: {}, socket: { remoteAddress: '10.0.0.2' } }, res);
+  res.session = sessionFromResponse(res);
   return res;
 }
 
@@ -783,7 +787,8 @@ test('through the routes: email link, new password, old session refused, new sig
     try {
       const signedIn = await callRoute(r.login, { body: { email: user.email, password: 'old-password-1' } });
       assert.equal(signedIn.statusCode, 200);
-      const oldSession = signedIn.body.token;
+      const oldSession = signedIn.session;
+      assert.ok(oldSession, 'signed in with a session cookie');
 
       const unknown = await callRoute(r.forgot, { body: { email: 'nobody@example.com' } });
       const known = await callRoute(r.forgot, { body: { email: user.email } });
@@ -811,10 +816,11 @@ test('through the routes: email link, new password, old session refused, new sig
       assert.ok(resend.calls.sends[1].payload.text.includes('https://app.example.test/forgot-password'));
 
       assert.equal((await callRoute(r.me, { method: 'GET', token: oldSession })).statusCode, 401, 'the old session is signed out');
+      assert.ok(h.db.data.sessions.find((s) => s.userId === String(user._id)).revokedAt, 'the stored session was revoked by the reset');
       assert.equal((await callRoute(r.login, { body: { email: user.email, password: 'old-password-1' } })).statusCode, 401);
       const fresh = await callRoute(r.login, { body: { email: user.email, password: 'route-new-pass' } });
       assert.equal(fresh.statusCode, 200);
-      assert.equal((await callRoute(r.me, { method: 'GET', token: fresh.body.token })).statusCode, 200);
+      assert.equal((await callRoute(r.me, { method: 'GET', token: fresh.session })).statusCode, 200);
 
       const replay = await callRoute(r.reset, { body: { token, password: 'route-new-pass-2' } });
       assert.deepEqual([replay.statusCode, replay.body.code], [400, 'used_token']);

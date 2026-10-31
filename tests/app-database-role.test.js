@@ -96,6 +96,7 @@ test('the role covers every collection the app uses', () => {
     VOTES: 'communityVotes',
     REQUESTS: 'consultationRequests',
     SESSIONS: 'consultationSessions',
+    SESSION_COLLECTION: 'sessions',
     RATE_LIMIT_COLLECTION: 'rateLimits',
     // Chosen at runtime: payments or access rows (admin ledger), questions or replies (community votes).
     name: null,
