@@ -9,6 +9,11 @@
   },
   "redirects": [
     {
+      "source": "/",
+      "destination": "https://forexorbit-academy.onrender.com/",
+      "permanent": false
+    },
+    {
       "source": "/:path*",
       "destination": "https://forexorbit-academy.onrender.com/:path*",
       "permanent": false
