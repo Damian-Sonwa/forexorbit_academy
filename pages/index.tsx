@@ -154,6 +154,7 @@ export default function Home({ initialCourses = [] }: { initialCourses?: Course[
           <nav className="hidden items-center gap-7 text-sm text-white/75 lg:flex">
             <a href="#courses" className="hover:text-white">Courses</a>
             <a href="#practice" className="hover:text-white">Practice</a>
+            <Link href="/pricing" className="hover:text-white">Pricing</Link>
             <Link href="/community" className="hover:text-white">Community</Link>
             <Link href="/consultations" className="hover:text-white">Consultations</Link>
             <Link href="/about" className="hover:text-white">About</Link>
@@ -173,6 +174,7 @@ export default function Home({ initialCourses = [] }: { initialCourses?: Course[
           <div className="space-y-3 border-t border-white/10 px-4 py-4 text-sm lg:hidden">
             <a href="#courses" className="block" onClick={() => setMenuOpen(false)}>Courses</a>
             <a href="#practice" className="block" onClick={() => setMenuOpen(false)}>Practice</a>
+            <Link href="/pricing" className="block">Pricing</Link>
             <Link href="/community" className="block">Community</Link>
             <Link href="/consultations" className="block">Consultations</Link>
             <Link href="/about" className="block">About</Link>
@@ -456,6 +458,7 @@ export default function Home({ initialCourses = [] }: { initialCourses?: Course[
             <p className="font-semibold">Information</p>
             <ul className="mt-3 space-y-2 text-sm text-white/60">
               <li><Link href="/about" className="hover:text-white">About</Link></li>
+              <li><Link href="/pricing" className="hover:text-white">Pricing</Link></li>
               <li><Link href="/help" className="hover:text-white">Help</Link></li>
               <li><Link href="/privacy" className="hover:text-white">Privacy</Link></li>
               <li><Link href="/terms" className="hover:text-white">Terms</Link></li>

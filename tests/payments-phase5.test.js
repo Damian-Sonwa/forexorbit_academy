@@ -385,6 +385,21 @@ test('diagnostics: payment without access, duplicate entitlement, held payment, 
   assert.equal(/@|example\.test/.test(text), false, 'no emails in the report');
 });
 
+test('sample re-verification: a Paystack reversal agrees only when a local refund record exists', async () => {
+  const db = paymentMemoryDb({ uniqueIndexes: [] });
+  const { intent } = await paidCourse(db);
+  const reversal = (status) => provider({ [intent.reference]: { outcome: 'found', data: { status, amount: 1025381, requested_amount: 1000000, fees: 25381, currency: 'NGN' } } });
+  const flagged = async (status) => (await runReconciliation(db, { apply: false, verifySample: 1, fetchTransaction: reversal(status), fetchRefund: provider(), listRefunds: provider(), now: NOW }))
+    .items.some((i) => i.type === 'local_success_unverified' && i.reference === intent.reference);
+  assert.equal(await flagged('success'), false, 'customer-paid fees agree');
+  assert.equal(await flagged('reversal-pending'), true, 'no local refund: a reversal needs review');
+  assert.equal(await flagged('reversed'), true);
+  await db.collection(COLLECTIONS.refunds).insertOne({ requestId: 'req-x', paymentReference: intent.reference, amountKobo: 300000, status: 'pending', open: true });
+  assert.equal(await flagged('reversal-pending'), false);
+  assert.equal(await flagged('reversed'), false);
+  assert.equal(await flagged('failed'), true);
+});
+
 // ---------------------------------------------------------------------------
 // Webhook re-verification and concurrency (module level)
 // ---------------------------------------------------------------------------

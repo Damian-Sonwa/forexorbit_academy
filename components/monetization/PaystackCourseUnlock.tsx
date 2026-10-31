@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import Link from 'next/link';
 import { apiClient } from '@/lib/api-client';
-import { COURSE_PRICE_LABEL } from '@/lib/course-price';
+import {
+  COURSE_LOCAL_CARD_FEE_KOBO,
+  COURSE_LOCAL_CARD_TOTAL_KOBO,
+  COURSE_PRICE_KOBO,
+  COURSE_PRICE_LABEL,
+  CUSTOMER_PAYS_PAYSTACK_FEES,
+  formatNairaAndKobo,
+} from '@/lib/course-price';
 import { loadPaystackInline, preloadPaystackInline } from '@/lib/paystack-inline-script';
 import { normalizePaystackPublicKey } from '@/lib/paystack-public-key';
 import {
@@ -246,6 +254,29 @@ export function PaystackCourseUnlock({ courseId, onUnlocked, variant = 'default'
     </>
   );
   const hasStatus = Boolean(notice || error || (retryReference && !busy));
+  // The customer pays Paystack's service fee. The estimate is for a Nigerian card; Paystack's total is authoritative.
+  const feeNote = CUSTOMER_PAYS_PAYSTACK_FEES ? (
+    <div className="text-left text-xs text-gray-600 dark:text-gray-400">
+      <dl className="space-y-0.5">
+        <div className="flex justify-between gap-3">
+          <dt>Course price</dt>
+          <dd className="tabular-nums">{formatNairaAndKobo(COURSE_PRICE_KOBO)}</dd>
+        </div>
+        <div className="flex justify-between gap-3">
+          <dt>Paystack service fee (Nigerian card, estimate)</dt>
+          <dd className="tabular-nums">{formatNairaAndKobo(COURSE_LOCAL_CARD_FEE_KOBO)}</dd>
+        </div>
+        <div className="flex justify-between gap-3 font-semibold text-gray-800 dark:text-gray-200">
+          <dt>Total payable (estimate)</dt>
+          <dd className="tabular-nums">{formatNairaAndKobo(COURSE_LOCAL_CARD_TOTAL_KOBO)}</dd>
+        </div>
+      </dl>
+      <p className="mt-1">
+        You pay the service fee. Paystack shows the exact total before you confirm.{' '}
+        <Link href="/pricing" className="underline hover:text-primary-700 dark:hover:text-primary-300">Pricing</Link>
+      </p>
+    </div>
+  ) : null;
 
   if (variant === 'compact') {
     return (
@@ -258,6 +289,7 @@ export function PaystackCourseUnlock({ courseId, onUnlocked, variant = 'default'
         >
           {buttonLabel}
         </button>
+        {feeNote}
       </form>
     );
   }
@@ -270,9 +302,10 @@ export function PaystackCourseUnlock({ courseId, onUnlocked, variant = 'default'
     >
       <h2 className="text-lg font-bold text-gray-900 dark:text-white">Unlock full course</h2>
       <p className="mt-2 text-sm text-gray-700 dark:text-gray-300">
-        The first lesson and demo lessons stay free. One payment unlocks every other lesson and quiz in this course.
+        Free preview and demo lessons stay free. One payment unlocks every other lesson and quiz in this course.
       </p>
       <p className="mt-3 text-2xl font-bold text-primary-700 dark:text-primary-300">{COURSE_PRICE_LABEL}</p>
+      {feeNote ? <div className="mt-1">{feeNote}</div> : null}
       {hasStatus ? <div className="mt-3 flex flex-col gap-2">{statusBox}</div> : null}
       <button
         type="submit"

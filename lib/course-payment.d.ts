@@ -93,6 +93,7 @@ export function processWebhookEvent(
   }
 ): Promise<{ ack: boolean; code: string }>;
 export function isDuplicateKey(error: unknown): boolean;
+export function paysExpectedAmount(data: Record<string, unknown> | null | undefined, expected: number): boolean;
 export function isEntitledRow(row: unknown): boolean;
 export function presentConfirmResult(
   result: ConfirmResult | Extract<IntentResult, { ok: false }>,

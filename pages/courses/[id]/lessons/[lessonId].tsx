@@ -224,7 +224,7 @@ export default function LessonPage() {
               <h2 className="text-lg font-bold text-gray-900 dark:text-white">This lesson is locked</h2>
               <p className="mt-2 text-sm text-gray-700 dark:text-gray-300">
                 {lockedPayload?.message ||
-                  'Pay once to unlock this course. The first lesson and demo lessons stay free.'}
+                  'Pay once to unlock this course. Free preview and demo lessons stay free.'}
               </p>
               <div className="mt-4 max-w-md">
                 <PaystackCourseUnlock

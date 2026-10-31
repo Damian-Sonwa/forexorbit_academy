@@ -48,9 +48,9 @@ const studentSteps = [
   {
     icon: Video,
     title: 'Learn one lesson at a time',
-    text: 'Each lesson can carry a video, written notes, resources, a quiz, and a live market signal panel. The first lesson of a course is free to open.',
+    text: 'Each lesson can carry a video, written notes, resources, a quiz, and a live market signal panel. Selected courses offer free preview lessons.',
     points: [
-      'A one-time Paystack checkout unlocks the remaining lessons of a paid course',
+      'A one-time Paystack checkout unlocks the remaining lessons of a paid course (see Pricing)',
       'Instructors can attach assignments for you to submit',
     ],
   },
@@ -126,6 +126,7 @@ export default function HowItWorks() {
           <nav className="hidden items-center gap-7 text-sm text-white/75 lg:flex">
             <Link href="/#courses" className="hover:text-white">Courses</Link>
             <Link href="/how-it-works" className="text-white" aria-current="page">How it works</Link>
+            <Link href="/pricing" className="hover:text-white">Pricing</Link>
             <Link href="/community" className="hover:text-white">Community</Link>
             <Link href="/consultations" className="hover:text-white">Consultations</Link>
             <Link href="/about" className="hover:text-white">About</Link>
@@ -147,6 +148,7 @@ export default function HowItWorks() {
           <div className="space-y-3 border-t border-white/10 px-4 py-4 text-sm lg:hidden">
             <Link href="/#courses" className="block">Courses</Link>
             <Link href="/how-it-works" className="block">How it works</Link>
+            <Link href="/pricing" className="block">Pricing</Link>
             <Link href="/community" className="block">Community</Link>
             <Link href="/consultations" className="block">Consultations</Link>
             <Link href="/about" className="block">About</Link>

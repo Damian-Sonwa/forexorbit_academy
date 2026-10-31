@@ -246,6 +246,49 @@ test('the full-course price is ₦10,000 NGN in kobo', () => {
   assert.equal(formatNairaFromKobo(COURSE_PRICE_KOBO), '₦10,000');
 });
 
+test('the Nigerian-card Paystack fee estimate reproduces the test-mode charge for ₦10,000', () => {
+  const price = require('../lib/course-price');
+  // Paystack test mode, 31 October 2026: amount 1025381, requested_amount 1000000, fees 25381.
+  assert.equal(price.CUSTOMER_PAYS_PAYSTACK_FEES, true);
+  assert.equal(price.COURSE_LOCAL_CARD_TOTAL_KOBO, 1025381);
+  assert.equal(price.COURSE_LOCAL_CARD_FEE_KOBO, 25381);
+  assert.equal(price.formatNairaAndKobo(1025381), '₦10,253.81');
+  assert.equal(price.formatNairaAndKobo(25381), '₦253.81');
+  assert.equal(price.formatNairaAndKobo(1000000), '₦10,000.00');
+  assert.equal(price.formatNairaAndKobo(5), '₦0.05');
+  // The estimate is exactly what the payment check accepts for a customer-paid-fees transaction.
+  assert.equal(payment.paysExpectedAmount({ amount: price.COURSE_LOCAL_CARD_TOTAL_KOBO, requested_amount: COURSE_PRICE_KOBO, fees: price.COURSE_LOCAL_CARD_FEE_KOBO }, COURSE_PRICE_KOBO), true);
+});
+
+test('source contract: the pricing page and checkout take every amount from lib/course-price', () => {
+  const page = read('pages/pricing.tsx');
+  assert.match(page, /from '@\/lib\/course-price'/);
+  assert.doesNotMatch(page, /10,000|10,253|253\.81|1000000/, 'no hard-coded amounts on the pricing page');
+  assert.match(page, /CUSTOMER_PAYS_PAYSTACK_FEES \?/);
+  const unlock = read('components/monetization/PaystackCourseUnlock.tsx');
+  assert.match(unlock, /COURSE_LOCAL_CARD_FEE_KOBO/);
+  assert.match(unlock, /\{feeNote\}\r?\n\s*<\/form>/, 'the compact checkout used on course and lesson pages shows the fee');
+  for (const file of ['pages/index.tsx', 'pages/how-it-works.tsx', 'components/Footer.tsx']) assert.match(read(file), /href[=:] ?["']\/pricing["']/, file);
+});
+
+test('source contract: pricing and checkout say the customer pays the service fee and promise no free first lesson', () => {
+  const page = read('pages/pricing.tsx');
+  const unlock = read('components/monetization/PaystackCourseUnlock.tsx');
+  for (const [file, source] of [['pricing', page], ['checkout', unlock]]) {
+    assert.match(source, /Paystack service fee/, file);
+    assert.match(source, /Total payable/, file);
+    assert.match(source, /Paystack shows the exact total before you confirm|The total Paystack shows before you confirm is the exact amount you pay/, file);
+    assert.match(source, /COURSE_LOCAL_CARD_TOTAL_KOBO/, file);
+    assert.doesNotMatch(source, /ForexOrbit (covers|absorbs|pays)/i, file);
+  }
+  assert.match(page, /reviewed individually/);
+  assert.match(page, /A full refund may end your access to that course/);
+  assert.match(page, /Selected courses offer free preview lessons/);
+  for (const file of ['pages/pricing.tsx', 'pages/how-it-works.tsx', 'components/monetization/PaystackCourseUnlock.tsx', 'pages/courses/[id]/lessons/[lessonId].tsx']) {
+    assert.doesNotMatch(read(file), /first lesson (and demo lessons )?(stay|is) free|free first lesson|Each course opens with a free lesson|first lesson of a course is free/i, file);
+  }
+});
+
 test('checkout creates a server intent bound to the student and course at ₦10,000 NGN', async () => {
   const db = memoryDb();
   const result = await payment.createCourseIntent(db, {
@@ -353,6 +396,46 @@ test('a lower paid amount is rejected, recorded for review, and grants nothing',
   assert.equal(exception.reason, 'amount_mismatch');
   assert.equal(exception.amountKobo, 500000);
   assert.equal('email' in exception, false);
+});
+
+// Paystack accounts can pass transaction fees to the customer. Verify then reports
+// amount = price + fees and requested_amount = price (seen in test mode on 2026-10-31).
+test('a customer-paid-fees transaction grants access and records the price, the charge and the fee', async () => {
+  const db = memoryDb();
+  const intent = await startCheckout(db);
+  const price = intent.amountKobo;
+  const result = await confirm(db, intent, successData(intent, { amount: price + 25381, requested_amount: price, fees: 25381 }));
+  assert.equal(result.ok, true);
+  assert.equal(await payment.hasCourseEntitlement(db, STUDENT, COURSE), true);
+  const row = db.rows(COLLECTIONS.payments)[0];
+  assert.equal(row.amountKobo, price);
+  assert.equal(row.chargedKobo, price + 25381);
+  assert.equal(row.customerFeesKobo, 25381);
+  assert.equal(db.rows(COLLECTIONS.exceptions).length, 0);
+});
+
+test('fee-inclusive totals are accepted only when requested_amount is the price and the fees add up', () => {
+  const price = 1000000;
+  assert.equal(payment.paysExpectedAmount({ amount: price }, price), true);
+  assert.equal(payment.paysExpectedAmount({ amount: price + 100, requested_amount: price, fees: 100 }, price), true);
+  // Underpayment dressed up with fees, a requested amount below the price, fees that do not add up.
+  assert.equal(payment.paysExpectedAmount({ amount: price, requested_amount: price - 100, fees: 100 }, price), false);
+  assert.equal(payment.paysExpectedAmount({ amount: price - 100 + 100, requested_amount: price - 100, fees: 100 }, price), false);
+  assert.equal(payment.paysExpectedAmount({ amount: price + 500, requested_amount: price, fees: 100 }, price), false);
+  assert.equal(payment.paysExpectedAmount({ amount: price + 100, requested_amount: price }, price), false);
+  assert.equal(payment.paysExpectedAmount({ amount: price + 100, requested_amount: price, fees: -100 }, price), false);
+  assert.equal(payment.paysExpectedAmount({ amount: price - 100, requested_amount: price, fees: -100 }, price), false);
+  assert.equal(payment.paysExpectedAmount({ amount: '1000100', requested_amount: price, fees: 100 }, price), true);
+  assert.equal(payment.paysExpectedAmount(null, price), false);
+});
+
+test('a fee-inclusive transaction whose requested amount is below the price is refused', async () => {
+  const db = memoryDb();
+  const intent = await startCheckout(db);
+  const result = await confirm(db, intent, successData(intent, { amount: 600000, requested_amount: 500000, fees: 100000 }));
+  assert.equal(result.ok, false);
+  assert.equal(result.code, 'amount_mismatch');
+  assert.equal(await payment.hasCourseEntitlement(db, STUDENT, COURSE), false);
 });
 
 test('a payment in another currency is rejected even with the right minor-unit amount', async () => {
