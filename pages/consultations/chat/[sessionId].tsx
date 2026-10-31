@@ -11,7 +11,6 @@ import LoadingSpinner from '@/components/LoadingSpinner';
 import { useAuth } from '@/hooks/useAuth';
 import { useSocket } from '@/hooks/useSocket';
 import { apiClient } from '@/lib/api-client';
-import { resolveApiBaseUrl } from '@/lib/client-origin';
 import { apiFetch } from '@/lib/api-fetch';
 import { formatDistanceToNow } from 'date-fns';
 import dynamic from 'next/dynamic';
@@ -220,12 +219,8 @@ export default function ConsultationChat() {
     setAgoraCallType(callType);
 
     try {
-      // The token request uses this build's API origin. Split hosting sets
-      // NEXT_PUBLIC_API_BASE_URL. There is no production-host fallback.
-      const apiBase = resolveApiBaseUrl(
-        process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL
-      );
-      const tokenUrl = `${apiBase}/api/consultations/agora-token?channel=${sessionId}`;
+      // Same origin as the page, so the session cookie authenticates the request.
+      const tokenUrl = `/api/consultations/agora-token?channel=${encodeURIComponent(String(sessionId))}`;
       
       // The session cookie authenticates the request (same origin).
       const tokenResponse = await apiFetch(tokenUrl, {

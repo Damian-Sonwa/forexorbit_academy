@@ -4,8 +4,7 @@
  * GET /api/consultations/agora-token?channel=<sessionId>
  * 
  * SECURITY: The app certificate stays in the server environment.
- * The browser calls this route on NEXT_PUBLIC_API_BASE_URL, or on the page
- * origin when that variable is unset.
+ * The browser calls this route on the page's own origin.
  */
 
 import type { NextApiRequest, NextApiResponse } from 'next';
@@ -17,8 +16,8 @@ import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
 import { decideAccountAccess, decideConsultationPublisherToken, consultationLookupId, consultationPublisherResponse } from '@/lib/account-access';
 
-// Agora App ID - check both NEXT_PUBLIC_AGORA_APP_ID (Vercel) and AGORA_APP_ID (Render)
-// App Certificate - MUST be set on Render backend only (NOT in Vercel)
+// Agora App ID, read on the server only: NEXT_PUBLIC_AGORA_APP_ID (older name, checked first) or AGORA_APP_ID.
+// The browser never reads either. The App Certificate is server-only.
 const AGORA_APP_ID = process.env.NEXT_PUBLIC_AGORA_APP_ID || process.env.AGORA_APP_ID || '';
 const AGORA_APP_CERTIFICATE = process.env.AGORA_APP_CERTIFICATE || '';
 

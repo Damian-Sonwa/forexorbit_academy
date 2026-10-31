@@ -45,8 +45,8 @@ const nextConfig = {
   // (server.js, db/mongoClient.ts, lib/jwt.ts). They must not be listed under
   // `env`: that option inlines values into build output. MONGODB_URI is accepted
   // as an alias by those server readers.
-  // NEXT_PUBLIC_SOCKET_URL and NEXT_PUBLIC_API_BASE_URL select this build's
-  // backend. Neither falls back to a hard-coded production host.
+  // The browser calls the API and Socket.IO on its own origin (relative URLs);
+  // no NEXT_PUBLIC_ variable selects a backend host.
   // AI_API_KEY stays server-only.
   // Agora readiness is determined by the token API response.
   async headers() {

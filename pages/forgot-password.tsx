@@ -10,11 +10,6 @@ import Footer from '@/components/Footer';
 import { ButtonLoadingState } from '@/components/loading';
 import { apiClient } from '@/lib/api-client';
 
-const PUBLIC_API_BASE =
-  (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_API_BASE_URL) ||
-  (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_API_URL) ||
-  '';
-
 type ApiError = {
   code?: string;
   response?: { status?: number; data?: { message?: string; error?: string; retryAfterSec?: number } };
@@ -27,9 +22,6 @@ function mapForgotPasswordError(err: unknown): string {
   if (apiErr) return apiErr;
   const noResponse = !e.response;
   if (noResponse && (e.code === 'ERR_NETWORK' || e.code === 'ECONNABORTED')) {
-    if (PUBLIC_API_BASE && PUBLIC_API_BASE !== '/api') {
-      return `Cannot reach the API (${PUBLIC_API_BASE}). Check your connection, CORS, and that the backend is running.`;
-    }
     return 'Cannot reach the server. Check your connection and try again.';
   }
   return 'Something went wrong. Try again.';

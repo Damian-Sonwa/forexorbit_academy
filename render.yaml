@@ -19,9 +19,22 @@ services:
         sync: false  # Set this in Render dashboard
       - key: JWT_SECRET
         sync: false  # Set this in Render dashboard - use a strong random string
-      - key: NEXT_PUBLIC_SOCKET_URL
-        value: https://forex-elearning-app.onrender.com  # Update with your actual Render URL
-    healthCheckPath: /
+      # One canonical origin for pages, API and Socket.IO (the browser uses relative URLs).
+      - key: APP_ORIGIN
+        value: https://forexorbit-academy.onrender.com
+      - key: APP_BASE_URL
+        value: https://forexorbit-academy.onrender.com
+      - key: NODE_VERSION
+        value: 22.19.0
+      - key: NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY
+        sync: false  # public key; needed at build time
+      - key: PAYSTACK_SECRET_KEY
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM
+        sync: false
+    healthCheckPath: /api/health
     autoDeploy: true  # Automatically deploy on git push
 
 # Optional: Add a MongoDB service if you want Render to manage your database

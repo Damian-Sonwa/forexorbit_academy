@@ -9,11 +9,11 @@ Names and safe examples only. Never paste real values into chat, Git or document
 | `APP_ORIGIN` | **New.** The one trusted origin for cookies, CSRF, CORS and sockets. Read at run time. | **Add** | `https://forexorbit-academy.onrender.com` (exact; no trailing path) | **Yes.** Without it, production refuses to start. |
 | `AUTH_LEGACY_BEARER_UNTIL` | **New, temporary.** Opens the one-time exchange of a pre-4.5 token for a cookie session. | **Leave unset** (owner decision D3: the exchange stays disabled). The code ignores any date after 2027-01-31 and is removed in a follow-up. | (unset) | No |
 | `JWT_SECRET` | Signs the pre-4.5 tokens. After 4.5 it is used only to verify them in the legacy exchange. `server.js` still requires it to start. | **Keep unchanged** for the whole transition | (existing secret) | Yes (already set) |
-| `NEXT_PUBLIC_API_BASE_URL`, `NEXT_PUBLIC_API_URL` | The browser's API base when it differs from the page origin | **Must be unset** (or exactly `APP_ORIGIN`). The live Render build references no other origin, so they appear unset already; **confirm**. | (unset) | Yes |
-| `NEXT_PUBLIC_SOCKET_URL` | Socket server URL for the old split hosting. **No longer read** by the 4.5 client. | **Remove** (harmless if left). `render.yaml` still lists it with an outdated host; clean that up after the release. | (unset) | No |
+| `NEXT_PUBLIC_API_BASE_URL`, `NEXT_PUBLIC_API_URL` | Formerly the browser's API host. **No longer read:** every browser call is a relative same-origin URL (`/api/...`). | **Remove** if present (harmless if left) | (unset) | No |
+| `NEXT_PUBLIC_SOCKET_URL` | Formerly the socket host. **No longer read:** the socket uses the page origin. | **Remove** if present; also removed from `render.yaml` | (unset) | No |
 | `ALLOWED_ORIGINS` | Old CORS list. **No longer read.** | **Remove** after the release (harmless if left) | (unset) | No |
 | `APP_BASE_URL` | Origin used to build password-reset links in emails | **Update** to the Render origin, so reset links open where the session cookie works | `https://forexorbit-academy.onrender.com` | **Yes** |
-| `NEXT_PUBLIC_APP_URL` | Optional public URL mentioned in `.env.example`; not read by the application code | No action | — | No |
+| `NEXT_PUBLIC_APP_URL` | Not read by any code | **Remove** if present | (unset) | No |
 | `PORT` | Listening port (`render.yaml`: 3000; otherwise Render supplies one) | **Keep** | `3000` | Already set |
 | `NODE_ENV` | `production` (also forced by `scripts/start-production.js`) | **Keep** | `production` | Already set |
 | `NODE_VERSION` | Render's Node.js version selector | **Add** (owner decision D6): the validated runtime | `22.19.0` | Yes |
@@ -32,10 +32,10 @@ Names and safe examples only. Never paste real values into chat, Git or document
 
 | Variable | Purpose | Production action | Required before deployment |
 |---|---|---|---|
-| `PAYSTACK_SECRET_KEY`, `NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY` | Live course checkout. Render already rejects unsigned webhooks with 401, which shows a live key is configured. | Keep | Already set |
+| `PAYSTACK_SECRET_KEY` (server only), `NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY` (browser checkout) | Live course checkout. Render already rejects unsigned webhooks with 401, which shows a live secret key is configured there. The public key is compiled into the browser bundle by `next build`, so it must be set on Render **before** the build. It must be the `pk_live_` key matching the live secret key. | Keep. Confirm the public key exists on Render; it may currently be set only on Vercel. | **Yes** (public key before the build) |
 | `RESEND_API_KEY`, `RESEND_FROM` | Password-reset and notice emails | Keep (`APP_BASE_URL` updated as above) | Already set |
 | `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | Uploads | Keep | As today |
-| `AGORA_APP_ID` / `NEXT_PUBLIC_AGORA_APP_ID`, `AGORA_APP_CERTIFICATE` | Consultation calls | Keep | As today |
+| `AGORA_APP_ID` (or the older `NEXT_PUBLIC_AGORA_APP_ID`), `AGORA_APP_CERTIFICATE` | Consultation calls; both read on the server only | Keep as today | As today |
 | `AI_API_KEY`, `AI_MODEL`, `AI_MAX_TOKENS`, `AI_TEMPERATURE` | AI assistant | Keep | As today |
 | `OANDA_API_KEY`, `OANDA_ACCOUNT_ID`, `OANDA_DEMO_URL`, `BROKER_TYPE`, `BROKER_DEMO_MODE`, `NEXT_PUBLIC_BROKER_API_ENABLED` | Broker demo | Keep | As today |
 | `NEXT_PUBLIC_ADS_*`, `NEXT_PUBLIC_ADSENSE_*`, `NEXT_PUBLIC_ADMOB_*`, `NEXT_PUBLIC_PROPELLERADS_*`, `NEXT_PUBLIC_PROP_PLACEMENT_*` | Advertising | Keep | As today |

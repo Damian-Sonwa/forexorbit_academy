@@ -11,24 +11,11 @@ import { loginHref } from '@/lib/login-redirect';
 import { CSRF_HEADER, CSRF_VALUE } from '@/lib/request-guard';
 
 /**
- * Next.js API routes live under `/api`. If the env is a host without `/api`,
- * axios would call `/auth/login` on the host root and get 404.
- * There is no production-host fallback.
+ * The API is always on the page's own origin (one canonical origin: pages, API and sockets).
+ * A relative base keeps the host-only session cookie on every request and works unchanged on
+ * production, staging and local servers. No environment variable can point it elsewhere.
  */
-function normalizeApiBaseUrl(raw: string): string {
-  const t = raw.trim().replace(/\/+$/, '');
-  if (!t) return '/api';
-  if (t === '/api') return '/api';
-  if (/^https?:\/\//i.test(t)) {
-    if (t.endsWith('/api')) return t;
-    return `${t}/api`;
-  }
-  return t.startsWith('/') ? t : `/${t}`;
-}
-
-const API_URL = normalizeApiBaseUrl(
-  process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || '/api'
-);
+const API_URL = '/api';
 
 /** Requests whose 401 is an answer for the caller (no session yet), not a reason to redirect. */
 const SESSION_PROBE_URLS = ['/auth/login', '/auth/me', '/auth/signup', '/auth/logout', '/auth/session/upgrade'];

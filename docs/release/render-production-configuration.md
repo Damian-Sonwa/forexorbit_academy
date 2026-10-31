@@ -40,6 +40,24 @@ ForexOrbit is **not** a React SPA served by Express. It is a **Next.js 15 (Pages
 
 Render's build environment must still install the build tools. `next build` uses `typescript`, `tailwindcss`, `postcss` and `autoprefixer`, which are devDependencies. The current production builds succeed, so the dashboard's current install behaviour is adequate. **Do not change the build command or `NODE_ENV` handling for this release.**
 
+### `render.yaml` (Blueprint file)
+
+The release branch updates `render.yaml` to the target configuration:
+
+- health check `/api/health`;
+- `APP_ORIGIN` and `APP_BASE_URL` set to the Render origin;
+- `NODE_VERSION` 22.19.0;
+- `NEXT_PUBLIC_SOCKET_URL` removed;
+- secret keys listed as `sync: false` (values are never stored in the file).
+
+**Check in the Render dashboard (Blueprints) whether the live service is linked to this Blueprint.**
+
+- **If it is not linked:** the file is documentation only, and the settings are made by hand (`production-environment-variables.md`).
+- **If it is linked:**
+  - a push to `master` applies the file's non-secret values;
+  - the file names the service `forex-elearning-app`, while the live host is `forexorbit-academy`, so Render could treat it as a **different** service;
+  - resolve that with the owner before any push.
+
 ## C. Request routing on the one origin
 
 | Path | Served by | Notes |

@@ -5,13 +5,11 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { apiClient } from '@/lib/api-client';
-import { resolveApiBaseUrl } from '@/lib/client-origin';
 import { apiFetch } from '@/lib/api-fetch';
 import { useAuth } from '@/hooks/useAuth';
 import { AlertTriangle, Bot } from 'lucide-react';
 
-// AI calls stay on this build's API origin. Split hosting sets
-// NEXT_PUBLIC_API_BASE_URL. There is no production-host fallback.
+// AI calls go to the page's own origin; the AI key stays on the server.
 
 interface AIConfigStatus {
   configured: boolean;
@@ -53,10 +51,7 @@ export default function AIAssistant() {
     // Ask this build's API whether AI is configured.
     const checkAIConfig = async () => {
       try {
-        const renderBackendUrl = resolveApiBaseUrl(
-          process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL
-        );
-        const response = await apiFetch(`${renderBackendUrl}/api/ai/check-config`, {
+        const response = await apiFetch('/api/ai/check-config', {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
         });
@@ -95,12 +90,9 @@ export default function AIAssistant() {
     setError(null);
 
     try {
-      const renderBackendUrl = resolveApiBaseUrl(
-        process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL
-      );
       const userLevel = user?.learningLevel || (user as any)?.studentDetails?.tradingLevel || 'beginner';
       
-      const response = await apiFetch(`${renderBackendUrl}/api/ai/answer-question`, {
+      const response = await apiFetch('/api/ai/answer-question', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
