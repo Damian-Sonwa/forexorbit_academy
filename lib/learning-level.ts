@@ -5,6 +5,7 @@
 
 import { getDb } from './mongodb';
 import { courseCountsAsLevelProgress } from '@/lib/enrollment-state';
+import { COURSE_STATUS, statusFilter } from '@/lib/course-lifecycle';
 import { ObjectId } from 'mongodb';
 
 export type LearningLevel = 'beginner' | 'intermediate' | 'advanced';
@@ -52,7 +53,11 @@ export function getNextLevel(currentLevel: LearningLevel): LearningLevel | null 
 }
 
 /**
- * Check if all courses in a level are completed
+ * Check if all courses in a level are completed.
+ * Only published courses (including older courses stored without a status, which were already
+ * live) are requirements. Draft, in-review and archived courses never block advancement; an
+ * archived course stays readable for its enrolled students (lib/course-lifecycle.js), it just no
+ * longer counts here.
  */
 export async function checkLevelCompletion(
   userId: string,
@@ -66,7 +71,7 @@ export async function checkLevelCompletion(
 
     // Get all courses for this level
     const levelCourses = await courses
-      .find({ difficulty: level })
+      .find({ difficulty: level, ...statusFilter(COURSE_STATUS.PUBLISHED) })
       .toArray();
 
     if (levelCourses.length === 0) {
