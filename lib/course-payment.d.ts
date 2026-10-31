@@ -2,6 +2,9 @@ import type { Db } from 'mongodb';
 
 export const AUDIT_COLLECTION: string;
 export const CLAIM_TTL_MS: number;
+export const INTENT_RECHECK_WINDOW_MS: number;
+export const PROVIDER_TIMEOUT_MS: number;
+export const REFERENCE_PATTERN: RegExp;
 export const SYSTEM_ACTOR: { readonly userId: 'system'; readonly email: null };
 export const COURSE_PRICE_KOBO: number;
 export const COURSE_CURRENCY: 'NGN';
@@ -16,6 +19,7 @@ export const COLLECTIONS: {
   readonly exceptions: string;
   readonly lessonAccess: string;
   readonly lessonPurchases: string;
+  readonly refunds: string;
 };
 
 export type ProviderLookup =
@@ -61,7 +65,7 @@ export function confirmCoursePayment(
   db: Db,
   options: {
     reference: string;
-    source: 'checkout' | 'webhook';
+    source: 'checkout' | 'webhook' | 'reconciliation';
     sessionUserId?: string;
     expectedCourseId?: string;
     providerData?: Record<string, unknown>;
@@ -79,7 +83,17 @@ export function createCourseIntent(
     now?: Date;
   }
 ): Promise<IntentResult>;
-export function processWebhookEvent(db: Db, payload: unknown, now?: Date): Promise<{ ack: boolean; code: string }>;
+export function processWebhookEvent(
+  db: Db,
+  payload: unknown,
+  now?: Date,
+  options?: {
+    fetchTransaction?: (reference: string) => Promise<ProviderLookup>;
+    onRefundEvent?: (event: string, data: Record<string, unknown>, at: Date) => Promise<{ ack: boolean; code: string }>;
+  }
+): Promise<{ ack: boolean; code: string }>;
+export function isDuplicateKey(error: unknown): boolean;
+export function isEntitledRow(row: unknown): boolean;
 export function presentConfirmResult(
   result: ConfirmResult | Extract<IntentResult, { ok: false }>,
   supportId: string

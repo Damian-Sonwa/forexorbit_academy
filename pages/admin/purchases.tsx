@@ -9,6 +9,8 @@ import { apiClient } from '@/lib/api-client';
 import { messageFromUnknown } from '@/lib/public-error';
 import { formatNairaFromKobo } from '@/lib/course-price';
 import type { LedgerRecord, LedgerWarning } from '@/lib/admin-purchase-ledger';
+import type { RefundView } from '@/lib/payment-refunds';
+import type { ReconciliationReport } from '@/lib/payment-reconciliation';
 
 type Tab = 'ledger' | 'exceptions' | 'audit';
 type Paged<T> = { items: T[]; page: number; pageSize: number; total: number; totalPages: number };
@@ -289,6 +291,235 @@ function AuditList({ items }: { items: AuditEntry[] }) {
   );
 }
 
+const REFUND_STATUS_LABELS: Record<string, string> = {
+  requested: 'Requested',
+  pending: 'Pending at Paystack',
+  processing: 'Processing at Paystack',
+  needs_attention: 'Needs attention in Paystack',
+  uncertain: 'Not confirmed: check Paystack',
+  processed: 'Processed',
+  failed: 'Failed',
+  request_failed: 'Not created',
+};
+
+type RefundList = { reference: string; summary: { refundedKobo: number; pendingKobo: number; state: string }; refunds: RefundView[] };
+
+function newRequestId(): string {
+  return typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : `req-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+/**
+ * Refunds for one verified payment (Super Admin). A refund is a Paystack refund made with the
+ * server-side key; access changes only if chosen here, only for a full refund, and only after
+ * Paystack reports the refund processed.
+ */
+function RefundsSection({ reference, amountKobo, grantedAccess, onChanged }: { reference: string; amountKobo: number | null; grantedAccess: boolean; onChanged: () => void }) {
+  const [data, setData] = useState<RefundList | null>(null);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [amount, setAmount] = useState('');
+  const [revoke, setRevoke] = useState<'' | 'yes' | 'no'>('');
+  const [reason, setReason] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [requestId, setRequestId] = useState(newRequestId);
+
+  const load = useCallback(async () => {
+    try {
+      setData(await apiClient.get<RefundList>(`/admin/refunds?reference=${encodeURIComponent(reference)}`));
+    } catch (reason) {
+      setError(messageFromUnknown(reason) || 'Refunds could not be loaded.');
+    }
+  }, [reference]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const remaining = Math.max(0, (amountKobo || 0) - (data?.summary.refundedKobo || 0));
+  const open = data?.refunds.some((r) => ['requested', 'pending', 'processing', 'needs_attention', 'uncertain'].includes(r.status));
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    setError('');
+    setNotice('');
+    if (!revoke) {
+      setError('Choose whether course access should be removed once the refund is processed.');
+      return;
+    }
+    const naira = amount.trim() ? Number(amount) : null;
+    if (naira !== null && (!Number.isFinite(naira) || naira <= 0)) {
+      setError('Enter the refund amount in naira, or leave it empty for the full remaining amount.');
+      return;
+    }
+    if (!confirm(`Refund ${naira === null ? formatNairaFromKobo(remaining) : `₦${naira}`} through Paystack? This sends money back to the payer.`)) return;
+    setBusy(true);
+    try {
+      const result = await apiClient.post<{ code: string; refund: RefundView }>('/admin/refunds', {
+        reference,
+        amountKobo: naira === null ? undefined : Math.round(naira * 100),
+        revokeAccess: revoke === 'yes',
+        reason,
+        requestId,
+      });
+      setNotice(
+        result.code === 'refund_uncertain'
+          ? 'Paystack did not answer clearly. The request is kept as "not confirmed"; refresh it, or check the Paystack dashboard.'
+          : 'Refund submitted to Paystack. Access changes only once Paystack reports it processed.'
+      );
+      setRequestId(newRequestId());
+      setAmount('');
+      setReason('');
+      setRevoke('');
+      await load();
+      onChanged();
+    } catch (reason) {
+      setError(messageFromUnknown(reason) || 'The refund could not be started.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function act(id: string, action: 'refresh' | 'close_uncertain') {
+    setError('');
+    setNotice('');
+    let why = '';
+    if (action === 'close_uncertain') {
+      why = prompt('Confirm you checked the Paystack dashboard and no refund exists. Reason:') || '';
+      if (!why.trim()) return;
+    }
+    setBusy(true);
+    try {
+      await apiClient.post(`/admin/refunds/${encodeURIComponent(id)}`, action === 'refresh' ? { action } : { action, reason: why });
+      setNotice(action === 'refresh' ? 'Refund status refreshed from Paystack.' : 'Request closed as not created.');
+      await load();
+      onChanged();
+    } catch (reason) {
+      setError(messageFromUnknown(reason) || 'The refund could not be updated.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section>
+      <h3 className="text-base font-semibold">Refunds</h3>
+      {error ? <p className="mt-2 text-sm text-red-700" role="alert">{error}</p> : null}
+      {notice ? <p className="mt-2 text-sm font-semibold" role="status">{notice}</p> : null}
+      {data ? (
+        <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
+          Refunded {formatNairaFromKobo(data.summary.refundedKobo)} of {formatAmount(amountKobo, 'NGN')}
+          {data.summary.pendingKobo ? ` · ${formatNairaFromKobo(data.summary.pendingKobo)} in progress` : ''}
+        </p>
+      ) : null}
+      {data && data.refunds.length ? (
+        <ul className="mt-3 space-y-2 text-sm">
+          {data.refunds.map((r) => (
+            <li key={r.id} className="rounded-xl border border-neutral-200 p-3 dark:border-neutral-700">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="font-semibold">{formatNairaFromKobo(r.amountKobo)} · {REFUND_STATUS_LABELS[r.status] || r.status}</span>
+                <span className="text-xs text-neutral-600 dark:text-neutral-400">{formatDate(r.requestedAt)}</span>
+              </div>
+              <p className="mt-1 text-neutral-700 dark:text-neutral-300">
+                {r.initiatedBy === 'external' ? 'Made in the Paystack dashboard. ' : ''}
+                {r.revokeAccess ? 'Removes access when processed. ' : 'Access unchanged. '}
+                {r.accessOutcome === 'revoked' ? 'Access removed. ' : ''}
+                {r.reason}
+              </p>
+              {r.providerMessage ? <p className="mt-1 text-xs text-neutral-600 dark:text-neutral-400">Paystack: {r.providerMessage}</p> : null}
+              {['requested', 'pending', 'processing', 'needs_attention', 'uncertain'].includes(r.status) ? (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button type="button" disabled={busy} onClick={() => act(r.id, 'refresh')} className="rounded-full border border-neutral-400 px-3 py-1 text-xs font-semibold disabled:opacity-40">Refresh from Paystack</button>
+                  {r.status === 'uncertain' && !r.providerRefundId ? (
+                    <button type="button" disabled={busy} onClick={() => act(r.id, 'close_uncertain')} className="rounded-full border border-neutral-400 px-3 py-1 text-xs font-semibold disabled:opacity-40">No refund in Paystack: close</button>
+                  ) : null}
+                </div>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      ) : data ? (
+        <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">No refunds recorded.</p>
+      ) : null}
+      {remaining > 0 && !open ? (
+        <form onSubmit={submit} className="mt-4 space-y-3 rounded-xl border border-neutral-200 p-3 dark:border-neutral-700">
+          <label className="block text-sm">
+            <span className="font-semibold">Amount in naira</span> (empty = full remaining {formatNairaFromKobo(remaining)})
+            <input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" className="mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2 dark:bg-neutral-900" />
+          </label>
+          <fieldset className="text-sm">
+            <legend className="font-semibold">Course access once Paystack processes the refund</legend>
+            <label className="mt-1 flex items-center gap-2">
+              <input type="radio" name="revoke" checked={revoke === 'no'} onChange={() => setRevoke('no')} /> Keep access
+            </label>
+            <label className="mt-1 flex items-center gap-2">
+              <input type="radio" name="revoke" checked={revoke === 'yes'} disabled={!grantedAccess} onChange={() => setRevoke('yes')} /> Remove access (full refunds only)
+            </label>
+          </fieldset>
+          <label className="block text-sm">
+            <span className="font-semibold">Reason</span> (kept in the audit trail)
+            <textarea value={reason} onChange={(e) => setReason(e.target.value)} minLength={3} maxLength={500} required className="mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2 dark:bg-neutral-900" />
+          </label>
+          <button type="submit" disabled={busy} className="rounded-full bg-red-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">
+            {busy ? 'Working…' : 'Refund through Paystack'}
+          </button>
+        </form>
+      ) : null}
+    </section>
+  );
+}
+
+/** One bounded reconciliation pass with Paystack (Super Admin). */
+function ReconcilePanel() {
+  const [report, setReport] = useState<ReconciliationReport | null>(null);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  async function run() {
+    setBusy(true);
+    setError('');
+    try {
+      setReport(await apiClient.post<ReconciliationReport>('/admin/payments/reconcile', { verifySample: 5 }));
+    } catch (reason) {
+      setError(messageFromUnknown(reason) || 'Reconciliation could not run.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="mb-6 rounded-2xl border border-neutral-200 p-4 dark:border-neutral-700">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-base font-semibold">Reconcile with Paystack</h2>
+          <p className="text-sm text-neutral-600 dark:text-neutral-400">
+            Finishes confirmations that stopped, settles checkouts Paystack reports paid, refreshes refunds, and lists anything that needs a person. It never charges or refunds.
+          </p>
+        </div>
+        <button type="button" onClick={run} disabled={busy} className="rounded-full border border-neutral-400 px-4 py-2 text-sm font-semibold disabled:opacity-40">
+          {busy ? 'Running…' : 'Run reconciliation'}
+        </button>
+      </div>
+      {error ? <p className="mt-2 text-sm text-red-700" role="alert">{error}</p> : null}
+      {report ? (
+        <div className="mt-3 text-sm">
+          <p>Checked {formatDate(report.checkedAt)}. {report.items.length ? '' : 'Nothing to report.'}</p>
+          {report.items.length ? (
+            <ul className="mt-2 max-h-64 space-y-1 overflow-y-auto">
+              {report.items.map((item, i) => (
+                <li key={`${item.type}-${item.reference}-${i}`} className="break-all">
+                  <span className="font-semibold">{item.type}</span> · {item.reference || '—'} · {item.action}{item.detail ? ` (${item.detail})` : ''}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
 function DetailPanel({ id, onClose }: { id: string; onClose: () => void }) {
   const [detailId, setDetailId] = useState(id);
   const [detail, setDetail] = useState<Detail | null>(null);
@@ -419,6 +650,15 @@ function DetailPanel({ id, onClose }: { id: string; onClose: () => void }) {
                 </div>
               ) : null}
             </section>
+
+            {record.paystackReference && record.paymentStatus === 'success' ? (
+              <RefundsSection
+                reference={record.paystackReference}
+                amountKobo={record.amountKobo}
+                grantedAccess={record.accessStatus !== 'none' && detail.linked.payment?.entitlementApplied !== false}
+                onChanged={load}
+              />
+            ) : null}
 
             <section className="space-y-3">
               <h3 className="text-base font-semibold">Linked records</h3>
@@ -746,7 +986,7 @@ export default function AdminPurchases() {
           <p className="page-kicker">Super admin</p>
           <h1 className="page-title mt-2">Course purchases</h1>
           <p className="mt-2 max-w-3xl text-sm text-neutral-600 dark:text-neutral-400">
-            Trace each course purchase from checkout to payment to access. This page is for investigation only: it never grants, revokes, reassigns, charges, or refunds. A payer email that differs from the student&apos;s is a warning, not proof of a problem.
+            Trace each course purchase from checkout to payment to access. The ledger never grants, reassigns or charges. Refunds are made only from a purchase&apos;s detail panel, through Paystack, and change access only when you choose it for a full refund and Paystack reports it processed. A payer email that differs from the student&apos;s is a warning, not proof of a problem.
           </p>
           <Link href="/admin" className="mt-3 inline-flex text-sm font-semibold underline">Back to admin panel</Link>
           <div className="mt-6 flex flex-wrap gap-1 rounded-xl bg-neutral-100 p-1 dark:bg-neutral-800" role="tablist">
@@ -764,6 +1004,7 @@ export default function AdminPurchases() {
             ))}
           </div>
           <div className="mt-6">
+            {tab === 'ledger' ? <ReconcilePanel /> : null}
             {tab === 'ledger' ? <LedgerTab /> : null}
             {tab === 'exceptions' ? <ExceptionsTab /> : null}
             {tab === 'audit' ? <AuditTab /> : null}

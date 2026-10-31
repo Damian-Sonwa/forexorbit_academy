@@ -842,6 +842,41 @@ app.prepare().then(async () => {
   }, 3000);
 
 
+  // Payment recovery (lib/payment-reconciliation.js): a bounded pass that finishes confirmations
+  // that stopped part-way and settles checkouts Paystack reports paid but nobody confirmed (lost
+  // webhook, closed browser), and refreshes open refunds. Only where payments are enabled.
+  // PAYMENT_RECONCILE_INTERVAL_MINUTES (default 15) sets the interval; 0 turns it off.
+  const { decidePaymentEnvironment, fetchPaystackTransaction } = require('./lib/course-payment');
+  const reconcileMinutes = Number(process.env.PAYMENT_RECONCILE_INTERVAL_MINUTES ?? 15);
+  if (decidePaymentEnvironment(process.env).enabled && Number.isFinite(reconcileMinutes) && reconcileMinutes > 0) {
+    const { runReconciliation } = require('./lib/payment-reconciliation');
+    const { fetchPaystackRefund, listPaystackRefunds } = require('./lib/payment-refunds');
+    const secret = () => process.env.PAYSTACK_SECRET_KEY;
+    let reconciling = false;
+    const reconcile = async () => {
+      if (reconciling) return;
+      reconciling = true;
+      try {
+        const { getDb } = require('./lib/mongodb');
+        const report = await runReconciliation(await getDb(), {
+          apply: true,
+          limit: 10,
+          fetchTransaction: (reference) => fetchPaystackTransaction(reference, { secret: secret() }),
+          fetchRefund: (id) => fetchPaystackRefund(id, { secret: secret() }),
+          listRefunds: (transactionId) => listPaystackRefunds(transactionId, { secret: secret() }),
+        });
+        const repaired = report.items.filter((item) => ['granted', 'held_duplicate', 'refreshed', 'found_at_provider', 'finalized'].includes(item.action)).length;
+        console.log(JSON.stringify({ event: 'paymentReconcile', repaired, counts: report.counts }));
+      } catch {
+        console.error(JSON.stringify({ event: 'paymentReconcile', result: 'failed' }));
+      } finally {
+        reconciling = false;
+      }
+    };
+    setTimeout(reconcile, 2 * 60 * 1000).unref();
+    setInterval(reconcile, Math.max(1, reconcileMinutes) * 60 * 1000).unref();
+  }
+
   server.listen(port, hostname, (err) => {
     if (err) throw err;
     const serverUrl = process.env.NODE_ENV === 'production' 

@@ -5,12 +5,17 @@
  *
  * Responds 200 only after the event is processed or durably recorded for review; otherwise
  * 500 so Paystack retries.
+ *
+ * The signed event is a trigger, not the evidence: `charge.success` is re-verified with Paystack
+ * (GET /transaction/verify) and refund events with GET /refund/:id before anything is granted or a
+ * refund is marked processed. An uncertain lookup answers 500 so Paystack delivers again.
  */
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getDb } from '@/lib/mongodb';
 import { decidePaymentEnvironment, processWebhookEvent, verifyWebhookSignature } from '@/lib/course-payment';
-import { logPayment, newSupportId } from '@/lib/payment-route';
+import { processRefundEvent } from '@/lib/payment-refunds';
+import { logPayment, lookupPaystackRefund, lookupPaystackTransaction, newSupportId } from '@/lib/payment-route';
 
 export const config = {
   api: {
@@ -77,7 +82,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const reference = (payload as { data?: { reference?: unknown } })?.data?.reference;
   try {
     const db = await getDb();
-    const outcome = await processWebhookEvent(db, payload);
+    const outcome = await processWebhookEvent(db, payload, new Date(), {
+      fetchTransaction: lookupPaystackTransaction,
+      onRefundEvent: (refundEvent, data, at) => processRefundEvent(db, refundEvent, data, { fetchRefund: lookupPaystackRefund, now: at }),
+    });
     logPayment('webhook', {
       supportId,
       event: typeof event === 'string' ? event : null,

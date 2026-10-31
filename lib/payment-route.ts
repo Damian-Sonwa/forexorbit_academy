@@ -16,6 +16,14 @@ import {
   presentConfirmResult,
   type ProviderLookup,
 } from '@/lib/course-payment';
+import {
+  createPaystackRefund,
+  fetchPaystackRefund,
+  listPaystackRefunds,
+  type RefundCreate,
+  type RefundListLookup,
+  type RefundLookup,
+} from '@/lib/payment-refunds';
 
 const LIMIT_WINDOW_MS = 10 * 60 * 1000;
 const LIMITS = { init: 10, confirm: 30 } as const;
@@ -33,6 +41,19 @@ export function logPayment(tag: string, fields: Record<string, string | number |
 
 export function lookupPaystackTransaction(reference: string): Promise<ProviderLookup> {
   return fetchPaystackTransaction(reference, { secret: process.env.PAYSTACK_SECRET_KEY });
+}
+
+/** Server-side Paystack Refund API calls; the secret key never leaves the server. */
+export function createRefundWithPaystack(input: { reference: string; amountKobo: number; merchantNote: string }): Promise<RefundCreate> {
+  return createPaystackRefund({ ...input, secret: process.env.PAYSTACK_SECRET_KEY });
+}
+
+export function lookupPaystackRefund(id: string): Promise<RefundLookup> {
+  return fetchPaystackRefund(id, { secret: process.env.PAYSTACK_SECRET_KEY });
+}
+
+export function listPaystackRefundsFor(transactionId: string): Promise<RefundListLookup> {
+  return listPaystackRefunds(transactionId, { secret: process.env.PAYSTACK_SECRET_KEY });
 }
 
 /** Sends the denial and returns false when payments must not run in this environment. */

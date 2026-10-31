@@ -146,7 +146,12 @@ function memoryDb() {
 // The real route, with only the database and logger swapped.
 // ---------------------------------------------------------------------------
 
-const harness = { db: null, getDbCalls: 0, getDbError: null, logs: [] };
+/**
+ * The route re-verifies charge.success with Paystack (lookupPaystackTransaction). By default the
+ * stub answers with the delivered event's own data, i.e. Paystack agrees with its signed event;
+ * a test sets `harness.provider` to make Paystack disagree or be unreachable.
+ */
+const harness = { db: null, getDbCalls: 0, getDbError: null, logs: [], lastData: null, provider: null, refundProvider: null };
 
 function loadRoute() {
   const source = fs.readFileSync(ROUTE, 'utf8');
@@ -166,7 +171,12 @@ function loadRoute() {
     '@/lib/payment-route': {
       newSupportId: () => crypto.randomUUID(),
       logPayment: (tag, fields) => harness.logs.push({ tag, ...fields }),
+      lookupPaystackTransaction: async (reference) => (harness.provider
+        ? harness.provider(reference)
+        : { outcome: 'found', data: harness.lastData || {} }),
+      lookupPaystackRefund: async (id) => (harness.refundProvider ? harness.refundProvider(id) : { outcome: 'not_found' }),
     },
+    '@/lib/payment-refunds': require('../lib/payment-refunds'),
   };
   const routeModule = { exports: {} };
   const localRequire = (id) => {
@@ -187,6 +197,12 @@ const sign = (raw, secret = SECRET) => crypto.createHmac('sha512', secret).updat
 
 async function deliver(body, { signature, method = 'POST', raw } = {}) {
   const buffer = raw || Buffer.from(typeof body === 'string' ? body : JSON.stringify(body));
+  try {
+    const parsed = JSON.parse(buffer.toString('utf8'));
+    harness.lastData = parsed && parsed.data && typeof parsed.data === 'object' ? parsed.data : null;
+  } catch {
+    harness.lastData = null;
+  }
   const headers = { 'content-type': 'application/json' };
   const sig = signature === undefined ? sign(buffer) : signature;
   if (sig !== null) headers['x-paystack-signature'] = sig;
@@ -274,6 +290,8 @@ test.after(() => {
 
 test.beforeEach(() => {
   harness.db = memoryDb();
+  harness.provider = null;
+  harness.refundProvider = null;
   harness.getDbCalls = 0;
   harness.getDbError = null;
   harness.logs = [];
@@ -754,13 +772,16 @@ test('7b. refund and dispute events after a verified payment are recorded and le
   for (const [i, event] of ['refund.processed', 'charge.dispute.create', 'charge.dispute.resolve'].entries()) {
     const res = await deliver({ event, data: { id: 99000 + i, transaction_reference: intent.reference, amount: 1000000, currency: 'NGN' } });
     assert.equal(res.status, 200, event);
-    assert.equal(lastLog().code, 'recorded_for_review', event);
+    // Phase 5: a refund made outside the app is stored as an external refund record (here Paystack
+    // cannot confirm it, so it stays unconfirmed) and flagged; disputes are recorded for review.
+    assert.equal(lastLog().code, event.startsWith('refund.') ? 'external_refund_recorded' : 'recorded_for_review', event);
   }
   assert.equal(JSON.stringify(db.rows(COLLECTIONS.courseAccess)), access);
   assert.equal(JSON.stringify(db.rows(COLLECTIONS.coursePurchases)), purchases);
   assert.equal(JSON.stringify(db.rows(COLLECTIONS.payments)), payments);
   assert.equal(await payment.hasCourseEntitlement(db, STUDENT, COURSE), true);
   assert.deepEqual(db.rows(COLLECTIONS.exceptions).map((row) => row.reason).sort(), ['dispute_unhandled', 'refund_unhandled']);
+  assert.deepEqual(db.rows(COLLECTIONS.refunds).map((row) => [row.initiatedBy, row.status, row.revokeAccess]), [['external', 'uncertain', false]]);
 });
 
 test('7c. a delayed charge on a superseded checkout is held for review and grants nothing', async () => {
@@ -804,4 +825,44 @@ test('source contract: the harness runs the route file as written, with no signa
   assert.equal(route.config.api.bodyParser, false);
   assert.match(source, /verifyWebhookSignature\(rawBody, process\.env\.PAYSTACK_SECRET_KEY/);
   assert.equal(/NODE_ENV|SKIP_SIGNATURE|bypass\s*=/.test(source.replace(/There is no bypass[^\n]*/, '')), false);
+});
+
+// ---------------------------------------------------------------------------
+// Phase 5: the signed event is a trigger; Paystack's verify answer is the evidence.
+// ---------------------------------------------------------------------------
+
+test('P5. a signed charge.success that Paystack does not confirm grants nothing', async () => {
+  const db = harness.db;
+  const intent = await startCheckout(db);
+  harness.provider = async () => ({ outcome: 'found', data: { ...chargeSuccess(intent).data, status: 'failed' } });
+  const res = await deliver(chargeSuccess(intent));
+  assert.equal(res.status, 200);
+  assert.equal(lastLog().code, 'payment_not_successful');
+  assert.equal(await payment.hasCourseEntitlement(db, STUDENT, COURSE), false);
+  assert.equal(db.rows(COLLECTIONS.payments).length, 0);
+});
+
+test('P5. a signed charge.success whose amount Paystack reports differently is held as an exception, not granted', async () => {
+  const db = harness.db;
+  const intent = await startCheckout(db);
+  harness.provider = async () => ({ outcome: 'found', data: { ...chargeSuccess(intent).data, amount: 500000 } });
+  const res = await deliver(chargeSuccess(intent));
+  assert.equal(res.status, 200);
+  assert.equal(lastLog().code, 'amount_mismatch');
+  assert.equal(await payment.hasCourseEntitlement(db, STUDENT, COURSE), false);
+});
+
+test('P5. when Paystack cannot be reached the webhook answers 500 (Paystack retries) and writes nothing', async () => {
+  const db = harness.db;
+  const intent = await startCheckout(db);
+  harness.provider = async () => ({ outcome: 'uncertain', reason: 'timeout' });
+  const res = await deliver(chargeSuccess(intent));
+  assert.equal(res.status, 500);
+  assert.equal(await payment.hasCourseEntitlement(db, STUDENT, COURSE), false);
+  assert.equal(db.rows(COLLECTIONS.payments).length, 0);
+  assert.equal(await intentStatus(db, intent), 'pending', 'released for the retry');
+  harness.provider = null;
+  const retry = await deliver(chargeSuccess(intent));
+  assert.equal(retry.status, 200);
+  assert.equal(await payment.hasCourseEntitlement(db, STUDENT, COURSE), true, 'the retried delivery grants');
 });

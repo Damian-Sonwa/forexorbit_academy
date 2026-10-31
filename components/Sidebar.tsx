@@ -48,6 +48,12 @@ const CertificatesIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
+const PaymentsIcon = ({ className }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h2m4 0h4M5 6h14a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2z" />
+  </svg>
+);
+
 const ProfileIcon = ({ className }: { className?: string }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -135,6 +141,7 @@ export default function Sidebar({ }: SidebarProps) {
     { href: '/certificates', label: 'Certificates', icon: CertificatesIcon, group: 'Community' },
     { href: '/community', label: 'Community', icon: CommunityIcon, group: 'Community' },
     { href: '/consultations', label: 'Expert Consultation', icon: ConsultationIcon, group: 'Community' },
+    { href: '/payments', label: 'Payments', icon: PaymentsIcon, group: 'Account' },
     { href: '/profile', label: 'Profile', icon: ProfileIcon, group: 'Account' },
   ];
 
