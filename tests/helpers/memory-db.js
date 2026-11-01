@@ -20,6 +20,8 @@ function same(a, b) {
 function getPath(doc, path) {
   return path.split('.').reduce((value, key) => {
     if (value == null) return undefined;
+    // A numeric segment on an array is a position, as in MongoDB ("completedLessons.3").
+    if (Array.isArray(value) && /^\d+$/.test(key)) return value[Number(key)];
     if (Array.isArray(value)) return value.map((item) => (item == null ? undefined : item[key]));
     return value[key];
   }, doc);

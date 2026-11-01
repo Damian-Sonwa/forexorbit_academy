@@ -11,7 +11,7 @@ const { parseArgs, compareIndex, run } = require('../scripts/learning-indexes');
 
 function fakeDb(existing = {}) {
   const indexes = {};
-  for (const name of ['progress', 'lessons', 'quizScores', 'notifications', 'demoTradeJournal', 'users']) {
+  for (const name of ['progress', 'lessons', 'quizScores', 'notifications', 'demoTradeJournal', 'users', 'learningDays', 'learningMinutes']) {
     indexes[name] = [{ name: '_id_', key: { _id: 1 } }, ...(existing[name] || [])];
   }
   const writes = [];
@@ -73,6 +73,28 @@ test('apply refuses when an existing index has the same key or name with another
     assert.equal(result.ok, false);
     assert.equal(db.writes.length, 0);
   }
+});
+
+test('Phase 8: apply builds indexes for collections that do not exist yet, and checks the TTL', async () => {
+  const db = fakeDb();
+  delete db.indexes.learningDays;
+  delete db.indexes.learningMinutes;
+  const listed = db.listCollections;
+  db.listCollections = () => ({ toArray: async () => (await listed().toArray()).filter((c) => db.indexes[c.name]) });
+  const created = db.collection.bind(db);
+  db.collection = (name) => {
+    if (!db.indexes[name]) db.indexes[name] = [{ name: '_id_', key: { _id: 1 } }];
+    return created(name);
+  };
+  const plan = await run(db, { mode: 'plan', log: quiet });
+  assert.deepEqual(plan.states.filter((s) => s.state === 'no collection').map((s) => s.definition.id).sort(), ['L8', 'L9']);
+  const result = await run(db, { mode: 'apply', log: quiet });
+  assert.equal(result.ok, true);
+  assert.ok(db.writes.some(([, collection, name]) => collection === 'learningMinutes' && name === 'ttl_learning_minutes'));
+  const ttl = LEARNING_INDEXES.find((d) => d.id === 'L9');
+  assert.equal(ttl.options.expireAfterSeconds, 90 * 24 * 60 * 60);
+  assert.equal(compareIndex(ttl, [{ name: 'ttl_learning_minutes', key: { at: 1 }, expireAfterSeconds: 60 }]), 'conflicting', 'another expiry is a conflict');
+  assert.equal(compareIndex(ttl, [{ name: 'ttl_learning_minutes', key: { at: 1 }, expireAfterSeconds: 7776000 }]), 'present');
 });
 
 test('rollback drops only the indexes this script owns', async () => {

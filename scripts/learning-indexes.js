@@ -27,7 +27,9 @@ const sameKey = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 /** present | missing | conflicting (same name or key with a different definition). */
 function compareIndex(definition, existing) {
   const byName = existing.find((index) => index.name === definition.options.name);
-  if (byName) return sameKey(byName.key, definition.key) && !byName.unique ? 'present' : 'conflicting';
+  // A TTL index (Phase 8, L9) must also expire after the same time.
+  const sameTtl = (index) => (index.expireAfterSeconds ?? null) === (definition.options.expireAfterSeconds ?? null);
+  if (byName) return sameKey(byName.key, definition.key) && !byName.unique && sameTtl(byName) ? 'present' : 'conflicting';
   const byKey = existing.find((index) => sameKey(index.key, definition.key));
   if (byKey) return 'conflicting';
   return 'missing';
@@ -56,12 +58,14 @@ async function run(db, { mode, log = console.log }) {
       return { ok: false, states };
     }
     for (const { definition, state } of states) {
-      if (state !== 'missing') continue;
+      // A collection that does not exist yet (Phase 8's learningDays / learningMinutes before the
+      // first write) gets its index now; createIndex creates the empty collection.
+      if (state !== 'missing' && state !== 'no collection') continue;
       await db.collection(definition.collection).createIndex(definition.key, definition.options);
       log(`Built ${definition.id} (${definition.options.name}).`);
     }
     const after = await indexStates(db);
-    const missing = after.filter((s) => s.state === 'missing' || s.state === 'conflicting');
+    const missing = after.filter((s) => s.state !== 'present');
     log(missing.length ? `Not verified: ${missing.map((s) => s.definition.id).join(', ')}.` : 'Verified: every learning index is present.');
     return { ok: missing.length === 0, states: after };
   }

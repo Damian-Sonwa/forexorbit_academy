@@ -38,6 +38,8 @@ interface ProgressItem {
   };
   totalLessons: number;
   completedLessonsCount: number;
+  /** Phase 8: from the server's completion rule (completedAt is permanent; lib/course-progress.js). */
+  status?: 'completed' | 'in_progress' | 'not_started';
   active?: boolean;
   countsTowardActiveTotals?: boolean;
   quizScores?: Array<{
@@ -157,7 +159,9 @@ export default function Progress() {
     // Calculate overall stats
     const activeRows = progress.filter((item) => item.countsTowardActiveTotals === true);
     const totalCourses = activeRows.length;
-    const completedCourses = activeRows.filter((item) => item.progress >= 100).length;
+    // A course stays completed once completedAt is recorded, even if lessons were added since.
+    const isCompleted = (item: ProgressItem) => (item.status ? item.status === 'completed' : item.progress >= 100);
+    const completedCourses = activeRows.filter(isCompleted).length;
     const avgProgress = activeRows.length > 0
       ? Math.round(activeRows.reduce((sum, item) => sum + item.progress, 0) / activeRows.length)
       : 0;
@@ -349,7 +353,7 @@ export default function Progress() {
                       href={`/courses/${item.courseId}`}
                       className="inline-flex items-center justify-center w-full px-4 py-3 bg-primary-600 hover:bg-primary-700 dark:bg-primary-600 dark:hover:bg-primary-700 text-white rounded-xl font-semibold shadow-md hover:shadow-lg transition-all"
                     >
-                      {item.progress >= 100 ? 'View Certificate' : 'Continue Learning'}
+                      {isCompleted(item) ? 'View Certificate' : 'Continue Learning'}
                       <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                       </svg>

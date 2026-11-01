@@ -1,6 +1,8 @@
 /**
  * Student learning home.
  * One continuation, a short progress summary, and one catalog suggestion.
+ * Phase 8: everything about progress comes from GET /api/progress/summary (one request, from
+ * persisted records, kept in sync across tabs and devices) instead of one request per course.
  * The course library stays on /courses.
  */
 
@@ -16,21 +18,13 @@ import { LoadingStatus, MetricSkeleton } from '@/components/loading';
 import { resolveLoadingPresentation } from '@/lib/loading-presentation';
 import RemindersPanel from '@/components/RemindersPanel';
 import { useAuth } from '@/hooks/useAuth';
-import { useProgress } from '@/hooks/useProgress';
+import { useProgressSummary } from '@/hooks/useProgressSummary';
 import { useCourses } from '@/hooks/useCourses';
-import { countsTowardActiveTotals, sumActiveCompletedLessons } from '@/lib/enrollment-state';
+import { CourseLists, LearningStatsTiles, RecentActivity } from '@/components/student/LearningSummary';
 import { apiClient } from '@/lib/api-client';
 import { sanitizeForStudentView } from '@/lib/html-sanitizer';
 import { previewText } from '@/lib/plain-text';
 import { ArrowRight } from 'lucide-react';
-
-interface UpcomingLesson {
-  courseId: string;
-  courseTitle: string;
-  lessonId: string;
-  lessonTitle: string;
-  order: number;
-}
 
 interface UpcomingConsultation {
   _id: string;
@@ -41,10 +35,9 @@ interface UpcomingConsultation {
 
 export default function Dashboard() {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
-  const { progress, loading: progressLoading, error: progressError, refetch: refetchProgress } = useProgress();
+  const { summary, loading: progressLoading, error: progressError, refetch: refetchProgress } = useProgressSummary(Boolean(isAuthenticated && user?.role === 'student'));
   const { courses } = useCourses();
   const router = useRouter();
-  const [upcomingLessons, setUpcomingLessons] = useState<UpcomingLesson[]>([]);
   const [consultations, setConsultations] = useState<UpcomingConsultation[]>([]);
   const [loadingData, setLoadingData] = useState(true);
 
@@ -53,25 +46,6 @@ export default function Dashboard() {
 
     try {
       setLoadingData(true);
-      try {
-        const activeRows = progress.filter((row) => countsTowardActiveTotals(row) && row.course && row.progress > 0 && row.progress < 100);
-        const lessons = await Promise.all(activeRows.map(async (row) => {
-          const courseLessons = await apiClient.get<Array<{ _id?: string; id?: string; title: string; order?: number }>>(`/lessons?courseId=${row.courseId}&outline=1`);
-          const nextLesson = (Array.isArray(courseLessons) ? courseLessons : []).find((lesson) => !row.completedLessons?.includes(lesson._id || lesson.id || ''));
-          if (!nextLesson) return null;
-          const lesson: UpcomingLesson = {
-            courseId: row.courseId,
-            courseTitle: row.course?.title || 'Course',
-            lessonId: nextLesson._id || nextLesson.id || '',
-            lessonTitle: nextLesson.title,
-            order: nextLesson.order || 0,
-          };
-          return lesson;
-        }));
-        setUpcomingLessons(lessons.filter((lesson): lesson is UpcomingLesson => lesson !== null).slice(0, 3));
-      } catch {
-        setUpcomingLessons([]);
-      }
 
       try {
         const rows = await apiClient.get<UpcomingConsultation[]>('/consultations/requests');
@@ -124,11 +98,11 @@ export default function Dashboard() {
   }, [isAuthenticated, authLoading, user, router]);
 
   useEffect(() => {
-    if (isAuthenticated && user && !progressLoading) {
+    if (isAuthenticated && user) {
       fetchDashboardData();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated, user, progressLoading, progress]);
+  }, [isAuthenticated, user]);
 
   const sessionBlocked = authLoading || !isAuthenticated || !user || user.role !== 'student';
   const progressView = resolveLoadingPresentation({
@@ -136,7 +110,7 @@ export default function Dashboard() {
     authorized: true,
     dataLoading: progressLoading || loadingData,
     error: progressError,
-    hasData: progress.length > 0,
+    hasData: Boolean(summary),
   });
 
   if (sessionBlocked) {
@@ -165,19 +139,18 @@ export default function Dashboard() {
     );
   }
 
-  const activeProgress = progress.filter((row) => countsTowardActiveTotals(row));
-  const enrolledCourses = courses.filter((course) => course.enrolled);
-  const completedLessons = sumActiveCompletedLessons(progress);
-  const finishedCourses = activeProgress.filter((row) => row.progress >= 100).length;
-  const nextLesson = upcomingLessons[0];
+  const enrolledCount = summary ? summary.totals.enrolled : courses.filter((course) => course.enrolled).length;
+  const completedLessons = summary ? summary.totals.completedLessons : 0;
+  // Continue learning (lib/progress-summary.js): last viewed course and lesson from the server.
+  const nextLesson = summary?.continue || null;
   const continueCourse = nextLesson
     ? courses.find((course) => (course._id || course.id) === nextLesson.courseId)
     : undefined;
-  const continueProgress = nextLesson
-    ? activeProgress.find((row) => row.courseId === nextLesson.courseId)
-    : undefined;
+  const continueHref = nextLesson
+    ? nextLesson.lessonId ? `/courses/${nextLesson.courseId}/lessons/${nextLesson.lessonId}` : `/courses/${nextLesson.courseId}`
+    : '/courses';
   const catalogSuggestion = courses.find((course) => !course.enrolled);
-  const started = enrolledCourses.length > 0 || completedLessons > 0;
+  const started = enrolledCount > 0 || completedLessons > 0;
 
   return (
     <div className="min-h-screen flex flex-col overflow-hidden">
@@ -210,7 +183,7 @@ export default function Dashboard() {
           </header>
 
           {nextLesson ? (
-            <section className="mb-10 border-t border-neutral-200 pt-8">
+            <section className="mb-10 border-t border-neutral-200 pt-8" data-testid="continue-learning">
               <p className="page-kicker">Continue learning</p>
               <div className="mt-4 flex flex-col gap-5 rounded-2xl border border-neutral-200 bg-white p-4 shadow-soft sm:flex-row sm:items-center sm:p-5">
                 <CourseCover
@@ -219,24 +192,24 @@ export default function Dashboard() {
                 />
                 <div className="min-w-0 flex-1">
                   <p className="text-sm text-neutral-500">{nextLesson.courseTitle}</p>
-                  <h2 className="mt-1 font-display text-2xl font-semibold tracking-tight text-neutral-900" dangerouslySetInnerHTML={{ __html: sanitizeForStudentView(nextLesson.lessonTitle) }} />
-                  {typeof continueProgress?.progress === 'number' ? (
+                  <h2 className="mt-1 font-display text-2xl font-semibold tracking-tight text-neutral-900" dangerouslySetInnerHTML={{ __html: sanitizeForStudentView(nextLesson.lessonTitle || 'Unlock the course to continue') }} />
+                  {typeof nextLesson.percent === 'number' ? (
                     <div className="mt-3 max-w-sm">
-                      <p className="text-sm text-neutral-600">{Math.round(continueProgress.progress)}% of this course</p>
+                      <p className="text-sm text-neutral-600">{Math.round(nextLesson.percent)}% of this course</p>
                       <div
                         className="mt-2 h-1.5 overflow-hidden rounded-full bg-neutral-100"
                         role="progressbar"
-                        aria-valuenow={Math.round(continueProgress.progress)}
+                        aria-valuenow={Math.round(nextLesson.percent)}
                         aria-valuemin={0}
                         aria-valuemax={100}
                         aria-label={`${nextLesson.courseTitle} progress`}
                       >
-                        <div className="h-full rounded-full bg-primary-500" style={{ width: `${Math.min(100, Math.max(0, continueProgress.progress))}%` }} />
+                        <div className="h-full rounded-full bg-primary-500" style={{ width: `${Math.min(100, Math.max(0, nextLesson.percent))}%` }} />
                       </div>
                     </div>
                   ) : null}
                   <Link
-                    href={`/courses/${nextLesson.courseId}/lessons/${nextLesson.lessonId}`}
+                    href={continueHref}
                     className="btn btn-primary mt-5 rounded-full px-5 py-2.5"
                   >
                     Continue learning
@@ -252,7 +225,7 @@ export default function Dashboard() {
               <p className="mt-2 max-w-xl text-sm text-neutral-600">Your enrollments are unchanged. Try again before treating this as an empty enrollment list.</p>
               <button type="button" onClick={() => refetchProgress()} className="btn btn-primary mt-5 rounded-full px-5 py-2.5">Try again</button>
             </section>
-          ) : enrolledCourses.length > 0 ? (
+          ) : enrolledCount > 0 ? (
             <section className="mb-10 border-t border-neutral-200 pt-8">
               <p className="page-kicker">Continue learning</p>
               <h2 className="mt-2 font-display text-2xl font-semibold tracking-tight text-neutral-900">You have finished the lessons in your current courses</h2>
@@ -276,20 +249,9 @@ export default function Dashboard() {
             </section>
           )}
 
-          <section className="mb-10 grid grid-cols-3 gap-3 sm:gap-4" aria-label="Learning progress">
-            <div className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-soft">
-              <p className="font-display text-2xl font-semibold text-neutral-900">{progressError ? '—' : enrolledCourses.length}</p>
-              <p className="mt-1 text-xs text-neutral-500">Active courses</p>
-            </div>
-            <div className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-soft">
-              <p className="font-display text-2xl font-semibold text-neutral-900">{progressError ? '—' : completedLessons}</p>
-              <p className="mt-1 text-xs text-neutral-500">Lessons completed</p>
-            </div>
-            <div className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-soft">
-              <p className="font-display text-2xl font-semibold text-neutral-900">{progressError ? '—' : finishedCourses}</p>
-              <p className="mt-1 text-xs text-neutral-500">Courses completed</p>
-            </div>
-          </section>
+          {progressError && !summary ? null : <LearningStatsTiles summary={summary} />}
+          {summary && <CourseLists summary={summary} />}
+          {summary && <RecentActivity summary={summary} />}
 
           {catalogSuggestion ? (
             <section className="mb-10">
@@ -300,25 +262,6 @@ export default function Dashboard() {
               <Link href={`/courses/${catalogSuggestion._id || catalogSuggestion.id}`} className="mt-3 inline-flex text-sm font-semibold text-primary-700 hover:underline">
                 View this course
               </Link>
-            </section>
-          ) : null}
-
-          {upcomingLessons.length > 1 ? (
-            <section className="mb-10">
-              <h2 className="font-display text-lg font-semibold text-neutral-900">Also waiting</h2>
-              <ul className="mt-3 divide-y divide-neutral-200">
-                {upcomingLessons.slice(1).map((lesson) => (
-                  <li key={`${lesson.courseId}-${lesson.lessonId}`}>
-                    <Link href={`/courses/${lesson.courseId}/lessons/${lesson.lessonId}`} className="flex items-center justify-between gap-4 py-3">
-                      <span className="min-w-0">
-                        <span className="block truncate font-medium text-neutral-900" dangerouslySetInnerHTML={{ __html: sanitizeForStudentView(lesson.lessonTitle) }} />
-                        <span className="block truncate text-sm text-neutral-500">{lesson.courseTitle}</span>
-                      </span>
-                      <span className="shrink-0 text-xs text-neutral-500">Lesson {lesson.order}</span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
             </section>
           ) : null}
 

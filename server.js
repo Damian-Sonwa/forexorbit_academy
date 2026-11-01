@@ -430,9 +430,12 @@ app.prepare().then(async () => {
           lessonId: decision.lessonId,
         });
         if (!recorded) return;
-        socket.emit('progressUpdated', {
+        // Phase 8: to every connection of this account (tabs and devices), as the HTTP route does.
+        io.to(`user:${decision.userId}`).emit('progressUpdated', {
           courseId: decision.courseId,
+          lessonId: decision.lessonId,
           progress: recorded.progress,
+          completedAt: recorded.completedAt || null,
         });
       } catch {
         console.error(JSON.stringify({ event: 'progressUpdate', result: 'failed' }));

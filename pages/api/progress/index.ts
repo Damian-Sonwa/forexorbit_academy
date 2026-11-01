@@ -91,6 +91,16 @@ async function updateProgress(req: AuthRequest, res: NextApiResponse) {
       console.error(JSON.stringify({ event: 'learningLevel', result: 'failed' }));
     });
 
+    // Phase 8: every open tab and device of this account learns the persisted result (the
+    // personal room `user:<id>` joined by server.js on connect). Clients still refetch from the
+    // server on focus, so a missed event only delays the update.
+    req.io?.to(`user:${decision.userId}`).emit('progressUpdated', {
+      courseId: decision.courseId,
+      lessonId: decision.lessonId,
+      progress: progressPercent,
+      completedAt: recorded.completedAt || null,
+    });
+
     res.json({ success: true, progress: progressPercent, completedAt: recorded.completedAt });
   } catch {
     console.error(JSON.stringify({ event: 'progressUpdate', result: 'failed' }));

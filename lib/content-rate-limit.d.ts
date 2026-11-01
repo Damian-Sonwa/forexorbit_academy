@@ -9,6 +9,8 @@ export const AUTHORING_RULES: readonly AuthRule[];
 export const UPLOAD_RULES: readonly AuthRule[];
 export const authoringLimiter: Limiter;
 export const uploadLimiter: Limiter;
+export const ACTIVITY_RULES: readonly AuthRule[];
+export const activityLimiter: Limiter;
 export function allowRequest(
   limiter: Limiter,
   input: {

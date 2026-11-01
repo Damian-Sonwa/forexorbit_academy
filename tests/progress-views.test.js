@@ -94,8 +94,35 @@ test('batched progress returns exactly what the per-enrollment version returned,
   const data = fixture(9);
   const expected = await referenceProgress(recordingDb(data), USER);
   const actual = await loadEnrollmentProgress(recordingDb(data), USER);
-  assert.deepEqual(actual, expected);
+  // Phase 8 changes completedLessonsCount (current lessons only) and adds status, completedAt and
+  // lastViewedAt; every other field must be exactly what the per-enrollment version returned.
+  const unchanged = ({ completedLessonsCount, status, completedAt, lastViewedAt, ...rest }) => rest;
+  assert.deepEqual(actual.map(unchanged), expected.map(unchanged));
   assert.equal(actual.length, 13);
+  const lessonIds = (courseId) => data.lessons.filter((l) => String(l.courseId) === String(courseId)).map((l) => String(l._id));
+  for (const row of actual) {
+    assert.equal(row.completedLessonsCount, row.completedLessons.filter((id) => lessonIds(row.courseId).includes(id)).length, row._id);
+  }
+});
+
+test('Phase 8: completed counts exclude deleted lessons, and a recorded completion stays completed', async () => {
+  const courseId = new ObjectId();
+  const kept = [new ObjectId(), new ObjectId(), new ObjectId()];
+  const data = {
+    courses: [{ _id: courseId, title: 'C', difficulty: 'beginner' }],
+    lessons: kept.map((id) => ({ _id: id, courseId: String(courseId) })),
+    progress: [{ _id: new ObjectId(), userId: USER, courseId: String(courseId), progress: 66.67, completedLessons: [String(kept[0]), String(kept[1]), 'deleted-1', 'deleted-2'], completedAt: new Date('2026-10-01T00:00:00Z'), lastViewedAt: new Date('2026-10-02T00:00:00Z') }],
+    quizScores: [],
+  };
+  const [row] = await loadEnrollmentProgress(recordingDb(data), USER);
+  assert.equal(row.completedLessonsCount, 2, 'not 4 (two of the ids are deleted lessons)');
+  assert.equal(row.totalLessons, 3);
+  assert.equal(row.status, 'completed', 'completedAt is permanent although a lesson was added since');
+  assert.equal(row.completedAt, '2026-10-01T00:00:00.000Z');
+  assert.equal(row.lastViewedAt, '2026-10-02T00:00:00.000Z');
+  data.progress[0].completedAt = undefined;
+  const [open] = await loadEnrollmentProgress(recordingDb(data), USER);
+  assert.equal(open.status, 'in_progress');
 });
 
 test('the number of queries does not grow with the number of enrollments', async () => {

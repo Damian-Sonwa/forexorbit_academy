@@ -25,6 +25,8 @@ import { useLesson, useLessons } from '@/hooks/useLesson';
 import { useSocket } from '@/hooks/useSocket';
 import { useAuth } from '@/hooks/useAuth';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
+import { useLearningActivity } from '@/hooks/useLearningActivity';
+import { useProgressSync } from '@/hooks/useProgressSync';
 import InstructorLessonEditor from '@/components/InstructorLessonEditor';
 import { sanitizeForStudentView } from '@/lib/html-sanitizer';
 import { safeLinkUrl } from '@/lib/safe-url';
@@ -143,6 +145,19 @@ export default function LessonPage() {
     if (lesson) setLesson({ ...lesson, completed: true });
     setLessons((list) => markCompleted(list, lessonId));
   }, [lesson, lessonId, setLesson, setLessons]);
+
+  // Phase 8: learning-time signals while a student studies an open lesson (idle or hidden tabs
+  // send nothing), and completions made in other tabs or devices reflected here.
+  const { markActive } = useLearningActivity(lessonId, user?.role === 'student' && lessonStatus === 'ready');
+  useProgressSync((event) => {
+    if (event) {
+      if (event.lessonId) setLessons((list) => markCompleted(list, event.lessonId as string));
+      if (event.lessonId === lessonId) setLesson((current) => (current ? { ...current, completed: true } : current));
+      return;
+    }
+    void refetchLessons();
+    void refetchLesson({ silent: true });
+  }, { courseId, enabled: canFetch });
 
   const handleLessonUnlocked = useCallback(async () => {
     await refetchLesson();
@@ -320,6 +335,7 @@ export default function LessonPage() {
             url={videoUrl}
             resumeKey={user?.id ? playbackKey(user.id, lessonId) : null}
             onEnded={handleVideoEnd}
+            onProgress={markActive}
           />
         </div>
       )}

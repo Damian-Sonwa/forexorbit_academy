@@ -269,6 +269,10 @@ test('active enrollment queries exclude withdrawn rows and the route does not de
   assert.equal(enrollSource.includes('withdrawnAt'), true);
   assert.equal(enrollSource.includes('completedLessons'), false);
   const dashboard = fs.readFileSync(path.join(__dirname, '../pages/dashboard.tsx'), 'utf8');
-  assert.equal(dashboard.includes('sumActiveCompletedLessons'), true);
+  // Phase 8: the dashboard's totals come from GET /api/progress/summary, which counts active
+  // enrollments only (tests/phase-8-learning-progress.test.js: "a withdrawn course leaves the lists").
+  assert.equal(dashboard.includes('summary.totals.completedLessons'), true);
+  const summarySource = fs.readFileSync(path.join(__dirname, '../lib/progress-summary.js'), 'utf8');
+  assert.equal(summarySource.includes('.filter(isActiveEnrollment)'), true);
   assert.equal(dashboard.includes('Progress could not be loaded'), true);
 });

@@ -23,6 +23,7 @@ import { sanitizeForStudentView, stripHtml } from '@/lib/html-sanitizer';
 import { getLessonDescriptionHtml, hasVisibleHtml } from '@/lib/lesson-html';
 import { useLessons } from '@/hooks/useLesson';
 import { continueLesson, lessonHref } from '@/lib/lesson-navigation';
+import { useProgressSync } from '@/hooks/useProgressSync';
 import { loginHref } from '@/lib/login-redirect';
 import { PaystackCourseUnlock } from '@/components/monetization/PaystackCourseUnlock';
 
@@ -57,6 +58,13 @@ export default function CourseDetailPage() {
     await refetchLessons();
     await refetchCourse?.();
   }, [refetchLessons, refetchCourse]);
+
+  // Phase 8: progress made in another tab or device (or while this tab was in the background)
+  // shows here from the server's records.
+  useProgressSync(() => {
+    void refetchLessons();
+    void refetchCourse?.();
+  }, { courseId: typeof id === 'string' ? id : undefined, enabled: canFetch });
 
   const handleManualVerify = useCallback(async () => {
     const ref = fixRef.trim().replace(/[.,;:!?]+$/, '');

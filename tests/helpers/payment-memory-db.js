@@ -35,7 +35,8 @@ function matches(doc, query) {
   return Object.entries(query || {}).every(([key, cond]) => {
     if (key === '$or') return cond.some((sub) => matches(doc, sub));
     if (key === '$and') return cond.every((sub) => matches(doc, sub));
-    const value = doc[key];
+    // Dotted paths, including array positions ("completedLessons.3"), as MongoDB resolves them.
+    const value = key.includes('.') ? key.split('.').reduce((v, part) => (v == null ? undefined : v[part]), doc) : doc[key];
     if (isOperatorObject(cond)) {
       return Object.entries(cond).every(([op, arg]) => {
         if (op === '$in') return arg.some((candidate) => (Array.isArray(value) ? value.some((v) => sameValue(v, candidate)) : sameValue(value, candidate)));
@@ -44,6 +45,8 @@ function matches(doc, query) {
         if (op === '$exists') return arg ? value !== undefined : value === undefined;
         if (op === '$lt') return value !== undefined && value !== null && comparable(value) < comparable(arg);
         if (op === '$gt') return value !== undefined && value !== null && comparable(value) > comparable(arg);
+        if (op === '$lte') return value !== undefined && value !== null && comparable(value) <= comparable(arg);
+        if (op === '$gte') return value !== undefined && value !== null && comparable(value) >= comparable(arg);
         throw new Error(`payment-memory-db: unsupported operator ${op}`);
       });
     }
@@ -67,6 +70,12 @@ function applyUpdate(doc, update) {
   for (const [key, value] of Object.entries(update.$push || {})) doc[key] = [...(doc[key] || []), value];
   for (const [key, value] of Object.entries(update.$pull || {})) doc[key] = (doc[key] || []).filter((item) => !sameValue(item, value));
   for (const key of Object.keys(update.$unset || {})) delete doc[key];
+  for (const [key, value] of Object.entries(update.$max || {})) if (doc[key] === undefined || comparable(value) > comparable(doc[key])) doc[key] = value;
+  for (const [key, value] of Object.entries(update.$addToSet || {})) {
+    const list = Array.isArray(doc[key]) ? doc[key] : [];
+    if (!list.some((item) => sameValue(item, value))) list.push(value);
+    doc[key] = list;
+  }
 }
 
 class MemoryCollection {
@@ -161,6 +170,16 @@ class MemoryCollection {
       throw error;
     }
     return { matchedCount: upserted ? 0 : 1, modifiedCount: upserted ? 0 : 1, upsertedCount: upserted ? 1 : 0 };
+  }
+
+  /** updateOne operations only (lib/course-progress.js recomputeCourseProgress). */
+  async bulkWrite(operations) {
+    let modifiedCount = 0;
+    for (const op of operations) {
+      if (!op.updateOne) throw new Error('payment-memory-db: bulkWrite supports updateOne only');
+      modifiedCount += (await this.updateOne(op.updateOne.filter, op.updateOne.update)).modifiedCount;
+    }
+    return { modifiedCount };
   }
 
   async updateMany(filter, update) {
