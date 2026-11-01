@@ -418,6 +418,10 @@ app.prepare().then(async () => {
           enrollment,
         });
         if (!decision.ok) return;
+        // Same paywall as POST /api/progress (Phase 6): only a lesson the student may open can be
+        // completed. Enrollment alone is not enough (Phase 7 audit: this path skipped the check).
+        const { courseContentAccess } = require('./lib/course-lesson-list');
+        if (!(await courseContentAccess(db, account.user, decision.courseId)).isOpen(decision.lessonId)) return;
 
         // Same rule as the HTTP route (lib/course-progress.js): atomic, current lessons only, max 100.
         const recorded = await recordLessonCompletion(db, {

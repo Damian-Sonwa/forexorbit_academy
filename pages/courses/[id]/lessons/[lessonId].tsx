@@ -1,6 +1,12 @@
 /**
  * Lesson Page
- * Displays lesson content with video, description, quiz, and chat
+ * Displays lesson content with video, description, documents, quiz, and chat
+ *
+ * Phase 7: course outline and previous/next from the outline view (no lesson bodies), explicit
+ * completion separate from video playback, video resume, protected document links, and a state
+ * the student can act on for every outcome (loading, locked, enroll first, not found, retryable
+ * error, offline). Access is decided by the server on every lesson and document request; what
+ * the page shows only mirrors it.
  */
 
 import { useRouter } from 'next/router';
@@ -12,15 +18,19 @@ import Sidebar from '@/components/Sidebar';
 import BackButton from '@/components/BackButton';
 import VideoPlayer from '@/components/VideoPlayer';
 import Quiz from '@/components/Quiz';
+import LessonOutline from '@/components/student/LessonOutline';
+import LessonDocuments from '@/components/student/LessonDocuments';
+import LessonCompletion from '@/components/student/LessonCompletion';
 import { useLesson, useLessons } from '@/hooks/useLesson';
-// import { useCourse } from '@/hooks/useCourses'; // Reserved for future use
 import { useSocket } from '@/hooks/useSocket';
 import { useAuth } from '@/hooks/useAuth';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import InstructorLessonEditor from '@/components/InstructorLessonEditor';
 import { sanitizeForStudentView } from '@/lib/html-sanitizer';
-import SafeExternalLink from '@/components/SafeExternalLink';
 import { safeLinkUrl } from '@/lib/safe-url';
 import { getLessonDescriptionHtml, hasVisibleHtml } from '@/lib/lesson-html';
+import { lessonHref, markCompleted, resolveLessonNavigation } from '@/lib/lesson-navigation';
+import { playbackKey } from '@/lib/playback-position';
 import { LessonSkeleton } from '@/components/loading';
 import { ContentAdBanner } from '@/components/ads/ContentAdBanner';
 import { ContentAdInterstitial } from '@/components/ads/ContentAdInterstitial';
@@ -36,50 +46,86 @@ const MarketSignal = dynamic(() => import('@/components/MarketSignal'), {
   loading: () => <div className="card orbit-skeleton h-48" aria-hidden />,
 });
 
+function StatePanel({ title, message, children }: { title: string; message?: string | null; children?: React.ReactNode }) {
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white p-6 text-center shadow-sm sm:p-8 dark:border-gray-700 dark:bg-gray-800" role="alert" data-testid="lesson-state">
+      <p className="text-lg font-semibold text-gray-900 dark:text-white">{title}</p>
+      {message && <p className="mx-auto mt-2 max-w-md text-sm text-gray-600 dark:text-gray-300">{message}</p>}
+      {children && <div className="mt-5 flex flex-col items-center justify-center gap-3 sm:flex-row">{children}</div>}
+    </div>
+  );
+}
+
 export default function LessonPage() {
   const router = useRouter();
-  const { id: courseId, lessonId } = router.query;
+  const courseId = typeof router.query.id === 'string' ? router.query.id : '';
+  const lessonId = typeof router.query.lessonId === 'string' ? router.query.lessonId : '';
   const { isAuthenticated, user, loading: authLoading } = useAuth();
   const canFetch = !authLoading && isAuthenticated;
-  const { lesson, loading: lessonLoading, error: lessonError, accessDenied, refetch: refetchLesson } = useLesson(lessonId, canFetch);
-  const { lessons, refetch: refetchLessons } = useLessons(courseId, canFetch);
-  // const { course } = useCourse(courseId); // Reserved for future use
+  const online = useOnlineStatus();
+  const {
+    lesson,
+    status: lessonStatus,
+    error: lessonError,
+    accessDenied,
+    offline: lessonOffline,
+    refetch: refetchLesson,
+    setLesson,
+  } = useLesson(lessonId || undefined, canFetch);
+  const {
+    lessons,
+    loading: lessonsLoading,
+    error: lessonsError,
+    refetch: refetchLessons,
+    setLessons,
+  } = useLessons(courseId || undefined, canFetch);
 
   useEffect(() => {
     if (router.isReady && !authLoading && !isAuthenticated) {
       void router.replace(loginHref(router.asPath));
     }
   }, [router, authLoading, isAuthenticated]);
-  const { updateProgress, joinLesson, leaveLesson, socket, connected } = useSocket();
+  const { joinLesson, leaveLesson, socket, connected } = useSocket();
   const [showQuiz, setShowQuiz] = useState(false);
   const [showContentEditor, setShowContentEditor] = useState(false);
-  const [currentLesson, setCurrentLesson] = useState(lesson);
+  const [videoFinished, setVideoFinished] = useState(false);
 
-  // Update currentLesson when lesson data changes
+  // A different lesson starts with its panels closed.
   useEffect(() => {
-    if (lesson) {
-      setCurrentLesson(lesson);
-    } else if (!lessonLoading) {
-      setCurrentLesson(null);
+    setShowQuiz(false);
+    setShowContentEditor(false);
+    setVideoFinished(false);
+  }, [lessonId]);
+
+  // useLesson returns state only for the lesson this URL names, never the previous lesson during
+  // a route change.
+  const displayLesson = lesson;
+  const lockedPayload = accessDenied as LessonAccessDeniedPayload | null;
+
+  // Keep the URL's course and the lesson's course the same (a lesson URL under another course
+  // would otherwise show that course's outline and wrong previous/next lessons).
+  const ownCourseId = displayLesson?.courseId || lockedPayload?.lessonMeta?.courseId || '';
+  useEffect(() => {
+    if (ownCourseId && courseId && lessonId && ownCourseId !== courseId) {
+      void router.replace(lessonHref(ownCourseId, lessonId));
     }
-  }, [lesson, lessonLoading]);
+  }, [ownCourseId, courseId, lessonId, router]);
 
   useEffect(() => {
     if (!lessonId || !isAuthenticated) return;
-    const id = lessonId as string;
-    joinLesson(id);
+    joinLesson(lessonId);
     return () => {
-      leaveLesson(id);
+      leaveLesson(lessonId);
     };
   }, [lessonId, isAuthenticated, joinLesson, leaveLesson]);
 
-  // Listen for lesson updates via Socket.io
+  // Listen for lesson updates via Socket.io; the lesson stays on screen while it reloads.
   useEffect(() => {
     if (!socket || !connected || !lessonId) return;
 
     const handleLessonUpdate = (data: { lessonId: string; courseId: string }) => {
       if (data.lessonId === lessonId) {
-        void refetchLesson();
+        void refetchLesson({ silent: true });
       }
     };
 
@@ -90,61 +136,114 @@ export default function LessonPage() {
     };
   }, [socket, connected, lessonId, refetchLesson]);
 
-  const handleVideoEnd = () => {
-    if (courseId && lessonId && isAuthenticated) {
-      updateProgress(courseId as string, lessonId as string);
-    }
-  };
+  // The video ending is not completion (Phase 7); it only prompts the student.
+  const handleVideoEnd = useCallback(() => setVideoFinished(true), []);
+
+  const handleCompleted = useCallback(() => {
+    if (lesson) setLesson({ ...lesson, completed: true });
+    setLessons((list) => markCompleted(list, lessonId));
+  }, [lesson, lessonId, setLesson, setLessons]);
 
   const handleLessonUnlocked = useCallback(async () => {
     await refetchLesson();
     await refetchLessons();
   }, [refetchLesson, refetchLessons]);
 
-  // Compute these before early returns so useEffect can run unconditionally
-  const displayLesson = currentLesson || lesson;
-  const lockedPayload = accessDenied as LessonAccessDeniedPayload | null;
   const monetization = (displayLesson?.monetization ?? lockedPayload?.monetization) as LessonMonetization | undefined;
   const payBlocked =
     user?.role === 'student' &&
-    Boolean(
-      monetization?.paymentsConfigured &&
-        monetization.unlocked === false &&
-        (lockedPayload?.access === false || lockedPayload?.locked === true || displayLesson?.locked === true)
-    );
-  const isLockedAccessDenied = accessDenied?.access === false || accessDenied?.locked === true;
+    lessonStatus === 'locked' &&
+    Boolean(monetization?.paymentsConfigured && monetization.unlocked === false);
+  const isLockedAccessDenied = lessonStatus === 'locked';
 
+  // Locked, but there is no checkout to offer (payments not configured): the course page explains.
   useEffect(() => {
-    if (isLockedAccessDenied && !payBlocked && courseId && typeof courseId === 'string') {
-      router.replace(`/courses/${courseId}`);
+    if (isLockedAccessDenied && !payBlocked && courseId) {
+      void router.replace(`/courses/${courseId}`);
     }
   }, [isLockedAccessDenied, payBlocked, courseId, router]);
 
-  if (!canFetch || lessonLoading) {
-    return (
-      <div className="min-h-screen flex flex-col">
-        <Header />
-        <main className="flex-1 max-w-3xl mx-auto w-full px-4 py-8">
-          <LessonSkeleton />
-        </main>
-      </div>
-    );
-  }
+  const navigation = resolveLessonNavigation(lessons, lessonId);
+  const outline = (
+    <LessonOutline
+      courseId={courseId}
+      lessons={lessons}
+      currentLessonId={lessonId}
+      loading={lessonsLoading}
+      error={lessonsError}
+      onRetry={() => void refetchLessons()}
+    />
+  );
 
-  if (lessonError && !accessDenied) {
-    return (
-      <div className="min-h-screen flex flex-col">
-        <Header />
-        <main className="flex-1 flex items-center justify-center px-6">
-          <div className="max-w-md text-center">
-            <p className="text-lg font-semibold text-neutral-900">{lessonError ? 'This lesson could not be loaded' : 'Lesson not found'}</p>
-            {lessonError && (
-              <button type="button" onClick={() => refetchLesson()} className="mt-4 inline-flex rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white">Try again</button>
-            )}
+  const shell = (body: React.ReactNode) => (
+    <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
+      <Header />
+      <div className="flex flex-1 relative">
+        <Sidebar />
+        <main className="flex-1 min-w-0 max-w-6xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-6 md:py-8 pt-20 lg:pt-8">
+          {!online && (
+            <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-900 dark:border-amber-800/50 dark:bg-amber-950/40 dark:text-amber-200" role="status" data-testid="offline-banner">
+              You are offline. What is on screen stays available; anything new loads when your connection is back.
+            </p>
+          )}
+          <div className="mb-2">
+            <BackButton href={courseId ? `/courses/${courseId}` : '/courses'} label="Back to Course" />
+          </div>
+          <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start lg:gap-6">
+            <div className="lg:order-2 lg:sticky lg:top-24">{outline}</div>
+            <div className="min-w-0 lg:order-1">{body}</div>
           </div>
         </main>
       </div>
+      <Footer />
+    </div>
+  );
+
+  if (!canFetch || lessonStatus === 'loading') {
+    return shell(<LessonSkeleton />);
+  }
+
+  if (lessonStatus === 'error') {
+    return shell(
+      <StatePanel
+        title={lessonOffline ? 'You are offline' : 'This lesson could not be loaded'}
+        message={lessonError}
+      >
+        <button type="button" onClick={() => void refetchLesson()} className="inline-flex min-h-[44px] items-center rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700">
+          Try again
+        </button>
+        {courseId && (
+          <Link href={`/courses/${courseId}`} className="text-sm font-semibold text-primary-600 hover:underline">
+            Back to course
+          </Link>
+        )}
+      </StatePanel>
     );
+  }
+
+  if (lessonStatus === 'not_found') {
+    return shell(
+      <StatePanel title="Lesson not found" message={lessonError}>
+        <Link href={courseId ? `/courses/${courseId}` : '/courses'} className="inline-flex min-h-[44px] items-center rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700">
+          {courseId ? 'Back to course' : 'Browse courses'}
+        </Link>
+      </StatePanel>
+    );
+  }
+
+  if (lessonStatus === 'forbidden') {
+    return shell(
+      <StatePanel title="This lesson is not open to you yet" message={lessonError}>
+        <Link href={courseId ? `/courses/${courseId}` : '/courses'} className="inline-flex min-h-[44px] items-center rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700">
+          Go to the course
+        </Link>
+      </StatePanel>
+    );
+  }
+
+  if (isLockedAccessDenied && !payBlocked) {
+    // Redirecting to the course page (effect above).
+    return shell(<LessonSkeleton />);
   }
 
   /** Free tier + demo: ads only when full lesson payload is loaded and backend marks showAds. */
@@ -155,9 +254,7 @@ export default function LessonPage() {
 
   const lessonBodyRaw = displayLesson
     ? String(
-        (currentLesson as any)?.content ||
-          (displayLesson as any).content ||
-          (currentLesson as any)?.lessonSummary?.overview ||
+        (displayLesson as any).content ||
           (displayLesson as any).lessonSummary?.overview ||
           (displayLesson as any).summary ||
           ''
@@ -168,287 +265,223 @@ export default function LessonPage() {
   const displayTitleHtml = displayLesson
     ? displayLesson.title
     : lockedPayload?.lessonMeta?.title || 'Lesson';
+  const videoUrl = displayLesson ? safeLinkUrl(displayLesson.videoUrl) : null;
+  const isStudent = user?.role === 'student';
 
-  // Find current lesson index
-  const currentLessonKey = displayLesson?._id || displayLesson?.id || (lessonId as string);
-  const currentIndex = lessons.findIndex((l) => (l._id || l.id) === currentLessonKey);
-  const prevLesson = currentIndex > 0 ? lessons[currentIndex - 1] : null;
-  const nextLesson = currentIndex < lessons.length - 1 ? lessons[currentIndex + 1] : null;
-  const nextLessonIndex = currentIndex >= 0 && currentIndex < lessons.length - 1 ? currentIndex + 1 : -1;
-  const isNextFirstLesson = nextLessonIndex === 0;
-  const isNextLocked =
-    nextLesson != null &&
-    !isNextFirstLesson &&
-    (nextLesson.locked === true || (nextLesson.monetization as any)?.unlocked === false);
+  const navButton = 'flex min-h-[44px] items-center justify-center px-4 sm:px-6 py-2 sm:py-3 rounded-xl text-sm sm:text-base transition-colors';
 
-  return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
-      <Header />
-
-      <div className="flex flex-1 relative">
-        <Sidebar
-          courseId={courseId as string}
-          lessons={lessons.map((l) => ({
-            id: l._id || l.id || '',
-            title: l.title,
-            order: l.order,
-          }))}
-          currentLessonId={lessonId as string}
+  return shell(
+    <>
+      {/* Lesson Header */}
+      <div className="mb-4">
+        {navigation.position > 0 && (
+          <p className="mb-1 text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400" data-testid="lesson-position">
+            Lesson {navigation.position} of {navigation.total}
+          </p>
+        )}
+        <h1
+          className="text-2xl sm:text-3xl md:text-4xl font-display font-bold text-gray-900 dark:text-white mb-2 break-words"
+          dangerouslySetInnerHTML={{ __html: sanitizeForStudentView(displayTitleHtml) }}
         />
-
-        <main className="flex-1 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 md:py-8 pt-20 lg:pt-8">
-          {/* Lesson Header */}
-          <div className="mb-4">
-            <div className="mb-2">
-              <BackButton href={`/courses/${courseId}`} label="Back to Course" />
-            </div>
-            <h1
-              className="text-2xl sm:text-3xl md:text-4xl font-display font-bold text-gray-900 mb-2 break-words"
-              dangerouslySetInnerHTML={{ __html: sanitizeForStudentView(displayTitleHtml) }}
-            />
-          </div>
-
-          <ContentAdInterstitial
-            storageKey={`fo-ad-int-lesson-${String(lessonId)}`}
-            enabled={freeContentAds}
-          />
-
-          {freeContentAds && (
-            <div className="mb-4">
-              <ContentAdBanner propellerPlacement="freeLessonTop" />
-            </div>
-          )}
-
-          {payBlocked && monetization && lessonId && courseId && (
-            <div className="mb-8 rounded-xl border-2 border-amber-200 bg-amber-50/80 p-6 dark:border-amber-800/50 dark:bg-amber-950/40">
-              <h2 className="text-lg font-bold text-gray-900 dark:text-white">This lesson is locked</h2>
-              <p className="mt-2 text-sm text-gray-700 dark:text-gray-300">
-                {lockedPayload?.message ||
-                  'Pay once to unlock this course. Free preview and demo lessons stay free.'}
-              </p>
-              <div className="mt-4 max-w-md">
-                <PaystackCourseUnlock
-                  courseId={courseId as string}
-                  variant="compact"
-                  onUnlocked={handleLessonUnlocked}
-                />
-              </div>
-            </div>
-          )}
-
-          {!displayLesson && !payBlocked && !isLockedAccessDenied && (
-            <div className="min-h-[200px] rounded-xl border border-gray-200 bg-white p-8 text-center text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300">
-              <p>Lesson not found</p>
-            </div>
-          )}
-
-          {/* Video Player - Display YouTube videos and other video URLs */}
-          {!payBlocked && displayLesson && safeLinkUrl(displayLesson.videoUrl) && (
-            <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg border border-gray-100 p-2 mb-4 overflow-hidden">
-              <VideoPlayer url={safeLinkUrl(displayLesson.videoUrl) as string} onEnded={handleVideoEnd} />
-            </div>
-          )}
-
-          {/* Lesson Description (description field; legacy fallback: summary) */}
-          {!payBlocked && freeContentAds && (
-            <div className="mb-4">
-              <ContentAdBanner format="horizontal" propellerPlacement="freeLessonInline" />
-            </div>
-          )}
-
-          {!payBlocked && hasVisibleHtml(lessonDescStudent) && (
-            <div className="lesson-reading mb-8 border-t border-neutral-200 pt-6">
-              <h2 className="font-display text-lg font-semibold text-neutral-900 dark:text-white">Lesson</h2>
-              <div className="rich-html-readable mt-4 text-base leading-relaxed">
-                <div dangerouslySetInnerHTML={{ __html: lessonDescStudent }} />
-              </div>
-            </div>
-          )}
-
-          {/* Instructor/Admin Lesson Content Editor - ONLY visible to instructors/admins */}
-          {user?.role === 'instructor' && displayLesson && (
-            <div className="mb-4">
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="text-lg font-semibold text-gray-900">Lesson Content Editor</h2>
-                <button
-                  onClick={() => setShowContentEditor(!showContentEditor)}
-                  className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-semibold text-sm transition-colors"
-                >
-                  {showContentEditor ? 'Hide Editor' : 'Edit Content'}
-                </button>
-              </div>
-              {showContentEditor && (
-                <InstructorLessonEditor
-                  lessonId={lessonId as string}
-                  courseId={courseId as string}
-                  initialContent={
-                    (displayLesson as any).content ||
-                    (displayLesson as any).lessonSummary?.overview ||
-                    (displayLesson as any).lessonSummary?.summary ||
-                    (displayLesson as any).summary ||
-                    ''
-                  }
-                  onSave={() => {
-                    setShowContentEditor(false);
-                    // Refetch lesson data to show updated content
-                    router.replace(router.asPath);
-                  }}
-                />
-              )}
-            </div>
-          )}
-
-          {/* Lesson Content - Summary (stored in `content`; legacy: lessonSummary.overview / summary) */}
-          {!payBlocked && hasVisibleHtml(lessonBodyStudent) && (
-            <div className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-4 sm:p-6 mb-4">
-              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-3">Lesson Content</h2>
-              <div className="rich-html-readable text-base leading-relaxed">
-                <div dangerouslySetInnerHTML={{ __html: lessonBodyStudent }} />
-              </div>
-            </div>
-          )}
-
-          {/* Lesson Resources */}
-          {!payBlocked &&
-            displayLesson &&
-            (displayLesson as any).resources &&
-            (displayLesson as any).resources.length > 0 && (
-            <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 mb-4">
-              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2 flex items-center">
-                <svg className="w-5 h-5 sm:w-6 sm:h-6 mr-2 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                </svg>
-                Lesson Resources
-              </h2>
-              <p className="text-sm sm:text-base text-gray-600 mb-3">Downloadable resources and links for this lesson</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-                {(displayLesson as any).resources.map((resource: any, index: number) => (
-                  <SafeExternalLink
-                    key={index}
-                    href={resource.url}
-                    className="flex items-center p-4 bg-gray-50 hover:bg-primary-50 rounded-xl border-2 border-gray-200 hover:border-primary-300 transition-all group"
-                  >
-                    <div className="flex-shrink-0 w-12 h-12 bg-primary-100 group-hover:bg-primary-200 rounded-lg flex items-center justify-center mr-4 transition-colors dark:bg-primary-400/10">
-                      {resource.type === 'pdf' && (
-                        <svg className="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                        </svg>
-                      )}
-                      {resource.type === 'link' && (
-                        <svg className="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                        </svg>
-                      )}
-                      {resource.type === 'slide' && (
-                        <svg className="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                      )}
-                      {!['pdf', 'link', 'slide'].includes(resource.type) && (
-                        <svg className="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-gray-900 group-hover:text-primary-600 transition-colors truncate">
-                        {resource.title || `Resource ${index + 1}`}
-                      </p>
-                      <p className="text-xs text-gray-500 capitalize mt-1">{resource.type || 'file'}</p>
-                    </div>
-                    <svg className="w-5 h-5 text-gray-400 group-hover:text-primary-600 transition-colors ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                    </svg>
-                  </SafeExternalLink>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Quiz */}
-          {!payBlocked && displayLesson && displayLesson.quiz && (
-            <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 mb-4">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-3 gap-3">
-                <div className="flex-1">
-                  <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1">Lesson Quiz</h2>
-                  <p className="text-gray-600 text-xs sm:text-sm">Test your understanding</p>
-                </div>
-                <button
-                  onClick={() => setShowQuiz(!showQuiz)}
-                  className="w-full sm:w-auto px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-semibold transition-colors shadow-sm"
-                >
-                  {showQuiz ? 'Hide Quiz' : 'Take Quiz'}
-                </button>
-              </div>
-              {showQuiz && (
-                <div className="border-t border-gray-200 pt-4">
-                  <Quiz
-                    lessonId={lessonId as string}
-                    courseId={courseId as string}
-                    quiz={displayLesson.quiz}
-                  />
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Market Signal */}
-          {!payBlocked && (
-            <div className="mb-4">
-              <MarketSignal />
-            </div>
-          )}
-
-          {/* Navigation - Moved to end of page */}
-          <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center mb-4 gap-3 sm:gap-4">
-            {prevLesson ? (
-              <Link
-                href={`/courses/${courseId}/lessons/${prevLesson._id || prevLesson.id}`}
-                className="flex items-center justify-center px-4 sm:px-6 py-2 sm:py-3 border-2 border-gray-300 text-gray-700 rounded-xl font-medium hover:border-primary-500 hover:text-primary-600 transition-colors text-sm sm:text-base"
-              >
-                <svg className="w-4 h-4 sm:w-5 sm:h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-                <span className="hidden sm:inline">Previous Lesson</span>
-                <span className="sm:hidden">Previous</span>
-              </Link>
-            ) : (
-              <div />
-            )}
-            {nextLesson ? (
-              isNextLocked ? (
-                <button
-                  type="button"
-                  onClick={() => router.push(`/courses/${courseId}`)}
-                  className="flex items-center justify-center px-4 sm:px-6 py-2 sm:py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-semibold transition-colors shadow-sm sm:ml-auto text-sm sm:text-base"
-                >
-                  <span className="hidden sm:inline">Unlock full course – {COURSE_PRICE_LABEL}</span>
-                  <span className="sm:hidden">Unlock course</span>
-                  <svg className="w-4 h-4 sm:w-5 sm:h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </button>
-              ) : (
-                <Link
-                  href={`/courses/${courseId}/lessons/${nextLesson._id || nextLesson.id}`}
-                  className="flex items-center justify-center px-4 sm:px-6 py-2 sm:py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-semibold transition-colors shadow-sm sm:ml-auto text-sm sm:text-base"
-                >
-                  <span className="hidden sm:inline">Next Lesson</span>
-                  <span className="sm:hidden">Next</span>
-                  <svg className="w-4 h-4 sm:w-5 sm:h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </Link>
-              )
-            ) : (
-              <div />
-            )}
-          </div>
-        </main>
       </div>
 
-      <Footer />
-    </div>
+      <ContentAdInterstitial
+        storageKey={`fo-ad-int-lesson-${String(lessonId)}`}
+        enabled={freeContentAds}
+      />
+
+      {freeContentAds && (
+        <div className="mb-4">
+          <ContentAdBanner propellerPlacement="freeLessonTop" />
+        </div>
+      )}
+
+      {payBlocked && monetization && lessonId && courseId && (
+        <div className="mb-8 rounded-xl border-2 border-amber-200 bg-amber-50/80 p-6 dark:border-amber-800/50 dark:bg-amber-950/40" data-testid="lesson-locked">
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white">This lesson is locked</h2>
+          <p className="mt-2 text-sm text-gray-700 dark:text-gray-300">
+            {lockedPayload?.message ||
+              'Pay once to unlock this course. Free preview and demo lessons stay free.'}
+          </p>
+          <div className="mt-4 max-w-md">
+            <PaystackCourseUnlock
+              courseId={courseId}
+              variant="compact"
+              onUnlocked={handleLessonUnlocked}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Video Player - Display YouTube videos and other video URLs */}
+      {!payBlocked && displayLesson && videoUrl && (
+        <div className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 p-2 mb-4 overflow-hidden">
+          <VideoPlayer
+            url={videoUrl}
+            resumeKey={user?.id ? playbackKey(user.id, lessonId) : null}
+            onEnded={handleVideoEnd}
+          />
+        </div>
+      )}
+
+      {/* Lesson Description (description field; legacy fallback: summary) */}
+      {!payBlocked && freeContentAds && (
+        <div className="mb-4">
+          <ContentAdBanner format="horizontal" propellerPlacement="freeLessonInline" />
+        </div>
+      )}
+
+      {!payBlocked && hasVisibleHtml(lessonDescStudent) && (
+        <div className="lesson-reading mb-8 border-t border-neutral-200 pt-6">
+          <h2 className="font-display text-lg font-semibold text-neutral-900 dark:text-white">Lesson</h2>
+          <div className="rich-html-readable mt-4 text-base leading-relaxed">
+            <div dangerouslySetInnerHTML={{ __html: lessonDescStudent }} />
+          </div>
+        </div>
+      )}
+
+      {/* Instructor/Admin Lesson Content Editor - ONLY visible to instructors/admins */}
+      {user?.role === 'instructor' && displayLesson && (
+        <div className="mb-4">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Lesson Content Editor</h2>
+            <button
+              onClick={() => setShowContentEditor(!showContentEditor)}
+              className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-semibold text-sm transition-colors"
+            >
+              {showContentEditor ? 'Hide Editor' : 'Edit Content'}
+            </button>
+          </div>
+          {showContentEditor && (
+            <InstructorLessonEditor
+              lessonId={lessonId}
+              courseId={courseId}
+              initialContent={
+                (displayLesson as any).content ||
+                (displayLesson as any).lessonSummary?.overview ||
+                (displayLesson as any).lessonSummary?.summary ||
+                (displayLesson as any).summary ||
+                ''
+              }
+              onSave={() => {
+                setShowContentEditor(false);
+                // Show the saved content without leaving or blanking the page.
+                void refetchLesson({ silent: true });
+              }}
+            />
+          )}
+        </div>
+      )}
+
+      {/* Lesson Content - Summary (stored in `content`; legacy: lessonSummary.overview / summary) */}
+      {!payBlocked && hasVisibleHtml(lessonBodyStudent) && (
+        <div className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-4 sm:p-6 mb-4">
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-3">Lesson Content</h2>
+          <div className="rich-html-readable text-base leading-relaxed break-words">
+            <div dangerouslySetInnerHTML={{ __html: lessonBodyStudent }} />
+          </div>
+        </div>
+      )}
+
+      {/* Lesson PDF and resources (protected links for students) */}
+      {!payBlocked && displayLesson && (
+        <LessonDocuments
+          pdfUrl={displayLesson.pdfUrl}
+          pdfAvailable={displayLesson.pdfAvailable}
+          resources={displayLesson.resources}
+        />
+      )}
+
+      {/* Quiz */}
+      {!payBlocked && displayLesson && displayLesson.quiz && (
+        <div className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-4 sm:p-6 mb-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-3 gap-3">
+            <div className="flex-1">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-1">Lesson Quiz</h2>
+              <p className="text-gray-600 dark:text-gray-300 text-xs sm:text-sm">Test your understanding</p>
+            </div>
+            <button
+              onClick={() => setShowQuiz(!showQuiz)}
+              className="w-full sm:w-auto px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-semibold transition-colors shadow-sm"
+            >
+              {showQuiz ? 'Hide Quiz' : 'Take Quiz'}
+            </button>
+          </div>
+          {showQuiz && (
+            <div className="border-t border-gray-200 pt-4">
+              <Quiz
+                lessonId={lessonId}
+                courseId={courseId}
+                quiz={displayLesson.quiz}
+              />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Explicit completion: students, on a lesson they may open */}
+      {!payBlocked && displayLesson && isStudent && (
+        <LessonCompletion
+          courseId={courseId}
+          lessonId={lessonId}
+          completed={displayLesson.completed === true}
+          videoFinished={videoFinished}
+          onCompleted={handleCompleted}
+        />
+      )}
+
+      {/* Market Signal */}
+      {!payBlocked && (
+        <div className="mb-4">
+          <MarketSignal />
+        </div>
+      )}
+
+      {/* Previous / next, from the outline only */}
+      <nav aria-label="Lesson navigation" className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center mb-4 gap-3 sm:gap-4" data-testid="lesson-nav">
+        {navigation.prev ? (
+          <Link
+            href={navigation.prev.locked ? `/courses/${courseId}` : lessonHref(courseId, navigation.prev.id)}
+            className={`${navButton} border-2 border-gray-300 text-gray-700 font-medium hover:border-primary-500 hover:text-primary-600 dark:border-gray-600 dark:text-gray-200`}
+            data-testid="lesson-prev"
+          >
+            <svg className="w-4 h-4 sm:w-5 sm:h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            <span>{navigation.prev.locked ? 'Previous (locked)' : 'Previous lesson'}</span>
+          </Link>
+        ) : (
+          <div />
+        )}
+        {navigation.next ? (
+          navigation.next.locked ? (
+            <Link
+              href={`/courses/${courseId}`}
+              className={`${navButton} bg-primary-600 hover:bg-primary-700 text-white font-semibold shadow-sm sm:ml-auto`}
+              data-testid="lesson-next"
+            >
+              <span className="hidden sm:inline">Unlock full course – {COURSE_PRICE_LABEL}</span>
+              <span className="sm:hidden">Unlock course</span>
+              <svg className="w-4 h-4 sm:w-5 sm:h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </Link>
+          ) : (
+            <Link
+              href={lessonHref(courseId, navigation.next.id)}
+              className={`${navButton} bg-primary-600 hover:bg-primary-700 text-white font-semibold shadow-sm sm:ml-auto`}
+              data-testid="lesson-next"
+            >
+              <span>Next lesson</span>
+              <svg className="w-4 h-4 sm:w-5 sm:h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </Link>
+          )
+        ) : (
+          <div />
+        )}
+      </nav>
+    </>
   );
 }
-

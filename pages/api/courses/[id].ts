@@ -31,6 +31,7 @@ import { assetsInDocuments, cleanupUnreferencedAssets, removedAssets } from '@/l
 import { allowRequest, authoringLimiter } from '@/lib/content-rate-limit';
 import { deleteImage } from '@/lib/cloudinary';
 import { hasCourseEntitlement } from '@/lib/course-payment';
+import { presentStudentDocuments, setPrivateNoStore } from '@/lib/lesson-documents';
 
 const COURSE_MEDIA_FIELDS = ['description', 'thumbnail'];
 
@@ -47,6 +48,8 @@ async function getCourse(req: AuthRequest, res: NextApiResponse) {
   if (!isStoredId(courseIdParam)) {
     return res.status(400).json({ error: 'Invalid course ID' });
   }
+  // Enrollment, ownership and lesson lock state are per member (Phase 7 caching review).
+  setPrivateNoStore(res);
   try {
     const db = await getDb();
     const memberFromSession = {
@@ -127,7 +130,7 @@ async function getCourse(req: AuthRequest, res: NextApiResponse) {
             view.resources = [];
           }
         }
-        return view;
+        return member.role === 'student' ? presentStudentDocuments(view) : view;
       });
     }
 

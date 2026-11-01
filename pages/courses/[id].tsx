@@ -22,6 +22,7 @@ import { messageFromUnknown } from '@/lib/public-error';
 import { sanitizeForStudentView, stripHtml } from '@/lib/html-sanitizer';
 import { getLessonDescriptionHtml, hasVisibleHtml } from '@/lib/lesson-html';
 import { useLessons } from '@/hooks/useLesson';
+import { continueLesson, lessonHref } from '@/lib/lesson-navigation';
 import { loginHref } from '@/lib/login-redirect';
 import { PaystackCourseUnlock } from '@/components/monetization/PaystackCourseUnlock';
 
@@ -31,7 +32,7 @@ export default function CourseDetailPage() {
   const { isAuthenticated, user, loading: authLoading } = useAuth();
   const canFetch = !authLoading && isAuthenticated;
   const { course, loading, error, refetch: refetchCourse } = useCourse(id, canFetch) as any;
-  const { lessons, loading: lessonsLoading, refetch: refetchLessons } = useLessons(id, canFetch);
+  const { lessons, loading: lessonsLoading, error: lessonsError, refetch: refetchLessons } = useLessons(id, canFetch);
   const { socket, connected } = useSocket();
   const goToLogin = useCallback(() => {
     void router.replace(loginHref(router.asPath));
@@ -47,18 +48,15 @@ export default function CourseDetailPage() {
   const [fixMessage, setFixMessage] = useState<string | null>(null);
   /** Server-derived: every lesson in the list is unlocked for this user. */
   const paid = lessons.length > 0 && lessons.every((lesson) => lesson.locked !== true);
+  const lockedCount = lessons.filter((lesson) => lesson.locked === true).length;
+  const completedCount = lessons.filter((lesson) => lesson.completed === true).length;
+  /** Where to continue: the first open lesson not yet completed (outline only, Phase 7). */
+  const continueTarget = continueLesson(lessons);
 
   const handleCourseUnlocked = useCallback(async () => {
     await refetchLessons();
     await refetchCourse?.();
   }, [refetchLessons, refetchCourse]);
-
-  const openLesson = useCallback(
-    (href: string) => {
-      void router.push(href);
-    },
-    [router]
-  );
 
   const handleManualVerify = useCallback(async () => {
     const ref = fixRef.trim().replace(/[.,;:!?]+$/, '');
@@ -248,39 +246,71 @@ export default function CourseDetailPage() {
             {/* Lessons — source: GET /api/courses/:id/lessons { lessons } */}
             <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-soft sm:p-7">
               <h2 className="mb-4 font-display text-xl font-semibold text-neutral-900 sm:text-2xl">Course lessons</h2>
-              {lessonsLoading ? (
-                <p className="py-10 text-center text-gray-500">Loading lessons…</p>
+              {lessonsLoading && lessons.length === 0 ? (
+                <p className="py-10 text-center text-gray-500" role="status">Loading lessons…</p>
+              ) : lessonsError && lessons.length === 0 ? (
+                <div className="py-10 text-center" role="alert">
+                  <p className="text-gray-700 dark:text-gray-300">{lessonsError}</p>
+                  <button type="button" onClick={() => void refetchLessons()} className="btn btn-primary mt-4">Try again</button>
+                </div>
               ) : lessons.length > 0 ? (
                 <div className="space-y-3">
-                  {(paid ? lessons : lessons.slice(0, 1)).map((lesson, index) => {
-                    const href = `/courses/${id}/lessons/${lesson._id || lesson.id}`;
-                    const key = String(lesson._id || lesson.id || index);
+                  {course.enrolled && continueTarget && (
+                    <Link
+                      href={lessonHref(String(id), continueTarget.id)}
+                      className="btn btn-primary mb-2 w-full justify-center py-3 sm:w-auto"
+                      data-testid="continue-lesson"
+                    >
+                      {completedCount > 0 ? `Continue: lesson ${continueTarget.position}` : 'Start the first lesson'}
+                    </Link>
+                  )}
+                  {/* Every lesson in course order with the server's lock state: explicit free
+                      previews and demo lessons open wherever they sit (Phase 7). Locked lessons
+                      show their title only and lead to the unlock offer below. */}
+                  {lessons.map((lesson, index) => {
+                    const lessonId = String(lesson._id || lesson.id || '');
+                    const key = lessonId || String(index);
+                    const locked = lesson.locked === true;
                     const lessonDesc = getLessonDescriptionHtml(lesson as any);
                     const lessonDescStudent = sanitizeForStudentView(lessonDesc);
                     const previewPlain = decodeHtmlEntities(stripHtml(lessonDescStudent)).replace(/\s+/g, ' ').trim();
-                    return (
-                      <div key={key}>
-                        <button
-                          type="button"
-                          className="group relative flex w-full items-center justify-between gap-3 rounded-xl border border-neutral-200 p-4 text-left transition-colors hover:border-primary-300 hover:bg-primary-50 dark:hover:border-primary-400/40 dark:hover:bg-primary-400/5 sm:p-5"
-                          onClick={() => openLesson(href)}
-                        >
-                          <div className="flex min-w-0 flex-1 items-center space-x-4">
-                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-50 text-sm font-semibold text-primary-700 dark:bg-primary-400/10 dark:text-primary-300">
-                              {index + 1}
-                            </div>
-                            <div className="min-w-0 flex-1 text-left">
-                              <h3
-                                className="font-semibold text-gray-900 group-hover:text-primary-600 dark:text-gray-100"
-                                dangerouslySetInnerHTML={{ __html: sanitizeForStudentView(lesson.title) }}
-                              />
-                              {hasVisibleHtml(lessonDescStudent) && previewPlain && (
-                                <p className="mt-1 line-clamp-2 text-sm text-gray-600 dark:text-gray-300">
-                                  {previewPlain.length > 200 ? `${previewPlain.slice(0, 200)}…` : previewPlain}
-                                </p>
-                              )}
-                            </div>
+                    const badge = locked
+                      ? 'Locked'
+                      : lesson.completed
+                        ? 'Completed'
+                        : !paid && lesson.isFreePreview
+                          ? 'Free preview'
+                          : !paid && lesson.isDemo
+                            ? 'Demo'
+                            : null;
+                    const inner = (
+                      <>
+                        <div className="flex min-w-0 flex-1 items-center space-x-4">
+                          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${lesson.completed ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-300' : 'bg-primary-50 text-primary-700 dark:bg-primary-400/10 dark:text-primary-300'}`}>
+                            {lesson.completed ? '✓' : index + 1}
                           </div>
+                          <div className="min-w-0 flex-1 text-left">
+                            <h3
+                              className={`font-semibold ${locked ? 'text-gray-600 dark:text-gray-400' : 'text-gray-900 group-hover:text-primary-600 dark:text-gray-100'}`}
+                              dangerouslySetInnerHTML={{ __html: sanitizeForStudentView(lesson.title) }}
+                            />
+                            {!locked && hasVisibleHtml(lessonDescStudent) && previewPlain && (
+                              <p className="mt-1 line-clamp-2 text-sm text-gray-600 dark:text-gray-300">
+                                {previewPlain.length > 200 ? `${previewPlain.slice(0, 200)}…` : previewPlain}
+                              </p>
+                            )}
+                            {badge && (
+                              <span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${locked ? 'bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-300' : 'bg-primary-50 text-primary-700 dark:bg-primary-400/10 dark:text-primary-300'}`}>
+                                {badge}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        {locked ? (
+                          <svg className="h-5 w-5 shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                          </svg>
+                        ) : (
                           <svg
                             className="h-6 w-6 shrink-0 text-gray-400 transition-all group-hover:translate-x-1 group-hover:text-primary-600"
                             fill="none"
@@ -290,14 +320,31 @@ export default function CourseDetailPage() {
                           >
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                           </svg>
-                        </button>
+                        )}
+                      </>
+                    );
+                    return (
+                      <div key={key}>
+                        {locked ? (
+                          <div className="flex w-full items-center justify-between gap-3 rounded-xl border border-dashed border-neutral-200 p-4 sm:p-5" data-testid="course-lesson-locked">
+                            {inner}
+                          </div>
+                        ) : (
+                          <Link
+                            href={lessonHref(String(id), lessonId)}
+                            className="group relative flex w-full items-center justify-between gap-3 rounded-xl border border-neutral-200 p-4 text-left transition-colors hover:border-primary-300 hover:bg-primary-50 dark:hover:border-primary-400/40 dark:hover:bg-primary-400/5 sm:p-5"
+                            data-testid="course-lesson-open"
+                          >
+                            {inner}
+                          </Link>
+                        )}
                       </div>
                     );
                   })}
-                  {!paid && lessons.length > 1 && (
+                  {lockedCount > 0 && (
                     <div className="rounded-xl border border-primary-200 bg-primary-50/70 p-5 dark:border-primary-400/25 dark:bg-primary-400/[0.06]">
                       <p className="mb-1 text-sm text-gray-700 dark:text-gray-300">
-                        {lessons.length - 1} more lesson{lessons.length > 2 ? 's' : ''} in this course
+                        {lockedCount} locked lesson{lockedCount > 1 ? 's' : ''} in this course
                       </p>
                       {typeof id === 'string' && (
                         <PaystackCourseUnlock courseId={id} variant="compact" onUnlocked={handleCourseUnlocked} />

@@ -122,7 +122,11 @@ test('H3: a stored unsafe link renders as plain content, never as a live link', 
   assert.ok(good.includes('rel="noopener noreferrer"'));
   const page = read('pages/courses/[id]/lessons/[lessonId].tsx');
   assert.equal(page.includes('href={resource.url}\n                    target'), false);
-  assert.ok(page.includes('<SafeExternalLink'));
+  // Phase 7: lesson documents render through components/student/LessonDocuments.tsx.
+  assert.ok(page.includes('<LessonDocuments'));
+  const documents = read('components/student/LessonDocuments.tsx');
+  assert.ok(documents.includes('<SafeExternalLink'));
+  assert.equal(/<a\s/.test(documents), false, 'documents never render a raw link');
   assert.ok(page.includes('safeLinkUrl(displayLesson.videoUrl)'));
   for (const file of ['pages/instructor/dashboard.tsx', 'pages/instructor/lessons.tsx']) {
     assert.ok(read(file).includes('<SafeExternalLink'), file);

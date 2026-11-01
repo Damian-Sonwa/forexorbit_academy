@@ -24,6 +24,20 @@ function record(area, check, ok, detail = '') {
 }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+/** Quit headless Edge over DevTools (Browser.close on the browser endpoint). */
+async function closeBrowser(port) {
+  try {
+    const { webSocketDebuggerUrl } = await (await fetch(`http://127.0.0.1:${port}/json/version`)).json();
+    const WebSocketClient = require('ws');
+    const socket = new WebSocketClient(webSocketDebuggerUrl, { perMessageDeflate: false });
+    await new Promise((resolve) => { socket.once('open', resolve); socket.once('error', resolve); setTimeout(resolve, 5000); });
+    if (socket.readyState === 1) socket.send(JSON.stringify({ id: 1, method: 'Browser.close' }));
+    await new Promise((resolve) => { socket.once('close', resolve); setTimeout(resolve, 5000); });
+  } catch {
+    // Not reachable: the browser has already gone.
+  }
+}
+
 (async () => {
   const envFile = path.join(ROOT, '.env.acceptance');
   const fileEnv = fs.existsSync(envFile) ? require('dotenv').parse(fs.readFileSync(envFile)) : {};
@@ -186,7 +200,15 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
       await new Promise((resolve) => ws.once('open', resolve));
       let n = 0; const pending = new Map();
       ws.on('message', (m) => { const msg = JSON.parse(m); if (msg.id && pending.has(msg.id)) { pending.get(msg.id)(msg.result || {}); pending.delete(msg.id); } });
-      const send = (method, params = {}) => new Promise((resolve) => { n += 1; pending.set(n, resolve); ws.send(JSON.stringify({ id: n, method, params })); });
+      // Every DevTools call answers within 30 s, so a page that never replies fails its check instead of
+      // hanging the run (the 1 November 2026 rerun stalled here with no timeout).
+      const send = (method, params = {}) => new Promise((resolve) => {
+        n += 1;
+        const id = n;
+        const timer = setTimeout(() => { pending.delete(id); console.log(`WARN DevTools ${method} timed out`); resolve({}); }, 30000);
+        pending.set(id, (value) => { clearTimeout(timer); resolve(value); });
+        ws.send(JSON.stringify({ id, method, params }));
+      });
       const evaluate = async (expression) => ((await send('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true })).result || {}).value;
       const signInAs = async (key) => {
         await send('Network.clearBrowserCookies');
@@ -216,7 +238,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
       await send('Page.navigate', { url: `${origin}/courses/${P}` });
       await sleep(9000);
       const pText = await evaluate('document.body.innerText');
-      record('ui', 'course page after the revocation: paid lessons collapsed behind the unlock offer with price, fee and total; no paid content', /2 more lessons in this course/.test(pText) && /Unlock full course/.test(pText) && /Total payable/.test(pText) && !/SECRET-Paidlesson/.test(pText));
+      record('ui', 'course page after the revocation: the paid lesson locked behind the unlock offer with price, fee and total; no paid content', /1 locked lesson in this course/.test(pText) && /Unlock full course/.test(pText) && /Total payable/.test(pText) && !/SECRET-Paidlesson/.test(pText));
 
       record('ui', 'Super Admin signs in from the page', (await signInAs('superadmin')) === 200);
       for (const [label, width, mobile] of [['desktop', 1366, false], ['phone', 390, true]]) {
@@ -240,7 +262,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   } catch (error) {
     record('setup', 'run completed', false, String(error && error.message).replace(/mongodb(\+srv)?:\/\/\S+/g, '<uri>'));
   } finally {
-    if (browser) browser.kill();
+    // Edge's launcher hands off to another process, so killing the spawned PID alone leaves Edge running.
+    if (browser) { await closeBrowser(9363); browser.kill(); }
     server.kill();
   }
   const log = fs.readFileSync(logFile, 'utf8');

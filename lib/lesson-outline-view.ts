@@ -20,7 +20,11 @@ const OUTLINE_KEYS = [
   'locked',
   'accessible',
   'isFirstLesson',
+  'isFreePreview',
   'isDemo',
+  // The member's own completion of the lesson (set only when they may read it); the lesson
+  // outline marks finished lessons with it (Phase 7).
+  'completed',
   'monetization',
 ] as const;
 

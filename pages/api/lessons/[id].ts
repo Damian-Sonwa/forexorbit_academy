@@ -26,6 +26,7 @@ import { recomputeCourseProgress } from '@/lib/course-progress';
 import { assetsInDocuments, cleanupUnreferencedAssets, removedAssets } from '@/lib/media-cleanup';
 import { allowRequest, authoringLimiter } from '@/lib/content-rate-limit';
 import { deleteImage } from '@/lib/cloudinary';
+import { presentStudentDocuments, setPrivateNoStore } from '@/lib/lesson-documents';
 
 /** Lesson fields that can hold uploaded course images (lib/media-cleanup.js). */
 const LESSON_MEDIA_PROJECTION = { content: 1, description: 1, summary: 1, title: 1, lessonSummary: 1, videoUrl: 1, pdfUrl: 1, resources: 1 };
@@ -42,8 +43,12 @@ async function getLesson(req: AuthRequest, res: NextApiResponse) {
   try {
     const db = await getDb();
     const { status, body } = await readLessonDetail(db, { userId: req.user!.userId, lessonId });
+    // Lesson content is per member: never stored by the browser, a proxy or the CDN (Phase 7).
+    setPrivateNoStore(res);
     if (status !== 200) return res.status(status).json(body);
-    res.json(stripLessonVisualAidsFields(body));
+    const view = stripLessonVisualAidsFields(body);
+    // Students open documents through GET /api/lessons/:id/document, which re-checks access.
+    res.json(req.user!.role === 'student' ? presentStudentDocuments(view) : view);
   } catch {
     console.error(JSON.stringify({ event: 'lessonRead', result: 'failed' }));
     res.status(500).json(unexpectedBody('api'));

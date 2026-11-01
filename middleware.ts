@@ -53,12 +53,13 @@ export function middleware(request: NextRequest) {
     }
   }
 
+  // API responses always get the no-store headers below, whatever the path ends in (Phase 7).
   if (
     pathname.startsWith('/_next/static') ||
     pathname.startsWith('/_next/image') ||
     pathname === '/favicon.ico' ||
     pathname === '/favicon.svg' ||
-    STATIC_EXT.test(pathname)
+    (!pathname.startsWith('/api/') && STATIC_EXT.test(pathname))
   ) {
     return NextResponse.next();
   }
