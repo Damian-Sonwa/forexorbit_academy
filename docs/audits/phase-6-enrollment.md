@@ -47,7 +47,7 @@ Branch `feat/phase-6-enrollment`, from `feat/phase-5-payments` at `62661cd` (the
 
 ### 3.2 Enrollment integrity
 
-- **Unique index E1** `uniq_enrollment_user_course` `{ userId: 1, courseId: 1 }` on `progress` (`lib/enrollment-indexes.js`, `scripts/enrollment-indexes.js`) (D5).
+- **Unique index E1** `progress_user_course` `{ userId: 1, courseId: 1 }`, unique, on `progress` (`lib/enrollment-indexes.js`, `scripts/enrollment-indexes.js`) (D5). Production already has a non-unique index with this name and key, so there E1 is that index converted in place (section 7).
   - The script is read-only by default. It reports duplicate groups (exact, and rows whose course id is stored with a different type).
   - `--apply` refuses while exact duplicates exist. It never merges or deletes rows.
   - It shares the production target rules of the Phase 5 index scripts.
@@ -125,7 +125,7 @@ Branch `feat/phase-6-enrollment`, from `feat/phase-5-payments` at `62661cd` (the
 |---|---|
 | `npm test` (all unit and route tests) | **811/811** (789 before + 22 in `tests/phase-6-enrollment.test.js`) |
 | Phase 6 tests | 22/22, real routes with Phase 4.5 sessions and CSRF, against the in-memory database with the real unique indexes. Mutation-checked: disabling the progress gate, the certificate gate, payment enrollment, the assignment filter, the archived-owner rule, the chat gate, the certificate ownership check or the replay rule each fails tests |
-| Real MongoDB (`npm run test:mongo:enrollment`, new) | **2/2**: E1 refuses over exact duplicates, reports cross-type ones, builds, is idempotent and rejects a second row; 8 concurrent enrollments and 3 concurrent payment confirmations give one row |
+| Real MongoDB (`npm run test:mongo:enrollment`, new) | **3/3**: the production case (an existing non-unique `progress_user_course` reported, refused by `--apply`, converted in place with `collMod` after the duplicate is removed); E1 refuses over exact duplicates, reports cross-type ones, builds, is idempotent and rejects a second row; 8 concurrent enrollments and 3 concurrent payment confirmations give one row |
 | Real MongoDB payments (`test:mongo:payments`) / rate limits (`test:mongo`) | 4/4 / 12/12 |
 | `scripts/enrollment-indexes.js` on a local test database | read-only report; refusal while a duplicate exists (exit 1); build after review; refusal of `Forex_elearning` on a non-Atlas host |
 | TypeScript | 0 errors |
@@ -158,7 +158,6 @@ The Phase 6 end-to-end run (42 checks) covers:
 
 ## 6. Remaining limitations
 
-- **Production data was not inspected.** A read-only count of `progress` duplicates on `Forex_elearning` was blocked by the session's permission rules. Whether E1 can be built is unknown until `scripts/enrollment-indexes.js` is run read-only against production (section 7).
 - **Certificates are switched off** by `FEATURES.CERTIFICATES = false`. The new certificate rule applies once they are enabled.
 - **Lesson media** (`videoUrl`, `pdfUrl`, resources) are external links (for example Cloudinary). The API withholds them for locked lessons, but a URL already obtained is not access-controlled by the app.
 - **Existing completions** recorded through D1 before this fix are kept (history is never rewritten). They no longer earn a certificate without access.
@@ -166,13 +165,39 @@ The Phase 6 end-to-end run (42 checks) covers:
 
 ## 7. Deployment requirements (owner)
 
-1. **Database index E1** (needs an account with find, listIndexes and createIndex on `progress`; not the app role):
-   - read-only: `node scripts/enrollment-indexes.js --database Forex_elearning --connection-file <file outside Git>`;
-   - if it reports exact duplicates, they need review before `--apply`. Cross-type groups are reported for review only;
-   - then `--apply`, and read-only again: E1 `present`.
+1. **Database index E1: production state and procedure (Option 1, owner-approved 31 October 2026).**
 
-   Until E1 exists, concurrent enroll requests can still create duplicate rows (the rest of Phase 6 works).
+   **Findings (read-only, 31 October 2026):**
+   - `Forex_elearning.progress` has `_id_` and `progress_user_course` `{ userId: 1, courseId: 1 }`, **not unique**. That index came from the learning-index work, not from this branch. MongoDB 8.0.36.
+   - The script reports `conflicting (not unique; convert with collMod after resolving duplicates)`. `--apply` refuses and never touches it.
+   - There are 2 exact duplicate groups and 0 different-ID-type groups. Both belong to one student, and in each the two rows were created milliseconds apart on 8 December 2025 (the enroll race).
+   - No payment, course access or certificate exists for either pair.
+   - Course `…ce077`: keep `69371feaf37cd99e9553588d` (20%, 1 lesson, last updated 27 October 2026) and remove `69371feaf37cd99e9553588c` (empty, never updated).
+   - Course `…ce079`: keep `69371fedf37cd99e9553588e` and remove `69371fedf37cd99e9553588f`. Both are empty.
+
+   **Procedure** (account with `find`, `remove`, `listIndexes` and `collMod` on `Forex_elearning.progress`):
+   1. Back up the two rows to be removed (EJSON, a local file outside Git).
+   2. Delete exactly those two, each with a filter on its `_id` and the inspected values.
+   3. Confirm the scan shows 0 exact duplicates.
+   4. Run `collMod` on `progress_user_course` with `prepareUnique: true`. New duplicates are refused from then on.
+   5. Run `collMod` with `unique: true`, after a dry run. MongoDB refuses it if any duplicate remains.
+   6. Run `scripts/enrollment-indexes.js` read-only: E1 `present`.
+
+   No drop, no rebuild, no moment without the index. The whole procedure was rehearsed on a real local MongoDB (`npm run test:mongo:enrollment`).
+
+   **Status: done, 1 November 2026, 00:10 UTC** (account `temporaryEnrollmentIndexRole` with `find`, `remove`, `listIndexes` and `collMod` on `progress`):
+   - all four rows matched the inspection before any change;
+   - backup `C:\Users\Juliet\Downloads\forexorbit_backups\progress-duplicates-2026-11-01T00-10-25-515Z.json` (2 documents), written and read back;
+   - `69371feaf37cd99e9553588c` and `69371fedf37cd99e9553588f` deleted (1 each); the kept rows `…588d` and `…588e` are unchanged;
+   - duplicate groups after: 0 exact, 0 cross-type;
+   - `prepareUnique` false to true, dry run ok, `unique` set to true;
+   - indexes now: `_id_` and `progress_user_course` `{ userId: 1, courseId: 1 }` unique. `progress` holds 108 rows;
+   - `scripts/enrollment-indexes.js` read-only: **E1 `present`**.
+
+   **Owner follow-up:** remove `temporaryEnrollmentIndexRole` (or its `remove`/`collMod` grants), delete `C:\Users\Juliet\fo-admin.env`, and keep the backup file outside Git.
+
+   Uniqueness is now enforced in production, independent of the Phase 6 deploy.
 2. **No app-role change.** `progress`, `userCourseAccess` and `adminAuditLog` are already covered. Run `node scripts/check-db-role.js --database Forex_elearning`; it should still PASS.
 3. **No new environment variable.**
 4. **After deploy:** one reconciliation pass (`/admin/purchases` → Run reconciliation, or the 15-minute sweep) enrolls entitled students who never had an enrollment row.
-5. **Order:** Phase 5 must be released first (Phase 6 is built on it). Then E1, then Phase 6.
+5. **Order:** Phase 5 must be released first (Phase 6 is built on it). E1 is done; then Phase 6.

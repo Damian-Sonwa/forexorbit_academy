@@ -52,8 +52,8 @@ test('real MongoDB: E1 refuses to build over exact duplicates, reports cross-typ
 
     await progress.deleteOne({ userId: student, courseId: course, active: false });
     const built = await ensureEnrollmentIndexes(conn.db, { apply: true });
-    assert.deepEqual([built.ok, built.built], [true, ['uniq_enrollment_user_course']]);
-    const index = (await progress.indexes()).find((i) => i.name === 'uniq_enrollment_user_course');
+    assert.deepEqual([built.ok, built.built], [true, ['progress_user_course']]);
+    const index = (await progress.indexes()).find((i) => i.name === 'progress_user_course');
     assert.deepEqual([index.key, index.unique, index.partialFilterExpression], [{ userId: 1, courseId: 1 }, true, undefined]);
     const again = await ensureEnrollmentIndexes(conn.db, { apply: true });
     assert.deepEqual([again.ok, again.built], [true, []], 'building twice is a no-op');
@@ -67,6 +67,39 @@ test('real MongoDB: E1 refuses to build over exact duplicates, reports cross-typ
     assert.ok(error, 'a second row for the same student and course is rejected');
     assert.deepEqual(enrollDuplicateStatus(error), { status: 400, body: { error: 'Already enrolled' } });
     assert.equal(ENROLLMENT_INDEXES.length, 1);
+  } finally {
+    await conn.close();
+  }
+});
+
+test('real MongoDB: the production case, an existing non-unique progress_user_course, is converted in place (Option 1)', { skip }, async () => {
+  const conn = await fresh();
+  try {
+    const progress = conn.db.collection('progress');
+    await progress.createIndex({ userId: 1, courseId: 1 }, { name: 'progress_user_course' });
+    const [student, course] = [id(), id()];
+    const { insertedId: redundant } = await progress.insertOne({ userId: student, courseId: course, progress: 0, completedLessons: [] });
+    await progress.insertOne({ userId: student, courseId: course, progress: 20, completedLessons: ['l1'] });
+
+    const lines = [];
+    const report = await ensureEnrollmentIndexes(conn.db, { log: (line) => lines.push(line) });
+    assert.equal(report.states[0].state, 'conflicting');
+    assert.match(lines[0], /^index E1 progress_user_course: conflicting \(not unique; convert with collMod after resolving duplicates\)$/);
+    assert.deepEqual(report.duplicates, { exactGroups: 1, crossTypeGroups: 0 }, 'the scan runs for a conflicting index too');
+    const refused = await ensureEnrollmentIndexes(conn.db, { apply: true });
+    assert.deepEqual([refused.ok, refused.built], [false, []], '--apply never touches the existing index');
+
+    // While the duplicate exists the unique conversion is refused by MongoDB itself.
+    await conn.db.command({ collMod: 'progress', index: { name: 'progress_user_course', prepareUnique: true } });
+    await assert.rejects(conn.db.command({ collMod: 'progress', index: { name: 'progress_user_course', unique: true } }));
+    await assert.rejects(progress.insertOne({ userId: student, courseId: course }), 'prepareUnique already refuses new duplicates');
+
+    await progress.deleteOne({ _id: redundant });
+    await conn.db.command({ collMod: 'progress', index: { name: 'progress_user_course', unique: true } });
+    const after = await ensureEnrollmentIndexes(conn.db, { apply: true });
+    assert.deepEqual([after.ok, after.built, after.states[0].state], [true, [], 'present']);
+    assert.equal(await progress.countDocuments({ userId: student, courseId: course }), 1);
+    assert.deepEqual((await progress.findOne({ userId: student, courseId: course })).completedLessons, ['l1'], 'the kept row is untouched');
   } finally {
     await conn.close();
   }

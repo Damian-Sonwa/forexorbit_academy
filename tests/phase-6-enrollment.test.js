@@ -643,15 +643,45 @@ test('admin course access: a concurrent change is refused instead of overwritten
 // ---------------------------------------------------------------------------
 
 test('enrollment index E1: definition, comparison, read-only report; refuses to build over unknown state', async () => {
-  assert.deepEqual(ENROLLMENT_INDEXES.map((i) => [i.id, i.collection, i.key, i.options]), [['E1', 'progress', { userId: 1, courseId: 1 }, { name: 'uniq_enrollment_user_course', unique: true }]]);
+  assert.deepEqual(ENROLLMENT_INDEXES.map((i) => [i.id, i.collection, i.key, i.options]), [['E1', 'progress', { userId: 1, courseId: 1 }, { name: 'progress_user_course', unique: true }]]);
   const [e1] = ENROLLMENT_INDEXES;
   assert.equal(compareEnrollmentIndex(e1, []), 'missing');
-  assert.equal(compareEnrollmentIndex(e1, [{ name: 'uniq_enrollment_user_course', key: { userId: 1, courseId: 1 }, unique: true }]), 'present');
-  assert.equal(compareEnrollmentIndex(e1, [{ name: 'uniq_enrollment_user_course', key: { userId: 1, courseId: 1 } }]), 'conflicting');
+  assert.equal(compareEnrollmentIndex(e1, [{ name: 'progress_user_course', key: { userId: 1, courseId: 1 }, unique: true }]), 'present');
+  assert.equal(compareEnrollmentIndex(e1, [{ name: 'progress_user_course', key: { userId: 1, courseId: 1 } }]), 'conflicting');
   assert.equal(compareEnrollmentIndex(e1, [{ name: 'other', key: { userId: 1, courseId: 1 }, unique: true }]), 'conflicting');
-  const denied = { collection: () => ({ indexes: async () => { throw Object.assign(new Error('not authorized'), { code: 13 }); } }) };
+  // An account that may read but not list indexes: the reason is reported and the duplicate scan
+  // (find only) still runs; nothing is built.
+  const groups = [[{ groups: 2 }], [{ groups: 3 }]];
+  const denied = {
+    collection: () => ({
+      indexes: async () => { throw Object.assign(new Error('not authorized on Forex_elearning to execute command { listIndexes: "progress" }'), { code: 13, codeName: 'Unauthorized' }); },
+      aggregate: () => ({ toArray: async () => groups.shift() }),
+      createIndex: async () => { throw new Error('must not build'); },
+    }),
+  };
+  const lines = [];
+  const readOnly = await ensureEnrollmentIndexes(denied, { log: (line) => lines.push(line) });
+  assert.deepEqual([readOnly.ok, readOnly.states[0].state, readOnly.states[0].reason, readOnly.duplicates], [true, 'unknown', 'Unauthorized', { exactGroups: 2, crossTypeGroups: 1 }]);
+  assert.deepEqual(lines, [
+    'index E1 progress_user_course: unknown (index list refused: Unauthorized)',
+    'duplicate enrollment groups: 2 exact, 1 stored with different id types',
+  ]);
+  assert.equal(lines.join(' ').includes('listIndexes'), false, 'only the code name is printed');
   const out = await ensureEnrollmentIndexes(denied, { apply: true });
   assert.deepEqual([out.ok, out.built, out.states[0].state], [false, [], 'unknown']);
+  // A scan that fails is reported, and --apply then refuses even for a missing index.
+  const missingButNoScan = {
+    collection: () => ({
+      indexes: async () => [],
+      aggregate: () => ({ toArray: async () => { throw Object.assign(new Error('x'), { codeName: 'Unauthorized' }); } }),
+      createIndex: async () => { throw new Error('must not build'); },
+    }),
+  };
+  const scanLines = [];
+  const refused = await ensureEnrollmentIndexes(missingButNoScan, { apply: true, log: (line) => scanLines.push(line) });
+  assert.deepEqual([refused.ok, refused.built], [false, []]);
+  assert.ok(scanLines.includes('duplicate scan failed: Unauthorized'));
+  assert.ok(scanLines.includes('Refusing to build: the duplicate scan did not complete.'));
 });
 
 // ---------------------------------------------------------------------------
