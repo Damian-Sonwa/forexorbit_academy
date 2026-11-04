@@ -41,6 +41,7 @@ import type { LessonAccessDeniedPayload, LessonMonetization } from '@/hooks/useL
 import { COURSE_PRICE_LABEL } from '@/lib/course-price';
 import { loginHref } from '@/lib/login-redirect';
 import dynamic from 'next/dynamic';
+import LessonAssignments from '@/components/LessonAssignments';
 
 // The market signal chart pulls in recharts; load it after the page instead of in the page bundle.
 const MarketSignal = dynamic(() => import('@/components/MarketSignal'), {
@@ -434,6 +435,9 @@ export default function LessonPage() {
           )}
         </div>
       )}
+
+      {/* Assignments: students, on a lesson they may open */}
+      {!payBlocked && displayLesson && isStudent && <LessonAssignments lessonId={lessonId} />}
 
       {/* Explicit completion: students, on a lesson they may open */}
       {!payBlocked && displayLesson && isStudent && (

@@ -16,6 +16,8 @@ Run the other scripts only with an explicit operator command and a database you 
 | `migrate-lesson-summaries.js`, `add-lesson-summaries.js`, `update-lesson-summaries-detailed.js` | Update lesson documents. |
 | `add-missing-quizzes.js`, `add-visual-aids-to-lessons.js` | Insert or update lesson content. |
 | `init-consultation-system.js` | Initializes consultation data. |
+| `assessment-indexes.js` | Reports the Phase 9 indexes and their duplicate checks; builds them only with `--apply`. |
+| `quiz-attempt-reconcile.js` | Reports interrupted quiz attempts, overdue attempts and pending assignment awards; finishes them only with `--apply`. Run by hand; nothing schedules it. |
 | `check-backup.js` | Reads a backup. |
 | `set-superadmin.js`, `reset-superadmin-password.js` | Disabled. They exit before connecting. |
 | `generate-jwt-secret.js`, `generate-password-hash.js` | Local helpers. They do not select an account. |

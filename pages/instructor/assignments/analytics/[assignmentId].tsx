@@ -11,6 +11,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
 import { chartPalette, chartTooltipStyle } from '@/lib/chart-theme';
 import { apiClient } from '@/lib/api-client';
+import SubmissionGradeForm, { type GradeHistoryEntry } from '@/components/instructor/SubmissionGradeForm';
 import {
   BarChart,
   Bar,
@@ -67,6 +68,10 @@ interface AnalyticsData {
     submittedAt: string | null;
     status: string;
     feedback: string | null;
+    late?: boolean;
+    submissionText?: string;
+    submissionFile?: string | null;
+    gradeHistory?: GradeHistoryEntry[];
   }>;
 }
 
@@ -80,6 +85,7 @@ export default function AssignmentAnalytics() {
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [grading, setGrading] = useState<string | null>(null);
 
   useEffect(() => {
     // Redirect students away
@@ -186,7 +192,7 @@ export default function AssignmentAnalytics() {
       <Header />
       <div className="flex flex-1 overflow-hidden pt-20 lg:pt-0">
         <Sidebar />
-        <main className="flex-1 overflow-y-auto p-4 lg:p-8">
+        <main className="min-w-0 flex-1 overflow-y-auto p-4 lg:p-8">
           <div className="max-w-7xl mx-auto">
             {/* Header */}
             <div className="mb-6">
@@ -352,6 +358,7 @@ export default function AssignmentAnalytics() {
                 <table className="w-full">
                   <thead className="bg-gray-50 dark:bg-gray-700">
                     <tr>
+                      <th className="px-6 py-3"><span className="sr-only">Grade</span></th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Student
                       </th>
@@ -372,6 +379,11 @@ export default function AssignmentAnalytics() {
                   <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                     {analytics.studentSubmissions.map((submission) => (
                       <tr key={submission._id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          <button type="button" className="min-h-[44px] font-semibold text-primary-600 hover:underline" onClick={() => setGrading(grading === submission._id ? null : submission._id)}>
+                            {grading === submission._id ? 'Close' : 'Grade'}
+                          </button>
+                        </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
                           {submission.studentName}
                         </td>
@@ -405,12 +417,19 @@ export default function AssignmentAnalytics() {
                           {submission.submittedAt
                             ? format(new Date(submission.submittedAt), 'MMM dd, yyyy HH:mm')
                             : 'N/A'}
+                          {submission.late ? ' (late)' : ''}
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
+              {analytics.studentSubmissions.filter((submission) => submission._id === grading).map((submission) => (
+                <div key={submission._id} className="border-t border-gray-200 p-4 dark:border-gray-700 sm:p-6">
+                  <p className="mb-2 font-semibold text-gray-900 dark:text-white">{submission.studentName}</p>
+                  <SubmissionGradeForm assignmentId={assignmentId as string} submission={submission} onSaved={loadAnalytics} />
+                </div>
+              ))}
             </div>
           </div>
         </main>

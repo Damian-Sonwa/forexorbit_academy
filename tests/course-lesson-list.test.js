@@ -570,7 +570,9 @@ test('single lesson: paid, complimentary, and manual entitlements return the ful
       assertHasContent(body, key);
       assert.equal(body.access, true);
       assert.equal(body.monetization.unlocked, true);
-      assert.equal(body.quiz.questions.length, 1);
+      // Phase 9: students get a quiz summary; questions come only with a server-side attempt.
+      assert.equal(body.quiz.summary.questionCount, 1);
+      assert.equal(body.quiz.questions, undefined);
     }
   }
 });

@@ -8,7 +8,7 @@ import { unexpectedBody } from '@/lib/public-error';
 import type { NextApiResponse } from 'next';
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
-import { ObjectId } from 'mongodb';
+import { ObjectId, type Document, type UpdateFilter } from 'mongodb';
 import {
   decideAccountAccess,
   decideAssignmentRead,
@@ -18,6 +18,9 @@ import {
 } from '@/lib/account-access';
 import { enrollmentDecisionRecord } from '@/lib/enrollment-state';
 import { courseContentAccess, LESSON_LOCKED_MESSAGE } from '@/lib/course-lesson-list';
+import { isLate, previouslyAwarded, settlePendingPoints } from '@/lib/assignment-grading';
+import { setPrivateNoStore } from '@/lib/lesson-documents';
+import { allowRequest, assessmentLimiter } from '@/lib/content-rate-limit';
 
 async function loadSubmissionContext(req: AuthRequest, id: string) {
   const db = await getDb();
@@ -49,6 +52,7 @@ async function submitAssignment(req: AuthRequest, res: NextApiResponse) {
     return res.status(400).json({ error: 'Invalid assignment ID' });
   }
   try {
+    if (!(await allowRequest(assessmentLimiter, { userId: req.user!.userId, res, getDb }))) return;
     const loaded = await loadSubmissionContext(req, id);
     const decision = decideAssignmentSubmit({
       member: loaded.account.ok ? { userId: loaded.account.user.userId, role: loaded.account.user.role } : null,
@@ -75,44 +79,80 @@ async function submitAssignment(req: AuthRequest, res: NextApiResponse) {
       return res.status(403).json({ error: LESSON_LOCKED_MESSAGE, code: 'assignment_locked' });
     }
     const submissions = loaded.db.collection('assignmentSubmissions');
+    const now = new Date();
+    // Phase 9: work after the due date is accepted and flagged (refusing it is a product decision).
+    const late = isLate(loaded.assignment!.dueDate, now);
+    const resubmit = async (existing: Record<string, any>) => {
+      // The earlier version (and the grade it received) is kept; the new work waits for grading,
+      // so a grade never stands for work it was not given for. What the earlier grade awarded is
+      // written down here, because after this the grade is gone from the current record and a
+      // regrade must still add only the difference.
+      await settlePendingPoints(loaded.db, existing);
+      const awarded = previouslyAwarded(existing, typeof loaded.assignment!.points === 'number' ? loaded.assignment!.points : 0);
+      const previous = {
+        submissionText: existing.submissionText ?? '',
+        submissionFile: existing.submissionFile ?? null,
+        submittedAt: existing.submittedAt ?? null,
+        grade: typeof existing.grade === 'number' ? existing.grade : null,
+        feedback: typeof existing.feedback === 'string' ? existing.feedback : null,
+        late: existing.late === true,
+        pointsAwarded: awarded,
+      };
+      const update = {
+          $set: {
+            submissionText: decision.submissionText,
+            submissionFile: decision.submissionFile,
+            submittedAt: now,
+            status: 'submitted',
+            grade: null,
+            feedback: null,
+            late,
+            pointsAwarded: awarded,
+            updatedAt: now,
+          },
+        $push: { previousVersions: previous },
+      } as unknown as UpdateFilter<Document>;
+      await submissions.updateOne({ _id: existing._id }, update);
+    };
     const existing = await submissions.findOne({
       userId: decision.userId,
       assignmentId: decision.assignmentId,
     });
     if (existing) {
-      await submissions.updateOne(
-        { userId: decision.userId, assignmentId: decision.assignmentId },
-        {
-          $set: {
-            submissionText: decision.submissionText,
-            submissionFile: decision.submissionFile,
-            submittedAt: new Date(),
-            status: 'submitted',
-            updatedAt: new Date(),
-          },
-        }
-      );
+      await resubmit(existing);
     } else {
-      await submissions.insertOne({
-        userId: decision.userId,
-        assignmentId: decision.assignmentId,
-        courseId: decision.courseId,
-        lessonId: decision.lessonId,
-        submissionText: decision.submissionText,
-        submissionFile: decision.submissionFile,
-        status: 'submitted',
-        grade: null,
-        feedback: null,
-        submittedAt: new Date(),
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
-      await loaded.db.collection('users').updateOne(
-        { _id: new ObjectId(decision.userId) },
-        { $inc: { points: decision.points || 0 } }
-      );
+      const firstId = new ObjectId();
+      const points = decision.points || 0;
+      const pointsPending = points ? { key: `${firstId}:submission`, delta: points } : null;
+      try {
+        await submissions.insertOne({
+          _id: firstId,
+          userId: decision.userId,
+          assignmentId: decision.assignmentId,
+          courseId: decision.courseId,
+          lessonId: decision.lessonId,
+          submissionText: decision.submissionText,
+          submissionFile: decision.submissionFile,
+          status: 'submitted',
+          grade: null,
+          feedback: null,
+          late,
+          submittedAt: now,
+          createdAt: now,
+          updatedAt: now,
+          ...(pointsPending ? { pointsPending } : {}),
+        });
+      } catch (error: unknown) {
+        // A parallel first submission won (unique index A2 on userId + assignmentId): this one
+        // becomes a resubmission and the participation points are not added twice.
+        if (!(error && typeof error === 'object' && (error as { code?: number }).code === 11000)) throw error;
+        const winner = await submissions.findOne({ userId: decision.userId, assignmentId: decision.assignmentId });
+        if (winner) await resubmit(winner);
+        return res.json({ success: true, message: 'Assignment submitted successfully', late });
+      }
+      if (pointsPending) await settlePendingPoints(loaded.db, { _id: firstId, userId: decision.userId, pointsPending });
     }
-    return res.json({ success: true, message: 'Assignment submitted successfully' });
+    return res.json({ success: true, message: 'Assignment submitted successfully', late });
   } catch {
     console.error(JSON.stringify({ event: 'assignmentSubmit', result: 'failed' }));
     return res.status(500).json(unexpectedBody('api'));
@@ -152,6 +192,7 @@ async function getSubmission(req: AuthRequest, res: NextApiResponse) {
 }
 
 async function handler(req: AuthRequest, res: NextApiResponse) {
+  setPrivateNoStore(res);
   if (req.method === 'POST') return submitAssignment(req, res);
   if (req.method === 'GET') return getSubmission(req, res);
   return res.status(405).json({ error: 'Method not allowed' });

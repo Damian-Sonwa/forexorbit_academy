@@ -179,8 +179,11 @@ test('invalid answers, missing records, inactive accounts, and lookup failures a
 
 test('the quiz routes grade on the server and the lesson payload does not copy the raw quiz', () => {
   const quizRoute = fs.readFileSync(path.join(__dirname, '..', 'pages', 'api', 'quizzes', '[lessonId].ts'), 'utf8');
-  assert.equal(quizRoute.includes('decideQuizRead'), true);
-  assert.equal(quizRoute.includes('decideQuizSubmit'), true);
+  // Phase 9: access through the attempt service (loadQuizContext: enrollment, course state,
+  // prerequisite, paywall) and grading on the server (submitAttempt -> scoreAttempt).
+  assert.equal(quizRoute.includes('loadQuizContext'), true);
+  assert.equal(quizRoute.includes('submitAttempt'), true);
+  assert.equal(fs.readFileSync(path.join(__dirname, '..', 'lib', 'quiz-attempts.js'), 'utf8').includes('scoreAttempt(attempt.questions, answers, attempt.passingPercent)'), true);
   assert.equal(quizRoute.includes('req.body.userId'), false);
   assert.equal(quizRoute.includes('req.body.score'), false);
   assert.equal(quizRoute.includes('Get quiz error:'), false);

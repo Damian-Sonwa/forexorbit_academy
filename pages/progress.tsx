@@ -13,6 +13,7 @@ import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
 // import Footer from '@/components/Footer'; // Reserved for future use
 import BackButton from '@/components/BackButton';
+import AssessmentHistory from '@/components/AssessmentHistory';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { CourseCardSkeleton, LoadingStatus, MetricSkeleton, TableSkeleton } from '@/components/loading';
 import { useAuth } from '@/hooks/useAuth';
@@ -329,7 +330,7 @@ export default function Progress() {
                             <p className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Quiz {idx + 1}</p>
                             <div className="flex items-baseline gap-2">
                               <p className="text-lg font-bold text-gray-900 dark:text-white">{quiz.percentage}%</p>
-                              <p className="text-xs text-gray-500 dark:text-gray-400">({quiz.score}/{quiz.totalQuestions})</p>
+                              {quiz.totalQuestions > 0 && <p className="text-xs text-gray-500 dark:text-gray-400">({quiz.score}/{quiz.totalQuestions})</p>}
                             </div>
                             <div className="mt-2 w-full bg-gray-200 dark:bg-gray-600 rounded-full h-1.5">
                               <div
@@ -363,6 +364,7 @@ export default function Progress() {
               ))}
             </div>
           )}
+          <div className="mt-4"><AssessmentHistory /></div>
         </main>
         </div>
       </div>

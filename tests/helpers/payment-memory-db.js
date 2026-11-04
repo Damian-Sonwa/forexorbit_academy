@@ -41,12 +41,13 @@ function matches(doc, query) {
       return Object.entries(cond).every(([op, arg]) => {
         if (op === '$in') return arg.some((candidate) => (Array.isArray(value) ? value.some((v) => sameValue(v, candidate)) : sameValue(value, candidate)));
         if (op === '$nin') return !arg.some((candidate) => sameValue(value, candidate));
-        if (op === '$ne') return !sameValue(value, arg);
+        if (op === '$ne') return Array.isArray(value) ? !value.some((v) => sameValue(v, arg)) : !sameValue(value, arg);
         if (op === '$exists') return arg ? value !== undefined : value === undefined;
         if (op === '$lt') return value !== undefined && value !== null && comparable(value) < comparable(arg);
         if (op === '$gt') return value !== undefined && value !== null && comparable(value) > comparable(arg);
         if (op === '$lte') return value !== undefined && value !== null && comparable(value) <= comparable(arg);
         if (op === '$gte') return value !== undefined && value !== null && comparable(value) >= comparable(arg);
+        if (op === '$type') return typeof value === arg;
         throw new Error(`payment-memory-db: unsupported operator ${op}`);
       });
     }
@@ -64,12 +65,35 @@ function duplicateKeyError(index) {
   return Object.assign(new Error(`E11000 duplicate key error index: ${index.options.name}`), { code: 11000, codeName: 'DuplicateKey' });
 }
 
+/** Sets a dotted path ("answers.q1") as MongoDB does: nested objects, created when missing. */
+function setPath(doc, key, value) {
+  if (!key.includes('.')) { doc[key] = value; return; }
+  const parts = key.split('.');
+  let target = doc;
+  for (const part of parts.slice(0, -1)) {
+    if (!target[part] || typeof target[part] !== 'object') target[part] = {};
+    target = target[part];
+  }
+  target[parts[parts.length - 1]] = value;
+}
+
+function unsetPath(doc, key) {
+  if (!key.includes('.')) { delete doc[key]; return; }
+  const parts = key.split('.');
+  let target = doc;
+  for (const part of parts.slice(0, -1)) {
+    if (!target[part] || typeof target[part] !== 'object') return;
+    target = target[part];
+  }
+  delete target[parts[parts.length - 1]];
+}
+
 function applyUpdate(doc, update) {
-  Object.assign(doc, update.$set || {});
+  for (const [key, value] of Object.entries(update.$set || {})) setPath(doc, key, value);
   for (const [key, value] of Object.entries(update.$inc || {})) doc[key] = (doc[key] || 0) + value;
   for (const [key, value] of Object.entries(update.$push || {})) doc[key] = [...(doc[key] || []), value];
   for (const [key, value] of Object.entries(update.$pull || {})) doc[key] = (doc[key] || []).filter((item) => !sameValue(item, value));
-  for (const key of Object.keys(update.$unset || {})) delete doc[key];
+  for (const key of Object.keys(update.$unset || {})) unsetPath(doc, key);
   for (const [key, value] of Object.entries(update.$max || {})) if (doc[key] === undefined || comparable(value) > comparable(doc[key])) doc[key] = value;
   for (const [key, value] of Object.entries(update.$addToSet || {})) {
     const list = Array.isArray(doc[key]) ? doc[key] : [];
@@ -115,7 +139,22 @@ class MemoryCollection {
     let rows = this.docs.filter((row) => matches(row, query));
     const cursor = {
       project: () => cursor,
-      sort: () => cursor,
+      sort: (spec) => {
+        const fields = Object.entries(spec || {});
+        const key = (value) => (value && typeof value.toHexString === 'function' ? String(value) : comparable(value));
+        rows = rows.slice().sort((a, b) => {
+          for (const [field, direction] of fields) {
+            const [left, right] = [key(a[field]), key(b[field])];
+            if (left === right) continue;
+            if (left === undefined || left === null) return -direction;
+            if (right === undefined || right === null) return direction;
+            return left < right ? -direction : direction;
+          }
+          return 0;
+        });
+        return cursor;
+      },
+      skip: (n) => { rows = rows.slice(n); return cursor; },
       limit: (n) => { rows = rows.slice(0, n); return cursor; },
       toArray: async () => {
         if (racy) await yieldTurn();
@@ -172,6 +211,39 @@ class MemoryCollection {
     return { matchedCount: upserted ? 0 : 1, modifiedCount: upserted ? 0 : 1, upsertedCount: upserted ? 1 : 0 };
   }
 
+  /**
+   * Atomic find-and-modify, as MongoDB: the match and the write happen together (in racy mode the
+   * yield comes first, so concurrent callers interleave between whole operations, never inside
+   * one). With upsert, a document whose _id matches but whose other conditions do not raises a
+   * duplicate key error, as on a real server.
+   */
+  async findOneAndUpdate(filter, update, options = {}) {
+    if (this.racy) await yieldTurn();
+    this.maybeFail('findOneAndUpdate');
+    let doc = this.docs.find((row) => matches(row, filter));
+    let inserted = false;
+    if (!doc) {
+      if (!options.upsert) return null;
+      const id = filter._id;
+      if (id !== undefined && !isOperatorObject(id) && this.docs.some((row) => sameValue(row._id, id))) throw duplicateKeyError({ options: { name: '_id_' } });
+      doc = { _id: id !== undefined && !isOperatorObject(id) ? id : `id_${this.name}_${++this.seq}` };
+      for (const [key, value] of Object.entries(filter)) if (!key.startsWith('$') && !isOperatorObject(value)) doc[key] = value;
+      Object.assign(doc, update.$setOnInsert || {});
+      this.docs.push(doc);
+      inserted = true;
+    }
+    const before = JSON.parse(JSON.stringify(doc));
+    applyUpdate(doc, update);
+    try {
+      this.assertUnique(doc);
+    } catch (error) {
+      if (inserted) this.docs.splice(this.docs.indexOf(doc), 1);
+      throw error;
+    }
+    if (options.returnDocument === 'after') return { ...doc };
+    return inserted ? null : before;
+  }
+
   /** updateOne operations only (lib/course-progress.js recomputeCourseProgress). */
   async bulkWrite(operations) {
     let modifiedCount = 0;
@@ -186,6 +258,12 @@ class MemoryCollection {
     const rows = this.docs.filter((row) => matches(row, filter));
     rows.forEach((row) => applyUpdate(row, update));
     return { matchedCount: rows.length, modifiedCount: rows.length };
+  }
+
+  async deleteOne(filter) {
+    const at = this.docs.findIndex((row) => matches(row, filter));
+    if (at >= 0) this.docs.splice(at, 1);
+    return { deletedCount: at >= 0 ? 1 : 0 };
   }
 
   async deleteMany(filter) {

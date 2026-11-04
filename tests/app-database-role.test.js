@@ -125,8 +125,45 @@ test('the role covers every collection the app uses', () => {
     for (const match of source.matchAll(/collection\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*\)/g)) {
       assert.ok(match[1] in knownIdentifiers, `${file} uses collection(${match[1]}); add its collection to lib/app-database-role.js`);
     }
+    // Phase 9: `collection(COLLECTIONS.x)` (a member expression) escaped the checks above, which is
+    // how Phase 8's learningDays and learningMinutes were missed. Such modules must be listed here.
+    for (const match of source.matchAll(/collection\(\s*([A-Za-z_][A-Za-z0-9_]*)\.[A-Za-z_][A-Za-z0-9_]*\s*\)/g)) {
+      assert.ok(MEMBER_COLLECTION_MODULES.has(file.replace(/\\/g, '/')), `${file} uses collection(${match[1]}.…); add the module to MEMBER_COLLECTION_MODULES with its collections`);
+    }
+  }
+  for (const [file, source] of MEMBER_COLLECTION_MODULES) {
+    for (const name of namesFrom(source)) assert.ok(covered.has(name), `${file}: ${name} is not covered by the app role`);
   }
 });
+
+/**
+ * Files that name collections through a member expression, and where the names come from:
+ * [module, export]. Payment code uses COLLECTIONS from lib/course-payment.js; table-driven code
+ * (index definitions, course deletion) reads `.collection` from an exported table.
+ */
+const PAYMENT = ['lib/course-payment.js', 'COLLECTIONS'];
+const MEMBER_COLLECTION_MODULES = new Map([
+  ['lib/course-payment.js', PAYMENT],
+  ['lib/admin-purchase-ledger.js', PAYMENT],
+  ['lib/course-access-admin.js', PAYMENT],
+  ['lib/payment-history.js', PAYMENT],
+  ['lib/payment-reconciliation.js', PAYMENT],
+  ['lib/payment-refunds.js', PAYMENT],
+  ['lib/progress-summary.js', PAYMENT],
+  ['pages/api/courses/index.ts', PAYMENT],
+  ['lib/refund-indexes.js', PAYMENT],
+  ['lib/learning-activity.js', ['lib/learning-activity.js', 'COLLECTIONS']],
+  ['lib/quiz-attempts.js', ['lib/quiz-attempts.js', 'COLLECTIONS']],
+  ['lib/course-deletion.js', ['lib/course-deletion.js', 'PROTECTED_RECORDS']],
+  ['lib/assessment-indexes.js', ['lib/assessment-indexes.js', 'ASSESSMENT_INDEXES']],
+  ['lib/enrollment-indexes.js', ['lib/enrollment-indexes.js', 'ENROLLMENT_INDEXES']],
+]);
+/** Collection names a [module, export] source provides (an object of names or a table of rows). */
+function namesFrom([file, exported]) {
+  const value = require(path.join(root, file))[exported];
+  const items = Array.isArray(value) ? value.map((row) => row.collection) : Object.values(value);
+  return items.filter((name) => typeof name === 'string');
+}
 
 test('the checker takes a database name, never prints the connection string, and only reads', () => {
   assert.match(parseArgs(['node', 's']).error, /--database/);

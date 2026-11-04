@@ -283,6 +283,7 @@ ForexOrbit Academy is built as a **Next.js 14 monorepo** application that seamle
 **Leaderboard System:**
 - Points-based ranking
 - Multiple leaderboard types (points, course completion, quiz scores)
+- Quiz ranking is the average of every attempt in a final scored state, submitted or timed out, retakes included
 - Real-time updates
 - Top performers display
 

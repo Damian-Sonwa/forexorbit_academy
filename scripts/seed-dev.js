@@ -29,6 +29,8 @@ const SEED_COLLECTIONS = Object.freeze([
   'instructors',
   'progress',
   'quizScores',
+  'quizAttempts',
+  'quizAttemptCounters',
   'certificates',
 ]);
 const PRESERVED_COLLECTION = 'communityRooms';

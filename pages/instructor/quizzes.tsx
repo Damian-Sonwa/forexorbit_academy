@@ -12,6 +12,9 @@ import LoadingSpinner from '@/components/LoadingSpinner';
 import { useAuth } from '@/hooks/useAuth';
 import { useSocket } from '@/hooks/useSocket';
 import { apiClient } from '@/lib/api-client';
+import QuizSettingsPanel, { DEFAULT_QUIZ_SETTINGS, type QuizSettingsForm } from '@/components/instructor/QuizSettingsPanel';
+import QuizResultsPanel from '@/components/instructor/QuizResultsPanel';
+import LessonAssignmentsPanel from '@/components/instructor/LessonAssignmentsPanel';
 import { sanitizeHtml } from '@/lib/html-sanitizer';
 import { getLessonDescriptionHtml, hasVisibleHtml } from '@/lib/lesson-html';
 import { useCourses } from '@/hooks/useCourses';
@@ -31,10 +34,14 @@ interface Quiz {
   lessonId: string;
   courseId: string;
   questions: Array<{
+    id?: string;
     question: string;
     options: string[];
     correctAnswer: number;
+    points?: number;
+    explanation?: string;
   }>;
+  settings?: QuizSettingsForm;
 }
 
 interface Course {
@@ -77,10 +84,12 @@ export default function InstructorQuizzes() {
       router.push('/dashboard');
       return;
     }
-    if (isAuthenticated && user) {
-      loadAllCourses();
-    }
   }, [authLoading, isAuthenticated, user, router]);
+
+  // The course list arrives after the first render: follow it, or the page stays empty.
+  useEffect(() => {
+    setAllCourses(courses as Course[]);
+  }, [courses]);
 
   useEffect(() => {
     if (selectedCourse) {
@@ -102,14 +111,6 @@ export default function InstructorQuizzes() {
     }
   }, [socket, connected, editingQuiz]);
 
-  const loadAllCourses = async () => {
-    try {
-      setAllCourses(courses as Course[]);
-    } catch (error) {
-      console.error('Failed to load courses:');
-    }
-  };
-
   const loadCourseLessons = async (courseId: string) => {
     const selected = allCourses.find((item) => (item._id || item.id) === courseId);
     if (!canReadCourseLessons(user?.role, user?.id, selected?.instructorId)) {
@@ -130,10 +131,10 @@ export default function InstructorQuizzes() {
   const loadQuiz = async (lessonId: string) => {
     try {
       const quiz = await apiClient.get<Quiz>(`/quizzes/${lessonId}`);
-      setQuizForm(quiz);
+      setQuizForm({ ...quiz, settings: { ...DEFAULT_QUIZ_SETTINGS, ...(quiz.settings || {}) } });
     } catch {
       // Quiz might not exist yet
-      setQuizForm({ lessonId, courseId: selectedCourse || '', questions: [] });
+      setQuizForm({ lessonId, courseId: selectedCourse || '', questions: [], settings: { ...DEFAULT_QUIZ_SETTINGS } });
     }
   };
 
@@ -161,7 +162,9 @@ export default function InstructorQuizzes() {
       await apiClient.put(`/quizzes/${editingQuiz}`, {
         lessonId: editingQuiz,
         courseId: selectedCourse,
+        // Question ids are sent back so edits keep each question's identity (Phase 9).
         questions: quizForm.questions || [],
+        settings: quizForm.settings || DEFAULT_QUIZ_SETTINGS,
       });
 
       // Emit real-time update
@@ -174,7 +177,8 @@ export default function InstructorQuizzes() {
       setQuizForm({});
       alert('Quiz saved successfully!');
     } catch (error: any) {
-      alert(error.message || 'Failed to save quiz');
+      // The server says exactly what is wrong (empty option, missing correct answer, ...).
+      alert(error?.response?.data?.error || error.message || 'Failed to save quiz');
     } finally {
       setLoading(false);
     }
@@ -184,7 +188,7 @@ export default function InstructorQuizzes() {
     const questions = quizForm.questions || [];
     setQuizForm({
       ...quizForm,
-      questions: [...questions, { question: '', options: ['', '', '', ''], correctAnswer: 0 }],
+      questions: [...questions, { question: '', options: ['', '', '', ''], correctAnswer: 0, points: 1, explanation: '' }],
     });
   };
 
@@ -341,6 +345,11 @@ export default function InstructorQuizzes() {
                       </button>
                     </div>
 
+                    <QuizSettingsPanel
+                      value={quizForm.settings || DEFAULT_QUIZ_SETTINGS}
+                      onChange={(settings) => setQuizForm({ ...quizForm, settings })}
+                    />
+
                     {(quizForm.questions || []).map((question, qIndex) => (
                       <div key={qIndex} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-3">
                         <div className="flex items-center justify-between">
@@ -390,6 +399,34 @@ export default function InstructorQuizzes() {
                             />
                           </div>
                         ))}
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-[8rem_1fr]">
+                          <label className="text-xs text-gray-600 dark:text-gray-400">Points
+                            <input
+                              type="number"
+                              min={1}
+                              max={100}
+                              value={question.points ?? 1}
+                              onChange={(e) => {
+                                const questions = [...(quizForm.questions || [])];
+                                questions[qIndex].points = Number(e.target.value);
+                                setQuizForm({ ...quizForm, questions });
+                              }}
+                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg"
+                            />
+                          </label>
+                          <label className="text-xs text-gray-600 dark:text-gray-400">Explanation shown at review (optional)
+                            <input
+                              type="text"
+                              value={question.explanation ?? ''}
+                              onChange={(e) => {
+                                const questions = [...(quizForm.questions || [])];
+                                questions[qIndex].explanation = e.target.value;
+                                setQuizForm({ ...quizForm, questions });
+                              }}
+                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg"
+                            />
+                          </label>
+                        </div>
                       </div>
                     ))}
 
@@ -418,6 +455,18 @@ export default function InstructorQuizzes() {
                       </button>
                     </div>
                   </form>
+                  {editingQuiz && (quizForm.questions || []).length > 0 && (
+                    <div className="mt-6 border-t border-gray-200 pt-4 dark:border-gray-700">
+                      <h4 className="mb-2 text-sm font-semibold text-gray-900 dark:text-white">Results</h4>
+                      <QuizResultsPanel lessonId={editingQuiz} />
+                    </div>
+                  )}
+                  {editingQuiz && selectedCourse && (
+                    <div className="mt-6 border-t border-gray-200 pt-4 dark:border-gray-700">
+                      <h4 className="mb-2 text-sm font-semibold text-gray-900 dark:text-white">Assignments</h4>
+                      <LessonAssignmentsPanel courseId={selectedCourse} lessonId={editingQuiz} />
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="p-6">

@@ -53,8 +53,8 @@ async function getLeaderboard(req: AuthRequest, res: NextApiResponse) {
         { $limit: 100 },
       ]).toArray();
 
-      // One users query for all rows; ids are matched as stored, as the per-row lookup did.
-      const people = await findByIds(users, completedCourses.map((item) => item._id), { name: 1, email: 1, avatar: 1 });
+      // One users query for all rows. certificates stores userId as a string; user _ids are ObjectIds.
+      const people = await findByIds(users, objectIdsFrom(completedCourses.map((item) => item._id)), { name: 1, email: 1, avatar: 1 });
       rankings = completedCourses.map((item, index) => {
           const user = people.get(String(item._id));
           return {
@@ -67,7 +67,11 @@ async function getLeaderboard(req: AuthRequest, res: NextApiResponse) {
           };
         });
     } else if (type === 'quizzes') {
-      // Leaderboard by quiz average scores
+      // Leaderboard by quiz average scores. Approved rule: the average of every attempt in a final
+      // scored state, submitted or timed out, retakes included. A quizScores row is written only
+      // after an attempt is finalized and scored, so in-progress, abandoned and interrupted attempts
+      // are absent until reconciliation scores them. pages/leaderboard.tsx tells students this
+      // (docs/audits/phase-9-assessments.md, section 2.2). totalQuizzes counts attempts.
       const quizStats = await quizScores.aggregate([
         {
           $group: {
@@ -80,7 +84,8 @@ async function getLeaderboard(req: AuthRequest, res: NextApiResponse) {
         { $limit: 100 },
       ]).toArray();
 
-      const people = await findByIds(users, quizStats.map((item) => item._id), { name: 1, email: 1, avatar: 1 });
+      // quizScores stores userId as a string; user _ids are ObjectIds.
+      const people = await findByIds(users, objectIdsFrom(quizStats.map((item) => item._id)), { name: 1, email: 1, avatar: 1 });
       rankings = quizStats.map((item, index) => {
           const user = people.get(String(item._id));
           return {

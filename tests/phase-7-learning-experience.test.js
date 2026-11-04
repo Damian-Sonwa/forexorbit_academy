@@ -193,7 +193,9 @@ test('1. an enrolled student with the course entitlement opens every lesson, wit
       assert.equal(res.body.videoUrl, `https://videos.example.test/${key}.mp4`, key);
     }
     const paid = await call(r.lesson, { token: T.payer, query: { id: w.lesson.paid } });
-    assert.equal(paid.body.quiz.questions.length, 1);
+    // Phase 9: students get a quiz summary; questions come only with a server-side attempt.
+    assert.equal(paid.body.quiz.summary.questionCount, 1);
+    assert.equal(paid.body.quiz.questions, undefined);
     assert.equal(paid.body.completed, false);
   });
 });

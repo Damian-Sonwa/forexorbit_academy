@@ -570,7 +570,8 @@ test('M1: lesson deletion and creation recount enrolments; certificates use comp
   const cert = read('pages/api/certificates/index.ts');
   assert.ok(cert.includes('const completion = courseCompletion({ enrollment: userProgress, currentLessonIds });'));
   assert.equal(cert.includes('userProgress.progress < 100'), false);
-  for (const file of ['pages/api/progress/index.ts', 'pages/api/quizzes/[lessonId].ts', 'server.js']) {
+  // Phase 9: quiz completions are recorded by the attempt service (lib/quiz-attempts.js).
+  for (const file of ['pages/api/progress/index.ts', 'lib/quiz-attempts.js', 'server.js']) {
     const source = read(file);
     assert.ok(source.includes('recordLessonCompletion('), file);
     assert.equal(source.includes('completedLessons.length / courseLessons.length'), false, file);

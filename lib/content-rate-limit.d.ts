@@ -11,6 +11,8 @@ export const authoringLimiter: Limiter;
 export const uploadLimiter: Limiter;
 export const ACTIVITY_RULES: readonly AuthRule[];
 export const activityLimiter: Limiter;
+export const ASSESSMENT_RULES: readonly AuthRule[];
+export const assessmentLimiter: Limiter;
 export function allowRequest(
   limiter: Limiter,
   input: {

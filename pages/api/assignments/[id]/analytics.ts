@@ -10,6 +10,7 @@ import { getDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 import { decideAccountAccess, decideAssignmentMutation, isStoredId } from '@/lib/account-access';
 import { activeEnrollmentFilter } from '@/lib/enrollment-state';
+import { findByIds, objectIdsFrom } from '@/lib/batch-lookup';
 
 async function getAssignmentAnalytics(req: AuthRequest, res: NextApiResponse) {
   try {
@@ -119,24 +120,34 @@ async function getAssignmentAnalytics(req: AuthRequest, res: NextApiResponse) {
     }));
 
     // Get student submissions with user details
-    const studentSubmissions = await Promise.all(
-      allSubmissions.map(async (submission) => {
-        const user = await users.findOne(
-          { _id: new ObjectId(submission.userId) },
-          { projection: { name: 1, email: 1 } }
-        );
+    // Phase 9: student names in one query (was one per submission).
+    const people = await findByIds(users, objectIdsFrom(allSubmissions.map((submission) => submission.userId)), { name: 1, email: 1 });
+    const studentSubmissions = allSubmissions.map((submission) => {
+        const user = people.get(String(submission.userId));
         return {
           _id: submission._id.toString(),
           userId: submission.userId,
           studentName: user?.name || 'Unknown',
           studentEmail: user?.email || 'Unknown',
-          grade: submission.grade || null,
+          // A grade of 0 is a grade (Phase 9: `|| null` showed it as ungraded).
+          grade: typeof submission.grade === 'number' ? submission.grade : null,
           submittedAt: submission.submittedAt || null,
           status: submission.status || 'submitted',
           feedback: submission.feedback || null,
+          late: submission.late === true,
+          // For grading on the instructor's page (this route is the course's staff only).
+          submissionText: typeof submission.submissionText === 'string' ? submission.submissionText : '',
+          submissionFile: typeof submission.submissionFile === 'string' ? submission.submissionFile : null,
+          gradeHistory: Array.isArray(submission.gradeHistory)
+            ? submission.gradeHistory.map((entry: Record<string, unknown>) => ({
+                grade: entry.grade,
+                feedback: entry.feedback ?? null,
+                gradedAt: entry.gradedAt,
+                previousGrade: entry.previousGrade ?? null,
+              }))
+            : [],
         };
-      })
-    );
+      });
 
     // Sort by grade (highest first), then by submission date
     studentSubmissions.sort((a, b) => {

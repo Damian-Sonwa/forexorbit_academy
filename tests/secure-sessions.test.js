@@ -320,7 +320,7 @@ test('roles come from the live account on every request; the Super Admin rule is
   await withEnv(TEST_ENV, async () => {
     const admin = account({ role: 'admin', email: 'a@example.com' });
     const db = dbWith([admin]);
-    const { token } = await signIn(db, admin);
+    const { token } = await signIn(db, admin, new Date()); // withAuth reads the real clock (as the tests below)
     const superOnly = withAuthRoute(db, ['superadmin']);
     assert.equal((await call(superOnly.handler, { token })).statusCode, 403);
     const staff = withAuthRoute(db, ['admin', 'superadmin']);

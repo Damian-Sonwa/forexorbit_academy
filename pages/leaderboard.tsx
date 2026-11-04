@@ -121,6 +121,11 @@ export default function Leaderboard() {
               />
             )}
           </div>
+          {type === 'quizzes' && (
+            <p className="mt-3 text-sm text-gray-600 dark:text-gray-400" data-testid="leaderboard-quiz-rule">
+              Avg Score is the average of every quiz attempt you have finished. Retakes count, so a lower score on a retake lowers your average. Attempts that ran out of time count once they are scored. Attempts still in progress do not count.
+            </p>
+          )}
         </div>
 
         {/* Leaderboard Table */}
@@ -145,7 +150,7 @@ export default function Leaderboard() {
                     {type === 'quizzes' && (
                       <>
                         <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Avg Score</th>
-                        <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Quizzes</th>
+                        <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">Attempts</th>
                       </>
                     )}
                     {type === 'course' && (

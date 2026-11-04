@@ -23,6 +23,7 @@ import { readLessonDetail } from '@/lib/course-lesson-list';
 import { stripLessonVisualAidsFields } from '@/lib/strip-visual-aids-html';
 import { touchLessonSet } from '@/lib/lesson-order';
 import { recomputeCourseProgress } from '@/lib/course-progress';
+import { closeLessonAttempts } from '@/lib/quiz-attempts';
 import { assetsInDocuments, cleanupUnreferencedAssets, removedAssets } from '@/lib/media-cleanup';
 import { allowRequest, authoringLimiter } from '@/lib/content-rate-limit';
 import { deleteImage } from '@/lib/cloudinary';
@@ -161,8 +162,11 @@ async function deleteLesson(req: AuthRequest, res: NextApiResponse) {
       return refused(res, decision);
     }
 
-    await db.collection('lessons').deleteOne({ _id: new ObjectId(decision.lessonId) });
+    // The quiz goes first, so nothing new can start; attempts in progress close before the lesson
+    // goes, so a failure here leaves a lesson that can be deleted again. Results stay.
     await db.collection('quizzes').deleteOne({ lessonId: decision.lessonId });
+    await closeLessonAttempts(db, decision.lessonId);
+    await db.collection('lessons').deleteOne({ _id: new ObjectId(decision.lessonId) });
     // Students' completed-lesson history keeps the id; progress is recounted against the lessons
     // that remain, so it can no longer pass 100 (lib/course-progress.js).
     await touchLessonSet(db, decision.courseId);

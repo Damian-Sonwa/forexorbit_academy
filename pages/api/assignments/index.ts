@@ -18,6 +18,7 @@ import {
 } from '@/lib/account-access';
 import { enrollmentDecisionRecord } from '@/lib/enrollment-state';
 import { courseContentAccess } from '@/lib/course-lesson-list';
+import { allowRequest, authoringLimiter } from '@/lib/content-rate-limit';
 
 async function loadCourseAccess(req: AuthRequest, courseId: string) {
   const db = await getDb();
@@ -91,14 +92,15 @@ async function getAssignments(req: AuthRequest, res: NextApiResponse) {
       access.courseId
     );
     const visible = assignmentsList.filter((assignment) => content.isOpen(assignment.lessonId ? String(assignment.lessonId) : null));
-    const submissions = loaded.db.collection('assignmentSubmissions');
-    const views = await Promise.all(visible.map(async (assignment) => {
-      const submission = await submissions.findOne({
-        userId: loaded.account.ok ? loaded.account.user.userId : '',
-        assignmentId: assignment._id.toString(),
-      });
-      return presentAssignment(assignment, false, submission);
-    }));
+    // Phase 9: the student's submissions for all listed assignments in one query (was one per assignment).
+    const ownSubmissions = visible.length
+      ? await loaded.db.collection('assignmentSubmissions').find({
+          userId: loaded.account.ok ? loaded.account.user.userId : '',
+          assignmentId: { $in: visible.map((assignment) => assignment._id.toString()) },
+        }).toArray()
+      : [];
+    const byAssignment = new Map(ownSubmissions.map((submission) => [String(submission.assignmentId), submission]));
+    const views = visible.map((assignment) => presentAssignment(assignment, false, byAssignment.get(assignment._id.toString()) || null));
     return res.json(views);
   } catch {
     console.error(JSON.stringify({ event: 'assignmentList', result: 'failed' }));
@@ -114,6 +116,7 @@ async function createAssignment(req: AuthRequest, res: NextApiResponse) {
     return res.status(400).json({ error: 'Invalid course ID' });
   }
   try {
+    if (!(await allowRequest(authoringLimiter, { userId: req.user!.userId, res, getDb }))) return;
     const loaded = await loadCourseAccess(req, courseId);
     const lesson = lessonId
       ? await loaded.db.collection('lessons').findOne(

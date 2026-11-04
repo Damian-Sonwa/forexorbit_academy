@@ -20,6 +20,7 @@ import {
 } from '@/lib/account-access';
 import { enrollmentDecisionRecord } from '@/lib/enrollment-state';
 import { courseContentAccess, LESSON_LOCKED_MESSAGE } from '@/lib/course-lesson-list';
+import { allowRequest, authoringLimiter } from '@/lib/content-rate-limit';
 
 async function loadAssignment(req: AuthRequest, id: string) {
   const db = await getDb();
@@ -146,8 +147,10 @@ async function deleteAssignment(req: AuthRequest, res: NextApiResponse) {
 
 async function handler(req: AuthRequest, res: NextApiResponse) {
   if (req.method === 'GET') return getAssignment(req, res);
-  if (req.method === 'PUT') return updateAssignment(req, res);
-  if (req.method === 'DELETE') return deleteAssignment(req, res);
+  if (req.method === 'PUT' || req.method === 'DELETE') {
+    if (!(await allowRequest(authoringLimiter, { userId: req.user!.userId, res, getDb }))) return;
+    return req.method === 'PUT' ? updateAssignment(req, res) : deleteAssignment(req, res);
+  }
   return res.status(405).json({ error: 'Method not allowed' });
 }
 
