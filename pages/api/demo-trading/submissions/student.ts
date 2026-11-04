@@ -7,6 +7,7 @@ import { unexpectedBody } from '@/lib/public-error';
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
+import { listPage } from '@/lib/practice-desk';
 import { getDb } from '@/lib/mongodb';
 import { setPrivateNoStore } from '@/lib/lesson-documents';
 import { findByIds, objectIdsFrom } from '@/lib/batch-lookup';
@@ -41,6 +42,8 @@ async function getStudentSubmissions(req: AuthRequest, res: NextApiResponse) {
     const submissionDocs = await submissions
       .find(query)
       .sort({ submittedAt: -1 })
+      .skip(listPage(req.query).skip)
+      .limit(listPage(req.query).limit)
       .toArray();
 
     // Task details in one query, not one per submission.

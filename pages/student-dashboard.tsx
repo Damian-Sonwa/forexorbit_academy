@@ -23,10 +23,6 @@ import { AlertTriangle, BarChart3, BookOpen, Bot, Calendar, CheckCircle2, Clipbo
 import dynamic from 'next/dynamic';
 
 // The market signal chart pulls in recharts; load it after the page instead of in the page bundle.
-const MarketSignal = dynamic(() => import('@/components/MarketSignal'), {
-  ssr: false,
-  loading: () => <div className="card orbit-skeleton h-48" aria-hidden />,
-});
 
 interface DemoTask {
   _id: string;
@@ -80,7 +76,7 @@ export default function StudentDashboard() {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const { connected } = useSocket();
   const router = useRouter();
-  const [activeSection, setActiveSection] = useState<ActiveSection>('guide');
+  const [activeSection, setActiveSection] = useState<ActiveSection>('live');
   const [tasks, setTasks] = useState<DemoTask[]>([]);
   const [taskSubmissions, setTaskSubmissions] = useState<Record<string, TaskSubmission>>({});
   const [journalEntries, setJournalEntries] = useState<TradeJournalEntry[]>([]);
@@ -339,7 +335,7 @@ export default function StudentDashboard() {
             </div>
             <div className="inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-sm text-neutral-700">
               <span className={`h-2 w-2 rounded-full ${connected ? 'bg-green-600' : 'bg-neutral-400'}`} />
-              {connected ? 'Live data connected' : 'Connecting'}
+              {connected ? 'Connected' : 'Connecting'}
             </div>
           </div>
 
@@ -441,11 +437,11 @@ export default function StudentDashboard() {
                       </div>
                     </div>
                     <div className="ml-4 flex-1">
-                      <h3 className="text-lg font-bold text-red-900 mb-2">Critical Security Notice</h3>
+                      <h3 className="text-lg font-bold text-red-900 mb-2">Practice simulator notice</h3>
                       <div className="space-y-2 text-sm text-red-800">
-                        <p className="font-semibold">This is a DEMO trading interface using paper trading only.</p>
+                        <p className="font-semibold">This is a practice simulator. No order reaches a broker or a real market.</p>
                         <ul className="list-disc list-inside space-y-1 ml-2">
-                          <li>All trades are executed in demo/paper trading mode with virtual money</li>
+                          <li>All trades are simulated on this site with virtual money</li>
                           <li>No real money can be deposited, traded, or withdrawn</li>
                           <li>ForexOrbit Academy does not provide brokerage services</li>
                           <li>This feature is for educational purposes only. Trading involves substantial risk.</li>
@@ -455,8 +451,6 @@ export default function StudentDashboard() {
                   </div>
                 </div>
 
-                {/* Market Signals */}
-                <MarketSignal />
                 <TradingInterface />
               </div>
             )}

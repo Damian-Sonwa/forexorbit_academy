@@ -192,14 +192,19 @@ test('calendar: the week follows New York time through daylight saving', () => {
   assert.equal(marketSession(new Date('2026-03-07T12:00:00Z')).reason, 'weekend');
 });
 
-test('calendar: Christmas and New Year close from 17:00 New York the evening before', () => {
+test('calendar: holidays, early closes and what stays open', () => {
   const at = (t) => marketSession(new Date(t));
   assert.deepEqual([at('2026-12-25T12:00:00Z').open, at('2026-12-25T12:00:00Z').reason, at('2026-12-25T12:00:00Z').holiday], [false, 'holiday', 'Christmas Day']);
-  assert.equal(at('2026-12-24T21:59:00Z').open, true, '16:59 New York on the 24th');
-  assert.equal(at('2026-12-24T22:00:00Z').open, false, '17:00 New York starts the 25th\'s trading day');
+  assert.equal(at('2026-12-24T17:59:00Z').open, true, '12:59 New York on the 24th');
+  assert.equal(at('2026-12-24T18:00:00Z').reason, 'early_close', '13:00 New York');
+  assert.equal(at('2026-12-24T21:59:00Z').reason, 'early_close', '16:59 New York');
+  assert.equal(at('2026-12-24T22:00:00Z').reason, 'holiday', "17:00 New York starts the 25th's trading day");
   assert.equal(at('2026-01-01T12:00:00Z').reason, 'holiday');
+  assert.equal(at('2026-12-31T18:30:00Z').reason, 'early_close');
   assert.equal(at('2026-12-31T22:30:00Z').reason, 'holiday');
-  assert.equal(at('2026-07-03T12:00:00Z').open, true, 'other holidays stay open; missing data still suspends');
+  assert.deepEqual([at('2026-04-03T12:00:00Z').reason, at('2026-04-03T12:00:00Z').holiday], ['holiday', 'Good Friday']);
+  assert.equal(at('2027-03-26T12:00:00Z').holiday, 'Good Friday');
+  assert.equal(at('2026-07-03T12:00:00Z').open, true, 'holidays outside the documented list stay open');
   assert.equal(marketSession(new Date('nonsense')).open, false);
 });
 

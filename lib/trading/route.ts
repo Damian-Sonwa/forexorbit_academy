@@ -38,5 +38,8 @@ export const wholeNumber = (value: string | string[] | undefined) => {
   const text = queryText(value);
   return /^[1-9]\d{0,6}$/.test(text) ? Number(text) : undefined;
 };
-export const refused = (res: NextApiResponse, r: { status: number; code?: string; error: string; nextResetAt?: string }) =>
-  res.status(r.status).json({ error: r.error, code: r.code, ...(r.nextResetAt ? { nextResetAt: r.nextResetAt } : {}) });
+type Refusal = { status?: number; code?: string; error?: string; nextResetAt?: string };
+export const refused = (res: NextApiResponse, result: object) => {
+  const r = result as Refusal;
+  return res.status(r.status || 500).json({ error: r.error, code: r.code, ...(r.nextResetAt ? { nextResetAt: r.nextResetAt } : {}) });
+};

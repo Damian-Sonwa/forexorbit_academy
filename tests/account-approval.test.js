@@ -48,6 +48,8 @@ function memoryDb(seed) {
           for (const [k, n] of Object.entries(update.$inc || {})) doc[k] = (doc[k] || 0) + n;
           return { matchedCount: 1, modifiedCount: 1 };
         },
+        find: () => ({ toArray: async () => [] }),
+        deleteMany: async () => ({ deletedCount: 0 }),
         updateMany: async (filter, update) => {
           const docs = rows.filter((row) => matches(row, filter));
           for (const doc of docs) Object.assign(doc, update.$set || {});

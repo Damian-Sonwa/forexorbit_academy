@@ -7,19 +7,33 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { apiClient } from '@/lib/api-client';
+import CandleChart from '@/components/trading/CandleChart';
 
-type Instrument = { id: string; label: string; bid: string | null; ask: string | null; time: string | null; unavailable: string | null };
-type Market = { open: boolean; reason: string | null; message: string | null; simulatedTime: string | null; dataset: { name: string; source: string; testFixture: boolean } | null; instruments: Instrument[] };
-type Account = { virtual: true; currency: string; generation: number; startingBalance: string; balance: string; equity: string | null; usedMargin: string; freeMargin: string | null; marginLevel: string | null; unrealizedPl: string | null; marginCall: boolean; leverage: string; lastResetAt: string | null; leaderboardOptIn: boolean };
+type Instrument = { id: string; label: string; bid: string | null; ask: string | null; spreadPips: string | null; time: string | null; unavailable: string | null };
+type Market = { open: boolean; reason: string | null; label: string; message: string | null; simulatedTime: string | null; sessions: string[]; nextOpen: string | null; dataset: { name: string; source: string; testFixture: boolean } | null; instruments: Instrument[] };
+type Account = { virtual: true; currency: string; generation: number; startingBalance: string; balance: string; equity: string | null; usedMargin: string; freeMargin: string | null; marginLevel: string | null; unrealizedPl: string | null; marginCall: boolean; leverage: string; lastResetAt: string | null; nextResetAt: string | null; leaderboardOptIn: boolean };
 type Position = { id: string; instrument: string; side: string; units: string; entry: string; stopLoss: string; takeProfit: string | null; margin: string; currentPrice: string | null; unrealizedPl: string | null; exit: string | null; realizedPl: string | null; closeReason: string | null; closedAt: string | null };
 type Order = { id: string; type: string; instrument: string; side: string; units: string; price: string | null; stopLoss: string | null; status: string; rejectMessage: string | null; fillPrice: string | null; expiresAt: string | null; createdAt: string };
 type View = { account: Account | null; market: Market; positions: Position[]; pendingOrders: Order[] };
 type Performance = { closedTrades: number; wins: number; losses: number; winRate: string | null; netResult: string; returnPercent: string | null; maxDrawdownPercent: string | null };
 type Board = { minimumTrades: number; rows: { rank: number; alias: string; returnPercent: string; maxDrawdownPercent: string | null; closedTrades: number; you: boolean }[] };
 type Paged<T> = { rows: T[]; pagination: { page: number; pages: number; total: number } };
+type Execution = { id: string; kind: string; instrument: string | null; side: string | null; units: string | null; price: string | null; realizedPl: string | null; reason: string | null; simulatedAt: string | null };
+type Generation = { id: string; generation: number; status: string; startingBalance: string; balance: string; closedTrades: number; openedAt: string | null; archivedAt: string | null };
+type Preview = { entry: string; margin: string; plannedRisk: string; riskPercent: string | null; allowed: boolean; reason: string | null };
+type Candle = { time: string; open: string; high: string; low: string; close: string; complete: boolean };
 type LedgerRow = { id: string; seq: number; type: string; amount: string; balanceAfter: string; reference: string; createdAt: string };
 
 const EMPTY_FORM = { type: 'market', instrument: 'EUR_USD', side: 'buy', units: '1000', price: '', stopLoss: '', takeProfit: '', expiryHours: '24' };
+const TIMEFRAMES = ['M1', 'M5', 'M15', 'H1', 'H4', 'D1'];
+const HISTORY_TABS: { id: HistoryTab; label: string }[] = [
+  { id: 'positions', label: 'Closed trades' },
+  { id: 'orders', label: 'Orders' },
+  { id: 'executions', label: 'Executions' },
+  { id: 'ledger', label: 'Ledger' },
+  { id: 'resets', label: 'Accounts' },
+];
+type HistoryTab = 'orders' | 'positions' | 'ledger' | 'executions' | 'resets';
 const REASONS: Record<string, string> = { manual: 'Closed by you', stop_loss: 'Stop-loss', take_profit: 'Take-profit', stop_out: 'Stop-out' };
 const card = 'rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800';
 const input = 'mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white';
@@ -46,8 +60,11 @@ export default function TradingInterface() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
-  const [tab, setTab] = useState<'orders' | 'positions' | 'ledger'>('positions');
-  const [records, setRecords] = useState<Paged<Order | Position | LedgerRow> | null>(null);
+  const [tab, setTab] = useState<HistoryTab>('positions');
+  const [records, setRecords] = useState<Paged<Order | Position | LedgerRow | Execution | Generation> | null>(null);
+  const [timeframe, setTimeframe] = useState('M5');
+  const [candles, setCandles] = useState<Candle[]>([]);
+  const [preview, setPreview] = useState<{ figures: Preview | null; message: string | null }>({ figures: null, message: null });
   const [page, setPage] = useState(1);
   const [performance, setPerformance] = useState<Performance | null>(null);
   const [board, setBoard] = useState<Board | null>(null);
@@ -66,7 +83,7 @@ export default function TradingInterface() {
     try {
       const url = tab === 'orders' ? `/trading/orders?page=${page}&limit=10` : `/trading/history?kind=${tab}&page=${page}&limit=10`;
       const [list, stats, ranks] = await Promise.all([
-        apiClient.get<Paged<Order | Position | LedgerRow>>(url),
+        apiClient.get<Paged<Order | Position | LedgerRow | Execution | Generation>>(url),
         apiClient.get<Performance>('/trading/performance'),
         apiClient.get<Board>('/trading/leaderboard'),
       ]);
@@ -79,6 +96,32 @@ export default function TradingInterface() {
   }, [tab, page]);
 
   useEffect(() => { void load(); }, [load]);
+
+  const hasMarket = Boolean(view?.market.simulatedTime);
+  useEffect(() => {
+    if (!hasMarket) { setCandles([]); return undefined; }
+    let live = true;
+    const read = () => apiClient.get<{ candles: Candle[] }>(`/trading/candles?instrument=${form.instrument}&timeframe=${timeframe}&count=120`)
+      .then((res) => { if (live) setCandles(res.candles); })
+      .catch(() => { if (live) setCandles([]); });
+    void read();
+    const timer = window.setInterval(() => void read(), 30000);
+    return () => { live = false; window.clearInterval(timer); };
+  }, [hasMarket, form.instrument, timeframe]);
+
+  // Risk preview: the server works out the figures, from the same rules that place the order.
+  useEffect(() => {
+    if (!form.stopLoss.trim() || !form.units.trim()) { setPreview({ figures: null, message: null }); return undefined; }
+    const timer = window.setTimeout(() => {
+      const query = new URLSearchParams({ type: form.type, instrument: form.instrument, side: form.side, units: form.units.trim(), stopLoss: form.stopLoss.trim() });
+      if (form.takeProfit.trim()) query.set('takeProfit', form.takeProfit.trim());
+      if (form.type !== 'market' && form.price.trim()) query.set('price', form.price.trim());
+      apiClient.get<{ preview: Preview }>(`/trading/preview?${query.toString()}`)
+        .then((res) => setPreview({ figures: res.preview, message: null }))
+        .catch((err) => setPreview({ figures: null, message: messageOf(err, 'No preview is available.') }));
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [form.type, form.instrument, form.side, form.units, form.stopLoss, form.takeProfit, form.price]);
   useEffect(() => {
     const timer = window.setInterval(() => void load(), 15000);
     return () => window.clearInterval(timer);
@@ -123,7 +166,7 @@ export default function TradingInterface() {
         ...(pending ? { price: form.price.trim(), expiryHours: Number(form.expiryHours) } : {}),
       });
       orderKey.current = null;
-      setNotice({ kind: 'ok', text: res.order.status === 'pending' ? 'Pending order placed.' : `Filled at ${res.order.fillPrice}.` });
+      setNotice({ kind: 'ok', text: res.order.status === 'pending' ? 'Pending order placed. Simulated, virtual funds.' : `Filled at ${res.order.fillPrice}. Simulated execution, virtual funds.` });
       setForm({ ...EMPTY_FORM, instrument: form.instrument });
     } catch (err) {
       // The server answered, so this attempt is finished; only a lost connection keeps the key.
@@ -145,10 +188,11 @@ export default function TradingInterface() {
   const usd = (value: string | null) => (value === null ? 'Unavailable' : `${value} USD`);
   return (
     <div className="space-y-4" data-testid="practice-desk">
+      <p className="rounded-lg bg-amber-100 p-2 text-center text-sm font-bold tracking-wide text-amber-900" data-testid="market-label">{market.label}</p>
       <section className={card} aria-label="How this simulator works" data-testid="simulator-disclosure">
         <p className="text-sm font-semibold text-gray-900 dark:text-white">Virtual funds only. This is not real money and no broker is involved.</p>
         <p className="mt-1 text-sm text-gray-700 dark:text-gray-300">
-          Orders fill at recorded bid and ask prices: you buy at the ask and sell at the bid, and the spread is the only cost. There is no commission, no overnight swap and no added slippage. Real trading has all of these, prices can move faster than any stop, and leverage can magnify losses quickly, so results here do not predict real results.
+          Prices come from the ForexOrbit simulated market, which is generated by a model and does not follow any real market or broker. Orders fill at its bid and ask: you buy at the ask and sell at the bid, and the spread is the only cost. There is no commission, no overnight swap and no added slippage. Real trading has all of these, prices can move faster than any stop, and leverage can magnify losses quickly, so results here do not predict real results.
         </p>
         <p className="mt-1 text-sm text-gray-700 dark:text-gray-300">
           Rules: leverage 1:30, minimum 1,000 units, a stop-loss on every order, at most 2% of equity at risk per trade and 5% across open trades. A margin call blocks new orders at 100% margin level. A stop-out closes your largest loser at 50%.
@@ -157,20 +201,33 @@ export default function TradingInterface() {
 
       <section className={card} aria-label="Market status" data-testid="market-status">
         {market.open
-          ? <p className="text-sm font-semibold text-gray-900 dark:text-white">Market open{market.simulatedTime ? ` · recorded time ${new Date(market.simulatedTime).toUTCString()}` : ''}</p>
-          : <p role="status" className="text-sm font-semibold text-gray-900 dark:text-white" data-testid="market-closed">{market.message}</p>}
+          ? <p className="text-sm font-semibold text-gray-900 dark:text-white" data-testid="market-clock">Simulated market open{market.simulatedTime ? ` · simulated time ${new Date(market.simulatedTime).toUTCString()}` : ''}{market.sessions.length ? ` · ${market.sessions.join(', ')}` : ''}</p>
+          : <p role="status" className="text-sm font-semibold text-gray-900 dark:text-white" data-testid="market-closed">{market.message}{market.nextOpen ? ` Next open: ${new Date(market.nextOpen).toUTCString()}.` : ''}</p>}
         {market.dataset && <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">Data: {market.dataset.name}{market.dataset.source ? ` (${market.dataset.source})` : ''}</p>}
         {market.open && (
           <ul className="mt-2 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2 lg:grid-cols-3" data-testid="quotes">
             {market.instruments.map((i) => (
               <li key={i.id} className="rounded-lg bg-gray-50 p-2 dark:bg-gray-900/40">
                 <span className="font-semibold">{i.label}</span>{' '}
-                {i.bid ? <span>bid {i.bid} · ask {i.ask}</span> : <span className="text-gray-600 dark:text-gray-400">no price</span>}
+                {i.bid ? <span>bid {i.bid} · ask {i.ask} · spread {i.spreadPips} pips</span> : <span className="text-gray-600 dark:text-gray-400">no price</span>}
               </li>
             ))}
           </ul>
         )}
       </section>
+
+      {candles.length > 0 && (
+        <section className={card} aria-label="Simulated price chart" data-testid="chart">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="text-base font-bold text-gray-900 dark:text-white">{form.instrument.replace('_', '/')} simulated chart (bid)</h3>
+            <div className="flex flex-wrap gap-1" role="group" aria-label="Timeframe">
+              {TIMEFRAMES.map((name) => <button key={name} type="button" aria-pressed={timeframe === name} className={`${small} ${timeframe === name ? 'bg-gray-200 dark:bg-gray-600' : ''}`} onClick={() => setTimeframe(name)}>{name}</button>)}
+            </div>
+          </div>
+          <CandleChart candles={candles} label={`Simulated ${form.instrument.replace('_', '/')} candles, ${timeframe}`} />
+          <p className="text-xs text-gray-600 dark:text-gray-400">{market.label}</p>
+        </section>
+      )}
 
       {notice && <p role={notice.kind === 'error' ? 'alert' : 'status'} className={`rounded-lg p-3 text-sm ${notice.kind === 'error' ? 'bg-red-50 text-red-800' : 'bg-green-50 text-green-800'}`} data-testid="desk-notice">{notice.text}</p>}
 
@@ -195,7 +252,7 @@ export default function TradingInterface() {
           </section>
 
           <form onSubmit={(e) => void placeOrder(e)} className={card} aria-label="New order" data-testid="order-form">
-            <h3 className="text-base font-bold text-gray-900 dark:text-white">New order</h3>
+            <h3 className="text-base font-bold text-gray-900 dark:text-white">New simulated order</h3>
             <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <label className="text-sm text-gray-700 dark:text-gray-300">Type
                 <select className={input} value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
@@ -232,6 +289,16 @@ export default function TradingInterface() {
                 </label>
               )}
             </div>
+            {preview.figures && (
+              <dl className="mt-3 grid grid-cols-2 gap-2 rounded-lg bg-gray-50 p-3 text-sm md:grid-cols-4 dark:bg-gray-900/40" data-testid="risk-preview">
+                <div><dt className="text-xs text-gray-600 dark:text-gray-400">Entry</dt><dd className="font-semibold">{preview.figures.entry}</dd></div>
+                <div><dt className="text-xs text-gray-600 dark:text-gray-400">Margin</dt><dd className="font-semibold">{preview.figures.margin} USD</dd></div>
+                <div><dt className="text-xs text-gray-600 dark:text-gray-400">Planned risk</dt><dd className="font-semibold">{preview.figures.plannedRisk} USD</dd></div>
+                <div><dt className="text-xs text-gray-600 dark:text-gray-400">Risk of equity</dt><dd className="font-semibold">{preview.figures.riskPercent}%</dd></div>
+                {preview.figures.reason && <p className="col-span-2 text-red-800 md:col-span-4" data-testid="risk-preview-reason">{preview.figures.reason}</p>}
+              </dl>
+            )}
+            {preview.message && <p className="mt-2 text-sm text-gray-700 dark:text-gray-300" data-testid="risk-preview-message">{preview.message}</p>}
             <button type="submit" disabled={busy || !market.open} className="btn btn-primary mt-3 min-h-[44px] w-full px-5 sm:w-auto">{busy ? 'Sending…' : 'Place order'}</button>
             {!market.open && <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">Orders are paused while the market is unavailable.</p>}
           </form>
@@ -268,7 +335,8 @@ export default function TradingInterface() {
           </section>
 
           <section className={card} aria-label="Your results" data-testid="performance">
-            <h3 className="text-base font-bold text-gray-900 dark:text-white">Your virtual results</h3>
+            <h3 className="text-base font-bold text-gray-900 dark:text-white">Your simulated results</h3>
+            <p className="text-xs text-gray-600 dark:text-gray-400">Simulated, with virtual funds. They do not show what would happen in a real market.</p>
             {!performance || performance.closedTrades === 0 ? <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">Results appear after your first closed trade.</p> : (
               <div className="mt-2 grid grid-cols-2 gap-3 md:grid-cols-5">
                 <Figure label="Closed trades" value={String(performance.closedTrades)} />
@@ -282,15 +350,24 @@ export default function TradingInterface() {
 
           <section className={card} aria-label="History" data-testid="history">
             <div className="flex flex-wrap gap-2" role="tablist">
-              {(['positions', 'orders', 'ledger'] as const).map((name) => (
-                <button key={name} type="button" role="tab" aria-selected={tab === name} className={small} onClick={() => { setTab(name); setPage(1); setRecords(null); }}>
-                  {name === 'positions' ? 'Closed trades' : name === 'orders' ? 'Orders' : 'Ledger'}
+              {HISTORY_TABS.map(({ id, label }) => (
+                <button key={id} type="button" role="tab" aria-selected={tab === id} className={small} onClick={() => { setTab(id); setPage(1); setRecords(null); }}>
+                  {label}
                 </button>
               ))}
             </div>
+            <p className="mt-2 text-xs text-gray-600 dark:text-gray-400">Simulated trade history, virtual funds.</p>
             {!records ? <p role="status" className="mt-2 text-sm text-gray-600">Loading…</p> : records.rows.length === 0 ? <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">Nothing here yet.</p> : (
               <ul className="mt-2 divide-y divide-gray-200 text-sm dark:divide-gray-700">
                 {records.rows.map((row) => {
+                  if (tab === 'executions') {
+                    const e = row as Execution;
+                    return <li key={e.id} className="flex flex-wrap justify-between gap-2 py-2"><span className="min-w-0 break-words">{e.kind === 'fill' ? 'Filled' : 'Closed'} {e.side} {e.units} {(e.instrument || '').replace('_', '/')} at {e.price}{e.simulatedAt ? ` · ${new Date(e.simulatedAt).toUTCString()}` : ''}</span>{e.realizedPl && <span className="font-semibold">{e.realizedPl} USD</span>}</li>;
+                  }
+                  if (tab === 'resets') {
+                    const g = row as Generation;
+                    return <li key={g.id} className="flex flex-wrap justify-between gap-2 py-2"><span>Account {g.generation} · {g.status === 'active' ? 'current' : 'kept after reset'} · {g.closedTrades} closed trades</span><span className="font-semibold">{g.balance} USD</span></li>;
+                  }
                   if (tab === 'ledger') {
                     const l = row as LedgerRow;
                     return <li key={l.id} className="flex flex-wrap justify-between gap-2 py-2"><span>{l.type === 'deposit' ? 'Opening virtual funds' : 'Trade result'}</span><span className="font-semibold">{l.amount} USD · balance {l.balanceAfter}</span></li>;
@@ -315,6 +392,7 @@ export default function TradingInterface() {
 
           <section className={card} aria-label="Leaderboard" data-testid="trading-leaderboard">
             <h3 className="text-base font-bold text-gray-900 dark:text-white">Practice leaderboard</h3>
+            <p className="mt-1 text-xs font-semibold text-gray-700 dark:text-gray-300">{market.label}. Ranks are simulated results and are no evidence of real trading skill or future profit.</p>
             <p className="mt-1 text-sm text-gray-700 dark:text-gray-300">Optional. You appear under a random name, ranked by percentage return on all virtual funds you have been given, with your largest drawdown. Resets do not improve your rank. Your journal and account details stay private. A minimum of {board?.minimumTrades ?? 5} closed trades applies.</p>
             <label className="mt-2 flex min-h-[44px] items-center gap-2 text-sm">
               <input type="checkbox" checked={account.leaderboardOptIn} disabled={busy} onChange={(e) => { const optIn = e.target.checked; void act(() => apiClient.put('/trading/leaderboard', { optIn }), optIn ? 'You joined the leaderboard.' : 'You left the leaderboard.', 'That could not be saved.'); }} />
@@ -330,6 +408,7 @@ export default function TradingInterface() {
           <section className={card} aria-label="Reset account" data-testid="reset-account">
             <h3 className="text-base font-bold text-gray-900 dark:text-white">Reset account</h3>
             <p className="mt-1 text-sm text-gray-700 dark:text-gray-300">Starts a new USD 10,000 virtual account, once every 30 days, with no open positions. Your old account and its history are kept and still count in your results.</p>
+            <p className="mt-1 text-sm text-gray-700 dark:text-gray-300" data-testid="reset-eligibility">{account.nextResetAt && new Date(account.nextResetAt) > new Date() ? `Next reset available: ${new Date(account.nextResetAt).toUTCString()}.` : 'A reset is available.'}</p>
             <button type="button" disabled={busy} className={`${small} mt-2`} onClick={() => { if (window.confirm('Reset your practice account? This can be done once every 30 days.')) void act(() => apiClient.post('/trading/account/reset', {}), 'Your account was reset.', 'The account was not reset.'); }}>Reset account</button>
           </section>
         </>

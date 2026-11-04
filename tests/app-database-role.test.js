@@ -20,7 +20,7 @@ test('the built-in readWrite grant fails: it can update and remove audit entries
   const result = role.evaluatePrivileges(readWriteBuiltIn, DB);
   assert.equal(result.ok, false);
   assert.deepEqual(result.auditViolations, role.APPEND_ONLY_COLLECTIONS.map((collection) => ({ collection, actions: ['update', 'remove', 'dropCollection'] })));
-  assert.deepEqual(role.APPEND_ONLY_COLLECTIONS, ['adminAuditLog', 'tradingLedger']);
+  assert.deepEqual(role.APPEND_ONLY_COLLECTIONS, ['adminAuditLog', 'marketIncidents', 'tradingLedger']);
   assert.deepEqual(result.missing, []);
   assert.deepEqual(result.excessive, [{ resource: `${DB}.*`, actions: ['createCollection', 'createIndex', 'dropCollection', 'find', 'insert', 'remove', 'update'] }]);
 });
@@ -157,6 +157,10 @@ const MEMBER_COLLECTION_MODULES = new Map([
   ['lib/learning-activity.js', ['lib/learning-activity.js', 'COLLECTIONS']],
   ['lib/quiz-attempts.js', ['lib/quiz-attempts.js', 'COLLECTIONS']],
   ['lib/trading/engine.js', ['lib/trading/engine.js', 'COLLECTIONS']],
+  ['lib/trading/retention.js', ['lib/trading/engine.js', 'COLLECTIONS']],
+  ['pages/api/admin/market.ts', ['lib/trading/market-data.js', 'COLLECTIONS']],
+  ['lib/market/series.js', ['lib/market/series.js', 'COLLECTIONS']],
+  ['lib/market/health.js', ['lib/market/health.js', 'COLLECTIONS']],
   ['lib/trading/views.js', ['lib/trading/engine.js', 'COLLECTIONS']],
   ['lib/trading/market-data.js', ['lib/trading/market-data.js', 'COLLECTIONS']],
   ['lib/trading/import.js', ['lib/trading/market-data.js', 'COLLECTIONS']],
@@ -184,6 +188,7 @@ test('the checker takes a database name, never prints the connection string, and
   report(role.evaluatePrivileges(readWriteBuiltIn, DB), (line) => lines.push(line));
   assert.deepEqual(lines, [
     'FAIL adminAuditLog allows: update, remove, dropCollection',
+    'FAIL marketIncidents allows: update, remove, dropCollection',
     'FAIL tradingLedger allows: update, remove, dropCollection',
     `FAIL ${DB}.* grants more than the role: createCollection, createIndex, dropCollection, find, insert, remove, update`,
     'FAIL: see the lines above.',

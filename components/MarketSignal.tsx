@@ -1,6 +1,6 @@
 /**
  * MarketSignal Component
- * Displays live Forex market signals
+ * Displays market notes posted by instructors. These are not prices from the simulator.
  */
 
 import { useEffect, useState } from 'react';
@@ -39,7 +39,7 @@ export default function MarketSignal() {
     return (
       <div className="card">
         <h3 className="text-lg font-semibold mb-4">Market Signals</h3>
-        <p className="text-gray-500 text-sm mb-3">Sign in to stream live market data.</p>
+        <p className="text-gray-500 text-sm mb-3">Sign in to see notes from instructors.</p>
         <Link href="/login" className="text-primary-600 text-sm font-medium hover:underline">
           Log in
         </Link>
@@ -59,7 +59,7 @@ export default function MarketSignal() {
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
       <div className="flex items-center justify-between mb-6">
-        <h3 className="text-xl font-bold text-gray-900">Live Market Signals</h3>
+        <h3 className="text-xl font-bold text-gray-900">Instructor Market Signals</h3>
         <div className={`w-3 h-3 rounded-full ${connected ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`} />
       </div>
 

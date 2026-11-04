@@ -14,6 +14,7 @@ import { findByIds, objectIdsFrom } from '@/lib/batch-lookup';
 import { isStoredId } from '@/lib/account-access';
 import { setPrivateNoStore } from '@/lib/lesson-documents';
 import { allowRequest, tradingLimiter } from '@/lib/content-rate-limit';
+import { listPage } from '@/lib/practice-desk';
 import { readJournalEntry, taskIsFor } from '@/lib/practice-desk';
 
 async function getJournal(req: AuthRequest, res: NextApiResponse) {
@@ -27,32 +28,31 @@ async function getJournal(req: AuthRequest, res: NextApiResponse) {
     const journal = db.collection('demoTradeJournal');
     const tasks = db.collection('demoTasks');
 
+    const paging = listPage(req.query);
     const entries = await journal
       .find({ studentId: req.user!.userId })
       .sort({ createdAt: -1 })
+      .skip(paging.skip)
+      .limit(paging.limit)
       .toArray();
 
-    // Populate task titles (one demoTasks query for all entries) and include grade/feedback
+    // Populate task titles (one demoTasks query for all entries). Grades belong to submissions/feedback
     const taskTitles = await findByIds(tasks, objectIdsFrom(entries.map((entry) => entry.taskId)), { title: 1 });
-    const entriesWithTasks = entries.map((entry) => {
+    const entriesWithTasks = entries.map((stored) => {
+      const entry = { ...stored };
+      for (const field of ['grade', 'feedback', 'reviewedAt']) delete entry[field];
       if (entry.taskId) {
         const task = taskTitles.get(String(entry.taskId));
         return {
           ...entry,
           _id: entry._id.toString(),
           taskTitle: task?.title || 'Unknown Task',
-          grade: entry.grade || null,
-          feedback: entry.feedback || null,
-          reviewedAt: entry.reviewedAt || null,
           aiFeedback: entry.aiFeedback || null,
         };
       }
       return {
         ...entry,
         _id: entry._id.toString(),
-        grade: entry.grade || null,
-        feedback: entry.feedback || null,
-        reviewedAt: entry.reviewedAt || null,
         aiFeedback: entry.aiFeedback || null,
       };
     });

@@ -98,7 +98,7 @@ test('real MongoDB: 30 simultaneous creates make one account and one opening led
       const results = await Promise.all(Array.from({ length: 30 }, () => E.ensureAccount(conn.db, { userId: u, now: START })));
       assert.equal(new Set(results.map((r) => String(r._id))).size, 1);
       assert.equal(await conn.db.collection('tradingAccounts').countDocuments({ userId: u }), 1);
-      assert.equal(await conn.db.collection('tradingLedger').countDocuments({ userId: u }), 1);
+      assert.equal(await conn.db.collection('tradingLedger').countDocuments({ accountId: results[0]._id }), 1);
     }
   });
 });

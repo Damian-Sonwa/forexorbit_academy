@@ -8,16 +8,18 @@ import { unexpectedBody } from '@/lib/public-error';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
-import { createNotification } from '@/lib/notifications';
+import { createNotification, createNotificationsForUsers } from '@/lib/notifications';
 import { findByIds, objectIdsFrom } from '@/lib/batch-lookup';
 import { completionFor } from '@/lib/practice-desk';
 import { setPrivateNoStore } from '@/lib/lesson-documents';
+import { listPage } from '@/lib/practice-desk';
 
 async function getTasks(req: AuthRequest, res: NextApiResponse) {
   try {
     const db = await getDb();
     const tasks = db.collection('demoTasks');
     const users = db.collection('users');
+    const paging = listPage(req.query);
 
     if (req.user!.role === 'student') {
       // Students see only their assigned tasks
@@ -29,6 +31,8 @@ async function getTasks(req: AuthRequest, res: NextApiResponse) {
           ],
         })
         .sort({ createdAt: -1 })
+        .skip(paging.skip)
+        .limit(paging.limit)
         .toArray();
 
       // Populate assignedBy names with one users query for all tasks.
@@ -55,7 +59,7 @@ async function getTasks(req: AuthRequest, res: NextApiResponse) {
       return res.json(tasksWithNames);
     } else if (req.user!.role === 'instructor' || req.user!.role === 'admin') {
       // Instructors/Admins see all tasks
-      const taskList = await tasks.find({}).sort({ createdAt: -1 }).toArray();
+      const taskList = await tasks.find({}).sort({ createdAt: -1 }).skip(paging.skip).limit(paging.limit).toArray();
 
       // Populate assignedBy and assignedTo names with one users query for all tasks.
       const names = await findByIds(
@@ -148,17 +152,17 @@ async function createTask(req: AuthRequest, res: NextApiResponse) {
           .project({ _id: 1 })
           .toArray();
 
-        for (const student of students) {
-          await createNotification({
-            type: 'task_created',
-            title: 'New Task Available',
-            message: `A new task is available: ${title}`,
-            userId: student._id.toString(),
-            taskId,
-            roleTarget: 'student',
-            metadata: { taskTitle: title },
-          });
+        // One write for every student, however many there are.
+        await createNotificationsForUsers(students.map((student) => student._id.toString()), {
+          type: 'task_created',
+          title: 'New Task Available',
+          message: `A new task is available: ${title}`,
+          taskId,
+          roleTarget: 'student',
+          metadata: { taskTitle: title },
+        });
 
+        for (const student of students) {
           // Emit socket event
           if (req.io) {
             req.io.to(`user:${student._id.toString()}`).emit('notification', {

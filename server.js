@@ -904,13 +904,16 @@ app.prepare().then(async () => {
   const tradingSeconds = Number(process.env.TRADING_EVALUATOR_INTERVAL_SECONDS ?? 15);
   if (Number.isFinite(tradingSeconds) && tradingSeconds > 0) {
     const { sweep } = require('./lib/trading/engine');
+    const { marketTick } = require('./lib/trading/market-data');
     let trading = false;
     setInterval(async () => {
       if (trading) return;
       trading = true;
       try {
         const { getDb } = require('./lib/mongodb');
-        await sweep(await getDb(), { apply: true, limit: 200 });
+        const db = await getDb();
+        await marketTick(db);
+        await sweep(db, { apply: true, limit: 200 });
       } catch {
         console.error(JSON.stringify({ event: 'tradingEvaluator', result: 'failed' }));
       } finally {

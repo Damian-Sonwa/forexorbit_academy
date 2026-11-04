@@ -18,14 +18,13 @@ export default function SetupGuide() {
         <div className="space-y-4">
           <p className="text-gray-700">
             A <strong>demo trading account</strong> (also called a practice account or paper trading account) is a 
-            simulated trading environment that allows you to practice trading with virtual money. It provides access to 
-            real-time market data and trading tools without risking any real capital.
+            simulated trading environment that allows you to practice trading with virtual money. The demo account of an external broker shows the prices and tools of that broker. The Practice account on this site is separate: it is our own simulated market, not live market data.
           </p>
           <div className="bg-neutral-50 border-l-4 border-primary-400 p-4 rounded">
             <h4 className="font-semibold text-neutral-900 mb-2">Key Features:</h4>
             <ul className="list-disc list-inside space-y-1 text-neutral-800 text-sm">
               <li><strong>Virtual Money:</strong> Start with a virtual balance (typically $10,000 - $100,000)</li>
-              <li><strong>Real Market Data:</strong> Access live prices and market conditions</li>
+              <li><strong>Market Prices:</strong> The demo of an external broker shows the prices of that broker</li>
               <li><strong>Full Trading Tools:</strong> Use all features of the trading platform</li>
               <li><strong>No Financial Risk:</strong> You cannot lose or make real money</li>
               <li><strong>Learning Environment:</strong> Perfect for practicing strategies and techniques</li>
