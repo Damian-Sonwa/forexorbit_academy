@@ -1,6 +1,9 @@
 /**
  * Performance Metrics Calculator
- * Calculates trading performance metrics from trade history
+ *
+ * NOT IN USE (Phase 10, G0) and not to be used: its P/L is a mock, because entry and exit price are
+ * the same value, so every trade computes to zero. Real figures must come from the simulator's
+ * ledger (docs/audits/phase-10-practice-trading.md).
  */
 
 import { BrokerOrder, PerformanceMetrics } from './brokers/base-broker';

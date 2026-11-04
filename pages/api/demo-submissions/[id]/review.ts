@@ -9,9 +9,16 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
+import { isStoredId } from '@/lib/account-access';
+import { setPrivateNoStore } from '@/lib/lesson-documents';
 import { createNotification } from '@/lib/notifications';
 
 async function reviewSubmission(req: AuthRequest, res: NextApiResponse) {
+  setPrivateNoStore(res);
+  if (req.method !== 'PUT') {
+    res.setHeader('Allow', 'PUT');
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
   try {
     // Only instructors and admins can review submissions
     if (req.user!.role !== 'instructor' && req.user!.role !== 'admin') {
@@ -19,7 +26,7 @@ async function reviewSubmission(req: AuthRequest, res: NextApiResponse) {
     }
 
     const { id } = req.query;
-    if (!id || typeof id !== 'string') {
+    if (!isStoredId(id)) {
       return res.status(400).json({ error: 'Submission ID is required' });
     }
 

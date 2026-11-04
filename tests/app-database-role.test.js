@@ -19,7 +19,8 @@ const readWriteBuiltIn = [{ resource: { db: DB, collection: '' }, actions: ['fin
 test('the built-in readWrite grant fails: it can update and remove audit entries', () => {
   const result = role.evaluatePrivileges(readWriteBuiltIn, DB);
   assert.equal(result.ok, false);
-  assert.deepEqual(result.auditViolations, [{ collection: 'adminAuditLog', actions: ['update', 'remove', 'dropCollection'] }]);
+  assert.deepEqual(result.auditViolations, role.APPEND_ONLY_COLLECTIONS.map((collection) => ({ collection, actions: ['update', 'remove', 'dropCollection'] })));
+  assert.deepEqual(role.APPEND_ONLY_COLLECTIONS, ['adminAuditLog', 'tradingLedger']);
   assert.deepEqual(result.missing, []);
   assert.deepEqual(result.excessive, [{ resource: `${DB}.*`, actions: ['createCollection', 'createIndex', 'dropCollection', 'find', 'insert', 'remove', 'update'] }]);
 });
@@ -42,7 +43,8 @@ test('the custom role plus any database-wide, other-database or any-resource wri
   ]) {
     const result = role.evaluatePrivileges([...role.rolePrivileges(DB), extra], DB);
     assert.equal(result.ok, false, JSON.stringify(extra));
-    assert.equal(result.auditViolations.length, 1);
+    // A grant on one collection touches that collection; a wider grant touches every append-only one.
+    assert.equal(result.auditViolations.length, extra.resource.collection ? 1 : role.APPEND_ONLY_COLLECTIONS.length, JSON.stringify(extra));
   }
 });
 
@@ -59,7 +61,7 @@ test('any privilege beyond the role fails as excessive, even where the audit log
     const result = role.evaluatePrivileges([...role.rolePrivileges(DB), extra], DB);
     assert.equal(result.ok, false, JSON.stringify(extra));
     const dropsAuditLog = extra.actions.includes('dropDatabase');
-    assert.deepEqual(result.auditViolations, dropsAuditLog ? [{ collection: 'adminAuditLog', actions: ['dropDatabase'] }] : [], JSON.stringify(extra));
+    assert.deepEqual(result.auditViolations, dropsAuditLog ? role.APPEND_ONLY_COLLECTIONS.map((collection) => ({ collection, actions: ['dropDatabase'] })) : [], JSON.stringify(extra));
     assert.deepEqual(result.excessive, [expected]);
   }
 });
@@ -154,6 +156,11 @@ const MEMBER_COLLECTION_MODULES = new Map([
   ['lib/refund-indexes.js', PAYMENT],
   ['lib/learning-activity.js', ['lib/learning-activity.js', 'COLLECTIONS']],
   ['lib/quiz-attempts.js', ['lib/quiz-attempts.js', 'COLLECTIONS']],
+  ['lib/trading/engine.js', ['lib/trading/engine.js', 'COLLECTIONS']],
+  ['lib/trading/views.js', ['lib/trading/engine.js', 'COLLECTIONS']],
+  ['lib/trading/market-data.js', ['lib/trading/market-data.js', 'COLLECTIONS']],
+  ['lib/trading/import.js', ['lib/trading/market-data.js', 'COLLECTIONS']],
+  ['lib/trading/indexes.js', ['lib/trading/indexes.js', 'TRADING_INDEXES']],
   ['lib/course-deletion.js', ['lib/course-deletion.js', 'PROTECTED_RECORDS']],
   ['lib/assessment-indexes.js', ['lib/assessment-indexes.js', 'ASSESSMENT_INDEXES']],
   ['lib/enrollment-indexes.js', ['lib/enrollment-indexes.js', 'ENROLLMENT_INDEXES']],
@@ -177,6 +184,7 @@ test('the checker takes a database name, never prints the connection string, and
   report(role.evaluatePrivileges(readWriteBuiltIn, DB), (line) => lines.push(line));
   assert.deepEqual(lines, [
     'FAIL adminAuditLog allows: update, remove, dropCollection',
+    'FAIL tradingLedger allows: update, remove, dropCollection',
     `FAIL ${DB}.* grants more than the role: createCollection, createIndex, dropCollection, find, insert, remove, update`,
     'FAIL: see the lines above.',
   ]);

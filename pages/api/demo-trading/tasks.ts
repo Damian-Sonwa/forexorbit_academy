@@ -10,6 +10,8 @@ import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
 import { createNotification } from '@/lib/notifications';
 import { findByIds, objectIdsFrom } from '@/lib/batch-lookup';
+import { completionFor } from '@/lib/practice-desk';
+import { setPrivateNoStore } from '@/lib/lesson-documents';
 
 async function getTasks(req: AuthRequest, res: NextApiResponse) {
   try {
@@ -31,17 +33,21 @@ async function getTasks(req: AuthRequest, res: NextApiResponse) {
 
       // Populate assignedBy names with one users query for all tasks.
       const names = await findByIds(users, objectIdsFrom(taskList.map((task) => task.assignedBy)), { name: 1 });
-      const tasksWithNames = taskList.map((task) => {
+      const tasksWithNames = taskList.map(({ completions, completedBy, ...task }) => {
+        // Each student sees their own completion, never who else finished the task.
+        const own = completionFor({ ...task, completions, completedBy }, req.user!.userId);
         if (task.assignedBy) {
           const instructor = names.get(String(task.assignedBy));
           return {
             ...task,
+            ...own,
             _id: task._id.toString(),
             assignedByName: instructor?.name || 'Instructor',
           };
         }
         return {
           ...task,
+          ...own,
           _id: task._id.toString(),
         };
       });
@@ -182,6 +188,7 @@ async function createTask(req: AuthRequest, res: NextApiResponse) {
 }
 
 export default withAuth(async (req: AuthRequest, res: NextApiResponse) => {
+  setPrivateNoStore(res);
   if (req.method === 'GET') {
     return getTasks(req, res);
   } else if (req.method === 'POST') {

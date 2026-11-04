@@ -9,6 +9,8 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
+import { isStoredId } from '@/lib/account-access';
+import { setPrivateNoStore } from '@/lib/lesson-documents';
 
 async function deleteSubmission(req: AuthRequest, res: NextApiResponse) {
   try {
@@ -18,7 +20,7 @@ async function deleteSubmission(req: AuthRequest, res: NextApiResponse) {
     }
 
     const { id } = req.query;
-    if (!id || typeof id !== 'string') {
+    if (!isStoredId(id)) {
       return res.status(400).json({ error: 'Submission ID is required' });
     }
 
@@ -50,6 +52,7 @@ async function deleteSubmission(req: AuthRequest, res: NextApiResponse) {
 }
 
 export default withAuth(async (req: AuthRequest, res: NextApiResponse) => {
+  setPrivateNoStore(res);
   if (req.method === 'DELETE') {
     return deleteSubmission(req, res);
   } else {

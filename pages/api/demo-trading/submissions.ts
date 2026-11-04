@@ -8,9 +8,15 @@ import { unexpectedBody } from '@/lib/public-error';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
-import { ObjectId } from 'mongodb';
+import { setPrivateNoStore } from '@/lib/lesson-documents';
+import { findByIds, objectIdsFrom } from '@/lib/batch-lookup';
 
 async function getSubmissions(req: AuthRequest, res: NextApiResponse) {
+  setPrivateNoStore(res);
+  if (req.method !== 'GET') {
+    res.setHeader('Allow', 'GET');
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
   try {
     // Only instructors and admins can view submissions
     if (req.user!.role !== 'instructor' && req.user!.role !== 'admin') {
@@ -35,22 +41,14 @@ async function getSubmissions(req: AuthRequest, res: NextApiResponse) {
       .sort({ submittedAt: -1 })
       .toArray();
 
-    // Populate student and task details
-    const submissionsWithDetails = await Promise.all(
-      submissionDocs.map(async (submission) => {
-        const [student, task] = await Promise.all([
-          users.findOne(
-            { _id: new ObjectId(submission.studentId) },
-            { projection: { name: 1, email: 1 } }
-          ),
-          submission.taskId
-            ? tasks.findOne(
-                { _id: new ObjectId(submission.taskId) },
-                { projection: { title: 1, description: 1 } }
-              )
-            : null,
-        ]);
-
+    // Student and task details in two queries, not two per submission.
+    const [students, taskRows] = await Promise.all([
+      findByIds(users, objectIdsFrom(submissionDocs.map((s) => s.studentId)), { name: 1, email: 1 }),
+      findByIds(tasks, objectIdsFrom(submissionDocs.map((s) => s.taskId)), { title: 1, description: 1 }),
+    ]);
+    const submissionsWithDetails = submissionDocs.map((submission) => {
+        const student = students.get(String(submission.studentId));
+        const task = taskRows.get(String(submission.taskId));
         return {
           _id: submission._id.toString(),
           studentId: submission.studentId,
@@ -68,8 +66,7 @@ async function getSubmissions(req: AuthRequest, res: NextApiResponse) {
           createdAt: submission.createdAt,
           updatedAt: submission.updatedAt,
         };
-      })
-    );
+      });
 
     res.json(submissionsWithDetails);
   } catch (error: unknown) {

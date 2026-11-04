@@ -9,7 +9,8 @@ import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
 import formidable from 'formidable';
 import fs from 'fs';
-import { ObjectId } from 'mongodb';
+import { setPrivateNoStore } from '@/lib/lesson-documents';
+import { allowRequest, tradingLimiter } from '@/lib/content-rate-limit';
 import { uploadImageFromPath, validateImageFile, isCloudinaryConfigured } from '@/lib/cloudinary';
 
 export const config = {
@@ -19,6 +20,12 @@ export const config = {
 };
 
 async function uploadJournalScreenshot(req: AuthRequest, res: NextApiResponse) {
+  setPrivateNoStore(res);
+  if (req.method !== 'POST') {
+    res.setHeader('Allow', 'POST');
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+  if (!(await allowRequest(tradingLimiter, { userId: req.user!.userId, res, getDb }))) return undefined;
   // Only students can upload journal screenshots
   if (req.user!.role !== 'student') {
     return res.status(403).json({ error: 'Only students can upload journal screenshots' });

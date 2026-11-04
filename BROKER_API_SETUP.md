@@ -1,5 +1,9 @@
 # Broker API Integration Setup Guide
 
+> **Not in use (Phase 10).** Students no longer trade through a broker. The practice desk is an internal
+> simulator in `lib/trading/`, and the broker order routes answer 410. This document and `lib/brokers/`
+> are kept for reference only. See `docs/audits/phase-10-practice-trading.md`.
+
 ## Quick Start: OANDA Demo API Setup
 
 This guide walks you through setting up the OANDA broker API integration for demo trading.

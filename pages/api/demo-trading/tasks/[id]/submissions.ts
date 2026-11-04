@@ -9,8 +9,16 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
+import { isStoredId } from '@/lib/account-access';
+import { setPrivateNoStore } from '@/lib/lesson-documents';
+import { findByIds, objectIdsFrom } from '@/lib/batch-lookup';
 
 async function getTaskSubmissions(req: AuthRequest, res: NextApiResponse) {
+  setPrivateNoStore(res);
+  if (req.method !== 'GET') {
+    res.setHeader('Allow', 'GET');
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
   try {
     // Only instructors and admins can view submissions
     if (req.user!.role !== 'instructor' && req.user!.role !== 'admin') {
@@ -18,7 +26,7 @@ async function getTaskSubmissions(req: AuthRequest, res: NextApiResponse) {
     }
 
     const { id } = req.query;
-    if (!id || typeof id !== 'string') {
+    if (!isStoredId(id)) {
       return res.status(400).json({ error: 'Task ID is required' });
     }
 
@@ -44,14 +52,10 @@ async function getTaskSubmissions(req: AuthRequest, res: NextApiResponse) {
       .sort({ submittedAt: -1 })
       .toArray();
 
-    // Populate student details
-    const submissionsWithDetails = await Promise.all(
-      submissionDocs.map(async (submission) => {
-        const student = await users.findOne(
-          { _id: new ObjectId(submission.studentId) },
-          { projection: { name: 1, email: 1 } }
-        );
-
+    // Student details in one query, not one per submission.
+    const students = await findByIds(users, objectIdsFrom(submissionDocs.map((s) => s.studentId)), { name: 1, email: 1 });
+    const submissionsWithDetails = submissionDocs.map((submission) => {
+        const student = students.get(String(submission.studentId));
         return {
           _id: submission._id.toString(),
           studentId: submission.studentId,
@@ -65,8 +69,7 @@ async function getTaskSubmissions(req: AuthRequest, res: NextApiResponse) {
           submittedAt: submission.submittedAt || submission.createdAt,
           reviewedAt: submission.reviewedAt || null,
         };
-      })
-    );
+      });
 
     res.json({
       task: {

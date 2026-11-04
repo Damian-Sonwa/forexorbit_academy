@@ -7,6 +7,8 @@ import { unexpectedBody } from '@/lib/public-error';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { analyzeTrade, isAIConfigured } from '@/lib/ai';
+import { getDb } from '@/lib/mongodb';
+import { allowRequest, tradingLimiter } from '@/lib/content-rate-limit';
 
 async function handler(req: AuthRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
@@ -18,6 +20,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
   }
 
   try {
+    if (!(await allowRequest(tradingLimiter, { userId: req.user!.userId, res, getDb }))) return undefined;
     const { pair, direction, entryPrice, stopLoss, takeProfit, lotSize, notes } = req.body;
 
     if (!pair || !direction || !entryPrice || !stopLoss || !takeProfit || !lotSize) {

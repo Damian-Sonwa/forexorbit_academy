@@ -1,5 +1,9 @@
 # Broker API Integration Guide
 
+> **Not in use (Phase 10).** Students no longer trade through a broker. The practice desk is an internal
+> simulator in `lib/trading/`, and the broker order routes answer 410. This document and `lib/brokers/`
+> are kept for reference only. See `docs/audits/phase-10-practice-trading.md`.
+
 ## Overview
 
 ForexOrbit Academy now supports broker-provided demo trading via API integration. This allows students to practice trading with real market data using paper trading accounts.

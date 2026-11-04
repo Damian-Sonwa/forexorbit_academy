@@ -10,8 +10,17 @@ import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 import { createNotification } from '@/lib/notifications';
+import { isStoredId } from '@/lib/account-access';
+import { setPrivateNoStore } from '@/lib/lesson-documents';
+import { allowRequest, tradingLimiter } from '@/lib/content-rate-limit';
+import { taskIsFor } from '@/lib/practice-desk';
 
 async function submitTask(req: AuthRequest, res: NextApiResponse) {
+  setPrivateNoStore(res);
+  if (req.method !== 'POST') {
+    res.setHeader('Allow', 'POST');
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
   try {
     // Only students can submit tasks
     if (req.user!.role !== 'student') {
@@ -19,11 +28,12 @@ async function submitTask(req: AuthRequest, res: NextApiResponse) {
     }
 
     const { id } = req.query;
-    if (!id || typeof id !== 'string') {
+    if (!isStoredId(id)) {
       return res.status(400).json({ error: 'Task ID is required' });
     }
+    if (!(await allowRequest(tradingLimiter, { userId: req.user!.userId, res, getDb }))) return undefined;
 
-    const { reasoning, screenshotUrls } = req.body;
+    const { reasoning, screenshotUrls } = req.body || {};
     const studentId = req.user!.userId;
 
     // Validate required fields
@@ -37,7 +47,7 @@ async function submitTask(req: AuthRequest, res: NextApiResponse) {
 
     // Verify task exists
     const task = await tasks.findOne({ _id: new ObjectId(id) });
-    if (!task) {
+    if (!task || !taskIsFor(task, studentId)) {
       return res.status(404).json({ error: 'Task not found' });
     }
 

@@ -8,9 +8,15 @@ import { unexpectedBody } from '@/lib/public-error';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
-import { ObjectId } from 'mongodb';
+import { setPrivateNoStore } from '@/lib/lesson-documents';
+import { findByIds, objectIdsFrom } from '@/lib/batch-lookup';
 
 async function getStudentSubmissions(req: AuthRequest, res: NextApiResponse) {
+  setPrivateNoStore(res);
+  if (req.method !== 'GET') {
+    res.setHeader('Allow', 'GET');
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
   try {
     // Only students can view their own submissions
     if (req.user!.role !== 'student') {
@@ -37,16 +43,10 @@ async function getStudentSubmissions(req: AuthRequest, res: NextApiResponse) {
       .sort({ submittedAt: -1 })
       .toArray();
 
-    // Populate task details
-    const submissionsWithDetails = await Promise.all(
-      submissionDocs.map(async (submission) => {
-        const task = submission.taskId
-          ? await tasks.findOne(
-              { _id: new ObjectId(submission.taskId) },
-              { projection: { title: 1, description: 1 } }
-            )
-          : null;
-
+    // Task details in one query, not one per submission.
+    const taskRows = await findByIds(tasks, objectIdsFrom(submissionDocs.map((s) => s.taskId)), { title: 1, description: 1 });
+    const submissionsWithDetails = submissionDocs.map((submission) => {
+        const task = taskRows.get(String(submission.taskId));
         return {
           _id: submission._id.toString(),
           taskId: submission.taskId,
@@ -60,8 +60,7 @@ async function getStudentSubmissions(req: AuthRequest, res: NextApiResponse) {
           submittedAt: submission.submittedAt || submission.createdAt,
           createdAt: submission.createdAt,
         };
-      })
-    );
+      });
 
     res.json(submissionsWithDetails);
   } catch (error: unknown) {

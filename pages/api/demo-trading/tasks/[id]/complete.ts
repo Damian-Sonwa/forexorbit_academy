@@ -8,8 +8,17 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
+import { isStoredId } from '@/lib/account-access';
+import { setPrivateNoStore } from '@/lib/lesson-documents';
+import { allowRequest, tradingLimiter } from '@/lib/content-rate-limit';
+import { completionFor } from '@/lib/practice-desk';
 
 async function completeTask(req: AuthRequest, res: NextApiResponse) {
+  setPrivateNoStore(res);
+  if (req.method !== 'POST') {
+    res.setHeader('Allow', 'POST');
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
   try {
     // Only students can complete tasks
     if (req.user!.role !== 'student') {
@@ -18,9 +27,10 @@ async function completeTask(req: AuthRequest, res: NextApiResponse) {
 
     const { id } = req.query;
 
-    if (!id || typeof id !== 'string') {
+    if (!isStoredId(id)) {
       return res.status(400).json({ error: 'Task ID is required' });
     }
+    if (!(await allowRequest(tradingLimiter, { userId: req.user!.userId, res, getDb }))) return undefined;
 
     const db = await getDb();
     const tasks = db.collection('demoTasks');
@@ -38,21 +48,15 @@ async function completeTask(req: AuthRequest, res: NextApiResponse) {
       return res.status(404).json({ error: 'Task not found or not assigned to you' });
     }
 
-    if (task.completed) {
+    if (completionFor(task, req.user!.userId).completed) {
       return res.status(400).json({ error: 'Task is already completed' });
     }
 
-    // Mark task as completed
+    // Completion belongs to this student: a task for everyone stays open for everyone else.
+    const now = new Date();
     await tasks.updateOne(
       { _id: new ObjectId(id) },
-      {
-        $set: {
-          completed: true,
-          completedAt: new Date(),
-          completedBy: req.user!.userId,
-          updatedAt: new Date(),
-        },
-      }
+      { $set: { [`completions.${req.user!.userId}`]: now, updatedAt: now } }
     );
 
     res.json({ success: true, message: 'Task marked as completed' });

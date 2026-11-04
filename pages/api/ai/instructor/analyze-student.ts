@@ -9,8 +9,22 @@ import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { analyzeStudentPerformance, isAIConfigured } from '@/lib/ai';
 import { getDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
+import { isStoredId } from '@/lib/account-access';
+import { setPrivateNoStore } from '@/lib/lesson-documents';
+
+/**
+ * An instructor may analyse only a student connected to them: enrolled on a course they teach, or
+ * with a submission on a task they set. Admins follow the existing role policy.
+ */
+async function instructorTeaches(db: Awaited<ReturnType<typeof getDb>>, instructorId: string, studentId: string) {
+  const taught = await db.collection('courses').find({ instructorId }, { projection: { _id: 1 } }).toArray();
+  const ids = taught.flatMap((course) => [String(course._id), course._id]);
+  if (ids.length && await db.collection('progress').findOne({ userId: studentId, courseId: { $in: ids } }, { projection: { _id: 1 } })) return true;
+  return Boolean(await db.collection('demoTaskSubmissions').findOne({ studentId, instructorId }, { projection: { _id: 1 } }));
+}
 
 async function handler(req: AuthRequest, res: NextApiResponse) {
+  setPrivateNoStore(res);
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -26,11 +40,14 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
   try {
     const { studentId } = req.body;
 
-    if (!studentId) {
+    if (!isStoredId(studentId)) {
       return res.status(400).json({ error: 'studentId is required' });
     }
 
     const db = await getDb();
+    if (req.user!.role === 'instructor' && !(await instructorTeaches(db, req.user!.userId, studentId))) {
+      return res.status(403).json({ error: 'You can only analyse your own students' });
+    }
     const users = db.collection('users');
     const journal = db.collection('demoTradeJournal');
     const submissions = db.collection('demoTaskSubmissions');

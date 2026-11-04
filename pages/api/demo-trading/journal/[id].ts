@@ -10,6 +10,10 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
+import { isStoredId } from '@/lib/account-access';
+import { setPrivateNoStore } from '@/lib/lesson-documents';
+import { allowRequest, tradingLimiter } from '@/lib/content-rate-limit';
+import { readJournalEntry } from '@/lib/practice-desk';
 
 async function updateJournalEntry(req: AuthRequest, res: NextApiResponse) {
   try {
@@ -19,24 +23,12 @@ async function updateJournalEntry(req: AuthRequest, res: NextApiResponse) {
     }
 
     const { id } = req.query;
-    if (!id || typeof id !== 'string') {
+    if (!isStoredId(id)) {
       return res.status(400).json({ error: 'Entry ID is required' });
     }
 
-    const {
-      pair,
-      direction,
-      entryPrice,
-      stopLoss,
-      takeProfit,
-      lotSize,
-      result,
-      profitLoss,
-      notes,
-      screenshot,
-    } = req.body;
-
     const db = await getDb();
+    if (!(await allowRequest(tradingLimiter, { userId: req.user!.userId, res, getDb }))) return undefined;
     const journal = db.collection('demoTradeJournal');
 
     // Verify entry exists and belongs to the student
@@ -49,37 +41,10 @@ async function updateJournalEntry(req: AuthRequest, res: NextApiResponse) {
       return res.status(403).json({ error: 'You can only update your own journal entries' });
     }
 
-    // Validation
-    if (!pair || !direction || !entryPrice || !stopLoss || !takeProfit || !lotSize || !result) {
-      return res.status(400).json({ error: 'Missing required fields' });
-    }
+    const checked = readJournalEntry(req.body);
+    if (!checked.ok) return res.status(checked.status).json({ error: checked.error });
 
-    if (!['buy', 'sell'].includes(direction)) {
-      return res.status(400).json({ error: 'Invalid direction. Must be "buy" or "sell"' });
-    }
-
-    if (!['win', 'loss', 'breakeven', 'open'].includes(result)) {
-      return res.status(400).json({ error: 'Invalid result. Must be "win", "loss", "breakeven", or "open"' });
-    }
-
-    // If result is not "open", profitLoss should be provided
-    if (result !== 'open' && profitLoss === undefined) {
-      return res.status(400).json({ error: 'Profit/Loss is required for closed trades' });
-    }
-
-    const updateData = {
-      pair: pair.toUpperCase(),
-      direction,
-      entryPrice: parseFloat(entryPrice),
-      stopLoss: parseFloat(stopLoss),
-      takeProfit: parseFloat(takeProfit),
-      lotSize: parseFloat(lotSize),
-      result,
-      profitLoss: profitLoss !== undefined ? parseFloat(profitLoss) : undefined,
-      notes: notes || '',
-      screenshot: screenshot || null,
-      updatedAt: new Date(),
-    };
+    const updateData = { ...checked.fields, selfReported: true, updatedAt: new Date() };
 
     await journal.updateOne(
       { _id: new ObjectId(id) },
@@ -108,11 +73,12 @@ async function deleteJournalEntry(req: AuthRequest, res: NextApiResponse) {
     }
 
     const { id } = req.query;
-    if (!id || typeof id !== 'string') {
+    if (!isStoredId(id)) {
       return res.status(400).json({ error: 'Entry ID is required' });
     }
 
     const db = await getDb();
+    if (!(await allowRequest(tradingLimiter, { userId: req.user!.userId, res, getDb }))) return undefined;
     const journal = db.collection('demoTradeJournal');
 
     // Verify entry exists and belongs to the student
@@ -135,6 +101,7 @@ async function deleteJournalEntry(req: AuthRequest, res: NextApiResponse) {
 }
 
 export default withAuth(async (req: AuthRequest, res: NextApiResponse) => {
+  setPrivateNoStore(res);
   if (req.method === 'PUT') {
     return updateJournalEntry(req, res);
   } else if (req.method === 'DELETE') {

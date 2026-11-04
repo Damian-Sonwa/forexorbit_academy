@@ -11,6 +11,10 @@ import { getDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 import { analyzeTrade, isAIConfigured } from '@/lib/ai';
 import { findByIds, objectIdsFrom } from '@/lib/batch-lookup';
+import { isStoredId } from '@/lib/account-access';
+import { setPrivateNoStore } from '@/lib/lesson-documents';
+import { allowRequest, tradingLimiter } from '@/lib/content-rate-limit';
+import { readJournalEntry, taskIsFor } from '@/lib/practice-desk';
 
 async function getJournal(req: AuthRequest, res: NextApiResponse) {
   try {
@@ -67,29 +71,24 @@ async function createJournalEntry(req: AuthRequest, res: NextApiResponse) {
       return res.status(403).json({ error: 'Only students can create journal entries' });
     }
 
-    const {
-      pair,
-      direction,
-      entryPrice,
-      stopLoss,
-      takeProfit,
-      lotSize,
-      result,
-      profitLoss,
-      notes,
-      taskId,
-      screenshot,
-    } = req.body;
+    const checked = readJournalEntry(req.body);
+    if (!checked.ok) return res.status(checked.status).json({ error: checked.error });
+    const { pair, direction, entryPrice, stopLoss, takeProfit, lotSize, result, profitLoss, notes, screenshot } = checked.fields;
+    const taskId = req.body?.taskId;
+    if (taskId !== undefined && taskId !== null && taskId !== '' && !isStoredId(taskId)) {
+      return res.status(400).json({ error: 'Invalid task' });
+    }
 
     // Prevent duplicate submissions by checking for identical entry within last 5 seconds
     const db = await getDb();
+    if (!(await allowRequest(tradingLimiter, { userId: req.user!.userId, res, getDb }))) return undefined;
     const journal = db.collection('demoTradeJournal');
     
     const fiveSecondsAgo = new Date(Date.now() - 5000);
     const duplicateCheck = await journal.findOne({
       studentId: req.user!.userId,
-      pair: pair?.toUpperCase(),
-      entryPrice: parseFloat(entryPrice),
+      pair,
+      entryPrice,
       direction,
       createdAt: { $gte: fiveSecondsAgo },
     });
@@ -98,37 +97,13 @@ async function createJournalEntry(req: AuthRequest, res: NextApiResponse) {
       return res.status(409).json({ error: 'Duplicate entry detected. Please wait a moment before submitting again.' });
     }
 
-    // Validation
-    if (!pair || !direction || !entryPrice || !stopLoss || !takeProfit || !lotSize || !result) {
-      return res.status(400).json({ error: 'Missing required fields' });
-    }
-
-    if (!['buy', 'sell'].includes(direction)) {
-      return res.status(400).json({ error: 'Invalid direction. Must be "buy" or "sell"' });
-    }
-
-    if (!['win', 'loss', 'breakeven', 'open'].includes(result)) {
-      return res.status(400).json({ error: 'Invalid result. Must be "win", "loss", "breakeven", or "open"' });
-    }
-
-    // If result is not "open", profitLoss should be provided
-    if (result !== 'open' && profitLoss === undefined) {
-      return res.status(400).json({ error: 'Profit/Loss is required for closed trades' });
-    }
-
     // If taskId is provided, verify it exists and is assigned to the student
     let instructorId = null;
     if (taskId) {
       const tasks = db.collection('demoTasks');
-      const task = await tasks.findOne({
-        _id: new ObjectId(taskId),
-        $or: [
-          { assignedTo: req.user!.userId },
-          { assignedTo: null },
-        ],
-      });
+      const task = await tasks.findOne({ _id: new ObjectId(taskId) });
 
-      if (!task) {
+      if (!task || !taskIsFor(task, req.user!.userId)) {
         return res.status(404).json({ error: 'Task not found or not assigned to you' });
       }
 
@@ -138,18 +113,19 @@ async function createJournalEntry(req: AuthRequest, res: NextApiResponse) {
 
     const entry = {
       studentId: req.user!.userId,
-      pair: pair.toUpperCase(),
+      pair,
       direction,
-      entryPrice: parseFloat(entryPrice),
-      stopLoss: parseFloat(stopLoss),
-      takeProfit: parseFloat(takeProfit),
-      lotSize: parseFloat(lotSize),
+      entryPrice,
+      stopLoss,
+      takeProfit,
+      lotSize,
       result,
-      profitLoss: profitLoss !== undefined ? parseFloat(profitLoss) : undefined,
-      notes: notes || '',
+      profitLoss,
+      selfReported: true, // The student's own notes, not a simulator record.
+      notes,
       taskId: taskId || null,
       instructorId: instructorId, // Save instructorId for filtering in instructor dashboard
-      screenshot: screenshot || null, // Store Cloudinary URL directly
+      screenshot, // Store Cloudinary URL directly
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -203,6 +179,7 @@ async function createJournalEntry(req: AuthRequest, res: NextApiResponse) {
 }
 
 export default withAuth(async (req: AuthRequest, res: NextApiResponse) => {
+  setPrivateNoStore(res);
   if (req.method === 'GET') {
     return getJournal(req, res);
   } else if (req.method === 'POST') {

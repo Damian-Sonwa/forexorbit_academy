@@ -1,71 +1,20 @@
-import { unexpectedBody } from '@/lib/public-error';
 /**
- * Close Position API Route
- * POST: Close an open position
+ * Close Position API Route. A GET still changes nothing (405).
+ *
+ * Retired (Phase 10). The practice desk no longer uses a broker: the owner's decision is an internal
+ * simulator, with no broker order execution. See /api/trading/*.
  */
-
-import type { NextApiRequest, NextApiResponse } from 'next';
+import type { NextApiResponse } from 'next';
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
-import { getDb } from '@/lib/mongodb';
-import { BrokerFactory } from '@/lib/brokers/broker-factory';
+import { setPrivateNoStore } from '@/lib/lesson-documents';
 
-async function closePosition(req: AuthRequest, res: NextApiResponse) {
-  try {
-    // Only students can close positions
-    if (req.user!.role !== 'student') {
-      return res.status(403).json({ error: 'Only students can close positions' });
-    }
-
-    const { positionId } = req.query;
-
-    if (!positionId || typeof positionId !== 'string') {
-      return res.status(400).json({ error: 'Position ID is required' });
-    }
-
-    const db = await getDb();
-    const accounts = db.collection('demoAccounts');
-
-    // Get student's demo account
-    const account = await accounts.findOne({ studentId: req.user!.userId });
-    if (!account) {
-      return res.status(404).json({ error: 'Demo account not found' });
-    }
-
-    // CRITICAL: Verify this is a demo account
-    if (!account.isDemo) {
-      return res.status(403).json({ error: 'Only demo accounts are allowed' });
-    }
-
-    const broker = BrokerFactory.createBroker(
-      account.brokerType || BrokerFactory.getConfiguredBrokerType(),
-      account.brokerAccountId
-    );
-
-    // Close position
-    const closeOrder = await broker.closePosition(account.brokerAccountId, positionId);
-
-    // Update account balance
-    const updatedAccount = await broker.getAccount(account.brokerAccountId);
-    await accounts.updateOne(
-      { _id: account._id },
-      {
-        $set: {
-          balance: updatedAccount.balance,
-          marginAvailable: updatedAccount.marginAvailable,
-          marginUsed: updatedAccount.marginUsed,
-          openTrades: updatedAccount.openTrades,
-          updatedAt: new Date(),
-        },
-      }
-    );
-
-    res.json(closeOrder);
-  } catch (error: any) {
-    console.error('Close position error:');
-    res.status(500).json(unexpectedBody('api', error));
+async function retired(req: AuthRequest, res: NextApiResponse) {
+  setPrivateNoStore(res);
+  if (req.method !== 'POST') {
+    res.setHeader('Allow', 'POST');
+    return res.status(405).json({ error: 'Method not allowed' });
   }
+  return res.status(410).json({ error: 'This route has moved.', code: 'moved', use: '/api/trading/positions/:id/close' });
 }
 
-export default withAuth(closePosition, ['student']);
-
-
+export default withAuth(retired, ['student']);

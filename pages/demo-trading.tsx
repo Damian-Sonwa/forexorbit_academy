@@ -415,8 +415,9 @@ export default function DemoTrading() {
                       <h4 className="font-semibold text-lg mb-2 text-gray-900">Definition</h4>
                       <p className="mb-3">
                         A <strong>demo trading account</strong> (also called a practice account or paper trading account) is a 
-                        simulated trading environment that allows you to practice trading with virtual money. It provides access to 
-                        real-time market data and trading tools without risking any real capital.
+                        simulated trading environment that allows you to practice trading with virtual money. A broker's demo account
+                        gives you that broker's prices and tools without risking any real capital. The Practice account tab on this
+                        site is separate: it is our own simulator, and it uses recorded prices, never live ones.
                       </p>
                     </div>
 
@@ -424,7 +425,7 @@ export default function DemoTrading() {
                       <h4 className="font-semibold text-lg mb-2 text-gray-900">Key Features</h4>
                       <ul className="list-disc list-inside space-y-2 ml-2">
                         <li><strong>Virtual Money:</strong> Start with a virtual balance (typically $10,000 - $100,000)</li>
-                        <li><strong>Real Market Data:</strong> Access live prices and market conditions</li>
+                        <li><strong>Market Prices:</strong> Broker demo accounts show that broker's prices and conditions</li>
                         <li><strong>Full Trading Tools:</strong> Use all features of the trading platform</li>
                         <li><strong>No Financial Risk:</strong> You cannot lose or make real money</li>
                         <li><strong>Learning Environment:</strong> Perfect for practicing strategies and techniques</li>
@@ -710,13 +711,13 @@ export default function DemoTrading() {
                       <AlertTriangle className="h-6 w-6 shrink-0 text-amber-700" aria-hidden />
                     </div>
                     <div className="ml-3">
-                      <h3 className="text-sm font-medium text-red-800">Critical Security Notice</h3>
+                      <h3 className="text-sm font-medium text-red-800">Practice simulator notice</h3>
                       <div className="mt-2 text-sm text-red-700">
                         <p className="mb-2">
-                          <strong>This is a DEMO trading interface using paper trading only.</strong>
+                          <strong>This is a practice simulator. No order reaches a broker or a real market.</strong>
                         </p>
                         <p className="mb-2">
-                          • All trades are executed in demo/paper trading mode with virtual money
+                          • All trades are simulated on this site with virtual money
                         </p>
                         <p className="mb-2">
                           • No real money can be deposited, traded, or withdrawn

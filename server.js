@@ -897,6 +897,28 @@ app.prepare().then(async () => {
     setInterval(reconcile, Math.max(1, reconcileMinutes) * 60 * 1000).unref();
   }
 
+  // Practice simulator (lib/trading/engine.js): finishes interrupted work and evaluates stop-loss,
+  // take-profit, pending orders and margin for accounts nobody is viewing. Does nothing without an
+  // approved dataset. TRADING_EVALUATOR_INTERVAL_SECONDS (default 15) sets the interval; 0 turns it
+  // off. A failure here never affects the server, and the next pass retries.
+  const tradingSeconds = Number(process.env.TRADING_EVALUATOR_INTERVAL_SECONDS ?? 15);
+  if (Number.isFinite(tradingSeconds) && tradingSeconds > 0) {
+    const { sweep } = require('./lib/trading/engine');
+    let trading = false;
+    setInterval(async () => {
+      if (trading) return;
+      trading = true;
+      try {
+        const { getDb } = require('./lib/mongodb');
+        await sweep(await getDb(), { apply: true, limit: 200 });
+      } catch {
+        console.error(JSON.stringify({ event: 'tradingEvaluator', result: 'failed' }));
+      } finally {
+        trading = false;
+      }
+    }, Math.max(5, tradingSeconds) * 1000).unref();
+  }
+
   server.listen(port, hostname, (err) => {
     if (err) throw err;
     const serverUrl = process.env.NODE_ENV === 'production' 

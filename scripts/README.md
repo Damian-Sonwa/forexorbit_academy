@@ -18,6 +18,9 @@ Run the other scripts only with an explicit operator command and a database you 
 | `init-consultation-system.js` | Initializes consultation data. |
 | `assessment-indexes.js` | Reports the Phase 9 indexes and their duplicate checks; builds them only with `--apply`. |
 | `quiz-attempt-reconcile.js` | Reports interrupted quiz attempts, overdue attempts and pending assignment awards; finishes them only with `--apply`. Run by hand; nothing schedules it. |
+| `trading-indexes.js` | Reports the Phase 10 indexes T1-T10 and their duplicate checks; builds them only with `--apply`. |
+| `trading-reconcile.js` | Compares every practice account with its ledger and reports differences, which it never repairs. With `--apply` it also finishes interrupted work. |
+| `market-data-import.js` | Checks an approved market-data manifest and quote file; writes them, inactive, only with `--apply`. |
 | `check-backup.js` | Reads a backup. |
 | `set-superadmin.js`, `reset-superadmin-password.js` | Disabled. They exit before connecting. |
 | `generate-jwt-secret.js`, `generate-password-hash.js` | Local helpers. They do not select an account. |

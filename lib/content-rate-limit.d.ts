@@ -13,6 +13,9 @@ export const ACTIVITY_RULES: readonly AuthRule[];
 export const activityLimiter: Limiter;
 export const ASSESSMENT_RULES: readonly AuthRule[];
 export const assessmentLimiter: Limiter;
+export const tradingLimiter: Limiter;
+export const tradingReadLimiter: Limiter;
+export const TRADING_RULES: readonly unknown[];
 export function allowRequest(
   limiter: Limiter,
   input: {
