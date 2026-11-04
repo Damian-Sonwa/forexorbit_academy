@@ -199,10 +199,12 @@ test('limiter: MongoDB\'s TTL monitor deletes finished windows once R1 exists', 
     assert.equal((await indexTool.run(conn.db, { mode: 'apply', log: quiet })).ok, true);
     const past = Date.now() - 3 * WINDOW;
     await consumeSharedLimit(conn.db, { scope: 'ttl', key: 'gone', windowMs: WINDOW, max: 5, now: past });
-    await consumeSharedLimit(conn.db, { scope: 'ttl', key: 'kept', windowMs: WINDOW, max: 5, now: Date.now() });
+    // The next window, not the current one: the wait below can cross a boundary, and windows are
+    // aligned to the clock, so a current-window row may truly expire while this test waits.
+    await consumeSharedLimit(conn.db, { scope: 'ttl', key: 'kept', windowMs: WINDOW, max: 5, now: Date.now() + WINDOW });
     const col = conn.db.collection(RATE_LIMIT_COLLECTION);
     assert.equal(await col.countDocuments(), 2);
-    // The TTL monitor runs every 60 s by default (every second on the local test server).
+    // The TTL monitor runs every 60 s by default.
     const deadline = Date.now() + 100000;
     while ((await col.countDocuments({ scope: 'ttl', expiresAt: { $lte: new Date() } })) > 0 && Date.now() < deadline) {
       await new Promise((resolve) => setTimeout(resolve, 500));
@@ -368,7 +370,8 @@ test('separate processes: four instances at once allow exactly 10 attempts for o
     assert.equal(results.reduce((n, r) => n + r.allowed, 0), 10, 'login-email-ip limit holds across processes');
     assert.ok(results.every((r) => r.allowed <= 8), 'no process was allowed more than it asked for');
     const doc = await conn.db.collection(RATE_LIMIT_COLLECTION).findOne({ scope: 'login-email-ip' });
-    assert.equal(doc.count, 32, 'every process counted in the same document');
+    // 30 reach this rule: login-ip, checked first, refuses the other 2 before they count here.
+    assert.equal(doc.count, 30, 'every process counted in the same document');
   } finally {
     await conn.reset();
     await conn.close();

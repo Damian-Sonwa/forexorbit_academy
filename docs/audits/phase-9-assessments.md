@@ -103,14 +103,14 @@ Severity: Critical, High, Medium, Low. Tests are in `tests/phase-9-assessments.t
 | P9-19 | Low | `/progress` would show `66.67/3`, and old rows showed 0%. | Presenter uses `correct`; count hidden when unknown | `lib/enrollment-state.js`, `pages/progress.tsx` | unit "scores"; e2e `history` | Resolved |
 | P9-20 | Medium | Saving a legacy quiz from an editor without settings could publish it. | Saves merge over `quizSettings(existing)`; explicit markers are honoured | `lib/quiz-assessment.js`, quiz route | unit "legacy quizzes" | Resolved |
 | P9-21 | Medium | A plain unique index on `quizScores.attemptId` would fail on every old row, which has no `attemptId`. | A5 is partial | `lib/assessment-indexes.js` | unit "indexes"; mongo index tests | Resolved |
-| P9-22 | Medium | Student reads loaded answer keys into server memory. | Attempt and overview reads project the key out. `readLessonDetail` still loads it and strips it. | `lib/quiz-attempts.js` | unit and mongo "never load" | **Partially resolved** (never sent; section 16.1) |
+| P9-22 | Medium | Student reads loaded answer keys into server memory. | Attempt and overview reads project the key out. `readLessonDetail` still loads it and strips it. | `lib/quiz-attempts.js` | unit and mongo "never load" | **Closed**, see final remediation record |
 | P9-23 | Medium | No rate limits on assignment writes or quiz saves. | Existing limiters applied | quiz and assignment routes | unit "rate limits" | Resolved |
 | P9-24 | Medium | The leaderboard rule had been changed with no basis in the brief. | Restored, then confirmed by the owner | `pages/api/leaderboard/index.ts` | unit "leaderboard"; mongo "leaderboard"; e2e `leaderboard` | Resolved |
 | P9-25 | Low | The grading page was 999 px wide on a phone. It first passed a weak check, which is now strict. | `min-w-0`; the form sits outside the scrolling table | analytics page | e2e `mobile` | Resolved |
 | P9-26 | Low | A 0 grade showed as ungraded; N+1 lookups in assignment lists and analytics. | Fixed and batched | assignment routes | unit "regrading"; `assignment-access.test.js` | Resolved |
 | P9-27 | High (test) | A `String.replace` `$'` pattern corrupted the shared test helper, so four suites would not load. | Repaired; helper gained `$type`, `skip`, real sort, array-aware `$ne`, `deleteOne` | `tests/helpers/payment-memory-db.js` | The four files, 90/90 | Resolved |
 | P9-28 | Medium (test) | `secure-sessions` pinned a date and began failing after 2 November. **Baseline**: fails at clean `e78ce9b`. | One test-only argument; no authentication code changed | `tests/secure-sessions.test.js` | 38/38; full suite also passes with the clock 30 days ahead | Resolved |
-| P9-29 | Low (test) | `test:mongo` is intermittent: "four instances" gives `9 !== 10`, and the TTL test gives `0 !== 1`. **Baseline**: both occur on clean `e78ce9b`. | Causes measured (section 14.3); both are test assumptions, not lost counts. No rate-limit code or test changed. | `tests/integration/rate-limit-mongo.test.js` | Section 14.3 | **Outstanding** (explained) |
+| P9-29 | Low (test) | `test:mongo` is intermittent: "four instances" gives `9 !== 10`, and the TTL test gives `0 !== 1`. **Baseline**: both occur on clean `e78ce9b`. | Causes measured (section 14.3); both are test assumptions, not lost counts. No rate-limit code or test changed. | `tests/integration/rate-limit-mongo.test.js` | Section 14.3 | **Closed**, see final remediation record |
 | P9-30 | Medium | A failure while releasing the slot left the counter pointing at a finished attempt, so the student got `attempt_busy` permanently. | A finished attempt never keeps the slot | `lib/quiz-attempts.js` | unit "stale open slot" | Resolved |
 | P9-31 | Medium | Parallel first submissions could create two rows and pay twice. | A2, a duplicate becomes a resubmission, recoverable award | submit route | unit and mongo "parallel first submissions" | Resolved (full guarantee needs A2 in production) |
 | P9-32 | Medium | A submitted attempt with no answers completed the lesson when the quiz had no pass mark, and also with a pass mark of 0. | `attemptCompletesLesson` requires at least one answer; the page warns before submitting and explains the result | `lib/quiz-assessment.js`, `components/Quiz.tsx`, `QuizSettingsPanel.tsx` | unit and mongo "completion"; e2e `empty` | Resolved |
@@ -661,3 +661,15 @@ Phases 7, 8 and 9 are all unreleased (`origin/master` is `0935557`), so they shi
 Phase 8 must not ship alone if production uses `forexorbitAppRole` (P9-14).
 
 **Next:** Phase 10, Practice Trading Environment (Master Engineering Roadmap). Not started.
+---
+
+## Final remediation record (4 November 2026)
+
+| Finding | Root cause | Change | Regression test | Status |
+|---|---|---|---|---|
+| P9-22 | The lesson route read the quiz with its key for every reader, then stripped it | `readLessonDetail` reads the quiz with `correctAnswer` and `explanation` projected out. It reads them only after the reader is known to be allowed the authoring view | `tests/phase-9-10-remediation.test.js` | **Closed**, see final remediation record |
+| P9-29 (four instances) | `consume` counted all rules in parallel, so a request refused by `login-ip` still spent a `login-email-ip` slot | Rules now run in order and stop at the first refusal, which makes the limit exact. The test now expects 30 counts on the narrower rule instead of 32, because the 2 refused requests no longer reach it | `rate-limit-mongo`, remediation test | **Closed** |
+| P9-29 (TTL) | The test's "kept" row was in the current window and could truly expire during the wait | The row is written in the next window. The assertion is unchanged | `rate-limit-mongo` | **Closed** |
+| P9-14 | Production role and indexes need a separate approved rollout | Prerequisites documented in `docs/audits/phase-10-practice-trading.md`, section 24.13. Nothing in production was changed or read | `app-database-role.test.js` | Code closed; **rollout blocked on owner approval** |
+
+Evidence for P9-29: six runs of `npm run test:mongo` passed 12 of 12 each time after the change, against 5 failures in 6 on unchanged `be477d6`. A side effect to note: a request refused by a wider limit no longer counts against narrower limits. It never reached a password check, so no attempt goes uncounted.
