@@ -1,0 +1,1346 @@
+{
+  "roleName": "forexorbitAppRole",
+  "actions": [
+    {
+      "action": "FIND",
+      "resources": [
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "Screenshots"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "assignmentSubmissions"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "assignments"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "badges"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "certificateTemplates"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "certificates"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "challengeCompletions"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "challenges"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "classes"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "communityMessages"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "communityNews"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "communityQuestions"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "communityReplies"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "communityRooms"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "communityVotes"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "consultationMessages"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "consultationRequests"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "consultationSessions"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "coursePurchases"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "courses"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "demoAccounts"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "demoTaskSubmissions"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "demoTasks"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "demoTradeJournal"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "demoTrades"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "forumPosts"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "instructors"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "marketCheckpoints"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "marketDataSets"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "marketHealth"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "marketQuotes"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "tradingAccountSlots"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "tradingAccounts"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "tradingOperations"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "tradingOrders"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "tradingPositions"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "learningDays"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "learningMinutes"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "lessonPurchases"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "lessons"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "messages"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "notifications"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "passwordPhoneResets"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "passwordResetSecurityLogs"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "passwordResetTokens"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "paymentExceptions"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "paystackPaymentIntents"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "paystackPayments"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "paystackRefunds"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "progress"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "quizAttemptCounters"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "quizAttempts"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "quizScores"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "quizzes"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "rateLimits"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "reminders"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "sessions"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "todos"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "userBadges"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "userCourseAccess"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "userLessonAccess"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "users"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "adminAuditLog"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "marketIncidents"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "tradingLedger"
+        }
+      ]
+    },
+    {
+      "action": "INSERT",
+      "resources": [
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "Screenshots"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "assignmentSubmissions"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "assignments"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "badges"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "certificateTemplates"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "certificates"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "challengeCompletions"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "challenges"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "classes"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "communityMessages"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "communityNews"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "communityQuestions"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "communityReplies"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "communityRooms"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "communityVotes"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "consultationMessages"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "consultationRequests"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "consultationSessions"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "coursePurchases"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "courses"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "demoAccounts"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "demoTaskSubmissions"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "demoTasks"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "demoTradeJournal"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "demoTrades"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "forumPosts"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "instructors"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "marketCheckpoints"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "marketDataSets"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "marketHealth"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "marketQuotes"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "tradingAccountSlots"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "tradingAccounts"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "tradingOperations"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "tradingOrders"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "tradingPositions"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "learningDays"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "learningMinutes"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "lessonPurchases"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "lessons"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "messages"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "notifications"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "passwordPhoneResets"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "passwordResetSecurityLogs"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "passwordResetTokens"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "paymentExceptions"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "paystackPaymentIntents"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "paystackPayments"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "paystackRefunds"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "progress"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "quizAttemptCounters"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "quizAttempts"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "quizScores"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "quizzes"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "rateLimits"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "reminders"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "sessions"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "todos"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "userBadges"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "userCourseAccess"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "userLessonAccess"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "users"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "adminAuditLog"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "marketIncidents"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "tradingLedger"
+        }
+      ]
+    },
+    {
+      "action": "UPDATE",
+      "resources": [
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "Screenshots"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "assignmentSubmissions"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "assignments"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "badges"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "certificateTemplates"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "certificates"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "challengeCompletions"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "challenges"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "classes"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "communityMessages"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "communityNews"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "communityQuestions"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "communityReplies"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "communityRooms"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "communityVotes"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "consultationMessages"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "consultationRequests"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "consultationSessions"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "coursePurchases"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "courses"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "demoAccounts"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "demoTaskSubmissions"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "demoTasks"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "demoTradeJournal"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "demoTrades"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "forumPosts"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "instructors"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "marketCheckpoints"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "marketDataSets"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "marketHealth"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "marketQuotes"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "tradingAccountSlots"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "tradingAccounts"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "tradingOperations"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "tradingOrders"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "tradingPositions"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "learningDays"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "learningMinutes"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "lessonPurchases"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "lessons"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "messages"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "notifications"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "passwordPhoneResets"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "passwordResetSecurityLogs"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "passwordResetTokens"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "paymentExceptions"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "paystackPaymentIntents"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "paystackPayments"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "paystackRefunds"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "progress"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "quizAttemptCounters"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "quizAttempts"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "quizScores"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "quizzes"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "rateLimits"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "reminders"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "sessions"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "todos"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "userBadges"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "userCourseAccess"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "userLessonAccess"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "users"
+        }
+      ]
+    },
+    {
+      "action": "REMOVE",
+      "resources": [
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "Screenshots"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "assignmentSubmissions"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "assignments"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "badges"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "certificateTemplates"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "certificates"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "challengeCompletions"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "challenges"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "classes"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "communityMessages"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "communityNews"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "communityQuestions"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "communityReplies"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "communityRooms"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "communityVotes"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "consultationMessages"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "consultationRequests"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "consultationSessions"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "coursePurchases"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "courses"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "demoAccounts"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "demoTaskSubmissions"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "demoTasks"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "demoTradeJournal"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "demoTrades"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "forumPosts"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "instructors"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "marketCheckpoints"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "marketDataSets"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "marketHealth"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "marketQuotes"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "tradingAccountSlots"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "tradingAccounts"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "tradingOperations"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "tradingOrders"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "tradingPositions"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "learningDays"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "learningMinutes"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "lessonPurchases"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "lessons"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "messages"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "notifications"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "passwordPhoneResets"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "passwordResetSecurityLogs"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "passwordResetTokens"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "paymentExceptions"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "paystackPaymentIntents"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "paystackPayments"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "paystackRefunds"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "progress"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "quizAttemptCounters"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "quizAttempts"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "quizScores"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "quizzes"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "rateLimits"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "reminders"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "sessions"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "todos"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "userBadges"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "userCourseAccess"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "userLessonAccess"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "users"
+        }
+      ]
+    },
+    {
+      "action": "CREATE_COLLECTION",
+      "resources": [
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "consultationMessages"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "consultationRequests"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "consultationSessions"
+        }
+      ]
+    },
+    {
+      "action": "CREATE_INDEX",
+      "resources": [
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "consultationMessages"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "consultationRequests"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "consultationSessions"
+        }
+      ]
+    },
+    {
+      "action": "LIST_COLLECTIONS",
+      "resources": [
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": ""
+        }
+      ]
+    }
+  ],
+  "inheritedRoles": []
+}

@@ -28,6 +28,7 @@ import {
 } from '@/lib/quiz-assessment';
 import { attemptOverview, loadQuizContext, reviewFor, startAttempt, submitAttempt } from '@/lib/quiz-attempts';
 import { allowRequest, assessmentLimiter, authoringLimiter } from '@/lib/content-rate-limit';
+import { saveQuizVersion } from '@/lib/quiz-store';
 import { setPrivateNoStore } from '@/lib/lesson-documents';
 
 function routeLessonId(value: string | string[] | undefined): string {
@@ -169,15 +170,12 @@ async function createQuiz(req: AuthRequest, res: NextApiResponse) {
     if (!settings.ok) return res.status(400).json({ error: settings.error, code: settings.code, field: settings.field });
     const now = new Date();
     // One quiz per lesson; each save is a new version (attempts keep their own frozen copy).
-    const saved = await quizzes.findOneAndUpdate(
-      { lessonId: decision.lessonId },
-      {
-        $set: { courseId: decision.courseId, questions: normalized.questions, settings: settings.settings, updatedAt: now, updatedBy: String(account.ok ? account.user.userId : '') },
-        $inc: { version: 1 },
-        $setOnInsert: { lessonId: decision.lessonId, createdAt: now },
-      },
-      { upsert: true, returnDocument: 'after', includeResultMetadata: false }
-    );
+    // lib/quiz-store.js: a duplicate-key race on the unique lessonId index (A4) is retried once.
+    const saved = await saveQuizVersion(quizzes, {
+      lessonId: decision.lessonId,
+      set: { courseId: decision.courseId, questions: normalized.questions, settings: settings.settings, updatedAt: now, updatedBy: String(account.ok ? account.user.userId : '') },
+      now,
+    });
     return res.status(existing ? 200 : 201).json({ success: true, id: String(saved!._id), ...presentQuizForStaff(saved!) });
   } catch {
     console.error(JSON.stringify({ event: 'quizMutation', result: 'lookup_failed' }));

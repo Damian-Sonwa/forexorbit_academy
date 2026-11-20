@@ -16,7 +16,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { spawn } = require('child_process');
 const ROOT = path.join(__dirname, '..', '..');
-const { checkAcceptanceConfig, checkDisposable, MARKER, MARKER_COLLECTION } = require('./guard');
+const { checkAcceptanceConfig, checkDisposable, MARKER, MARKER_COLLECTION, shieldLocalEnv } = require('./guard');
 
 const results = [];
 function record(area, check, ok, detail = '') {
@@ -186,7 +186,7 @@ const clickText = (selector, pattern) => `(() => { const el = [...document.query
     PAYMENT_RECONCILE_INTERVAL_MINUTES: '0',
   };
   const out = fs.openSync(logFile, 'w');
-  const server = spawn(process.execPath, ['server.js'], { cwd: ROOT, env, stdio: ['ignore', out, out] });
+  const server = spawn(process.execPath, ['server.js'], { cwd: ROOT, env: shieldLocalEnv(env), stdio: ['ignore', out, out] });
   const browsers = [];
   try {
     for (let i = 0; ; i += 1) {

@@ -19,7 +19,7 @@ const http = require('http');
 const crypto = require('crypto');
 const { spawn, spawnSync } = require('child_process');
 const ROOT = path.join(__dirname, '..', '..');
-const { checkAcceptanceConfig, checkDisposable, MARKER, MARKER_COLLECTION } = require('./guard');
+const { checkAcceptanceConfig, checkDisposable, MARKER, MARKER_COLLECTION, shieldLocalEnv } = require('./guard');
 
 const results = [];
 function record(area, check, ok, detail = '') {
@@ -194,7 +194,7 @@ const TINY_PDF = Buffer.from('%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endo
     PAYMENT_RECONCILE_INTERVAL_MINUTES: '0',
   };
   const out = fs.openSync(logFile, 'w');
-  const server = spawn(process.execPath, ['server.js'], { cwd: ROOT, env, stdio: ['ignore', out, out] });
+  const server = spawn(process.execPath, ['server.js'], { cwd: ROOT, env: shieldLocalEnv(env), stdio: ['ignore', out, out] });
   try {
     for (let i = 0; ; i += 1) {
       if (i > 240) throw new Error(`server did not start; see ${logFile}`);

@@ -63,8 +63,10 @@ test('apply builds only the missing indexes and verifies them', async () => {
 });
 
 test('apply refuses when an existing index has the same key or name with another definition', async () => {
+  // The same key under another name with the SAME options is no longer a conflict: it satisfies
+  // the definition (tests/index-plan.test.js). Another option on the same key still is.
   for (const existing of [
-    { notifications: [{ name: 'my_own', key: { userId: 1, createdAt: -1 } }] },
+    { notifications: [{ name: 'my_own', key: { userId: 1, createdAt: -1 }, sparse: true }] },
     { users: [{ name: 'perf_users_role_points', key: { role: 1 } }] },
     { progress: [{ name: 'perf_progress_user', key: { userId: 1 }, unique: true }] },
   ]) {

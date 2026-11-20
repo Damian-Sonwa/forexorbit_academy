@@ -901,10 +901,14 @@ app.prepare().then(async () => {
   // take-profit, pending orders and margin for accounts nobody is viewing. Does nothing without an
   // approved dataset. TRADING_EVALUATOR_INTERVAL_SECONDS (default 15) sets the interval; 0 turns it
   // off. A failure here never affects the server, and the next pass retries.
+  // Each pass reads one page (200) of every stream and the cursor carries the place to the next pass,
+  // wrapping at the end, so every account is reached in turn rather than the same first 200 each time.
+  // A record that fails is counted and skipped for this pass only; the rotation retries it.
   const tradingSeconds = Number(process.env.TRADING_EVALUATOR_INTERVAL_SECONDS ?? 15);
   if (Number.isFinite(tradingSeconds) && tradingSeconds > 0) {
-    const { sweep } = require('./lib/trading/engine');
+    const { createSweepCursor, sweep, SWEEP_PAGE } = require('./lib/trading/engine');
     const { marketTick } = require('./lib/trading/market-data');
+    const sweepCursor = createSweepCursor();
     let trading = false;
     setInterval(async () => {
       if (trading) return;
@@ -913,7 +917,10 @@ app.prepare().then(async () => {
         const { getDb } = require('./lib/mongodb');
         const db = await getDb();
         await marketTick(db);
-        await sweep(db, { apply: true, limit: 200 });
+        const report = await sweep(db, { apply: true, limit: SWEEP_PAGE, cursor: sweepCursor });
+        if (report.failures.count || report.mismatches.length) {
+          console.error(JSON.stringify({ event: 'tradingEvaluator', result: 'partial', failures: report.failures.count, mismatches: report.mismatches.length }));
+        }
       } catch {
         console.error(JSON.stringify({ event: 'tradingEvaluator', result: 'failed' }));
       } finally {

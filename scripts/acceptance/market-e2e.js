@@ -14,7 +14,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { spawn } = require('child_process');
 const ROOT = path.join(__dirname, '..', '..');
-const { checkAcceptanceConfig, checkDisposable, MARKER, MARKER_COLLECTION } = require('./guard');
+const { checkAcceptanceConfig, checkDisposable, MARKER, MARKER_COLLECTION, shieldLocalEnv } = require('./guard');
 const { EDGE, launchBrowser, sleep } = require('./browser');
 const { newMarket } = require('../../lib/market/health');
 const { ensureTradingIndexes } = require('../../lib/trading/indexes');
@@ -79,7 +79,7 @@ function record(area, check, ok, detail = '') {
   };
   const startServer = () => {
     const out = fs.openSync(logFile, 'a');
-    return spawn(process.execPath, ['server.js'], { cwd: ROOT, env, stdio: ['ignore', out, out] });
+    return spawn(process.execPath, ['server.js'], { cwd: ROOT, env: shieldLocalEnv(env), stdio: ['ignore', out, out] });
   };
   const ready = async (mark) => {
     for (let i = 0; ; i += 1) {

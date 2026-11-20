@@ -5,6 +5,7 @@
  */
 
 import { MongoClient } from 'mongodb';
+import { assertDevelopmentDatabase } from '@/lib/dev-database-guard';
 
 const uri = (process.env.MONGO_URI || process.env.MONGODB_URI)?.trim();
 if (!uri) {
@@ -17,6 +18,9 @@ if (!uri) {
 if (!uri.startsWith('mongodb')) {
   throw new Error('MONGO_URI / MONGODB_URI must start with mongodb:// or mongodb+srv://');
 }
+
+// Outside production, an explicit non-production MONGODB_DB_NAME is required (lib/dev-database-guard.js).
+assertDevelopmentDatabase();
 
 let client: MongoClient;
 let clientPromise: Promise<MongoClient>;

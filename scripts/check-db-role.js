@@ -7,7 +7,7 @@
  * The connection string comes from MONGO_URI (or MONGODB_URI) and is never printed. Nothing is
  * written: the only command sent is `connectionStatus`.
  */
-const { ROLE_NAME, evaluatePrivileges, rolePrivileges } = require('../lib/app-database-role');
+const { createRoleDocument, evaluatePrivileges } = require('../lib/app-database-role');
 
 function parseArgs(argv) {
   const args = argv.slice(2);
@@ -32,7 +32,7 @@ async function main() {
     process.exit(2);
   }
   if (args.printRole) {
-    console.log(JSON.stringify({ role: ROLE_NAME, privileges: rolePrivileges(args.database), roles: [] }, null, 2));
+    console.log(JSON.stringify(createRoleDocument(args.database), null, 2));
     return;
   }
   require('dotenv').config({ quiet: true });

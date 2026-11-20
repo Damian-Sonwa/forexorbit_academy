@@ -4,7 +4,8 @@
  *   node scripts/trading-reconcile.js --database <name>            read-only: checks every account
  *   node scripts/trading-reconcile.js --database <name> --apply    also finishes interrupted work
  *
- * Mismatches are reported, never repaired: the ledger is not rewritten.
+ * Mismatches are reported, never repaired: the ledger is not rewritten. Every account, open position,
+ * pending order and stale operation is visited, 200 at a time in key order (no 200-record cap).
  *
  * The connection string comes from MONGO_URI (or MONGODB_URI) and is never printed.
  */
@@ -23,6 +24,10 @@ async function run(db, { apply, log = console.log }) {
   log(`Accounts checked: ${report.checked}. Mismatches: ${report.mismatches.length}.`);
   if (report.recovered) log(`Recovered: ${report.recovered.finished} finished, ${report.recovered.abandoned} abandoned. Evaluated: ${report.evaluated}.`);
   for (const row of report.mismatches) log(`${row.accountId}: ${row.problems.join(', ')}`);
+  if (report.failures.count) {
+    log(`Failed: ${report.failures.count} record(s); every other record was still processed. Rerun to retry them.`);
+    for (const item of report.failures.items) log(`  ${item.stream} ${item.id}: ${item.error}`);
+  }
   return report;
 }
 
@@ -51,7 +56,7 @@ async function main() {
   }
   console.log(`Database: ${args.database}. Mode: ${args.apply ? 'apply' : 'report (read-only)'}.`);
   const report = await withDatabase(args.database, (db) => run(db, { apply: args.apply }));
-  process.exitCode = report.mismatches.length ? 1 : 0;
+  process.exitCode = report.mismatches.length || report.failures.count ? 1 : 0;
 }
 
 if (require.main === module) main().catch(() => { console.error('Reconcile script failed.'); process.exit(1); });

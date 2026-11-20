@@ -14,6 +14,13 @@
  * Nothing here prints the URI.
  */
 
+const fs = require('fs');
+const path = require('path');
+
+const ROOT = path.join(__dirname, '..', '..');
+// Files that server.js (dotenv) and Next (@next/env) read from the working directory.
+const LOCAL_ENV_FILES = Object.freeze(['.env', '.env.local', '.env.development', '.env.development.local', '.env.production', '.env.production.local']);
+
 const PRODUCTION_DATABASE_NAMES = Object.freeze(['forex_elearning']);
 const NAME_PATTERN = /^[A-Za-z0-9_-]+_(acceptance|test)$/;
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '::1', '[::1]']);
@@ -66,4 +73,28 @@ async function checkDisposable(db) {
   return { ok: false, reason: 'The test database already holds data that this harness did not create; use an empty database.' };
 }
 
-module.exports = { MARKER, MARKER_COLLECTION, NAME_PATTERN, PRODUCTION_DATABASE_NAMES, REMOTE_OPT_IN, checkAcceptanceConfig, checkDisposable, hostsOf, uriDatabase };
+/**
+ * The environment for a server the harness starts. server.js and Next fill any variable that is not
+ * already set from the local .env files, which can hold real keys (payment secret, production URI).
+ * Every key those files define and the harness did not set is set to '' here: dotenv and @next/env
+ * never replace a variable that is already defined, so nothing from the files reaches the server.
+ * Only key NAMES are read; values are never read into the result.
+ */
+function shieldLocalEnv(env, root = ROOT) {
+  const out = { ...env };
+  for (const file of LOCAL_ENV_FILES) {
+    let text;
+    try {
+      text = fs.readFileSync(path.join(root, file), 'utf8');
+    } catch {
+      continue;
+    }
+    for (const line of text.split(/\r?\n/)) {
+      const match = line.match(/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=/);
+      if (match && !Object.prototype.hasOwnProperty.call(out, match[1])) out[match[1]] = '';
+    }
+  }
+  return out;
+}
+
+module.exports = { LOCAL_ENV_FILES, shieldLocalEnv, MARKER, MARKER_COLLECTION, NAME_PATTERN, PRODUCTION_DATABASE_NAMES, REMOTE_OPT_IN, checkAcceptanceConfig, checkDisposable, hostsOf, uriDatabase };

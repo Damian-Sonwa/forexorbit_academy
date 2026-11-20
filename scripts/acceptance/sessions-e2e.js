@@ -19,7 +19,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { spawn, spawnSync } = require('child_process');
 const ROOT = path.join(__dirname, '..', '..');
-const { checkAcceptanceConfig, checkDisposable, MARKER, MARKER_COLLECTION } = require('./guard');
+const { checkAcceptanceConfig, checkDisposable, MARKER, MARKER_COLLECTION, shieldLocalEnv } = require('./guard');
 
 const results = [];
 function record(area, check, ok, detail = '') {
@@ -79,7 +79,7 @@ function sessionOf(res) {
     JWT_SECRET: crypto.randomBytes(48).toString('hex'), NEXT_TELEMETRY_DISABLED: '1', NEXT_PUBLIC_ADS_ENABLED: 'false',
   };
   const out = fs.openSync(logFile, 'w');
-  const server = spawn(process.execPath, ['server.js'], { cwd: ROOT, env, stdio: ['ignore', out, out] });
+  const server = spawn(process.execPath, ['server.js'], { cwd: ROOT, env: shieldLocalEnv(env), stdio: ['ignore', out, out] });
   const sockets = [];
   let browser = null;
   try {
@@ -277,7 +277,7 @@ function sessionOf(res) {
   // ---- Production start-up refuses without APP_ORIGIN (exits before connecting anywhere)
   const prod = spawnSync(process.execPath, ['-e', "process.env.NODE_ENV='production';require('./server.js')"], {
     cwd: ROOT,
-    env: { PATH: process.env.PATH, SystemRoot: process.env.SystemRoot, MONGO_URI: 'mongodb://127.0.0.1:1/never_used_test', JWT_SECRET: 'x'.repeat(48) },
+    env: shieldLocalEnv({ PATH: process.env.PATH, SystemRoot: process.env.SystemRoot, MONGO_URI: 'mongodb://127.0.0.1:1/never_used_test', JWT_SECRET: 'x'.repeat(48) }),
     encoding: 'utf8',
     timeout: 60000,
   });

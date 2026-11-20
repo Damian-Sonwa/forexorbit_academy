@@ -3,13 +3,20 @@
  *
  *   node scripts/learning-indexes.js --database <name>              read-only: report each index
  *   node scripts/learning-indexes.js --database <name> --apply      build the missing ones
- *   node scripts/learning-indexes.js --database <name> --rollback   drop only these indexes
+ *   node scripts/learning-indexes.js --database <name> --rollback   drop only indexes this script built
  *
- * The connection string comes from MONGO_URI (or MONGODB_URI) and is never printed. The indexes
- * are non-unique, so building them never changes or rejects a document. `--apply` refuses when an
- * existing index has the same name or key with different options.
+ * The connection string comes from MONGO_URI (or MONGODB_URI) and is never printed. The report and
+ * --apply share one comparison (lib/index-plan.js): an existing index with the same key and options
+ * satisfies a definition under any name (production: lessons_course_order for L2,
+ * quizscores_user_course for L3), and L1 is covered by the unique progress_user_course prefix.
+ * --apply refuses, building nothing, while any definition conflicts. Exit code: 0 when nothing is
+ * blocked (report) or everything is present (apply); 1 otherwise.
+ *
+ * --rollback drops an index only when it carries this script's own name AND exactly this script's
+ * definition; an equivalent index under another name, or a prefix cover, is never dropped.
  */
 const { LEARNING_INDEXES } = require('../lib/learning-indexes');
+const { applyIndexPlan, blockedRows, classifyIndex, describePlan, describeRow, planIndexes } = require('../lib/index-plan');
 
 function parseArgs(argv) {
   const args = argv.slice(2);
@@ -22,59 +29,42 @@ function parseArgs(argv) {
   return { database, mode: apply ? 'apply' : rollback ? 'rollback' : 'plan' };
 }
 
-const sameKey = (a, b) => JSON.stringify(a) === JSON.stringify(b);
-
-/** present | missing | conflicting (same name or key with a different definition). */
+/** present | missing | conflicting. */
 function compareIndex(definition, existing) {
-  const byName = existing.find((index) => index.name === definition.options.name);
-  // A TTL index (Phase 8, L9) must also expire after the same time.
-  const sameTtl = (index) => (index.expireAfterSeconds ?? null) === (definition.options.expireAfterSeconds ?? null);
-  if (byName) return sameKey(byName.key, definition.key) && !byName.unique && sameTtl(byName) ? 'present' : 'conflicting';
-  const byKey = existing.find((index) => sameKey(index.key, definition.key));
-  if (byKey) return 'conflicting';
-  return 'missing';
+  return classifyIndex(definition, existing).state;
 }
 
-async function indexStates(db) {
-  const names = new Set((await db.listCollections({}, { nameOnly: true }).toArray()).map((c) => c.name));
-  const states = [];
-  for (const definition of LEARNING_INDEXES) {
-    const existing = names.has(definition.collection) ? await db.collection(definition.collection).indexes() : [];
-    states.push({ definition, state: names.has(definition.collection) ? compareIndex(definition, existing) : 'no collection' });
-  }
-  return states;
-}
+const logRows = (rows, log) => rows.forEach((row) => log(describeRow(row, { withKey: true })));
 
 async function run(db, { mode, log = console.log }) {
-  const states = await indexStates(db);
-  for (const { definition, state } of states) {
-    log(`${definition.id} ${definition.collection} ${JSON.stringify(definition.key)} ${definition.options.name}: ${state}`);
+  if (mode === 'plan') {
+    const rows = await planIndexes(db, LEARNING_INDEXES);
+    logRows(rows, log);
+    describePlan(rows).forEach((line) => log(line));
+    return { ok: blockedRows(rows).length === 0, states: rows };
   }
-  if (mode === 'plan') return { ok: true, states };
   if (mode === 'apply') {
-    const conflicts = states.filter((s) => s.state === 'conflicting');
-    if (conflicts.length) {
-      log(`Refusing to apply: ${conflicts.map((s) => s.definition.id).join(', ')} conflict with existing indexes.`);
-      return { ok: false, states };
-    }
-    for (const { definition, state } of states) {
-      // A collection that does not exist yet (Phase 8's learningDays / learningMinutes before the
-      // first write) gets its index now; createIndex creates the empty collection.
-      if (state !== 'missing' && state !== 'no collection') continue;
-      await db.collection(definition.collection).createIndex(definition.key, definition.options);
-      log(`Built ${definition.id} (${definition.options.name}).`);
-    }
-    const after = await indexStates(db);
-    const missing = after.filter((s) => s.state !== 'present');
-    log(missing.length ? `Not verified: ${missing.map((s) => s.definition.id).join(', ')}.` : 'Verified: every learning index is present.');
-    return { ok: missing.length === 0, states: after };
+    const result = await applyIndexPlan(db, LEARNING_INDEXES);
+    logRows(result.report, log);
+    if (result.blocked) log(`Refusing to apply: ${result.blocked.join(', ')} conflict with existing indexes. Nothing was built.`);
+    if (result.built.length) log(`Built: ${result.built.join(', ')}.`);
+    if (result.failed) log(`Build of ${result.failed.id} failed (${result.failed.error}). Built before the failure: ${result.built.join(', ') || 'none'}.`);
+    else if (!result.blocked) log(result.ok ? 'Verified: every learning index is present.' : `Not verified: ${result.report.filter((r) => r.state !== 'present').map((r) => r.id).join(', ')}.`);
+    return { ok: result.ok, built: result.built, states: result.report };
   }
-  for (const { definition, state } of states) {
-    if (state !== 'present') continue;
-    await db.collection(definition.collection).dropIndex(definition.options.name);
-    log(`Dropped ${definition.id} (${definition.options.name}).`);
+  // Rollback: only this script's own indexes, by its own name and its exact definition.
+  const rows = await planIndexes(db, LEARNING_INDEXES);
+  const dropped = [];
+  for (const row of rows) {
+    if (row.state !== 'present' || row.coverage !== 'exact') {
+      if (row.state === 'present') log(`Kept ${row.id}: satisfied by ${row.satisfiedBy}, which this script did not build.`);
+      continue;
+    }
+    await db.collection(row.collection).dropIndex(row.name);
+    dropped.push(row.id);
+    log(`Dropped ${row.id} (${row.name}).`);
   }
-  return { ok: true, states: await indexStates(db) };
+  return { ok: true, dropped, states: await planIndexes(db, LEARNING_INDEXES) };
 }
 
 async function main() {
@@ -93,7 +83,7 @@ async function main() {
   const client = new MongoClient(uri, { serverSelectionTimeoutMS: 15000 });
   try {
     await client.connect();
-    console.log(`Database: ${args.database}. Mode: ${args.mode}.`);
+    console.log(`Database: ${args.database}. Mode: ${args.mode === 'plan' ? 'report (read-only)' : args.mode}.`);
     const result = await run(client.db(args.database), { mode: args.mode });
     process.exitCode = result.ok ? 0 : 1;
   } finally {
@@ -101,6 +91,11 @@ async function main() {
   }
 }
 
-if (require.main === module) main().catch(() => { console.error('Index script failed.'); process.exit(1); });
+if (require.main === module) {
+  main().catch((error) => {
+    console.error(`Index script failed (${(error && (error.codeName || error.name)) || 'error'}). Check the report before rerunning.`);
+    process.exit(1);
+  });
+}
 
 module.exports = { parseArgs, compareIndex, run };

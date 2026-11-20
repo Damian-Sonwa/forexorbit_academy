@@ -168,6 +168,9 @@ const MEMBER_COLLECTION_MODULES = new Map([
   ['lib/course-deletion.js', ['lib/course-deletion.js', 'PROTECTED_RECORDS']],
   ['lib/assessment-indexes.js', ['lib/assessment-indexes.js', 'ASSESSMENT_INDEXES']],
   ['lib/enrollment-indexes.js', ['lib/enrollment-indexes.js', 'ENROLLMENT_INDEXES']],
+  // The shared planner touches only the definitions' collections; trading and assessment are listed above.
+  ['lib/index-plan.js', ['lib/learning-indexes.js', 'LEARNING_INDEXES']],
+  ['lib/unique-conversion.js', ['lib/unique-conversion.js', 'CONVERSIONS']],
 ]);
 /** Collection names a [module, export] source provides (an object of names or a table of rows). */
 function namesFrom([file, exported]) {
@@ -193,4 +196,67 @@ test('the checker takes a database name, never prints the connection string, and
     `FAIL ${DB}.* grants more than the role: createCollection, createIndex, dropCollection, find, insert, remove, update`,
     'FAIL: see the lines above.',
   ]);
+});
+
+// F1 (Phase 10 completion): the Atlas role JSON is generated from rolePrivileges(), never by hand.
+const { driftedFiles, roleFiles } = require('../scripts/atlas-role');
+
+/** Phase 8-10 collections, from the modules that own them (not a hand-kept list). */
+const TRADING_AND_MARKET = Object.freeze([
+  ...Object.values(require('../lib/trading/engine').COLLECTIONS),
+  ...Object.values(require('../lib/trading/market-data').COLLECTIONS),
+  ...Object.values(require('../lib/market/series').COLLECTIONS),
+  ...Object.values(require('../lib/market/health').COLLECTIONS),
+]);
+
+/** resource -> sorted actions: the effective grant, however the entries are split or ordered. */
+function effective(privileges) {
+  const map = new Map();
+  for (const p of privileges) {
+    const label = p.resource.cluster ? 'cluster' : `${p.resource.db}.${p.resource.collection}`;
+    map.set(label, [...new Set([...(map.get(label) || []), ...p.actions])].sort());
+  }
+  return Object.fromEntries([...map].sort(([a], [b]) => a.localeCompare(b)));
+}
+
+test('F1: the Atlas Admin API JSON grants exactly rolePrivileges(), action for action', () => {
+  const atlas = role.atlasAdminApiRole(DB);
+  assert.deepEqual(effective(role.privilegesFromAtlasRole(atlas)), effective(role.rolePrivileges(DB)));
+  // Every (resource, action) pair appears once: nothing doubled, nothing dropped.
+  const pairs = atlas.actions.flatMap((a) => a.resources.map((r) => `${a.action}:${r.collection}`));
+  assert.equal(new Set(pairs).size, pairs.length);
+  assert.equal(pairs.length, role.rolePrivileges(DB).reduce((n, p) => n + p.actions.length, 0));
+  assert.equal(atlas.roleName, role.ROLE_NAME);
+  assert.deepEqual(atlas.inheritedRoles, []);
+  assert.deepEqual(atlas.actions.map((a) => a.action), ['FIND', 'INSERT', 'UPDATE', 'REMOVE', 'CREATE_COLLECTION', 'CREATE_INDEX', 'LIST_COLLECTIONS']);
+  for (const entry of atlas.actions) for (const resource of entry.resources) assert.deepEqual(Object.keys(resource), ['cluster', 'db', 'collection']);
+  assert.ok(atlas.actions.every((a) => a.resources.every((r) => r.cluster === false && r.db === DB)));
+  // The checker accepts what the Atlas JSON grants: nothing missing, nothing excessive.
+  assert.deepEqual(role.evaluatePrivileges(role.privilegesFromAtlasRole(atlas), DB), { ok: true, auditViolations: [], missing: [], excessive: [], warnings: [] });
+  assert.deepEqual(role.createRoleDocument(DB), { role: role.ROLE_NAME, privileges: role.rolePrivileges(DB), roles: [] });
+});
+
+test('F1: the committed docs/audits/atlas files are byte-for-byte what rolePrivileges() generates', () => {
+  assert.deepEqual(driftedFiles(DB), [], 'run: node scripts/atlas-role.js --database Forex_elearning --write');
+  const files = roleFiles(DB);
+  assert.deepEqual(JSON.parse(files['forexorbitAppRole.createRole.json']).privileges, role.rolePrivileges(DB));
+  assert.deepEqual(effective(role.privilegesFromAtlasRole(JSON.parse(files['forexorbitAppRole.atlas-admin-api.json']))), effective(role.rolePrivileges(DB)));
+});
+
+test('F1: the 11 trading and market collections and the 4 Phase 8/9 collections are granted exactly', () => {
+  const unique = [...new Set(TRADING_AND_MARKET)].sort();
+  assert.deepEqual(unique, ['marketCheckpoints', 'marketDataSets', 'marketHealth', 'marketIncidents', 'marketQuotes', 'tradingAccountSlots', 'tradingAccounts', 'tradingLedger', 'tradingOperations', 'tradingOrders', 'tradingPositions']);
+  const atlas = role.atlasAdminApiRole(DB);
+  const holders = (action) => new Set(((atlas.actions.find((a) => a.action === action) || {}).resources || []).map((r) => r.collection));
+  const [find, insert, update, remove] = ['FIND', 'INSERT', 'UPDATE', 'REMOVE'].map(holders);
+  const appendOnly = ['marketIncidents', 'tradingLedger'];
+  for (const name of [...unique, 'learningDays', 'learningMinutes', 'quizAttemptCounters', 'quizAttempts']) {
+    assert.ok(find.has(name) && insert.has(name), `${name}: find and insert`);
+    assert.equal(update.has(name) && remove.has(name), !appendOnly.includes(name), `${name}: update/remove only when not append-only`);
+  }
+  for (const name of appendOnly) {
+    const actions = role.rolePrivileges(DB).filter((p) => p.resource.collection === name).flatMap((p) => p.actions);
+    assert.deepEqual(actions, ['find', 'insert'], `${name} stays append-only`);
+    for (const forbidden of role.AUDIT_FORBIDDEN_ACTIONS) assert.equal(holders(forbidden.replace(/([a-z])([A-Z])/g, '$1_$2').toUpperCase()).has(name), false, `${name}: ${forbidden}`);
+  }
 });

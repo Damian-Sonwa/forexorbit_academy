@@ -15,7 +15,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { spawn } = require('child_process');
 const ROOT = path.join(__dirname, '..', '..');
-const { checkAcceptanceConfig, checkDisposable, MARKER, MARKER_COLLECTION } = require('./guard');
+const { checkAcceptanceConfig, checkDisposable, MARKER, MARKER_COLLECTION, shieldLocalEnv } = require('./guard');
 const { START, anchorFor, fixtureDataset, quoteDoc } = require('../../tests/helpers/trading-fixture');
 const { reconcileAccount } = require('../../lib/trading/engine');
 const { ensureTradingIndexes } = require('../../lib/trading/indexes');
@@ -74,7 +74,7 @@ const { EDGE, launchBrowser, sleep } = require('./browser');
     PAYMENT_RECONCILE_INTERVAL_MINUTES: '0', TRADING_EVALUATOR_INTERVAL_SECONDS: '5',
   };
   const out = fs.openSync(logFile, 'w');
-  const server = spawn(process.execPath, ['server.js'], { cwd: ROOT, env, stdio: ['ignore', out, out] });
+  const server = spawn(process.execPath, ['server.js'], { cwd: ROOT, env: shieldLocalEnv(env), stdio: ['ignore', out, out] });
   const browsers = [];
 
   // ---- Test fixture control: the replay clock and hand-written quotes

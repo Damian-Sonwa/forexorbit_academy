@@ -1317,3 +1317,184 @@ Each needs separate owner approval. **A push to `main` does none of this.**
 ### 24.14 Future path to licensed data
 
 A licensed dataset needs the manifest in section 23.4, `scripts/market-data-import.js`, and approval. Only one market can be active. Switching needs a plan for open positions, because prices would jump. Nothing here is built beyond the existing boundary.
+
+## 25. Completion remediation (F1, F4, F5, F8), 2026-11-20
+
+This is repository work only. Nothing was committed, pushed or deployed. Production, Atlas and the live role were not touched.
+
+### 25.1 F1: Atlas role JSON
+
+`scripts/atlas-role.js` generates `docs/audits/atlas/forexorbitAppRole.atlas-admin-api.json` and `.createRole.json` from `rolePrivileges()`. `tests/app-database-role.test.js` checks three things:
+
+- the files are byte-identical to the generator output;
+- the Atlas JSON grants exactly the effective privileges of `rolePrivileges()`: 223 (action, collection) pairs, none doubled or dropped;
+- the checker accepts it.
+
+**The count.** There are 11 trading and market collections: `tradingAccountSlots`, `tradingAccounts`, `tradingOperations`, `tradingOrders`, `tradingPositions`, `tradingLedger`, `marketCheckpoints`, `marketDataSets`, `marketHealth`, `marketQuotes` and `marketIncidents`. The audit's list left out `tradingAccountSlots` and added the 4 Phase 8/9 collections: `learningDays`, `learningMinutes`, `quizAttempts` and `quizAttemptCounters`. Together that makes 15 new collections. `tradingLedger` and `marketIncidents` stay find/insert only. The Oct-28 Atlas JSON also lacked `sessions`, `paystackRefunds` and `passwordResetTokens` (see `docs/audits/atlas/README.md`).
+
+### 25.2 F4: indexes T17, T18 (and T11)
+
+- T17 `tradingPositions { status: 1, accountId: 1 }` `trading_position_status_account`
+- T18 `tradingOrders { status: 1, createdAt: 1 }` `trading_order_status_created`
+
+Each has equality on status, then range and sort on the paging key. T1 and T3 lead with accountId, so they cannot serve these queries.
+
+T11 (unique) now has a `duplicateKey`. Before, the report always showed 0 duplicates, and `--apply` could fail partway with E11000.
+
+**Real MongoDB 9.0.4, `explain('executionStats')`.** These are the exact queries the sweep sent, captured from the running code. Each collection held more than 4,000 rows in other states. Page size 100.
+
+| Stream | Plan | Keys / docs examined (resumed page) |
+| --- | --- | --- |
+| positions | LIMIT > PROJECTION_SIMPLE > FETCH > IXSCAN(T17) | 100 / 100 |
+| pending orders | LIMIT > PROJECTION_SIMPLE > FETCH > IXSCAN(T18) | 104 / 104 |
+| stuck orders (recovery) | LIMIT > FETCH > SORT_MERGE > IXSCAN(T18) x2 | 105 / 104 |
+| operations (recovery) | LIMIT > FETCH > IXSCAN(T5) | 110 / 110 |
+| accounts | LIMIT > PROJECTION_COVERED > IXSCAN(_id_) | 100 / 0 |
+
+None of these plans has a SORT stage or a COLLSCAN. The extra keys above 100 are the ties already seen at the page boundary, which are re-read and then excluded by `$nin`.
+
+**Without T17/T18 (T1-T16 only)**, the old sweep queries are COLLSCAN. The new paged order query becomes SORT > COLLSCAN over the whole collection (4,700 docs). **T17 and T18 must therefore be built before this code is deployed.**
+
+### 25.3 F5: sweep coverage
+
+`lib/trading/engine.js` changes:
+
+- **`keysetPage` and `eachRecord`.** These replace every `.limit(200)` / `.limit(100)` read. Each stream is read in key order: accountId (positions), createdAt (orders and operations) or _id (accounts).
+- **The cursor.** It holds a key value, never a document. Ties carry the `_id`s already returned at that value.
+- **Rotation on the server.** `server.js` keeps a `createSweepCursor()` across ticks. Each tick reads one page of 200 per stream and resumes after it, wrapping at the end.
+- **Operator runs.** `trading-reconcile.js` reads every stream to its end, 200 at a time.
+- **Failures.** A failing record is counted in `report.failures`; the pass continues, and the record is retried on the next rotation. The server logs counts only. The script exits 1.
+- **Recovery** also pages. Before, stuck orders that recovery must leave alone, because their fill operation exists, filled the first page forever.
+
+Formulas, the CAS, operation ids and the ledger are unchanged. Within a pass, each account is evaluated once.
+
+Tests:
+
+- **`tests/phase-10-sweep-coverage.test.js`**: 11 tests, all passing. Against the cbab33a engine, all 7 F5 tests and the F4 test fail. They cover:
+  - 450 accounts over 3 passes;
+  - a full pass;
+  - 230 orders sharing one createdAt, with page boundaries inside the tie;
+  - 250 stuck orders behind 150 kept ones;
+  - an injected failure;
+  - rows closed, deleted and created between passes;
+  - two overlapping sweeps filling 230 orders exactly once.
+- **`tests/integration/trading-sweep-mongo.test.js`**: 3 tests, all passing:
+  - the explain evidence above;
+  - 490 accounts through the real engine: rotation, then concurrent full sweeps, each fill exactly once, ledger unchanged on a further pass;
+  - recovery past kept orders, and T11 duplicates blocking `--apply` with nothing deleted.
+
+### 25.4 F8: URIs
+
+`market-init.js` and `trading-retention.js` read only `MONGO_URI` and loaded no `.env`. They now do the following:
+
+- resolve the URI like the app (`scripts/mongo-uri.js`: MONGO_URI, else MONGODB_URI, trimmed);
+- load dotenv;
+- set a 15 s server-selection timeout;
+- close the client in `finally`;
+- print only the error class, never the URI.
+
+A missing URI exits 2.
+
+### 25.5 Results (2026-11-20, local only)
+
+| Suite | Result |
+| --- | --- |
+| `npm test` | 1071/1071 |
+| `test:trading` | 129/129 |
+| Real MongoDB: rate-limit, payments, enrollment, progress, assessments, trading, market, hard-kill, sweep | 12, 4, 3, 3, 32, 26, 18, 30, 3 (all pass) |
+| Browser: `trading-e2e.js`, `market-e2e.js` | 88/88, 47/47 |
+
+**Production rollout order.** This supersedes 24.13 steps 5-9. Each step needs separate owner approval.
+
+1. Back up the database.
+2. Run `check-db-role.js` read-only against production.
+3. Update the role from `docs/audits/atlas/forexorbitAppRole.atlas-admin-api.json`.
+4. Re-run `check-db-role.js` until it reports PASS.
+5. Run the index scripts in report mode: `learning-indexes`, `assessment-indexes`, `trading-indexes`. Resolve any duplicates or conflicts. Nothing is deleted automatically.
+6. Run the same scripts with `--apply`: L8/L9, A1-A6 and T1-T18. Re-run in report mode until every index shows present.
+7. Deploy this code. Do not deploy before T17/T18 exist.
+8. Run `market-init.js` read-only, then with `--apply`.
+9. Check health ACTIVE.
+10. Run a student test-account trade. Staff cannot trade: the routes are student-only.
+11. Run `trading-reconcile.js` read-only.
+
+## 26. Production index conflicts: L2/L3 equivalence, A4 in-place conversion, L1 (2026-11-20)
+
+The read-only report on production (`Forex_elearning`, MongoDB 8.0.39, temporary indexer user) found two problems:
+- L2 and L3 conflicted only by name (`lessons_course_order`, `quizscores_user_course`);
+- A4 conflicted because the existing `quizzes_lesson` is not unique.
+
+Either problem blocked the whole learning or assessment `--apply`.
+
+- **One comparison for report and apply** (`lib/index-plan.js`, used by all three scripts):
+  - It compares the ordered key pattern and every behavioural option: unique, sparse, hidden, prepareUnique, TTL, partial filter, collation, and the text, geo and wildcard options.
+  - Under any name, an equal index counts as `present`, and the report names it (`satisfied by existing …`).
+  - Any option difference is `conflicting`, with the reason.
+  - `--apply` refuses as a whole on any conflict or duplicate, and reports the collections it would create.
+  - It stops at the first failed build and names what was built before it.
+  - It reports success only when a fresh plan shows everything present.
+  - The learning report now exits 1 when anything is blocked.
+  - Rollback drops only indexes under the script's own name with its exact definition.
+- **L1 is not built where E1 exists.** `progress_user_course {userId, courseId}` (unique, E1) serves every `{userId}` query through its prefix. A separate `{userId}` index would only add a write on every progress update. L1 opts in to prefix cover (`coveredByPrefix`), the only definition that does.
+- **A4 is converted in place by an owner operation** (`scripts/quiz-lesson-unique.js`, `lib/unique-conversion.js`):
+  - The steps are `collMod prepareUnique: true`, then a `dryRun`, then `unique: true`.
+  - The script runs one step at a time. Each step re-checks for duplicates, null or missing values and non-string keys, and verifies that nothing else changed.
+  - The script refuses any user without `collMod` on `quizzes`.
+  - After conversion, the assessment script accepts `quizzes_lesson` as A4.
+- **Concurrent first saves are fixed** (`lib/quiz-store.js`).
+  - Without A4, concurrent first saves create several quizzes for one lesson: 91 quizzes for 30 lessons in the local test.
+  - With A4, the server retries the upsert. The route also retries once on E11000, and rethrows any other error.
+- **Evidence:**
+  - `tests/index-plan.test.js` (24) and `tests/integration/index-conflicts-mongo.test.js` (7) cover the production shape rebuilt locally, the interrupted conversion and the race.
+  - The MongoDB 8.0 documentation confirms the command syntax and errors.
+- **Runbook, nothing executed:** `docs/audits/phase-10-index-rollout-runbook.md`.
+
+## 27. Final local verification and production-readiness gate (2026-11-20)
+
+- **MongoDB 8.0:**
+  - 8.0.39 is not publicly downloadable. The downloaded, checksum-verified 8.0.38 ran locally as a single-node replica set, plus an auth-enabled instance.
+  - The `collMod` prepare, dry-run and convert sequence, its errors, idempotency and irreversibility matched 9.0.4 exactly.
+  - Every real-MongoDB suite passed on 8.0.38.
+  - Permission enforcement was verified on the authenticated server:
+    - the indexer-style role is refused by the preflight, and `collMod` and its `dryRun` are `Unauthorized` on the server;
+    - the four-action converter role completes the cycle and nothing else;
+    - a 22-collection indexer role runs all three scripts in production order.
+- **History sorts:** A3, A6, T2, T4, T7 and T13 now end with the application's own tie-breaker.
+  - The staff results queue sorted a lesson's finished attempts in memory: 3,600 documents for one page. Per-student history pages sorted the student's whole history.
+  - Now every page is read in index order: about 25 keys for 25 documents. A results page reads 51 keys.
+  - `lib/trading/views.js` sorts orders by `{createdAt, _id}` and positions by `{openedAt, _id}`. Orders have no `openedAt` and positions no `createdAt`, so this is the order the old combined sort produced.
+  - Regression test: `tests/integration/index-conflicts-mongo.test.js`, test 8, which fails on any in-memory SORT.
+- **`market-init` rerun:**
+  - A rerun used to answer `ok` for an existing market without looking at it, so an interrupted initialisation was reported as success.
+  - It now reports the market's health. With `--apply`, it finishes catch-up using the server's own pass, and never lifts SUSPENDED or ERROR.
+  - Covered by `tests/integration/market-init-mongo.test.js` (4 tests).
+- **Acceptance harness isolation:**
+  - `server.js` (dotenv) and Next (@next/env) fill unset variables from the local `.env`, which can hold a payment secret or a production URI.
+  - `scripts/acceptance/guard.js` `shieldLocalEnv` blanks every such key the harness does not set itself, for every server the harness starts. Both loaders keep variables that are already defined, so the local values never reach the test server.
+- **Runbook:** rewritten as Stages A–F (`docs/audits/phase-10-index-rollout-runbook.md`). Stage A2 adds the app-role check as a blocker, Stage B2 narrows the indexer, and Stage D covers the market.
+
+## 28. Production rollout log (2026-11-20, executed)
+
+Each production write ran only after the owner approved it explicitly. No credential or URI is recorded here.
+
+| Step | Identity | Result |
+| --- | --- | --- |
+| Local exposure | n/a | The production URI was removed from the worktree `.env`. Two Cursor-terminal dev servers that ran from this worktree, connected to the production cluster, were stopped by the owner. `lib/dev-database-guard.js` was added. |
+| App-role check | `forexorbit_app` | PASS. `forexorbitAppRole` equals `rolePrivileges()`, so no change was needed. |
+| Indexer narrowing | `forexorbit_phase10_indexer` | PASS. The owner narrowed it in Atlas. It now has exactly the 22 collections (`find`, `listIndexes`, `createIndex`) plus database `listCollections`. |
+| Backup | app (documents) + indexer (index definitions) | PASS. `%USERPROFILE%\ForexOrbitBackups\Forex_elearning-2026-11-20T21-41-30-054Z.tar`: 43,509,760 bytes, SHA-256 `c3005be343ef3972a357e95e17efa924dd155328cb2d03768c4ff478e02da794`. It holds 36 collections and 623 documents in mongodump directory format. It was restored into an isolated local 8.0.38 server: all counts and content hashes matched, and all 12 captured index sets matched. **Limits:** it is not a point-in-time snapshot (a 33-second read, with no counts changed); `passwordResets` and `upcomingClasses` are not included, because no available login could read them; Atlas had no snapshot. `mongodump` could not be used because the app login lacks `listIndexes`. |
+| Trading indexes T1–T18 | indexer | PASS. 18 built, specs exact. 6 empty collections created. |
+| Learning indexes L4–L9 | indexer | PASS. 6 built, L9 TTL 7,776,000 s. L1, L2 and L3 were satisfied by `progress_user_course` (prefix), `lessons_course_order` and `quizscores_user_course`, and not duplicated. `learningDays` and `learningMinutes` created. |
+| A4 | `forexorbit_a4_converter` (temporary; collMod, find and listIndexes on `quizzes`, plus listCollections) | PASS. `prepareUnique`, then the dry run (`{ok:1}`), then `unique: true`. `quizzes_lesson {lessonId:1}` is unique under the same name. The 34 documents and the collection options are unchanged. The first role had a typo (`Forex_elearning,`); it was caught read-only and fixed by the owner before any step. |
+| Assessment indexes A1–A3, A5, A6 | indexer | PASS. 5 built, specs exact. `quizAttempts` and `assignmentSubmissions` created. |
+| All 33 definitions | indexer | PASS. All three reports exit 0 with `Would build: nothing.` |
+| Synthetic market | `forexorbit_app` | PASS. `simulated-market-1`: kind synthetic, start 2026-10-21T00:00:00Z, six instruments, 742 checkpoints each, every chain verifying. Health ACTIVE, 0 incidents. A rerun changes nothing, and a second market is refused. |
+| Market tick | production server (`cbab33a`) | PASS. The heartbeat advances every 15 s. In-session quotes progress and are identical across connections. The simulated week is closed at the weekend, Friday 22:00 to Sunday 22:00 UTC. |
+| Public health | n/a | PASS. Frontend 200; deep health shows the database ping true; unauthenticated trading API returns 401. |
+
+**Outstanding at the time of writing:**
+- the controlled student trade, after the market reopens on 2026-11-22 at 22:00 UTC, with an owner-designated test student;
+- commit, push, merge and deploy;
+- post-deploy checks;
+- deletion of the converter and indexer users and roles in Atlas;
+- removal of the local credential files.

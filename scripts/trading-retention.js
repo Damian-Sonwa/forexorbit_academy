@@ -5,9 +5,10 @@
  *   node scripts/trading-retention.js --database <name> --apply    purges expired anonymous records
  *
  * --apply needs an operator account: the app role cannot remove ledger rows. Inactive students are
- * only ever reported. Connection: MONGO_URI.
+ * only ever reported. Connection: MONGO_URI (or MONGODB_URI), as the other operator scripts; never printed.
  */
 const { inactiveStudents, purgeExpired } = require('../lib/trading/retention');
+const { MISSING_URI, mongoUri } = require('./mongo-uri');
 
 function parseArgs(argv) {
   const args = argv.slice(2);
@@ -27,13 +28,21 @@ if (require.main === module) {
   (async () => {
     const args = parseArgs(process.argv);
     if (args.error) { console.error(args.error); process.exit(2); }
-    if (!process.env.MONGO_URI) { console.error('MONGO_URI is not set.'); process.exit(2); }
+    require('dotenv').config({ quiet: true });
+    const uri = mongoUri();
+    if (!uri) { console.error(MISSING_URI); process.exit(2); }
     const { MongoClient } = require('mongodb');
-    const client = new MongoClient(process.env.MONGO_URI);
-    await client.connect();
-    await run(client.db(args.database), args);
-    await client.close();
-  })();
+    const client = new MongoClient(uri, { serverSelectionTimeoutMS: 15000 });
+    try {
+      await client.connect();
+      await run(client.db(args.database), args);
+    } finally {
+      await client.close().catch(() => {});
+    }
+  })().catch((error) => {
+    console.error(`Trading retention failed: ${(error && (error.codeName || error.name)) || 'error'}`);
+    process.exit(1);
+  });
 }
 
 module.exports = { parseArgs, run };

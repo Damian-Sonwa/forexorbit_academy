@@ -25,7 +25,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { spawn } = require('child_process');
 const ROOT = path.join(__dirname, '..', '..');
-const { checkAcceptanceConfig, checkDisposable, MARKER, MARKER_COLLECTION } = require('./guard');
+const { checkAcceptanceConfig, checkDisposable, MARKER, MARKER_COLLECTION, shieldLocalEnv } = require('./guard');
 
 const args = process.argv.slice(2);
 const flag = (name) => args.includes(name);
@@ -109,7 +109,7 @@ function startServer({ uri, dbName, port, mode, logFile }) {
     NEXT_PUBLIC_ADS_ENABLED: 'false',
   };
   const out = fs.openSync(logFile, 'w');
-  const child = spawn(process.execPath, ['server.js'], { cwd: ROOT, env, stdio: ['ignore', out, out] });
+  const child = spawn(process.execPath, ['server.js'], { cwd: ROOT, env: shieldLocalEnv(env), stdio: ['ignore', out, out] });
   return child;
 }
 
