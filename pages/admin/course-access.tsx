@@ -95,6 +95,16 @@ function CourseAccessPanel() {
     }
   }, []);
 
+  // Phase 13: opened from an account page (?userId=), the student is looked up straight away.
+  const router = useRouter();
+  useEffect(() => {
+    const id = typeof router.query.userId === 'string' ? router.query.userId : '';
+    if (router.isReady && /^[a-fA-F0-9]{24}$/.test(id)) {
+      setQuery(id);
+      void load(id);
+    }
+  }, [router.isReady, router.query.userId, load]);
+
   const change = async (action: 'grant' | 'revoke', courseId: string, reason: string) => {
     if (!data) return;
     setBusy(true);

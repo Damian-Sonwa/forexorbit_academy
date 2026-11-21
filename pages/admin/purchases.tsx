@@ -10,7 +10,7 @@ import { messageFromUnknown } from '@/lib/public-error';
 import { formatNairaFromKobo } from '@/lib/course-price';
 import type { LedgerRecord, LedgerWarning } from '@/lib/admin-purchase-ledger';
 import type { RefundView } from '@/lib/payment-refunds';
-import type { ReconciliationReport } from '@/lib/payment-reconciliation';
+import ReconcilePanel from '@/components/admin/ReconcilePanel';
 
 type Tab = 'ledger' | 'exceptions' | 'audit';
 type Paged<T> = { items: T[]; page: number; pageSize: number; total: number; totalPages: number };
@@ -471,55 +471,6 @@ function RefundsSection({ reference, amountKobo, grantedAccess, onChanged }: { r
 }
 
 /** One bounded reconciliation pass with Paystack (Super Admin). */
-function ReconcilePanel() {
-  const [report, setReport] = useState<ReconciliationReport | null>(null);
-  const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
-
-  async function run() {
-    setBusy(true);
-    setError('');
-    try {
-      setReport(await apiClient.post<ReconciliationReport>('/admin/payments/reconcile', { verifySample: 5 }));
-    } catch (reason) {
-      setError(messageFromUnknown(reason) || 'Reconciliation could not run.');
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <section className="mb-6 rounded-2xl border border-neutral-200 p-4 dark:border-neutral-700">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-base font-semibold">Reconcile with Paystack</h2>
-          <p className="text-sm text-ink-muted">
-            Finishes confirmations that stopped, settles checkouts Paystack reports paid, refreshes refunds, and lists anything that needs a person. It never charges or refunds.
-          </p>
-        </div>
-        <button type="button" onClick={run} disabled={busy} className="rounded-full border border-neutral-400 px-4 py-2 text-sm font-semibold disabled:opacity-40">
-          {busy ? 'Running…' : 'Run reconciliation'}
-        </button>
-      </div>
-      {error ? <p className="mt-2 text-sm text-red-700" role="alert">{error}</p> : null}
-      {report ? (
-        <div className="mt-3 text-sm">
-          <p>Checked {formatDate(report.checkedAt)}. {report.items.length ? '' : 'Nothing to report.'}</p>
-          {report.items.length ? (
-            <ul className="mt-2 max-h-64 space-y-1 overflow-y-auto">
-              {report.items.map((item, i) => (
-                <li key={`${item.type}-${item.reference}-${i}`} className="break-all">
-                  <span className="font-semibold">{item.type}</span> · {item.reference || '—'} · {item.action}{item.detail ? ` (${item.detail})` : ''}
-                </li>
-              ))}
-            </ul>
-          ) : null}
-        </div>
-      ) : null}
-    </section>
-  );
-}
-
 function DetailPanel({ id, onClose }: { id: string; onClose: () => void }) {
   const [detailId, setDetailId] = useState(id);
   const [detail, setDetail] = useState<Detail | null>(null);
@@ -582,7 +533,7 @@ function DetailPanel({ id, onClose }: { id: string; onClose: () => void }) {
   const record = detail?.record;
   return (
     <div className="fixed inset-0 z-50 flex justify-end glass-scrim" role="dialog" aria-modal="true" aria-labelledby="purchase-detail-title">
-      <div className="h-full w-full max-w-3xl overflow-y-auto bg-white p-6 shadow-xl dark:bg-neutral-950">
+      <div className="h-full w-full max-w-3xl overflow-y-auto overflow-x-hidden bg-white p-4 shadow-xl [overflow-wrap:anywhere] sm:p-6 dark:bg-neutral-950">
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="page-kicker">Purchase detail</p>
@@ -698,8 +649,16 @@ function DetailPanel({ id, onClose }: { id: string; onClose: () => void }) {
 }
 
 function LedgerTab() {
-  const [filters, setFilters] = useState({ q: '', source: '', access: '', review: '' });
+  const router = useRouter();
+  const initialQ = typeof router.query.q === 'string' ? router.query.q.slice(0, 100) : '';
+  const [filters, setFilters] = useState({ q: initialQ, source: '', access: '', review: '' });
   const [applied, setApplied] = useState(filters);
+  useEffect(() => {
+    if (!router.isReady || typeof router.query.q !== 'string') return;
+    const next = { q: router.query.q.slice(0, 100), source: '', access: '', review: '' };
+    setFilters(next);
+    setApplied(next);
+  }, [router.isReady, router.query.q]);
   const [page, setPage] = useState(1);
   const [data, setData] = useState<(Paged<LedgerRecord> & { truncated: boolean; totalIsLowerBound?: boolean; scanCap?: number }) | null>(null);
   const [error, setError] = useState('');
@@ -776,14 +735,14 @@ function LedgerTab() {
         <table className="table-orbit min-w-full divide-y text-sm">
           <thead className="text-left">
             <tr>
-              <th scope="col" className="px-3 py-2">Created</th>
+              <th scope="col" className="hidden px-3 py-2 sm:table-cell">Created</th>
               <th scope="col" className="px-3 py-2">Student</th>
-              <th scope="col" className="px-3 py-2">Course</th>
+              <th scope="col" className="hidden px-3 py-2 md:table-cell">Course</th>
               <th scope="col" className="px-3 py-2">Amount</th>
-              <th scope="col" className="px-3 py-2">Source</th>
-              <th scope="col" className="px-3 py-2">Access</th>
-              <th scope="col" className="px-3 py-2">Reference</th>
-              <th scope="col" className="px-3 py-2">Payer</th>
+              <th scope="col" className="hidden px-3 py-2 lg:table-cell">Source</th>
+              <th scope="col" className="hidden px-3 py-2 sm:table-cell">Access</th>
+              <th scope="col" className="hidden px-3 py-2 xl:table-cell">Reference</th>
+              <th scope="col" className="hidden px-3 py-2 xl:table-cell">Payer</th>
               <th scope="col" className="px-3 py-2"><span className="sr-only">Open</span></th>
             </tr>
           </thead>
@@ -795,20 +754,24 @@ function LedgerTab() {
             ) : (
               data?.items.map((r) => (
                 <tr key={r.id} className={r.needsReview ? 'bg-amber-50/60 dark:bg-amber-950/20' : ''}>
-                  <td className="whitespace-nowrap px-3 py-2">{formatDate(r.createdAt)}</td>
-                  <td className="px-3 py-2">
-                    <div className="font-semibold">{r.student.name || 'Unknown'}</div>
-                    <div className="text-xs text-ink-muted">{r.student.email || 'Unknown'}</div>
+                  <td className="hidden whitespace-nowrap px-3 py-2 sm:table-cell">{formatDate(r.createdAt)}</td>
+                  <td className="max-w-[11rem] px-3 py-2 sm:max-w-[16rem]">
+                    <div className="font-semibold [overflow-wrap:anywhere]">{r.student.name || 'Unknown'}</div>
+                    <div className="text-xs text-ink-muted [overflow-wrap:anywhere]">{r.student.email || 'Unknown'}</div>
+                    {/* On phones the hidden columns' essentials sit under the student. */}
+                    <div className="mt-1 text-xs text-ink-muted md:hidden [overflow-wrap:anywhere]">{r.course.title || 'Unknown'}</div>
+                    <div className="text-xs text-ink-subtle sm:hidden">{formatDate(r.createdAt)} · {r.accessStatus}</div>
+                    {r.needsReview ? <span className="mt-1 inline-block rounded bg-amber-200 px-1.5 py-0.5 text-xs font-semibold text-amber-900 lg:hidden">Review</span> : null}
                   </td>
-                  <td className="px-3 py-2">{r.course.title || 'Unknown'}</td>
+                  <td className="hidden max-w-[16rem] px-3 py-2 md:table-cell">{r.course.title || 'Unknown'}</td>
                   <td className="whitespace-nowrap px-3 py-2">{formatAmount(r.amountKobo, r.currency)}</td>
-                  <td className="px-3 py-2">
+                  <td className="hidden px-3 py-2 lg:table-cell">
                     {r.sourceLabel}
                     {r.needsReview ? <span className="ml-1 rounded bg-amber-200 px-1.5 py-0.5 text-xs font-semibold text-amber-900">Review</span> : null}
                   </td>
-                  <td className="px-3 py-2">{r.accessStatus}</td>
-                  <td className="break-all px-3 py-2 font-mono text-xs">{r.paystackReference || 'Not recorded'}</td>
-                  <td className="px-3 py-2 text-xs">{payerLabel(r.payer)}</td>
+                  <td className="hidden px-3 py-2 sm:table-cell">{r.accessStatus}</td>
+                  <td className="hidden break-all px-3 py-2 font-mono text-xs xl:table-cell">{r.paystackReference || 'Not recorded'}</td>
+                  <td className="hidden px-3 py-2 text-xs xl:table-cell">{payerLabel(r.payer)}</td>
                   <td className="px-3 py-2">
                     <button type="button" onClick={() => setOpenId(r.id)} className="rounded-lg border border-neutral-300 px-3 py-1 text-xs font-semibold">Details</button>
                   </td>
@@ -978,18 +941,18 @@ export default function AdminPurchases() {
   ];
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-screen flex-col overflow-x-hidden">
       <Header />
-      <div className="flex flex-1 lg:items-start">
+      <div className="flex min-w-0 flex-1 lg:items-start">
         <Sidebar />
-        <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 pt-16 lg:pt-8">
+        <main className="mx-auto w-full min-w-0 max-w-7xl flex-1 px-4 py-8 pt-16 lg:pt-8">
           <p className="page-kicker">Super admin</p>
           <h1 className="page-title mt-2">Course purchases</h1>
           <p className="page-lede max-w-3xl">
             Trace each course purchase from checkout to payment to access. The ledger never grants, reassigns or charges. Refunds are made only from a purchase&apos;s detail panel, through Paystack, and change access only when you choose it for a full refund and Paystack reports it processed. A payer email that differs from the student&apos;s is a warning, not proof of a problem.
           </p>
           <Link href="/admin" className="mt-3 inline-flex text-sm font-semibold underline">Back to admin panel</Link>
-          <div className="mt-6 flex flex-wrap gap-1 rounded-xl bg-neutral-100 p-1 dark:bg-neutral-800" role="tablist">
+          <div className="mt-6 grid grid-cols-2 gap-1 rounded-xl bg-neutral-100 p-1 sm:flex sm:flex-wrap dark:bg-neutral-800" role="tablist">
             {tabs.map(([key, label]) => (
               <button
                 key={key}
@@ -997,7 +960,7 @@ export default function AdminPurchases() {
                 role="tab"
                 aria-selected={tab === key}
                 onClick={() => setTab(key)}
-                className={`flex-1 rounded-lg px-4 py-2 text-sm font-semibold ${tab === key ? 'bg-white text-neutral-900 shadow-sm dark:bg-neutral-700 dark:text-white' : 'text-neutral-600 dark:text-neutral-300'}`}
+                className={`min-h-[40px] flex-1 rounded-lg px-3 py-2 text-sm font-semibold sm:px-4 ${tab === key ? 'bg-white text-neutral-900 shadow-sm dark:bg-neutral-700 dark:text-white' : 'text-neutral-600 dark:text-neutral-300'}`}
               >
                 {label}
               </button>

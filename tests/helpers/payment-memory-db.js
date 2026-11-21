@@ -51,6 +51,8 @@ function matches(doc, query) {
         throw new Error(`payment-memory-db: unsupported operator ${op}`);
       });
     }
+    // A regular expression matches a string value, as in MongoDB.
+    if (cond instanceof RegExp) return typeof value === 'string' && cond.test(value);
     return sameValue(value, cond);
   });
 }

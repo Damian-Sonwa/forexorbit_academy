@@ -637,7 +637,9 @@ test('UI contracts: students get a Payments page and menu entry; the refund form
   const admin = read('pages/admin/purchases.tsx');
   assert.match(admin, /if \(!revoke\) \{\s*setError\('Choose whether course access should be removed/);
   assert.match(admin, /requestId,\s*\}\);/);
-  assert.match(admin, /apiClient\.post<ReconciliationReport>\('\/admin\/payments\/reconcile'/);
+  // Phase 13: the reconcile panel is shared (purchases page and the admin portal's Reconciliation page).
+  assert.match(admin, /import ReconcilePanel from '@\/components\/admin\/ReconcilePanel';/);
+  assert.match(read('components/admin/ReconcilePanel.tsx'), /apiClient\.post<ReconciliationReport>\('\/admin\/payments\/reconcile'/);
 });
 
 test('webhook route and server sweep: the route re-verifies with Paystack; the sweep is bounded, payments-gated and can be disabled', () => {

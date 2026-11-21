@@ -10,6 +10,7 @@ import { startSession } from '@/lib/session-auth';
 import { unexpectedBody } from '@/lib/public-error';
 import { isDuplicateKey, signupConflict } from '@/lib/signup-conflict';
 import { PUBLIC_SIGNUP_ROLES } from '@/lib/account-approval';
+import { createNotificationsForUsers } from '@/lib/notifications';
 import { SIGNUP_RULES, createAuthLimiter, sendRefusal } from '@/lib/auth-rate-limit';
 import { clientAddress } from '@/lib/client-ip';
 import { checkSignupFields } from '@/lib/signup-input';
@@ -77,6 +78,26 @@ export default async function handler(
       createdAt: new Date(),
       updatedAt: new Date(),
     });
+
+    // Phase 13: a pending account is announced to the Super Admin only (approval is theirs alone),
+    // once per account (dedupe key), and a failed notification never fails the signup.
+    if (status === 'pending') {
+      try {
+        const superAdmins = await users.find({ role: 'superadmin' }, { projection: { _id: 1 } }).limit(20).toArray();
+        if (superAdmins.length) {
+          await createNotificationsForUsers(superAdmins.map((u) => String(u._id)), {
+            type: 'system_alert',
+            title: 'Account waiting for approval',
+            message: `A new ${role} account (${nameTrim}) is waiting for your approval.`,
+            roleTarget: 'superadmin',
+            relatedId: result.insertedId.toString(),
+            dedupeKey: `pending-account:${result.insertedId.toString()}`,
+          });
+        }
+      } catch {
+        console.error(JSON.stringify({ event: 'signupApprovalNotify', result: 'failed' }));
+      }
+    }
 
     // Only an approved account (students are auto-approved) is signed in. Pending accounts wait
     // for the Super Admin's decision and get no session.

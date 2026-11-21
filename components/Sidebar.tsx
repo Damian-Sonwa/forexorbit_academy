@@ -166,7 +166,9 @@ export default function Sidebar({ }: SidebarProps) {
   ];
 
   // Admin navigation
+  // Phase 13: the platform operations portal (overview, users, courses, enrollments, reports).
   const adminNavItems = [
+    { href: '/admin/overview', label: 'Platform operations', icon: AnalyticsIcon },
     { href: '/admin', label: 'Dashboard', icon: DashboardIcon },
     { href: '/admin', label: 'Users', icon: UsersIcon, tab: 'users' },
     { href: '/admin', label: 'Courses', icon: CoursesIcon, tab: 'courses' },
@@ -179,6 +181,7 @@ export default function Sidebar({ }: SidebarProps) {
 
   // Super Admin navigation (includes approvals)
   const superAdminNavItems = [
+    { href: '/admin/overview', label: 'Platform operations', icon: AnalyticsIcon },
     { href: '/admin', label: 'Dashboard', icon: DashboardIcon },
     { href: '/admin', label: 'Pending Approvals', icon: ApprovalsIcon, tab: 'approvals' },
     { href: '/admin', label: 'Users', icon: UsersIcon, tab: 'users' },

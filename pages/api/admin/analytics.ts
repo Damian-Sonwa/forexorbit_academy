@@ -76,9 +76,10 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
     }
 
     // Get course completion rates
-    const allCoursesList = await courses.find({}).toArray();
+    // Phase 13: five courses, titles only (it read every full course document before).
+    const allCoursesList = await courses.find({}, { projection: { title: 1 } }).limit(5).toArray();
     const courseCompletion = await Promise.all(
-      allCoursesList.slice(0, 5).map(async (course) => {
+      allCoursesList.map(async (course) => {
         const courseId = course._id.toString();
         const enrolled = await progress.countDocuments({
           courseId,
@@ -90,7 +91,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
           ...activeEnrollmentFilter(),
         });
         return {
-          course: course.title.length > 15 ? course.title.substring(0, 15) + '...' : course.title,
+          course: String(course.title || 'Course').length > 15 ? String(course.title || 'Course').substring(0, 15) + '...' : String(course.title || 'Course'),
           enrolled,
           completed,
         };

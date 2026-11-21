@@ -17,6 +17,8 @@ export const tradingLimiter: Limiter;
 export const tradingReadLimiter: Limiter;
 export const dashboardLimiter: Limiter;
 export const instructorReadLimiter: Limiter;
+export const adminReadLimiter: Limiter;
+export const adminExportLimiter: Limiter;
 export const INSTRUCTOR_READ_RULES: ReadonlyArray<{ id: string; max: number; parts: string[] }>;
 export const DASHBOARD_RULES: ReadonlyArray<{ id: string; max: number; parts: string[] }>;
 export const TRADING_RULES: readonly unknown[];
