@@ -33,7 +33,7 @@ async function updateNews(req: AuthRequest, res: NextApiResponse) {
     const news = db.collection('communityNews');
 
     // Check if news exists and user has permission (instructors can only edit their own)
-    const existingNews = await news.findOne({ _id: new ObjectId(id) });
+    const existingNews = await news.findOne({ _id: new ObjectId(id), kind: { $ne: 'announcement' } });
     if (!existingNews) {
       return res.status(404).json({ error: 'News not found' });
     }
@@ -84,7 +84,7 @@ async function deleteNews(req: AuthRequest, res: NextApiResponse) {
     const news = db.collection('communityNews');
 
     // Check if news exists and user has permission (instructors can only delete their own)
-    const existingNews = await news.findOne({ _id: new ObjectId(id) });
+    const existingNews = await news.findOne({ _id: new ObjectId(id), kind: { $ne: 'announcement' } });
     if (!existingNews) {
       return res.status(404).json({ error: 'News not found' });
     }

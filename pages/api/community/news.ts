@@ -20,7 +20,8 @@ async function getNews(req: AuthRequest, res: NextApiResponse) {
     const userId = req.user!.userId;
 
     const newsItems = await news
-      .find({})
+      // Phase 14 announcements share this collection and have their own routes.
+      .find({ kind: { $ne: 'announcement' } })
       .sort({ createdAt: -1 })
       .limit(50)
       .toArray();

@@ -160,6 +160,7 @@ const MEMBER_COLLECTION_MODULES = new Map([
   ['lib/trading/retention.js', ['lib/trading/engine.js', 'COLLECTIONS']],
   ['lib/trading/reviews.js', ['lib/trading/reviews.js', 'COLLECTIONS']],
   ['lib/practical-tasks.js', ['lib/practical-tasks.js', 'COLLECTIONS']],
+  ['lib/communication/moderation.js', ['lib/communication/moderation.js', 'COLLECTIONS']],
   ['lib/trading/analytics.js', ['lib/trading/engine.js', 'COLLECTIONS']],
   ['lib/admin-portal.js', PAYMENT],
   ['pages/api/admin/market.ts', ['lib/trading/market-data.js', 'COLLECTIONS']],

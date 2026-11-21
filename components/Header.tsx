@@ -86,21 +86,25 @@ export default function Header() {
   useEffect(() => {
     if (!socket || !connected || hasSetupSocketListener.current) return;
 
-    const handleNotification = (notification: Notification) => {
-      setNotifications((prev) => {
-        // Check if notification already exists (prevent duplicates)
-        const exists = prev.some((n) => n._id === notification._id);
-        if (exists) return prev;
-        return [notification, ...prev];
-      });
-      setUnreadCount((prev) => prev + 1);
+    // Phase 14: a socket event is only a hint. The list and the unread count always come from
+    // GET /api/notifications (the database is the record), so a duplicate or missed event can
+    // neither double-count nor lose anything. A reconnect refetches to catch up on missed events.
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const refresh = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => { void fetchNotifications(); }, 300);
     };
 
-    socket.on('notification', handleNotification);
+    socket.on('notification', refresh);
+    socket.on('notification:new', refresh);
+    socket.on('connect', refresh);
     hasSetupSocketListener.current = true;
 
     return () => {
-      socket.off('notification', handleNotification);
+      if (timer) clearTimeout(timer);
+      socket.off('notification', refresh);
+      socket.off('notification:new', refresh);
+      socket.off('connect', refresh);
       hasSetupSocketListener.current = false;
     };
   }, [socket, connected]);
@@ -113,7 +117,7 @@ export default function Header() {
         notifications: Notification[];
         unreadCount: number;
         total: number;
-      }>('/notifications?limit=50');
+      }>('/notifications?limit=20');
       setNotifications(response.notifications || []);
       setUnreadCount(response.unreadCount || 0);
     } catch (error) {
@@ -296,6 +300,10 @@ export default function Header() {
                         <p className="mt-1 text-xs text-ink-subtle">Class updates and replies will appear here.</p>
                       </div>
                     )}
+                  </div>
+                  <div className="flex items-center justify-between gap-2 border-t border-[var(--fo-line)] px-4 py-2.5 text-xs font-semibold">
+                    <Link href="/notifications" className="text-primary-600 hover:underline dark:text-primary-400" onClick={() => setNotificationsOpen(false)}>All notifications</Link>
+                    <Link href="/settings/communication" className="text-ink-muted hover:text-ink" onClick={() => setNotificationsOpen(false)}>Notification settings</Link>
                   </div>
                 </div>
               )}

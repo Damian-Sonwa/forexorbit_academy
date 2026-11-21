@@ -5,6 +5,7 @@
  */
 
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { revokeSessionDevices } from '@/lib/communication/web-push';
 import type { Db } from 'mongodb';
 import {
   clearedSessionCookie,
@@ -110,14 +111,17 @@ export async function endCurrentSession(
   const token = sessionTokenFrom(req);
   if (clearCookie) clearSessionCookie(res);
   if (!token) return;
-  const session = await db.collection('sessions').findOne({ _id: hashToken(token) } as Record<string, unknown>, { projection: { familyId: 1 } });
+  const session = await db.collection('sessions').findOne({ _id: hashToken(token) } as Record<string, unknown>, { projection: { familyId: 1, userId: 1 } });
   if (!session) return;
   await revokeFamily(db, session.familyId, reason);
   endSocketsForFamily(null, session.familyId);
+  // Phase 14: push devices registered in this sign-in stop receiving the account's notifications.
+  await revokeSessionDevices(db, String(session.userId || ''), session.familyId).catch(() => undefined);
 }
 
 /** Ends every session of an account and disconnects its sockets on this server. */
 export async function endAllSessions(db: Db, userId: string, reason: string) {
   await revokeUserSessions(db, userId, reason);
   endSocketsForUser(null, userId);
+  await revokeSessionDevices(db, userId, null, { all: true }).catch(() => undefined);
 }

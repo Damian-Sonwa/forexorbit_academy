@@ -64,9 +64,16 @@ async function viewerScope(db: Awaited<ReturnType<typeof getDb>>, userId: string
   };
 }
 
-function ownedFilter(userId: string, roomIds: string[], unreadOnly = false) {
-  return ownedNotificationQuery(userId, roomIds, { unreadOnly });
+function ownedFilter(userId: string, roomIds: string[], unreadOnly = false, extra: { category?: string; before?: Date; after?: Date } = {}) {
+  return ownedNotificationQuery(userId, roomIds, { unreadOnly, ...extra });
 }
+
+const MAX_PAGE = 50;
+const cursorDate = (value: unknown) => {
+  if (typeof value !== 'string' || value.length > 40) return undefined;
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? undefined : d;
+};
 
 async function getNotifications(req: AuthRequest, res: NextApiResponse) {
   try {
@@ -76,23 +83,32 @@ async function getNotifications(req: AuthRequest, res: NextApiResponse) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    const limit = parseInt((req.query.limit as string) || '50', 10);
-    const skip = parseInt((req.query.skip as string) || '0', 10);
+    // Phase 14: bounded pages, cursor paging ("before") and reconnect catch-up ("after"), and an
+    // unread count over all of the member's notifications, not just this page.
+    const requested = parseInt((req.query.limit as string) || '20', 10);
+    const limit = Number.isInteger(requested) ? Math.min(MAX_PAGE, Math.max(1, requested)) : 20;
     const unreadOnly = req.query.unreadOnly === 'true';
-    const notificationDocs = await db.collection('notifications')
-      .find(ownedFilter(req.user!.userId, scope.roomIds, unreadOnly))
-      .sort({ createdAt: -1 })
-      .limit(limit)
-      .skip(skip)
+    const category = typeof req.query.category === 'string' ? req.query.category : undefined;
+    const before = cursorDate(req.query.before);
+    const after = cursorDate(req.query.after);
+    const collection = db.collection('notifications');
+    const notificationDocs = await collection
+      .find(ownedFilter(req.user!.userId, scope.roomIds, unreadOnly, { category, before, after }))
+      .sort({ createdAt: after ? 1 : -1 })
+      .limit(limit + 1)
       .toArray();
-
-    const result = notificationDocs.map((doc) => presentNotification(doc));
-    const unreadCount = result.filter((item) => !item.read).length;
+    const hasMore = notificationDocs.length > limit;
+    const page = notificationDocs.slice(0, limit);
+    const result = (after ? page.reverse() : page).map((doc) => presentNotification(doc));
+    const unreadCount = await collection.countDocuments(ownedFilter(req.user!.userId, scope.roomIds, true));
+    const last = page[after ? 0 : page.length - 1];
 
     return res.json({
       notifications: result,
       unreadCount,
       total: result.length,
+      hasMore,
+      nextCursor: hasMore && last && last.createdAt ? new Date(last.createdAt).toISOString() : null,
     });
   } catch {
     logNotificationFailure('notification-list');

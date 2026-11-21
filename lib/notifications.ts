@@ -7,7 +7,7 @@
 import { ObjectId } from 'mongodb';
 import { communityMember, decideCommunityRoomJoin, isStoredId } from '@/lib/account-access';
 import { getDb } from './mongodb';
-import { prepareRecipientNotifications } from '@/lib/notification-access';
+import { deliverToRecipients } from '@/lib/communication/deliver';
 import type { NotificationType } from '@/pages/api/notifications';
 
 const KNOWN_ROLES = ['student', 'instructor', 'admin', 'superadmin'] as const;
@@ -23,6 +23,8 @@ export interface CreateNotificationParams {
   relatedId?: string;
   metadata?: Record<string, unknown>;
   dedupeKey?: string;
+  /** Phase 14: overrides the category derived from the type (lib/communication/preferences.js). */
+  category?: string;
 }
 
 export interface DeliveredNotification {
@@ -55,31 +57,10 @@ export async function deliverNotification(
   explicitRecipientIds?: string[]
 ): Promise<DeliveredNotification[]> {
   const db = await getDb();
-  const notifications = db.collection('notifications');
   const recipientIds = await recipientIdsFor(db, params, explicitRecipientIds);
-  const dedupeKey = typeof params.dedupeKey === 'string' ? params.dedupeKey.trim() : '';
-  const existing = dedupeKey
-    ? await notifications
-      .find({ userId: { $in: recipientIds }, dedupeKey }, { projection: { _id: 1, userId: 1 } })
-      .toArray()
-    : [];
-  const prepared = prepareRecipientNotifications(
-    params,
-    recipientIds,
-    existing.map((doc) => ({ userId: doc.userId, id: doc._id.toString() }))
-  );
-  const inserted: DeliveredNotification[] = [];
-  if (prepared.copies.length > 0) {
-    const result = await notifications.insertMany(prepared.copies);
-    prepared.copies.forEach((copy, index) => {
-      const id = result.insertedIds[index];
-      if (id) inserted.push({ id: id.toString(), userId: String(copy.userId), created: true });
-    });
-  }
-  return [
-    ...prepared.retained.map((item) => ({ ...item, created: false })),
-    ...inserted,
-  ];
+  // Phase 14: one delivery path for routes and the worker (dedupe key, preferences, channel plans,
+  // minimal real-time event). See lib/communication/deliver.js.
+  return deliverToRecipients(db, params as unknown as Record<string, unknown>, recipientIds);
 }
 
 /**

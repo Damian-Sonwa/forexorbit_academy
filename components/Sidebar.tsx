@@ -140,9 +140,11 @@ export default function Sidebar({ }: SidebarProps) {
     { href: '/leaderboard', label: 'Leaderboard', icon: AnalyticsIcon, group: 'Community' },
     { href: '/certificates', label: 'Certificates', icon: CertificatesIcon, group: 'Community' },
     { href: '/community', label: 'Community', icon: CommunityIcon, group: 'Community' },
+    { href: '/announcements', label: 'Announcements', icon: CommunityIcon, group: 'Community' },
     { href: '/consultations', label: 'Expert Consultation', icon: ConsultationIcon, group: 'Community' },
     { href: '/payments', label: 'Payments', icon: PaymentsIcon, group: 'Account' },
     { href: '/profile', label: 'Profile', icon: ProfileIcon, group: 'Account' },
+    { href: '/settings/communication', label: 'Notification settings', icon: ProfileIcon, group: 'Account' },
   ];
 
   // Instructor navigation
@@ -159,6 +161,8 @@ export default function Sidebar({ }: SidebarProps) {
     { href: '/instructor/activity', label: 'Teaching activity', icon: ProgressIcon },
     { href: '/instructor/practical-tasks', label: 'Practical tasks', icon: CoursesIcon },
     { href: '/instructor/demo-tasks', label: 'Demo Tasks', icon: CoursesIcon },
+    { href: '/announcements', label: 'Announcements', icon: CommunityIcon },
+    { href: '/community/moderation', label: 'Moderation', icon: ApprovalsIcon },
     { href: '/progress', label: 'Progress', icon: ProgressIcon },
     { href: '/certificates', label: 'Certificates', icon: CertificatesIcon },
     { href: '/community', label: 'Community', icon: CommunityIcon },
@@ -176,6 +180,9 @@ export default function Sidebar({ }: SidebarProps) {
     { href: '/admin', label: 'Certificates', icon: CertificatesIcon, tab: 'certificates' },
     { href: '/admin', label: 'Analytics', icon: AnalyticsIcon, tab: 'analytics' },
     { href: '/community', label: 'Community', icon: CommunityIcon },
+    { href: '/announcements', label: 'Announcements', icon: CommunityIcon },
+    { href: '/community/moderation', label: 'Moderation', icon: ApprovalsIcon },
+    { href: '/admin/communication', label: 'Communication ops', icon: AnalyticsIcon },
     { href: '/consultations/expert', label: 'Consultation availability', icon: ConsultationIcon },
     { href: '/profile', label: 'Profile', icon: ProfileIcon },
   ];
@@ -192,6 +199,9 @@ export default function Sidebar({ }: SidebarProps) {
     { href: '/admin/purchases', label: 'Course Purchases', icon: CertificatesIcon },
     { href: '/admin/course-access', label: 'Course Access', icon: UsersIcon },
     { href: '/community', label: 'Community', icon: CommunityIcon },
+    { href: '/announcements', label: 'Announcements', icon: CommunityIcon },
+    { href: '/community/moderation', label: 'Moderation', icon: ApprovalsIcon },
+    { href: '/admin/communication', label: 'Communication ops', icon: AnalyticsIcon },
     { href: '/consultations/expert', label: 'Consultation availability', icon: ConsultationIcon },
     { href: '/consultations/admin', label: 'Consultation Admin', icon: ConsultationIcon },
     { href: '/profile', label: 'Profile', icon: ProfileIcon },

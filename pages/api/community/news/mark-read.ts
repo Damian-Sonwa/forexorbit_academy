@@ -24,7 +24,7 @@ async function markNewsAsRead(req: AuthRequest, res: NextApiResponse) {
 
     // Add user to readBy array if not already present
     const result = await news.updateOne(
-      { _id: new ObjectId(newsId) },
+      { _id: new ObjectId(newsId), kind: { $ne: 'announcement' } },
       {
         $addToSet: { readBy: userId }, // $addToSet prevents duplicates
       }

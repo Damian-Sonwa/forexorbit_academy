@@ -154,3 +154,38 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 });
+
+// Phase 14: Web Push. The payload is minimal ({ id, title, url }) and encrypted end to end
+// (RFC 8291); details are loaded from the app after the click, where access is checked again.
+self.addEventListener('push', (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    data = {};
+  }
+  const title = typeof data.title === 'string' && data.title ? data.title.slice(0, 120) : 'ForexOrbit Academy';
+  const url = typeof data.url === 'string' && data.url.startsWith('/') && !data.url.startsWith('//') ? data.url : '/notifications';
+  event.waitUntil(self.registration.showNotification(title, {
+    body: 'Open ForexOrbit to view it.',
+    icon: '/icons/icon-192.png',
+    badge: '/icons/icon-192.png',
+    tag: typeof data.id === 'string' ? data.id : undefined,
+    data: { url },
+  }));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = event.notification.data && event.notification.data.url ? event.notification.data.url : '/notifications';
+  event.waitUntil((async () => {
+    const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const client of windows) {
+      if (new URL(client.url).origin === self.location.origin && 'focus' in client) {
+        await client.navigate(url).catch(() => undefined);
+        return client.focus();
+      }
+    }
+    return self.clients.openWindow(url);
+  })());
+});

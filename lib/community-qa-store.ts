@@ -191,7 +191,8 @@ export async function listQuestions(member: Member, query: Record<string, unknow
     repliedQuestionIds: repliedIds,
   });
   if (!decision.ok) reject(decision);
-  const docs = await db.collection<QuestionDoc>(QUESTIONS).find(withReplyIds(decision.filter, repliedIds))
+  // Phase 14: content hidden by a moderator is not listed (lib/communication/moderation.js).
+  const docs = await db.collection<QuestionDoc>(QUESTIONS).find({ $and: [withReplyIds(decision.filter, repliedIds), { 'moderation.status': { $ne: 'hidden' } }] })
     .sort(decision.mongoSort as Sort)
     .skip(decision.skip)
     .limit(decision.limit + 1)
@@ -262,8 +263,14 @@ export async function getQuestion(member: Member, id: string, replyPageRaw: unkn
   }
   const db = await database();
   const question = await loadQuestion(db, id);
+  // Phase 14: a hidden discussion is visible only to moderators and its author; hidden replies
+  // only to moderators and their authors.
+  const hidden = (doc: { moderation?: { status?: string } }) => Boolean(doc.moderation && doc.moderation.status === 'hidden');
+  if (hidden(question as { moderation?: { status?: string } }) && !actor.moderator && String((question as { authorId?: unknown }).authorId) !== actor.userId) {
+    throw new CommunityQaError(404, 'That discussion could not be found.');
+  }
   const limit = 30;
-  const replyDocs = await db.collection<ReplyDoc>(REPLIES).find({ questionId: question._id })
+  const replyDocs = await db.collection<ReplyDoc>(REPLIES).find(actor.moderator ? { questionId: question._id } : { questionId: question._id, $or: [{ 'moderation.status': { $ne: 'hidden' } }, { authorId: actor.userId }] })
     .sort({ createdAt: 1 })
     .skip((replyPage - 1) * limit)
     .limit(limit + 1)

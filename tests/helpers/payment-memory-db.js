@@ -92,7 +92,8 @@ function unsetPath(doc, key) {
 
 function applyUpdate(doc, update) {
   for (const [key, value] of Object.entries(update.$set || {})) setPath(doc, key, value);
-  for (const [key, value] of Object.entries(update.$inc || {})) doc[key] = (doc[key] || 0) + value;
+  // Dotted paths increment the nested field, as MongoDB does ("channels.email.attempts").
+  for (const [key, value] of Object.entries(update.$inc || {})) setPath(doc, key, (key.split('.').reduce((v, part) => (v == null ? undefined : v[part]), doc) || 0) + value);
   for (const [key, value] of Object.entries(update.$push || {})) doc[key] = [...(doc[key] || []), value];
   for (const [key, value] of Object.entries(update.$pull || {})) doc[key] = (doc[key] || []).filter((item) => !sameValue(item, value));
   for (const key of Object.keys(update.$unset || {})) unsetPath(doc, key);
@@ -170,6 +171,27 @@ class MemoryCollection {
     if (this.racy) await yieldTurn();
     const count = this.docs.filter((row) => matches(row, query)).length;
     return options.limit ? Math.min(count, options.limit) : count;
+  }
+
+  /** Minimal aggregation for tests: $match then $group with _id null and $sum fields. */
+  aggregate(pipeline = []) {
+    const run = async () => {
+      let rows = this.docs.slice();
+      for (const stage of pipeline) {
+        if (stage.$match) rows = rows.filter((doc) => matches(doc, stage.$match));
+        else if (stage.$group) {
+          const out = { _id: null };
+          for (const [field, spec] of Object.entries(stage.$group)) {
+            if (field === '_id') continue;
+            const source = typeof spec.$sum === 'string' ? spec.$sum.replace(/^\$/, '') : null;
+            out[field] = rows.reduce((total, doc) => total + (source ? Number(doc[source]) || 0 : Number(spec.$sum) || 0), 0);
+          }
+          rows = rows.length ? [out] : [];
+        } else throw new Error('payment-memory-db: unsupported aggregation stage');
+      }
+      return rows;
+    };
+    return { toArray: run };
   }
 
   async insertMany(docs) {

@@ -9,6 +9,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { COMMUNITY_CATEGORIES, communityReturnPath } from '@/lib/community-qa';
 import { CommunityShell } from '@/components/community/CommunityShell';
 import { VoteControl } from '@/components/community/VoteControl';
+import ReportButton from '@/components/communication/ReportButton';
 
 type Author = { id: string; name: string; photo: string | null };
 type Question = {
@@ -259,7 +260,9 @@ export default function DiscussionPage() {
               <button type="button" className="font-semibold text-primary-700" onClick={() => setEditingQuestion(true)}>Edit question</button>
               <button type="button" className="font-semibold text-ink-muted" onClick={removeQuestion}>Delete question</button>
             </div>
-          ) : null}
+          ) : (
+            <div className="mt-4"><ReportButton targetType="question" targetId={question.id} /></div>
+          )}
 
           <h2 className="mt-10 font-display text-2xl font-bold">Replies</h2>
           {replies.length === 0 ? <p className="mt-3 text-sm text-ink-muted">No replies yet. Be the first to answer.</p> : null}
@@ -298,7 +301,9 @@ export default function DiscussionPage() {
                           <button type="button" className="font-semibold" onClick={() => { setEditingReply(reply.id); setReplyDraft(reply.body); }}>Edit</button>
                           <button type="button" className="font-semibold text-ink-muted" onClick={() => removeReply(reply.id)}>Delete</button>
                         </>
-                      ) : null}
+                      ) : (
+                        <ReportButton targetType="reply" targetId={reply.id} />
+                      )}
                     </div>
                   </div>
                   <VoteControl score={reply.score} vote={reply.viewerVote} disabled={submitting} onVote={(value) => vote('reply', reply.id, value)} />

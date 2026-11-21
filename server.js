@@ -18,6 +18,7 @@ const { Server } = require('socket.io');
 const { readSessionCookie, resolveSession } = require('./lib/session-core');
 const { appOriginConfig, decideSocketOrigin, trustedOrigins } = require('./lib/request-guard');
 const { registerSessionSocketServer } = require('./lib/session-sockets');
+const communicationMetrics = require('./lib/communication/metrics');
 const {
   decideAccountAccess,
   decideCommunityRoomJoin,
@@ -146,17 +147,20 @@ app.prepare().then(async () => {
     try {
       const token = readSessionCookie(socket.handshake.headers.cookie);
       if (!token) {
+        communicationMetrics.count('socketRefused');
         return next(new Error('Authentication error'));
       }
       socket.data.sessionToken = token;
       const result = await checkSocketSession(socket);
       if (!result.ok) {
+        communicationMetrics.count('socketRefused');
         return next(new Error('Authentication error'));
       }
       socket.data.user = result.user;
       socket.data.sessionFamilyId = result.session.familyId;
       next();
     } catch (error) {
+      communicationMetrics.count('socketRefused');
       next(new Error('Authentication error'));
     }
   });
@@ -193,6 +197,13 @@ app.prepare().then(async () => {
   io.on('connection', async (socket) => {
     const user = socket.data.user;
     console.log('User connected');
+    // Phase 14: connection counts for the communication operations page (no identities).
+    communicationMetrics.count('socketConnections');
+    communicationMetrics.gauge('activeSockets', 1);
+    socket.once('disconnect', (reason) => {
+      communicationMetrics.gauge('activeSockets', -1);
+      communicationMetrics.count(reason === 'server namespace disconnect' ? 'socketEndedByServer' : 'socketDisconnects');
+    });
     
     // Join user's personal room for targeted notifications
     socket.join(`user:${user.userId}`);
@@ -927,6 +938,27 @@ app.prepare().then(async () => {
         trading = false;
       }
     }, Math.max(5, tradingSeconds) * 1000).unref();
+  }
+
+  // Phase 14: the communication worker (lib/communication/worker.js) publishes due announcements and
+  // sends queued emails and pushes. Bounded and idempotent; COMMUNICATION_WORKER_SECONDS=0 turns it off
+  // (for example when a separate worker process runs scripts/communication-worker.js).
+  const communicationSeconds = Number(process.env.COMMUNICATION_WORKER_SECONDS ?? 30);
+  if (Number.isFinite(communicationSeconds) && communicationSeconds > 0) {
+    const { runTick } = require('./lib/communication/worker');
+    let communicating = false;
+    setInterval(async () => {
+      if (communicating) return;
+      communicating = true;
+      try {
+        const { getDb } = require('./lib/mongodb');
+        await runTick(await getDb());
+      } catch {
+        console.error(JSON.stringify({ event: 'communicationWorker', result: 'failed' }));
+      } finally {
+        communicating = false;
+      }
+    }, Math.max(10, communicationSeconds) * 1000).unref();
   }
 
   server.listen(port, hostname, (err) => {
