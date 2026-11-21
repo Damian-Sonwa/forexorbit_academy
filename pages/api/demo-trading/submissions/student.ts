@@ -30,8 +30,10 @@ async function getStudentSubmissions(req: AuthRequest, res: NextApiResponse) {
     const tasks = db.collection('demoTasks');
 
     // Build query - only this student's submissions
+    // Practical tasks (schema 'practical_v2') have their own flow: lib/practical-tasks.js.
     const query: Record<string, unknown> = {
       studentId: req.user!.userId,
+      schema: { $ne: 'practical_v2' },
     };
 
     // Optionally filter by taskId

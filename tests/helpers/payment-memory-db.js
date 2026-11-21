@@ -37,6 +37,8 @@ function matches(doc, query) {
     if (key === '$and') return cond.every((sub) => matches(doc, sub));
     // Dotted paths, including array positions ("completedLessons.3"), as MongoDB resolves them.
     const value = key.includes('.') ? key.split('.').reduce((v, part) => (v == null ? undefined : v[part]), doc) : doc[key];
+    // A regular expression matches strings (as MongoDB does for { field: /pattern/ }).
+    if (cond instanceof RegExp) return typeof value === 'string' && cond.test(value);
     if (isOperatorObject(cond)) {
       return Object.entries(cond).every(([op, arg]) => {
         if (op === '$in') return arg.some((candidate) => (Array.isArray(value) ? value.some((v) => sameValue(v, candidate)) : sameValue(value, candidate)));
@@ -51,8 +53,6 @@ function matches(doc, query) {
         throw new Error(`payment-memory-db: unsupported operator ${op}`);
       });
     }
-    // A regular expression matches a string value, as in MongoDB.
-    if (cond instanceof RegExp) return typeof value === 'string' && cond.test(value);
     return sameValue(value, cond);
   });
 }
@@ -170,6 +170,12 @@ class MemoryCollection {
     if (this.racy) await yieldTurn();
     const count = this.docs.filter((row) => matches(row, query)).length;
     return options.limit ? Math.min(count, options.limit) : count;
+  }
+
+  async insertMany(docs) {
+    const insertedIds = {};
+    for (const [i, doc] of docs.entries()) insertedIds[i] = (await this.insertOne(doc)).insertedId;
+    return { insertedCount: docs.length, insertedIds };
   }
 
   async insertOne(doc) {

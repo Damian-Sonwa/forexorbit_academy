@@ -68,7 +68,8 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
     const { totalTrades, winRate, averageProfitLoss, reviewedTrades, planFollowedRate } = await practiceSummary(db, studentId);
 
     // Get student submissions
-    const studentSubmissions = await submissions.find({ studentId }).toArray();
+    // Older demo-task submissions only: practical task attempts keep structured grades of their own.
+    const studentSubmissions = await submissions.find({ studentId, schema: { $ne: 'practical_v2' } }).toArray();
     const completedTasks = studentSubmissions.filter(s => s.grade !== null && s.grade !== undefined).length;
     const pendingTasks = studentSubmissions.filter(s => s.grade === null || s.grade === undefined).length;
     

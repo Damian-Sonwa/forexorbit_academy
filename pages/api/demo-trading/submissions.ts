@@ -31,7 +31,8 @@ async function getSubmissions(req: AuthRequest, res: NextApiResponse) {
 
     // For instructors, filter by instructorId
     // For admins, show all submissions
-    const query: Record<string, unknown> = {};
+    // Practical tasks (schema 'practical_v2') have their own flow: lib/practical-tasks.js.
+    const query: Record<string, unknown> = { schema: { $ne: 'practical_v2' } };
 
     if (req.user!.role === 'instructor') {
       query.instructorId = req.user!.userId;

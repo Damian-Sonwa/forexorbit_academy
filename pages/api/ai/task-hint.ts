@@ -9,6 +9,8 @@ import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getTaskHint, isAIConfigured } from '@/lib/ai';
 import { getDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
+import { taskIsFor } from '@/lib/practice-desk';
+import { taskForStaff } from '@/lib/practical-tasks';
 
 async function handler(req: AuthRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
@@ -29,9 +31,12 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
     // Fetch task details
     const db = await getDb();
     const tasks = db.collection('demoTasks');
-    const task = await tasks.findOne({ _id: new ObjectId(taskId) });
+    const task = typeof taskId === 'string' && ObjectId.isValid(taskId) && taskId.length === 24 ? await tasks.findOne({ _id: new ObjectId(taskId) }) : null;
 
-    if (!task) {
+    // A practical task is only hinted to its recipients (a draft or another student's task is
+    // reported as not found), and to staff who can manage it.
+    const practicalHidden = task && task.schema === 'practical_v2' && (req.user!.role === 'student' ? !taskIsFor(task, req.user!.userId) : !(await taskForStaff(db, { userId: req.user!.userId, role: req.user!.role }, String(task._id))).ok);
+    if (!task || practicalHidden) {
       return res.status(404).json({ error: 'Task not found' });
     }
 

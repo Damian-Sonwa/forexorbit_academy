@@ -56,10 +56,11 @@ function Figure({ label, value, id, tone = 'text-ink' }: { label: string; value:
   );
 }
 
-export default function TradingInterface() {
+/** `initialInstrument` preselects the order ticket's instrument (a practical task opens the desk on its pair). */
+export default function TradingInterface({ initialInstrument }: { initialInstrument?: string } = {}) {
   const [view, setView] = useState<View | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
-  const [form, setForm] = useState(EMPTY_FORM);
+  const [form, setForm] = useState(() => (initialInstrument && /^[A-Z]{3}_[A-Z]{3}$/.test(initialInstrument) ? { ...EMPTY_FORM, instrument: initialInstrument } : EMPTY_FORM));
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
   const [tab, setTab] = useState<HistoryTab>('positions');
@@ -71,6 +72,10 @@ export default function TradingInterface() {
   const [performance, setPerformance] = useState<Performance | null>(null);
   const [board, setBoard] = useState<Board | null>(null);
   const orderKey = useRef<string | null>(null);
+  // The query string arrives after the first render (static page), so follow it once it does.
+  useEffect(() => {
+    if (initialInstrument && /^[A-Z]{3}_[A-Z]{3}$/.test(initialInstrument)) setForm((f) => ({ ...f, instrument: initialInstrument }));
+  }, [initialInstrument]);
 
   const load = useCallback(async () => {
     try {

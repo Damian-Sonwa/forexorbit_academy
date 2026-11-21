@@ -157,6 +157,7 @@ export default function Sidebar({ }: SidebarProps) {
     { href: '/instructor/students', label: 'Students', icon: UsersIcon },
     { href: '/instructor/grading', label: 'Grading', icon: ApprovalsIcon },
     { href: '/instructor/activity', label: 'Teaching activity', icon: ProgressIcon },
+    { href: '/instructor/practical-tasks', label: 'Practical tasks', icon: CoursesIcon },
     { href: '/instructor/demo-tasks', label: 'Demo Tasks', icon: CoursesIcon },
     { href: '/progress', label: 'Progress', icon: ProgressIcon },
     { href: '/certificates', label: 'Certificates', icon: CertificatesIcon },

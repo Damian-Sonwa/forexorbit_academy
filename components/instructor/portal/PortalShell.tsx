@@ -19,6 +19,7 @@ export const PORTAL_NAV: Array<{ href: string; label: string; match: (path: stri
   { href: '/instructor/dashboard?section=courses', label: 'Courses', match: (p) => p === '/instructor/dashboard' || p.startsWith('/instructor/courses') || p === '/instructor/lessons' || p === '/instructor/quizzes' },
   { href: '/instructor/students', label: 'Students', match: (p) => p.startsWith('/instructor/students') },
   { href: '/instructor/grading', label: 'Grading', match: (p) => p === '/instructor/grading' || p.startsWith('/instructor/assignments') },
+  { href: '/instructor/practical-tasks', label: 'Practical tasks', match: (p) => p.startsWith('/instructor/practical-tasks') },
   { href: '/instructor/activity', label: 'Activity', match: (p) => p === '/instructor/activity' },
   { href: '/instructor/profile', label: 'Profile', match: (p) => p === '/instructor/profile' },
 ];

@@ -37,8 +37,9 @@ async function getTaskSubmissions(req: AuthRequest, res: NextApiResponse) {
     const tasks = db.collection('demoTasks');
 
     // Verify task exists
+    // Practical tasks (schema 'practical_v2') have their own flow: lib/practical-tasks.js.
     const task = await tasks.findOne({ _id: new ObjectId(id) });
-    if (!task) {
+    if (!task || task.schema === 'practical_v2') {
       return res.status(404).json({ error: 'Task not found' });
     }
 

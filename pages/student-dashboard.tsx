@@ -12,6 +12,7 @@ import Sidebar from '@/components/Sidebar';
 import Footer from '@/components/Footer';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import TradingInterface from '@/components/TradingInterface';
+import StudentPracticalTasks from '@/components/practical/StudentTasks';
 import SetupGuide from '@/components/student/SetupGuide';
 import TradeReviews from '@/components/student/TradeReviews';
 import TodoList from '@/components/TodoList';
@@ -100,6 +101,14 @@ export default function StudentDashboard() {
       loadData();
     }
   }, [isAuthenticated, user]);
+
+  // Deep links: ?section=tasks|live|journal|guide|reminders (a practical task opens the desk with ?section=live).
+  const sectionParam = typeof router.query.section === 'string' ? router.query.section : '';
+  useEffect(() => {
+    if (['guide', 'live', 'tasks', 'journal', 'reminders'].includes(sectionParam)) setActiveSection(sectionParam as ActiveSection);
+  }, [sectionParam]);
+  const deskInstrument = typeof router.query.instrument === 'string' ? router.query.instrument : undefined;
+  const deskTask = typeof router.query.task === 'string' && /^[a-f0-9]{24}$/.test(router.query.task) ? router.query.task : null;
 
   const loadData = async () => {
     try {
@@ -300,20 +309,29 @@ export default function StudentDashboard() {
                   </div>
                 </div>
 
-                <TradingInterface />
+                {deskTask && (
+                  <div className="notice notice-brand flex flex-wrap items-center justify-between gap-3 text-sm" data-testid="task-desk-banner">
+                    <span><span className="font-semibold text-ink">Working on a practical task.</span> Trades you open now can be attached to it. Prices are simulated, not live.</span>
+                    <Link href={`/student-dashboard/practical/${deskTask}`} className="btn btn-secondary btn-sm">Back to the task</Link>
+                  </div>
+                )}
+                <TradingInterface initialInstrument={deskInstrument} />
               </div>
             )}
 
             {/* Tasks Section */}
             {activeSection === 'tasks' && (
               <div className="space-y-6 animate-in fade-in duration-300">
+                <StudentPracticalTasks />
+                {/* Older free-form demo tasks, shown only while a student still has some. */}
+                {tasks.length > 0 && (
                 <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6">
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                     <div>
-                      <h2 className="text-3xl font-bold text-neutral-900 dark:text-white mb-2">
-                        Demo Trading Tasks
+                      <h2 className="text-2xl font-bold text-neutral-900 dark:text-white mb-2">
+                        Earlier demo tasks
                       </h2>
-                      <p className="text-gray-600">Complete tasks assigned by your instructor and submit for review</p>
+                      <p className="text-gray-600">Free-form tasks set before practical tasks were introduced</p>
                     </div>
                     <div className="flex items-center space-x-4">
                       <div className="text-right">
@@ -482,14 +500,8 @@ export default function StudentDashboard() {
                     </div>
                   )}
 
-                  {tasks.length === 0 && (
-                    <div className="text-center py-16 bg-white rounded-2xl border-2 border-dashed border-gray-300">
-                      <ClipboardList className="mx-auto mb-4 h-12 w-12 text-neutral-400" aria-hidden />
-                      <p className="text-xl font-semibold text-gray-700 mb-2">No tasks assigned yet</p>
-                      <p className="text-gray-500">Your instructor will assign practice tasks here.</p>
-                    </div>
-                  )}
                 </div>
+                )}
               </div>
             )}
 

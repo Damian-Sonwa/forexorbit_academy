@@ -764,7 +764,8 @@ test('L2: cleanup never deletes an image still referenced elsewhere, reports by 
 test('L2: uploads use random names, always remove the temporary file, and log no email addresses', () => {
   const cloud = read('lib/cloudinary.ts');
   assert.equal(cloud.includes('${options.userId}_${Date.now()}'), false);
-  assert.equal((cloud.match(/public_id: randomPublicId\(\)/g) || []).length, 2);
+  // Every uploader uses a random name: the two public uploaders and the private evidence uploader.
+  assert.equal((cloud.match(/public_id: randomPublicId\(\)/g) || []).length, 3);
   const handler = read('lib/course-image-upload.ts');
   assert.ok(handler.includes('} finally {\n    removeTemp(tempPaths);') || handler.includes('} finally {\r\n    removeTemp(tempPaths);'));
   for (const file of ['pages/api/upload/visual-aid.ts', 'pages/api/upload/instructor.ts', 'lib/course-image-upload.ts']) {

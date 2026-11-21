@@ -25,6 +25,8 @@ async function getTasks(req: AuthRequest, res: NextApiResponse) {
       // Students see only their assigned tasks
       const taskList = await tasks
         .find({
+          // Practical tasks have their own list (lib/practical-tasks.js).
+          schema: { $ne: 'practical_v2' },
           $or: [
             { assignedTo: req.user!.userId },
             { assignedTo: null }, // General tasks for all students
@@ -59,7 +61,7 @@ async function getTasks(req: AuthRequest, res: NextApiResponse) {
       return res.json(tasksWithNames);
     } else if (req.user!.role === 'instructor' || req.user!.role === 'admin') {
       // Instructors/Admins see all tasks
-      const taskList = await tasks.find({}).sort({ createdAt: -1 }).skip(paging.skip).limit(paging.limit).toArray();
+      const taskList = await tasks.find({ schema: { $ne: 'practical_v2' } }).sort({ createdAt: -1 }).skip(paging.skip).limit(paging.limit).toArray();
 
       // Populate assignedBy and assignedTo names with one users query for all tasks.
       const names = await findByIds(

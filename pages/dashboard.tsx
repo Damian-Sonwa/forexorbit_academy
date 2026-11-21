@@ -17,6 +17,7 @@
  */
 
 import { useEffect, useState } from 'react';
+import PracticalTasksCard from '@/components/practical/TasksCard';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
@@ -230,6 +231,7 @@ export default function Dashboard() {
             </div>
 
             <aside className="space-y-4" aria-label="Practice and activity">
+              <PracticalTasksCard />
               <PracticeSnapshot trading={t} onOpen={() => openTab('practice')} />
 
               <section className="card !p-5" aria-labelledby="overview-activity">

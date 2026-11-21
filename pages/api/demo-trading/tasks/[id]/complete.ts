@@ -36,8 +36,10 @@ async function completeTask(req: AuthRequest, res: NextApiResponse) {
     const tasks = db.collection('demoTasks');
 
     // Check if task exists and is assigned to this student
+    // Practical tasks (schema 'practical_v2') have their own flow: lib/practical-tasks.js.
     const task = await tasks.findOne({
       _id: new ObjectId(id),
+      schema: { $ne: 'practical_v2' },
       $or: [
         { assignedTo: req.user!.userId },
         { assignedTo: null }, // General tasks

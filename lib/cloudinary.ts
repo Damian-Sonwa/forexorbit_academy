@@ -205,3 +205,49 @@ export function validateImageFile(file: {
   return { valid: true };
 }
 
+
+/**
+ * Private evidence (practical trading tasks). Uploaded with delivery type 'private': the file has
+ * no public address. It is read only through privateImageUrl, a signed download link that expires,
+ * which the app issues after its own permission check (pages/api/practical-tasks/evidence.ts).
+ */
+export async function uploadPrivateImageFromPath(filePath: string, folder: string): Promise<UploadResult> {
+  if (!isCloudinaryConfigured()) throw new Error('Cloudinary configuration is missing');
+  return new Promise((resolve, reject) => {
+    cloudinary.uploader.upload(
+      filePath,
+      { folder: `forexorbit/${folder}`, resource_type: 'image', type: 'private', public_id: randomPublicId(), overwrite: false },
+      (error, result) => {
+        if (error || !result) {
+          reject(new Error('Failed to upload evidence'));
+          return;
+        }
+        resolve({ url: '', publicId: result.public_id, secureUrl: '', width: result.width, height: result.height, format: result.format, bytes: result.bytes });
+      }
+    );
+  });
+}
+
+/** A signed link to a private image, valid for `seconds` (default five minutes). */
+export function privateImageUrl(publicId: string, format: string, seconds = 300): string {
+  return cloudinary.utils.private_download_url(publicId, format || 'png', {
+    type: 'private',
+    resource_type: 'image',
+    expires_at: Math.floor(Date.now() / 1000) + seconds,
+  });
+}
+
+/** Image signatures: the first bytes must match the declared type (not just the file name). */
+export function imageSignatureMatches(head: Buffer, mimetype: string): boolean {
+  const type = String(mimetype || '').toLowerCase();
+  if (type === 'image/png') return head.length >= 8 && head.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+  if (type === 'image/jpeg' || type === 'image/jpg') return head.length >= 3 && head[0] === 0xff && head[1] === 0xd8 && head[2] === 0xff;
+  if (type === 'image/webp') return head.length >= 12 && head.subarray(0, 4).toString('ascii') === 'RIFF' && head.subarray(8, 12).toString('ascii') === 'WEBP';
+  return false;
+}
+
+/** Deletes a private evidence image. */
+export async function deletePrivateImage(publicId: string): Promise<void> {
+  if (!isCloudinaryConfigured()) return;
+  await cloudinary.uploader.destroy(publicId, { type: 'private', resource_type: 'image' });
+}
