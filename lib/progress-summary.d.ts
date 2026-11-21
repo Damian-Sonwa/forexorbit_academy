@@ -17,6 +17,9 @@ export type SummaryCourse = {
   lastStudiedAt: string | null;
   lastLesson: { lessonId: string; title: string } | null;
   next: { lessonId: string | null; title: string | null; reason: string } | null;
+  /** Only with `withLessons` (Phase 11). */
+  lessons?: Array<{ lessonId: string; title: string; open: boolean }>;
+  allOpen?: boolean;
 };
 export type ProgressSummary = {
   continue: { courseId: string; courseTitle: string; lessonId: string | null; lessonTitle: string | null; reason: string; percent: number } | null;
@@ -30,5 +33,5 @@ export type ProgressSummary = {
 export const RECENT_LIMIT: number;
 export function buildProgressSummary(
   db: Db,
-  input: { userId: string; role?: string; now?: Date; env?: Record<string, string | undefined> }
+  input: { userId: string; role?: string; now?: Date; env?: Record<string, string | undefined>; withLessons?: boolean }
 ): Promise<ProgressSummary>;

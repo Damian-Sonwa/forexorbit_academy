@@ -58,7 +58,9 @@ test('every HTML sink renders through the sanitizer (or is a fixed script)', () 
       assert.ok(ok, `${file}: ${value.trim().slice(0, 60)}`);
     }
   }
-  assert.ok(sinks >= 15, `found ${sinks} sinks`);
+  // A floor, so the scan cannot silently match nothing. Phase 11: the student dashboard shows titles
+  // as plain text (lib/plain-text.ts previewText) instead of sanitized HTML, removing two sinks.
+  assert.ok(sinks >= 13, `found ${sinks} sinks`);
   const lesson = read('pages/courses/[id]/lessons/[lessonId].tsx');
   assert.match(lesson, /const lessonDescStudent = sanitizeForStudentView\(/);
   assert.match(lesson, /const lessonBodyStudent = sanitizeForStudentView\(/);

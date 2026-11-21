@@ -19,7 +19,9 @@ async function getBadges(req: AuthRequest, res: NextApiResponse) {
 
     if (userId || req.user!.role === 'student') {
       // Get user-specific badges
-      const targetUserId = (userId as string) || req.user!.userId;
+      // Phase 11: a student always gets their own badges (a userId in the query is ignored for
+      // students, so one student cannot read another's). Staff keep the lookup they had.
+      const targetUserId = req.user!.role === 'student' ? req.user!.userId : (userId as string) || req.user!.userId;
       const earnedBadges = await userBadges.find({ userId: targetUserId }).toArray();
       
       const badgeIds = earnedBadges.map(b => b.badgeId);

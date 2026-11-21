@@ -1,31 +1,59 @@
 /**
- * Student learning home.
- * One continuation, a short progress summary, and one catalog suggestion.
- * Phase 8: everything about progress comes from GET /api/progress/summary (one request, from
- * persisted records, kept in sync across tabs and devices) instead of one request per course.
- * The course library stays on /courses.
+ * Student dashboard (Phase 11): progress, what to do next, assessments, milestones and practice
+ * trading, from real records only.
+ *
+ * Layout: four tabs, one visible at a time (?tab= in the URL, so links and Back work).
+ *   Overview     what to do now: welcome and Continue, four key figures, Up next, due soon, a
+ *                practice snapshot and the latest activity. Secondary items sit in disclosures.
+ *   Learning     learning activity chart, all courses, milestones.
+ *   Assessments  everything upcoming, quiz performance, recent results and the score trend.
+ *   Practice     the full practice trading analytics (SIMULATED).
+ *
+ * Data: one request, GET /api/student/dashboard (lib/student-analytics.js, hooks/useStudentDashboard),
+ * shared by every tab. The learning range and the activity feed fetch their own slices; the
+ * notifications disclosure uses the existing notifications API. Totals count active enrollments
+ * only (the Phase 8 summary's rules: data.overview mirrors summary.totals). Staff are redirected as
+ * before; the dashboard APIs refuse anyone but students.
  */
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
-import CourseCover from '@/components/CourseCover';
 import Sidebar from '@/components/Sidebar';
 import LoadingSpinner from '@/components/LoadingSpinner';
-import { LoadingStatus, MetricSkeleton } from '@/components/loading';
-import { resolveLoadingPresentation } from '@/lib/loading-presentation';
+import { ChartSkeleton, LoadingStatus, MetricSkeleton, CourseCardSkeleton } from '@/components/loading';
 import RemindersPanel from '@/components/RemindersPanel';
 import { useAuth } from '@/hooks/useAuth';
-import { useProgressSummary } from '@/hooks/useProgressSummary';
-import { useCourses } from '@/hooks/useCourses';
-import { CourseLists, LearningStatsTiles, RecentActivity } from '@/components/student/LearningSummary';
+import { useStudentDashboard } from '@/hooks/useStudentDashboard';
 import { apiClient } from '@/lib/api-client';
-import { sanitizeForStudentView } from '@/lib/html-sanitizer';
-import { previewText } from '@/lib/plain-text';
-import { ArrowRight } from 'lucide-react';
-import OrbitProgress from '@/components/ui/OrbitProgress';
+import {
+  ActivityList,
+  AssessmentSummary,
+  Disclosure,
+  ErrorState,
+  KeyFigures,
+  Milestones,
+  MyCourses,
+  PracticeSnapshot,
+  RecentScores,
+  Recommendations,
+  Section,
+  UpcomingAssessments,
+  WelcomeHero,
+} from '@/components/student/dashboard/Panels';
+import PracticePanel from '@/components/student/dashboard/PracticePanel';
+import { ActivityFeed, LearningActivity, NotificationsPanel } from '@/components/student/dashboard/Live';
+
+// Charts render on the client only (recharts measures the DOM).
+const chartLoading = () => <ChartSkeleton />;
+const LearningActivityChart = dynamic(() => import('@/components/student/dashboard/Charts').then((m) => m.LearningActivityChart), { ssr: false, loading: chartLoading });
+const ScoreTrendChart = dynamic(() => import('@/components/student/dashboard/Charts').then((m) => m.ScoreTrendChart), { ssr: false, loading: chartLoading });
+const PerformanceChart = dynamic(() => import('@/components/student/dashboard/Charts').then((m) => m.PerformanceChart), { ssr: false, loading: chartLoading });
+const OutcomeChart = dynamic(() => import('@/components/student/dashboard/Charts').then((m) => m.OutcomeChart), { ssr: false, loading: chartLoading });
+const InstrumentChart = dynamic(() => import('@/components/student/dashboard/Charts').then((m) => m.InstrumentChart), { ssr: false, loading: chartLoading });
 
 interface UpcomingConsultation {
   _id: string;
@@ -34,34 +62,26 @@ interface UpcomingConsultation {
   startsAt?: string | null;
 }
 
+type Tab = 'overview' | 'learning' | 'assessments' | 'practice';
+const TABS: Array<[Tab, string]> = [['overview', 'Overview'], ['learning', 'Learning'], ['assessments', 'Assessments'], ['practice', 'Practice']];
+const isTab = (value: unknown): value is Tab => typeof value === 'string' && TABS.some(([id]) => id === value);
+/** How much of each list the overview shows; the rest is one tab or one disclosure away. */
+const OVERVIEW_LIMITS = { recommendations: 3, upcoming: 3, activity: 4 };
+
 export default function Dashboard() {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
-  const { summary, loading: progressLoading, error: progressError, refetch: refetchProgress } = useProgressSummary(Boolean(isAuthenticated && user?.role === 'student'));
-  const { courses } = useCourses();
   const router = useRouter();
+  const isStudent = Boolean(isAuthenticated && user?.role === 'student');
+  const { data, loading, refreshing, error, refetch } = useStudentDashboard(isStudent);
   const [consultations, setConsultations] = useState<UpcomingConsultation[]>([]);
-  const [loadingData, setLoadingData] = useState(true);
+  const tab: Tab = isTab(router.query.tab) ? router.query.tab : 'overview';
 
-  const fetchDashboardData = async () => {
-    if (!user) return;
-
-    try {
-      setLoadingData(true);
-
-      try {
-        const rows = await apiClient.get<UpcomingConsultation[]>('/consultations/requests');
-        const upcoming = (Array.isArray(rows) ? rows : []).filter((row) => {
-          if (!row.startsAt) return false;
-          if (!['CONFIRMED', 'PENDING_CONFIRMATION', 'RESCHEDULE_REQUESTED'].includes(row.lifecycle)) return false;
-          return new Date(row.startsAt).getTime() > Date.now() - 60 * 60 * 1000;
-        });
-        setConsultations(upcoming.slice(0, 3));
-      } catch {
-        setConsultations([]);
-      }
-    } finally {
-      setLoadingData(false);
-    }
+  const openTab = (next: Tab) => {
+    const query = { ...router.query };
+    if (next === 'overview') delete query.tab;
+    else query.tab = next;
+    void router.push({ pathname: router.pathname, query }, undefined, { shallow: true, scroll: false });
+    if (typeof window !== 'undefined') document.getElementById('dashboard-tabs')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   };
 
   useEffect(() => {
@@ -99,190 +119,137 @@ export default function Dashboard() {
   }, [isAuthenticated, authLoading, user, router]);
 
   useEffect(() => {
-    if (isAuthenticated && user) {
-      fetchDashboardData();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated, user]);
+    if (!isStudent) return;
+    apiClient.get<UpcomingConsultation[]>('/consultations/requests')
+      .then((rows) => {
+        const upcoming = (Array.isArray(rows) ? rows : []).filter((row) => {
+          if (!row.startsAt) return false;
+          if (!['CONFIRMED', 'PENDING_CONFIRMATION', 'RESCHEDULE_REQUESTED'].includes(row.lifecycle)) return false;
+          return new Date(row.startsAt).getTime() > Date.now() - 60 * 60 * 1000;
+        });
+        setConsultations(upcoming.slice(0, 3));
+      })
+      .catch(() => setConsultations([]));
+  }, [isStudent]);
 
-  const sessionBlocked = authLoading || !isAuthenticated || !user || user.role !== 'student';
-  const progressView = resolveLoadingPresentation({
-    authLoading: false,
-    authorized: true,
-    dataLoading: progressLoading || loadingData,
-    error: progressError,
-    hasData: Boolean(summary),
-  });
-
-  if (sessionBlocked) {
+  if (authLoading || !isAuthenticated || !user || user.role !== 'student') {
     return <LoadingSpinner message="Checking your session" fullScreen />;
   }
 
-  const firstName = user?.name?.split(' ')[0] || 'there';
-  const level = user?.learningLevel || (user as { studentDetails?: { tradingLevel?: string } })?.studentDetails?.tradingLevel;
+  const firstName = user.name?.split(' ')[0] || null;
+  const level = user.learningLevel || (user as { studentDetails?: { tradingLevel?: string } }).studentDetails?.tradingLevel;
+  const levelChip = level ? (
+    <span className="chip chip-brand !px-3 !py-1 text-xs">Level · {level}</span>
+  ) : (
+    <Link href="/onboarding" className="chip !px-3 !py-1 text-xs hover:border-primary-400 hover:text-ink">Set your level</Link>
+  );
 
-  if (progressView === 'skeleton') {
-    return (
-      <div className="min-h-screen flex flex-col overflow-hidden">
-        <Header />
-        <div className="flex flex-1 relative overflow-hidden lg:items-start">
-          <Sidebar />
-          <main className="mx-auto w-full max-w-6xl flex-1 px-4 pb-12 pt-20 sm:px-6 lg:px-10 lg:pt-10">
-            <p className="page-kicker mb-2">Learning home</p>
-            <h1 className="page-title">Welcome back, {firstName}</h1>
-            <div className="mt-8 space-y-8">
-              <LoadingStatus label="Loading your dashboard" />
-              <MetricSkeleton count={3} />
-            </div>
-          </main>
+  const shell = (content: React.ReactNode) => (
+    <div className="min-h-screen flex flex-col overflow-hidden">
+      <Header />
+      <div className="flex flex-1 relative overflow-hidden lg:items-start">
+        <Sidebar />
+        <main className="mx-auto w-full max-w-6xl flex-1 px-4 pb-12 pt-20 sm:px-6 lg:px-10 lg:pt-10">{content}</main>
+      </div>
+      <Footer />
+    </div>
+  );
+
+  if (loading) {
+    return shell(
+      <div data-testid="dashboard-loading">
+        <p className="page-kicker mb-2">Learning home</p>
+        <h1 className="page-title">{firstName ? `Welcome back, ${firstName}` : 'Welcome back'}</h1>
+        <div className="mt-8 space-y-8">
+          <LoadingStatus label="Loading your dashboard" />
+          <MetricSkeleton count={4} />
+          <CourseCardSkeleton count={2} />
         </div>
       </div>
     );
   }
 
-  const enrolledCount = summary ? summary.totals.enrolled : courses.filter((course) => course.enrolled).length;
-  const completedLessons = summary ? summary.totals.completedLessons : 0;
-  // Continue learning (lib/progress-summary.js): last viewed course and lesson from the server.
-  const nextLesson = summary?.continue || null;
-  const continueCourse = nextLesson
-    ? courses.find((course) => (course._id || course.id) === nextLesson.courseId)
-    : undefined;
-  const continueHref = nextLesson
-    ? nextLesson.lessonId ? `/courses/${nextLesson.courseId}/lessons/${nextLesson.lessonId}` : `/courses/${nextLesson.courseId}`
-    : '/courses';
-  const catalogSuggestion = courses.find((course) => !course.enrolled);
-  const started = enrolledCount > 0 || completedLessons > 0;
+  if (!data) {
+    return shell(
+      <div className="panel-hero p-6 sm:p-8" data-testid="dashboard-error">
+        <p className="page-kicker">Learning home</p>
+        <h1 className="page-title mt-3">Progress could not be loaded</h1>
+        <p className="page-lede">{error || 'Your dashboard is unavailable right now.'} Your enrollments and results are unchanged. Try again before treating this as an empty record.</p>
+        <button type="button" onClick={() => void refetch()} className="btn btn-primary mt-5 rounded-full px-5">Try again</button>
+      </div>
+    );
+  }
 
-  return (
-    <div className="min-h-screen flex flex-col overflow-hidden">
-      <Header />
-      <div className="flex flex-1 relative overflow-hidden lg:items-start">
-        <Sidebar />
-        <main className="mx-auto w-full max-w-6xl flex-1 px-4 pb-12 pt-20 sm:px-6 lg:px-10 lg:pt-10">
-          {/* Hero: the learning orbit. Greeting on the left, the next lesson on the right. */}
-          <section className="panel-hero mb-8 animate-rise-in" data-testid={nextLesson ? 'continue-learning' : undefined}>
-            <svg aria-hidden className="pointer-events-none absolute -right-24 -top-28 h-[340px] w-[560px] text-primary-500 opacity-25" viewBox="0 0 560 340" fill="none">
-              <ellipse cx="280" cy="170" rx="260" ry="118" transform="rotate(-16 280 170)" stroke="currentColor" />
-              <ellipse cx="280" cy="170" rx="210" ry="88" transform="rotate(-16 280 170)" stroke="currentColor" strokeDasharray="2 8" />
-            </svg>
-            <div className="relative grid gap-6 p-5 sm:p-7 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)] lg:gap-8 lg:p-8">
-              <div className="flex flex-col justify-between gap-5">
-                <div>
-                  <p className="page-kicker">Learning home</p>
-                  <h1 className="page-title mt-3">{started ? `Welcome back, ${firstName}` : `Welcome, ${firstName}`}</h1>
-                  <p className="page-lede">
-                    {started ? 'Your next lesson is ready when you are.' : 'Start with a course. Your place in it will stay here.'}
-                  </p>
-                  {progressView === 'refresh' && (
-                    <div className="mt-3">
-                      <LoadingStatus label="Updating your dashboard" compact />
-                    </div>
-                  )}
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  {level ? (
-                    <span className="chip chip-brand !px-3 !py-1 text-xs">Level · {level}</span>
-                  ) : (
-                    <Link href="/onboarding" className="chip !px-3 !py-1 text-xs hover:border-primary-400 hover:text-ink">
-                      Set your level
-                    </Link>
-                  )}
-                  <Link href="/progress" className="chip !px-3 !py-1 text-xs hover:border-primary-400 hover:text-ink">My progress</Link>
-                  <Link href="/student-dashboard" className="chip !px-3 !py-1 text-xs hover:border-primary-400 hover:text-ink">Practice desk</Link>
-                </div>
-              </div>
+  const t = data.trading;
+  const milestonesReached = data.milestones.filter((m) => m.achieved).length;
+  const recentEvents = data.activity.events.slice(0, OVERVIEW_LIMITS.activity);
+  const extras = consultations.length > 0;
 
-              {nextLesson ? (
-                <div className="flex flex-col gap-4 rounded-2xl border border-line bg-[color-mix(in_srgb,var(--fo-surface-1)_88%,transparent)] p-4 sm:flex-row sm:items-center sm:p-5">
-                  <div className="relative w-full shrink-0 sm:w-48">
-                    <CourseCover
-                      course={continueCourse || { id: nextLesson.courseId, title: nextLesson.courseTitle }}
-                      className="w-full rounded-xl ring-1 ring-[var(--fo-line)]"
-                    />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-subtle">Continue · {nextLesson.courseTitle}</p>
-                    <h2 className="mt-1.5 font-display text-xl font-semibold leading-snug tracking-tight text-ink sm:text-2xl" dangerouslySetInnerHTML={{ __html: sanitizeForStudentView(nextLesson.lessonTitle || 'Unlock the course to continue') }} />
-                    <div className="mt-4 flex items-center gap-4">
-                      {typeof nextLesson.percent === 'number' ? (
-                        <OrbitProgress value={nextLesson.percent} size={52} label={`${nextLesson.courseTitle} progress`} />
-                      ) : null}
-                      <div className="min-w-0">
-                        {typeof nextLesson.percent === 'number' ? (
-                          <p className="text-xs text-ink-subtle"><span className="num font-semibold text-ink">{Math.round(nextLesson.percent)}%</span> of this course</p>
-                        ) : null}
-                        <Link href={continueHref} className="btn btn-primary mt-2 rounded-full px-5">
-                          Continue learning
-                          <ArrowRight className="h-4 w-4" aria-hidden />
-                        </Link>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ) : progressError ? (
-                <div className="rounded-2xl border border-line bg-surface-1 p-5">
-                  <p className="page-kicker">Progress</p>
-                  <h2 className="mt-2 font-display text-xl font-semibold tracking-tight text-ink">Progress could not be loaded</h2>
-                  <p className="mt-2 text-sm text-ink-muted">Your enrollments are unchanged. Try again before treating this as an empty enrollment list.</p>
-                  <button type="button" onClick={() => refetchProgress()} className="btn btn-primary mt-4 rounded-full px-5">Try again</button>
-                </div>
-              ) : enrolledCount > 0 ? (
-                <div className="rounded-2xl border border-line bg-surface-1 p-5">
-                  <p className="page-kicker">Continue learning</p>
-                  <h2 className="mt-2 font-display text-xl font-semibold tracking-tight text-ink">You have finished the lessons in your current courses</h2>
-                  <p className="mt-2 text-sm text-ink-muted">Review a course, or open another one from the library.</p>
-                  <Link href="/courses" className="btn btn-primary mt-4 rounded-full px-5">
-                    View your courses
-                    <ArrowRight className="h-4 w-4" aria-hidden />
-                  </Link>
-                </div>
-              ) : (
-                <div className="rounded-2xl border border-line bg-surface-1 p-5">
-                  <p className="page-kicker">Where to begin</p>
-                  <h2 className="mt-2 font-display text-xl font-semibold tracking-tight text-ink">Choose a course, then open its first lesson</h2>
-                  <p className="mt-2 text-sm leading-relaxed text-ink-muted">
-                    Lessons, practice on the demo desk, and questions in the community all start from a course. Progress is kept on this page and on My progress.
-                  </p>
-                  <Link href="/courses" className="btn btn-primary mt-4 rounded-full px-5">
-                    Browse courses
-                    <ArrowRight className="h-4 w-4" aria-hidden />
-                  </Link>
-                </div>
+  return shell(
+    <div className="space-y-8">
+      <WelcomeHero data={data} fallbackName={firstName} levelChip={levelChip} />
+
+      {/* Tabs: scrollable on phones, sticky below the header. */}
+      <div id="dashboard-tabs" className="sticky top-16 z-20 -mx-4 scroll-mt-24 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+        <div role="tablist" aria-label="Dashboard" className="glass-panel inline-flex min-w-max gap-1 rounded-xl p-1">
+          {TABS.map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              id={`tab-${id}`}
+              aria-selected={tab === id}
+              aria-controls={`panel-${id}`}
+              onClick={() => openTab(id)}
+              className={`min-h-[40px] rounded-lg px-4 text-sm font-medium transition-colors ${tab === id ? 'bg-surface-1 text-ink shadow-panel' : 'text-ink-muted hover:text-ink'}`}
+            >
+              {label}
+              {id === 'assessments' && data.upcoming.total > 0 && <span className="ml-1.5 rounded-full bg-tint px-1.5 text-2xs font-semibold text-ink num">{data.upcoming.total}</span>}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {error && <ErrorState text={`${error} Showing what was loaded before.`} onRetry={() => void refetch()} />}
+      {refreshing && <LoadingStatus label="Updating your dashboard" compact />}
+
+      {tab === 'overview' && (
+        <div role="tabpanel" id="panel-overview" aria-labelledby="tab-overview" className="space-y-8 animate-fade-in-fast">
+          <KeyFigures overview={data.overview} weekMinutes={data.learning.recentMinutes} />
+
+          <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_20rem]">
+            <div className="min-w-0 space-y-8">
+              <Section title="Up next">
+                {/* The hero already offers Continue, so it is not repeated here. */}
+                <Recommendations items={data.recommendations} limit={OVERVIEW_LIMITS.recommendations} exclude={data.continue ? ['resume', 'unlock'] : []} />
+              </Section>
+
+              <Section title="Due soon" action={data.upcoming.total > 0 ? <button type="button" onClick={() => openTab('assessments')} className="btn btn-ghost btn-sm">All assessments</button> : undefined}>
+                <UpcomingAssessments upcoming={data.upcoming} limit={OVERVIEW_LIMITS.upcoming} onViewAll={() => openTab('assessments')} />
+              </Section>
+            </div>
+
+            <aside className="space-y-4" aria-label="Practice and activity">
+              <PracticeSnapshot trading={t} onOpen={() => openTab('practice')} />
+
+              <section className="card !p-5" aria-labelledby="overview-activity">
+                <h2 id="overview-activity" className="section-title mb-3">Recent activity</h2>
+                <ActivityList events={recentEvents} />
+              </section>
+
+              {data.activity.events.length > OVERVIEW_LIMITS.activity && (
+                <Disclosure title="More activity" testId="more-activity">
+                  <ActivityFeed initial={data.activity.events} hasMore={data.activity.hasMore} />
+                </Disclosure>
               )}
-            </div>
-          </section>
-
-          {progressError && !summary ? null : <LearningStatsTiles summary={summary} />}
-
-          <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_20rem]">
-            <div className="min-w-0">
-              {summary && <CourseLists summary={summary} />}
-              {summary && <RecentActivity summary={summary} />}
-            </div>
-
-            <aside className="space-y-6" aria-label="Suggestions and reminders">
-              {catalogSuggestion ? (
-                <section className="card card-interactive overflow-hidden !p-0">
-                  <CourseCover course={catalogSuggestion} className="w-full rounded-none" />
-                  <div className="p-5">
-                    <p className="page-kicker">From the catalog</p>
-                    <h2 className="mt-2 font-display text-lg font-semibold tracking-tight text-ink" dangerouslySetInnerHTML={{ __html: sanitizeForStudentView(catalogSuggestion.title) }} />
-                    <p className="mt-2 line-clamp-3 text-sm text-ink-muted">{previewText(catalogSuggestion.description)}</p>
-                    <p className="mt-3 text-xs capitalize text-ink-subtle">{catalogSuggestion.difficulty} · {catalogSuggestion.category}</p>
-                    <Link href={`/courses/${catalogSuggestion._id || catalogSuggestion.id}`} className="btn btn-secondary btn-sm mt-4">
-                      View this course
-                      <ArrowRight className="h-3.5 w-3.5" aria-hidden />
-                    </Link>
-                  </div>
-                </section>
-              ) : null}
-
-              {consultations.length > 0 ? (
-                <section className="card">
-                  <h2 className="section-title">Consultations</h2>
-                  <ul className="mt-3 divide-y divide-[var(--fo-line)]">
+              <Disclosure title="Notifications" testId="notifications-disclosure">
+                <NotificationsPanel bare />
+              </Disclosure>
+              <Disclosure title={extras ? 'Reminders and consultations' : 'Reminders'} hint={extras ? `${consultations.length} upcoming` : undefined} testId="reminders-disclosure">
+                {extras && (
+                  <ul className="mb-4 divide-y divide-[var(--fo-line)]">
                     {consultations.map((booking) => (
-                      <li key={booking._id} className="flex items-center justify-between gap-4 py-3">
+                      <li key={booking._id} className="flex items-center justify-between gap-4 py-2.5">
                         <span className="min-w-0">
                           <span className="block truncate text-sm font-medium text-ink">{booking.topic}</span>
                           <span className="block text-xs text-ink-subtle">{booking.startsAt ? new Date(booking.startsAt).toLocaleString() : ''}</span>
@@ -291,20 +258,65 @@ export default function Dashboard() {
                       </li>
                     ))}
                   </ul>
-                </section>
-              ) : null}
-
-              <RemindersPanel hideWhenEmpty />
-
-              <nav className="flex flex-wrap gap-2 text-sm" aria-label="More">
-                <Link href="/courses" className="btn btn-ghost btn-sm">All courses</Link>
-                <Link href="/progress" className="btn btn-ghost btn-sm">Progress</Link>
-              </nav>
+                )}
+                <RemindersPanel />
+              </Disclosure>
             </aside>
           </div>
-        </main>
-      </div>
-      <Footer />
+        </div>
+      )}
+
+      {tab === 'learning' && (
+        <div role="tabpanel" id="panel-learning" aria-labelledby="tab-learning" className="space-y-8 animate-fade-in-fast">
+          <Section title="Learning activity">
+            <LearningActivity initial={data.learning.series} Chart={LearningActivityChart} />
+          </Section>
+          <Section title="My courses" action={<Link href="/courses" className="btn btn-ghost btn-sm">Course library</Link>}>
+            <MyCourses courses={data.courses} />
+          </Section>
+          <Disclosure title="Milestones" hint={`${milestonesReached} of ${data.milestones.length} reached`} testId="milestones-disclosure">
+            <Milestones items={data.milestones} />
+          </Disclosure>
+        </div>
+      )}
+
+      {tab === 'assessments' && (
+        <div role="tabpanel" id="panel-assessments" aria-labelledby="tab-assessments" className="space-y-8 animate-fade-in-fast">
+          <Section title="Upcoming quizzes and assignments">
+            <UpcomingAssessments upcoming={data.upcoming} />
+          </Section>
+          <Section title="Quiz performance" action={<Link href="/progress" className="btn btn-ghost btn-sm">Full history</Link>}>
+            <AssessmentSummary a={data.assessments} retakes={data.upcoming.retakes} showRecent={false} />
+          </Section>
+          {data.assessments.attempts > 0 && (
+            <div className="space-y-3">
+              <Disclosure title="Recent results" hint={`last ${data.assessments.recent.length}`} defaultOpen testId="recent-results-disclosure">
+                <RecentScores a={data.assessments} />
+              </Disclosure>
+              {data.assessments.trend.length > 1 && (
+                <Disclosure title="Score trend" hint={`last ${data.assessments.trend.length} attempts`} testId="score-trend-disclosure">
+                  <ScoreTrendChart trend={data.assessments.trend} />
+                </Disclosure>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {tab === 'practice' && (
+        <div role="tabpanel" id="panel-practice" aria-labelledby="tab-practice" className="space-y-6 animate-fade-in-fast">
+          <Section title="Practice trading" action={<Link href="/student-dashboard" className="btn btn-secondary btn-sm">Open practice desk</Link>}>
+            <PracticePanel
+              trading={t}
+              charts={{
+                performance: <PerformanceChart series={t.performance.series} />,
+                outcome: <OutcomeChart wins={t.performance.wins} losses={t.performance.losses} breakeven={t.performance.breakeven} />,
+                instrument: <InstrumentChart rows={t.performance.byInstrument} />,
+              }}
+            />
+          </Section>
+        </div>
+      )}
     </div>
   );
 }

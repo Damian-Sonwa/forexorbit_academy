@@ -71,12 +71,31 @@ function matches(doc, query) {
   });
 }
 
+/** Dotted keys write nested fields, as in MongoDB ("lessonCompletedAt.<id>"); plain keys as before. */
+function setPath(doc, key, value) {
+  if (!key.includes('.')) { doc[key] = value; return; }
+  const parts = key.split('.');
+  let target = doc;
+  for (const part of parts.slice(0, -1)) {
+    if (target[part] == null || typeof target[part] !== 'object') target[part] = {};
+    target = target[part];
+  }
+  target[parts[parts.length - 1]] = value;
+}
+
+function unsetPath(doc, key) {
+  if (!key.includes('.')) { delete doc[key]; return; }
+  const parts = key.split('.');
+  const parent = getPath(doc, parts.slice(0, -1).join('.'));
+  if (parent && typeof parent === 'object') delete parent[parts[parts.length - 1]];
+}
+
 function applyUpdate(doc, update, inserted = false) {
   for (const [op, fields] of Object.entries(update)) {
     for (const [key, value] of Object.entries(fields)) {
-      if (op === '$set') doc[key] = value;
-      else if (op === '$setOnInsert') { if (inserted) doc[key] = value; }
-      else if (op === '$unset') delete doc[key];
+      if (op === '$set') setPath(doc, key, value);
+      else if (op === '$setOnInsert') { if (inserted) setPath(doc, key, value); }
+      else if (op === '$unset') unsetPath(doc, key);
       else if (op === '$inc') doc[key] = (typeof doc[key] === 'number' ? doc[key] : 0) + value;
       else if (op === '$max') doc[key] = doc[key] === undefined || compare(value, doc[key]) > 0 ? value : doc[key];
       else if (op === '$addToSet') {

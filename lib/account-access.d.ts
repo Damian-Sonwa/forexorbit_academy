@@ -278,3 +278,4 @@ export function decideInstructorAssignee(
   requestedId: unknown,
   assignee: { userId?: string; role?: string; status?: string } | null | undefined
 ): { ok: true; instructorId: string } | { ok: false; status: 400; code: string; error: string };
+export function lessonPrerequisiteBlocksStudent(lesson: unknown, course: unknown, enrollment: unknown): boolean;
