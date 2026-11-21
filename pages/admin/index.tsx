@@ -11,6 +11,7 @@ import Footer from '@/components/Footer';
 import CourseCover from '@/components/CourseCover';
 import { previewText } from '@/lib/plain-text';
 import Sidebar from '@/components/Sidebar';
+import { ReadoutStrip } from '@/components/ui/PageHeader';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { useAuth } from '@/hooks/useAuth';
 import { FEATURES } from '@/lib/config/features';
@@ -714,7 +715,7 @@ export default function AdminPanel() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen flex flex-col">
       <Header />
 
       <div className="flex flex-1 relative">
@@ -724,15 +725,16 @@ export default function AdminPanel() {
         <div className="mb-8">
           <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h1 className="text-4xl font-display font-bold text-gray-900 dark:text-white mb-2">Admin Panel</h1>
-              <p className="text-gray-600 dark:text-gray-400">Manage courses, lessons, and view analytics</p>
+              <p className="page-kicker">Admin console</p>
+              <h1 className="page-title mt-3">Admin Panel</h1>
+              <p className="page-lede">Manage courses, lessons, and view analytics</p>
             </div>
             {/* Community Navigation Link for Super Admin */}
             {user?.role === 'superadmin' &&
               (FEATURES.COMMUNITY ? (
                 <Link
                   href="/community"
-                  className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold transition-colors flex items-center space-x-2 shadow-md"
+                  className="btn btn-primary px-4 py-2 flex items-center space-x-2"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
@@ -754,9 +756,9 @@ export default function AdminPanel() {
               ))}
             {user?.role === 'superadmin' && (
               <>
-                <Link href="/consultations/expert" className="rounded-lg border border-neutral-300 px-4 py-2 text-sm font-semibold text-neutral-900 dark:text-white">Publish hours</Link>
-                <Link href="/consultations/admin" className="rounded-lg border border-neutral-300 px-4 py-2 text-sm font-semibold text-neutral-900 dark:text-white">Approve experts</Link>
-                <Link href="/admin/purchases" className="rounded-lg border border-neutral-300 px-4 py-2 text-sm font-semibold text-neutral-900 dark:text-white">Course purchases</Link>
+                <Link href="/consultations/expert" className="btn btn-secondary btn-sm">Publish hours</Link>
+                <Link href="/consultations/admin" className="btn btn-secondary btn-sm">Approve experts</Link>
+                <Link href="/admin/purchases" className="btn btn-secondary btn-sm">Course purchases</Link>
               </>
             )}
           </div>
@@ -764,17 +766,17 @@ export default function AdminPanel() {
 
         {/* Pending Approvals Notification Banner (Super Admin only) */}
         {isSuperAdmin && pendingUsers.length > 0 && (
-          <div className="mb-6 bg-amber-50 dark:bg-amber-950/30 border-l-4 border-yellow-500 dark:border-yellow-400 rounded-lg p-4 shadow-lg">
+          <div className="notice notice-caution mb-6 !p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center">
-                <svg className="w-6 h-6 text-yellow-600 dark:text-yellow-400 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-6 h-6 text-caution mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
                 <div>
-                  <h3 className="text-lg font-bold text-yellow-900 dark:text-amber-200">
+                  <h3 className="text-base font-semibold text-ink">
                     {pendingUsers.length} Pending {pendingUsers.length === 1 ? 'Request' : 'Requests'} for Approval
                   </h3>
-                  <p className="text-sm text-yellow-800 dark:text-yellow-300 mt-1">
+                  <p className="text-sm text-ink-muted mt-1">
                     {pendingUsers.length === 1
                       ? 'There is 1 registration waiting for your approval.'
                       : `There are ${pendingUsers.length} registrations waiting for your approval.`}
@@ -794,7 +796,7 @@ export default function AdminPanel() {
                 </button>
                 <button
                   onClick={() => setPendingUsers([])}
-                  className="text-yellow-800 dark:text-yellow-300 hover:text-yellow-900 dark:hover:text-primary-600"
+                  className="icon-btn"
                   aria-label="Dismiss notification"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -807,16 +809,16 @@ export default function AdminPanel() {
         )}
 
         {/* Tabs */}
-        <div className="flex space-x-1 mb-8 bg-gray-100 dark:bg-gray-800 p-1 rounded-xl">
+        <div className="mb-8 flex gap-1 overflow-x-auto rounded-2xl border border-line bg-surface-1 p-1.5 shadow-panel">
           <button
                   onClick={() => {
                     setActiveTab('courses');
                     router.push('/admin?tab=courses', undefined, { shallow: true });
                   }}
-            className={`flex-1 px-6 py-3 rounded-lg font-semibold transition-all ${
+            className={`relative min-h-[44px] flex-1 whitespace-nowrap rounded-xl px-4 text-sm font-semibold transition-colors ${
               activeTab === 'courses'
-                ? 'bg-white dark:bg-primary-400/15 text-primary-700 dark:text-primary-300 shadow-sm'
-                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                ? 'bg-tint text-ink shadow-panel'
+                : 'text-ink-muted hover:text-ink'
             }`}
           >
             Courses
@@ -826,10 +828,10 @@ export default function AdminPanel() {
               setActiveTab('users');
               router.push('/admin?tab=users', undefined, { shallow: true });
             }}
-            className={`flex-1 px-6 py-3 rounded-lg font-semibold transition-all ${
+            className={`relative min-h-[44px] flex-1 whitespace-nowrap rounded-xl px-4 text-sm font-semibold transition-colors ${
               activeTab === 'users'
-                ? 'bg-white dark:bg-primary-400/15 text-primary-700 dark:text-primary-300 shadow-sm'
-                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                ? 'bg-tint text-ink shadow-panel'
+                : 'text-ink-muted hover:text-ink'
             }`}
           >
             Users
@@ -839,10 +841,10 @@ export default function AdminPanel() {
               setActiveTab('instructors');
               router.push('/admin?tab=instructors', undefined, { shallow: true });
             }}
-            className={`flex-1 px-6 py-3 rounded-lg font-semibold transition-all ${
+            className={`relative min-h-[44px] flex-1 whitespace-nowrap rounded-xl px-4 text-sm font-semibold transition-colors ${
               activeTab === 'instructors'
-                ? 'bg-white dark:bg-primary-400/15 text-primary-700 dark:text-primary-300 shadow-sm'
-                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                ? 'bg-tint text-ink shadow-panel'
+                : 'text-ink-muted hover:text-ink'
             }`}
           >
             Instructors
@@ -852,10 +854,10 @@ export default function AdminPanel() {
               setActiveTab('analytics');
               router.push('/admin?tab=analytics', undefined, { shallow: true });
             }}
-            className={`flex-1 px-6 py-3 rounded-lg font-semibold transition-all ${
+            className={`relative min-h-[44px] flex-1 whitespace-nowrap rounded-xl px-4 text-sm font-semibold transition-colors ${
               activeTab === 'analytics'
-                ? 'bg-white dark:bg-primary-400/15 text-primary-700 dark:text-primary-300 shadow-sm'
-                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                ? 'bg-tint text-ink shadow-panel'
+                : 'text-ink-muted hover:text-ink'
             }`}
           >
             Analytics
@@ -865,10 +867,10 @@ export default function AdminPanel() {
               setActiveTab('certificates');
               router.push('/admin?tab=certificates', undefined, { shallow: true });
             }}
-            className={`flex-1 px-6 py-3 rounded-lg font-semibold transition-all ${
+            className={`relative min-h-[44px] flex-1 whitespace-nowrap rounded-xl px-4 text-sm font-semibold transition-colors ${
               activeTab === 'certificates'
-                ? 'bg-white dark:bg-primary-400/15 text-primary-700 dark:text-primary-300 shadow-sm'
-                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                ? 'bg-tint text-ink shadow-panel'
+                : 'text-ink-muted hover:text-ink'
             }`}
           >
             Certificates
@@ -882,8 +884,8 @@ export default function AdminPanel() {
             }}
             className={`flex-1 px-6 py-3 rounded-lg font-semibold transition-all relative ${
               activeTab === 'approvals'
-                ? 'bg-white dark:bg-primary-400/15 text-primary-700 dark:text-primary-300 shadow-sm'
-                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                ? 'bg-tint text-ink shadow-panel'
+                : 'text-ink-muted hover:text-ink'
             }`}
           >
             Approvals
@@ -901,10 +903,10 @@ export default function AdminPanel() {
               router.push('/admin?tab=classes', undefined, { shallow: true });
               loadUpcomingClasses();
             }}
-            className={`flex-1 px-6 py-3 rounded-lg font-semibold transition-all ${
+            className={`relative min-h-[44px] flex-1 whitespace-nowrap rounded-xl px-4 text-sm font-semibold transition-colors ${
               activeTab === 'classes'
-                ? 'bg-white dark:bg-primary-400/15 text-primary-700 dark:text-primary-300 shadow-sm'
-                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                ? 'bg-tint text-ink shadow-panel'
+                : 'text-ink-muted hover:text-ink'
             }`}
           >
             Upcoming Classes
@@ -916,10 +918,10 @@ export default function AdminPanel() {
               router.push('/admin?tab=consultations', undefined, { shallow: true });
               loadConsultationRequests();
             }}
-            className={`flex-1 px-6 py-3 rounded-lg font-semibold transition-all ${
+            className={`relative min-h-[44px] flex-1 whitespace-nowrap rounded-xl px-4 text-sm font-semibold transition-colors ${
               activeTab === 'consultations'
-                ? 'bg-white dark:bg-primary-400/15 text-primary-700 dark:text-primary-300 shadow-sm'
-                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                ? 'bg-tint text-ink shadow-panel'
+                : 'text-ink-muted hover:text-ink'
             }`}
           >
             Consultations
@@ -930,18 +932,18 @@ export default function AdminPanel() {
         {activeTab === 'courses' && (
           <div>
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-gray-900">Manage Courses</h2>
+              <h2 className="text-2xl font-bold text-ink">Manage Courses</h2>
               <button
                 onClick={() => setShowCourseForm(!showCourseForm)}
-                className="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-semibold transition-colors shadow-sm"
+                className="btn btn-primary px-6 py-3"
               >
                 {showCourseForm ? 'Cancel' : '+ Create Course'}
               </button>
             </div>
 
             {showCourseForm && (
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 mb-8">
-                <h3 className="text-2xl font-bold text-gray-900 mb-6">Create New Course</h3>
+              <div className="card rounded-2xl p-8 mb-8">
+                <h3 className="text-2xl font-bold mb-6 text-ink">Create New Course</h3>
                 <form onSubmit={handleCreateCourse} className="space-y-4">
                   <div>
                     <label className="label">Title</label>
@@ -994,7 +996,7 @@ export default function AdminPanel() {
                     </div>
                   </div>
                   <div>
-                    <label className="mb-2 block text-sm font-medium text-gray-700" htmlFor="course-instructor">Instructor</label>
+                    <label className="mb-2 block text-sm font-medium text-ink-muted" htmlFor="course-instructor">Instructor</label>
                     <select
                       id="course-instructor"
                       value={courseForm.instructorId}
@@ -1011,7 +1013,7 @@ export default function AdminPanel() {
                           </option>
                         ))}
                     </select>
-                    <p className="mt-1 text-xs text-gray-500">Only active instructor accounts can be assigned. The course starts as a draft.</p>
+                    <p className="mt-1 text-xs text-ink-muted">Only active instructor accounts can be assigned. The course starts as a draft.</p>
                   </div>
                   <button type="submit" className="btn btn-primary">
                     Create Course
@@ -1022,11 +1024,11 @@ export default function AdminPanel() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {courses.map((course) => (
-                <div key={course._id || course.id} className="flex flex-col overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-soft transition-shadow hover:shadow-raised">
+                <div key={course._id || course.id} className="card flex flex-col overflow-hidden rounded-2xl transition-shadow hover:shadow-raised">
                   <CourseCover course={course} aspect="aspect-[16/7]" />
                   <div className="flex flex-1 flex-col p-5">
-                  <h3 className="mb-1.5 font-display text-lg font-semibold text-neutral-900">{course.title}</h3>
-                  <p className="mb-4 line-clamp-2 flex-1 text-sm text-neutral-600">{previewText(course.description)}</p>
+                  <h3 className="mb-1.5 font-display text-lg font-semibold text-ink">{course.title}</h3>
+                  <p className="mb-4 line-clamp-2 flex-1 text-sm text-ink-muted">{previewText(course.description)}</p>
                   <div className="mb-3 flex flex-wrap items-center gap-2">
                     <span className="chip">{course.difficulty}</span>
                     <span className="chip" data-course-status={course.status || 'published'}>
@@ -1086,7 +1088,7 @@ export default function AdminPanel() {
         {activeTab === 'instructors' && (
           <div>
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-gray-900">Manage Instructors</h2>
+              <h2 className="text-2xl font-bold text-ink">Manage Instructors</h2>
               <button
                 onClick={() => {
                   setShowInstructorForm(!showInstructorForm);
@@ -1097,20 +1099,20 @@ export default function AdminPanel() {
                     setImagePreview('');
                   }
                 }}
-                className="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-semibold transition-colors shadow-sm"
+                className="btn btn-primary px-6 py-3"
               >
                 {showInstructorForm ? 'Cancel' : '+ Add Instructor'}
               </button>
             </div>
 
             {showInstructorForm && (
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 mb-8">
-                <h3 className="text-2xl font-bold text-gray-900 mb-6">
+              <div className="card rounded-2xl p-8 mb-8">
+                <h3 className="text-2xl font-bold mb-6 text-ink">
                   {editingInstructor ? 'Edit Instructor' : 'Add New Instructor'}
                 </h3>
                 <form onSubmit={handleCreateInstructor} className="space-y-5">
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Name</label>
+                    <label className="block text-sm font-semibold mb-2 text-ink-muted">Name</label>
                     <input
                       type="text"
                       value={instructorForm.name}
@@ -1120,7 +1122,7 @@ export default function AdminPanel() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Title/Expertise</label>
+                    <label className="block text-sm font-semibold mb-2 text-ink-muted">Title/Expertise</label>
                     <input
                       type="text"
                       value={instructorForm.title}
@@ -1131,7 +1133,7 @@ export default function AdminPanel() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Description</label>
+                    <label className="block text-sm font-semibold mb-2 text-ink-muted">Description</label>
                     <textarea
                       value={instructorForm.description}
                       onChange={(e) => setInstructorForm({ ...instructorForm, description: e.target.value })}
@@ -1142,14 +1144,14 @@ export default function AdminPanel() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Instructor Photo</label>
+                    <label className="block text-sm font-semibold mb-2 text-ink-muted">Instructor Photo</label>
                     <input
                       type="file"
                       accept="image/*"
                       onChange={handleImageSelect}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 cursor-pointer"
+                      className="input w-full py-3 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 cursor-pointer"
                     />
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs mt-1 text-ink-muted">
                       Upload an image from your computer (JPG, PNG, GIF - Max 5MB)
                     </p>
                     {(imagePreview || instructorForm.imageUrl) && (
@@ -1171,7 +1173,7 @@ export default function AdminPanel() {
                   <button
                     type="submit"
                     disabled={uploadingImage}
-                    className="w-full px-6 py-4 bg-primary-600 hover:bg-primary-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-xl font-bold text-lg transition-colors shadow-lg"
+                    className="btn btn-primary w-full px-6 py-4 text-lg"
                   >
                     {uploadingImage ? 'Uploading...' : editingInstructor ? 'Update Instructor' : 'Create Instructor'}
                   </button>
@@ -1181,18 +1183,18 @@ export default function AdminPanel() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {instructors.length === 0 ? (
-                <div className="col-span-full text-center py-12 bg-white rounded-2xl shadow-sm border border-gray-100">
-                  <p className="text-gray-500 mb-4">No instructors added yet.</p>
+                <div className="card col-span-full text-center py-12 rounded-2xl">
+                  <p className="mb-4 text-ink-muted">No instructors added yet.</p>
                   <button
                     onClick={() => setShowInstructorForm(true)}
-                    className="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-semibold transition-colors"
+                    className="btn btn-primary px-6 py-3"
                   >
                     Add Your First Instructor
                   </button>
                 </div>
               ) : (
                 instructors.map((instructor: any) => (
-                  <div key={instructor._id || instructor.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-lg transition-shadow">
+                  <div key={instructor._id || instructor.id} className="card rounded-2xl p-6 hover:shadow-lg transition-shadow">
                     <div className="text-center mb-4">
                       {instructor.imageUrl ? (
                         <img
@@ -1209,13 +1211,13 @@ export default function AdminPanel() {
                         </div>
                       )}
                     </div>
-                    <h3 className="text-xl font-bold text-gray-900 mb-2 text-center">{instructor.name}</h3>
+                    <h3 className="text-xl font-bold mb-2 text-center text-ink">{instructor.name}</h3>
                     <p className="text-primary-600 font-semibold mb-3 text-center text-sm">{instructor.title}</p>
-                    <p className="text-gray-600 text-sm mb-4 line-clamp-3">{instructor.description}</p>
+                    <p className="text-sm mb-4 line-clamp-3 text-ink-muted">{instructor.description}</p>
                     <div className="flex gap-2">
                       <button
                         onClick={() => handleEditInstructor(instructor)}
-                        className="flex-1 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-semibold transition-colors"
+                        className="btn btn-primary flex-1 px-4 py-2 text-sm"
                       >
                         Edit
                       </button>
@@ -1236,23 +1238,23 @@ export default function AdminPanel() {
         {/* Users Tab */}
         {activeTab === 'users' && (
           <div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">User Management</h2>
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+            <h2 className="text-2xl font-bold mb-6 text-ink">User Management</h2>
+            <div className="card rounded-2xl overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
+                <table className="table-orbit w-full">
+                  <thead className="border-b border-gray-200 dark:border-gray-600">
                     <tr>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Name</th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Email</th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Role</th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Status</th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Actions</th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-ink-muted">Name</th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-ink-muted">Email</th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-ink-muted">Role</th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-ink-muted">Status</th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-ink-muted">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                  <tbody className="">
                     {users.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+                        <td colSpan={5} className="px-6 py-8 text-center text-ink-muted">
                           No users found
                         </td>
                       </tr>
@@ -1260,16 +1262,16 @@ export default function AdminPanel() {
                       users.map((userItem: any) => (
                         <tr key={userItem._id || userItem.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm font-medium text-gray-900 dark:text-white">{userItem.name}</div>
+                            <div className="text-sm font-medium text-ink">{userItem.name}</div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-600 dark:text-gray-400">{userItem.email}</div>
+                            <div className="text-sm text-ink-muted">{userItem.email}</div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <select
                               value={userItem.role}
                               onChange={(e) => handleUpdateUserRole(userItem._id || userItem.id, e.target.value)}
-                              className="px-3 py-1 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+                              className="input text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                               disabled={userItem.role === 'superadmin' || !isSuperAdmin}
                               title={
                                 userItem.role === 'superadmin'
@@ -1337,42 +1339,28 @@ export default function AdminPanel() {
         {/* Analytics Tab */}
         {activeTab === 'analytics' && analytics && (
           <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Real-Time Analytics</h2>
+            <div><p className="page-kicker">Analytics</p><h2 className="section-title mt-2 !text-xl">Real-Time Analytics</h2></div>
             
-            {/* Summary Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-              <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-4 text-neutral-900 dark:text-white shadow-sm">
-                <div className="text-3xl font-bold mb-1">{analytics.totalUsers || 0}</div>
-                <div className="text-neutral-500 text-xs font-medium">Total Users</div>
-              </div>
-              <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-4 text-neutral-900 dark:text-white shadow-sm">
-                <div className="text-3xl font-bold mb-1">{analytics.totalCourses || 0}</div>
-                <div className="text-neutral-500 text-xs font-medium">Total Courses</div>
-              </div>
-              <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-4 text-neutral-900 dark:text-white shadow-sm">
-                <div className="text-3xl font-bold mb-1">{analytics.totalEnrollments || 0}</div>
-                <div className="text-neutral-500 text-xs font-medium">Enrollments</div>
-              </div>
-              <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-4 text-neutral-900 dark:text-white shadow-sm">
-                <div className="text-3xl font-bold mb-1">{analytics.activeUsers || 0}</div>
-                <div className="text-neutral-500 text-xs font-medium">Active (7d)</div>
-              </div>
-              <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-4 text-neutral-900 dark:text-white shadow-sm">
-                <div className="text-3xl font-bold mb-1">{analytics.recentMessages || 0}</div>
-                <div className="text-neutral-500 text-xs font-medium">Messages (24h)</div>
-              </div>
-            </div>
+            <ReadoutStrip
+              items={[
+                { label: 'Total Users', value: analytics.totalUsers || 0 },
+                { label: 'Total Courses', value: analytics.totalCourses || 0 },
+                { label: 'Enrollments', value: analytics.totalEnrollments || 0 },
+                { label: 'Active (7d)', value: analytics.activeUsers || 0 },
+                { label: 'Messages (24h)', value: analytics.recentMessages || 0 },
+              ]}
+            />
 
             {/* Charts Grid */}
             <AdminAnalyticsCharts analytics={analytics} />
 
             {FEATURES.COMMUNITY && (
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 mt-6">
+            <div className="card rounded-xl p-6 mt-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white">Forex News Updates</h3>
+                <h3 className="text-lg font-bold text-ink">Forex News Updates</h3>
                 <button
                   onClick={() => setShowNewsModal(true)}
-                  className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold text-sm transition-colors flex items-center space-x-2"
+                  className="btn btn-primary px-4 py-2 text-sm flex items-center space-x-2"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -1380,7 +1368,7 @@ export default function AdminPanel() {
                   <span>Post News</span>
                 </button>
               </div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
+              <p className="text-sm text-ink-muted">
                 Share important Forex updates, market news, and announcements with the community
               </p>
             </div>
@@ -1393,23 +1381,23 @@ export default function AdminPanel() {
           <div className="space-y-6">
             <div className="flex justify-between items-center mb-6">
               <div>
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Pending Approvals</h2>
-                <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">
+                <h2 className="text-2xl font-bold text-ink">Pending Approvals</h2>
+                <p className="text-sm mt-1 text-ink-muted">
                   Review and approve or reject pending registrations
                 </p>
               </div>
               <button
                 onClick={loadPendingUsers}
-                className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold transition-colors"
+                className="btn btn-primary px-4 py-2"
               >
                 Refresh
               </button>
             </div>
 
             {pendingUsers.length === 0 ? (
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-12 text-center">
+              <div className="card rounded-xl p-12 text-center">
                 <svg
-                  className="w-16 h-16 text-gray-500 dark:text-gray-400 mx-auto mb-4"
+                  className="w-16 h-16 mx-auto mb-4 text-ink-muted"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -1421,45 +1409,45 @@ export default function AdminPanel() {
                     d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
                   />
                 </svg>
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">No Pending Approvals</h3>
-                <p className="text-gray-600 dark:text-gray-400">
+                <h3 className="text-xl font-bold mb-2 text-ink">No Pending Approvals</h3>
+                <p className="text-ink-muted">
                   All instructor and admin registrations have been reviewed.
                 </p>
               </div>
             ) : (
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+              <div className="card rounded-xl overflow-hidden">
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-full">
-                    <thead className="bg-neutral-50 dark:bg-neutral-800">
+                  <table className="table-orbit w-full min-w-full">
+                    <thead className="">
                       <tr>
-                        <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                        <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-ink-muted">
                           Name
                         </th>
-                        <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                        <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-ink-muted">
                           Email
                         </th>
-                        <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                        <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-ink-muted">
                           Role
                         </th>
-                        <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                        <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-ink-muted">
                           Registered
                         </th>
-                        <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                        <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-ink-muted">
                           Actions
                         </th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                    <tbody className="">
                       {pendingUsers.map((pendingUser: any) => (
                         <tr
                           key={pendingUser.id}
                           className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
                         >
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm font-bold text-gray-900 dark:text-white">{pendingUser.name}</div>
+                            <div className="text-sm font-bold text-ink">{pendingUser.name}</div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-600 dark:text-gray-400">{pendingUser.email}</div>
+                            <div className="text-sm text-ink-muted">{pendingUser.email}</div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span
@@ -1473,7 +1461,7 @@ export default function AdminPanel() {
                             </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-600 dark:text-gray-400">
+                            <div className="text-sm text-ink-muted">
                               {pendingUser.createdAt
                                 ? new Date(pendingUser.createdAt).toLocaleDateString()
                                 : 'N/A'}
@@ -1509,18 +1497,18 @@ export default function AdminPanel() {
         {activeTab === 'certificates' && (
           <div className="space-y-6">
             <div className="mb-6">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Send Certificates</h2>
-              <p className="text-gray-600 dark:text-gray-400 text-sm">
+              <h2 className="text-2xl font-bold mb-2 text-ink">Send Certificates</h2>
+              <p className="text-sm text-ink-muted">
                 Issue certificates to students by entering their ID or email address and selecting a course
               </p>
             </div>
 
             {/* Send Certificate Form */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
+            <div className="card rounded-xl p-6">
               <form onSubmit={handleSendCertificate} className="space-y-6">
                 {/* Student Identifier Input */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                  <label className="block text-sm font-semibold mb-2 text-ink-muted">
                     Student ID or Email <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -1528,23 +1516,23 @@ export default function AdminPanel() {
                     value={certificateForm.studentIdentifier}
                     onChange={(e) => setCertificateForm({ ...certificateForm, studentIdentifier: e.target.value })}
                     placeholder="Enter student ID or email address"
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    className="input w-full"
                     required
                   />
-                  <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                  <p className="mt-2 text-xs text-ink-muted">
                     You can enter either the student's MongoDB ID or their email address
                   </p>
                 </div>
 
                 {/* Course Selection */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                  <label className="block text-sm font-semibold mb-2 text-ink-muted">
                     Course <span className="text-red-500">*</span>
                   </label>
                   <select
                     value={certificateForm.courseId}
                     onChange={(e) => setCertificateForm({ ...certificateForm, courseId: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    className="input w-full"
                     required
                   >
                     <option value="">Select a course</option>
@@ -1565,7 +1553,7 @@ export default function AdminPanel() {
                     onChange={(e) => setCertificateForm({ ...certificateForm, sendEmail: e.target.checked })}
                     className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
                   />
-                  <label htmlFor="sendEmail" className="ml-2 text-sm text-gray-700 dark:text-gray-300">
+                  <label htmlFor="sendEmail" className="ml-2 text-sm text-ink-muted">
                     Send email notification to student (optional)
                   </label>
                 </div>
@@ -1602,8 +1590,8 @@ export default function AdminPanel() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 <div>
-                  <h3 className="text-sm font-semibold text-neutral-900 dark:text-primary-400 mb-1">How it works</h3>
-                  <ul className="text-xs text-neutral-800 dark:text-neutral-300 space-y-1">
+                  <h3 className="text-sm font-semibold dark:text-primary-400 mb-1 text-ink">How it works</h3>
+                  <ul className="text-xs dark:text-neutral-300 space-y-1 text-ink">
                     <li>• Enter the student's ID (MongoDB ObjectId) or email address</li>
                     <li>• Select the course for which to issue the certificate</li>
                     <li>• The certificate will be automatically assigned to the student</li>
@@ -1620,19 +1608,19 @@ export default function AdminPanel() {
         {activeTab === 'classes' && (
           <div className="space-y-6">
             <div className="mb-6">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Upcoming Classes & Events</h2>
-              <p className="text-gray-600 dark:text-gray-400 text-sm">
+              <h2 className="text-2xl font-bold mb-2 text-ink">Upcoming Classes & Events</h2>
+              <p className="text-sm text-ink-muted">
                 Create and manage upcoming classes or events that will be visible to students on their dashboard
               </p>
             </div>
 
             {/* Create Class Form */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Create New Class/Event</h3>
+            <div className="card rounded-xl p-6">
+              <h3 className="text-xl font-bold mb-4 text-ink">Create New Class/Event</h3>
               <form onSubmit={editingClass ? handleUpdateClass : handleCreateClass} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                    <label className="block text-sm font-semibold mb-2 text-ink-muted">
                       Title <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -1640,25 +1628,25 @@ export default function AdminPanel() {
                       value={classForm.title}
                       onChange={(e) => setClassForm({ ...classForm, title: e.target.value })}
                       placeholder="e.g., Advanced Trading Strategies Workshop"
-                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      className="input w-full"
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                    <label className="block text-sm font-semibold mb-2 text-ink-muted">
                       Date <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="date"
                       value={classForm.date}
                       onChange={(e) => setClassForm({ ...classForm, date: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      className="input w-full"
                       required
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                  <label className="block text-sm font-semibold mb-2 text-ink-muted">
                     Description <span className="text-red-500">*</span>
                   </label>
                   <textarea
@@ -1666,25 +1654,25 @@ export default function AdminPanel() {
                     onChange={(e) => setClassForm({ ...classForm, description: e.target.value })}
                     placeholder="Describe the class or event..."
                     rows={3}
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    className="input w-full"
                     required
                   />
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                    <label className="block text-sm font-semibold mb-2 text-ink-muted">
                       Time <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="time"
                       value={classForm.time}
                       onChange={(e) => setClassForm({ ...classForm, time: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      className="input w-full"
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                    <label className="block text-sm font-semibold mb-2 text-ink-muted">
                       Meeting Link (Optional)
                     </label>
                     <input
@@ -1692,18 +1680,18 @@ export default function AdminPanel() {
                       value={classForm.meetingLink}
                       onChange={(e) => setClassForm({ ...classForm, meetingLink: e.target.value })}
                       placeholder="https://meet.google.com/..."
-                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      className="input w-full"
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                  <label className="block text-sm font-semibold mb-2 text-ink-muted">
                     Course for enrolled students
                   </label>
                   <select
                     value={classForm.courseId}
                     onChange={(e) => setClassForm({ ...classForm, courseId: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    className="input w-full"
                   >
                     <option value="">No course notification</option>
                     {courses.map((course) => (
@@ -1716,7 +1704,7 @@ export default function AdminPanel() {
                 <button
                   type="submit"
                   disabled={submittingClass}
-                  className="w-full md:w-auto px-6 py-3 bg-primary-600 hover:bg-primary-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-xl font-semibold transition-colors"
+                  className="btn btn-primary w-full md:w-auto px-6 py-3"
                 >
                   {submittingClass ? (editingClass ? 'Saving...' : 'Creating...') : (editingClass ? 'Save Class' : 'Create Class')}
                 </button>
@@ -1724,11 +1712,11 @@ export default function AdminPanel() {
             </div>
 
             {/* List of Upcoming Classes */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Scheduled Classes</h3>
+            <div className="card rounded-xl p-6">
+              <h3 className="text-xl font-bold mb-4 text-ink">Scheduled Classes</h3>
               {upcomingClasses.length === 0 ? (
                 <div className="text-center py-8">
-                  <p className="text-gray-500 dark:text-gray-400">No upcoming classes scheduled yet.</p>
+                  <p className="text-ink-muted">No upcoming classes scheduled yet.</p>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -1739,9 +1727,9 @@ export default function AdminPanel() {
                     >
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                         <div className="flex-1">
-                          <h4 className="font-bold text-gray-900 dark:text-white mb-1">{cls.title}</h4>
-                          <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">{cls.description}</p>
-                          <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
+                          <h4 className="font-bold mb-1 text-ink">{cls.title}</h4>
+                          <p className="text-sm mb-2 text-ink-muted">{cls.description}</p>
+                          <div className="flex flex-wrap items-center gap-3 text-xs text-ink-muted">
                             <span className="flex items-center">
                               <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -1766,7 +1754,7 @@ export default function AdminPanel() {
                           {/* FIX: Edit and Delete buttons */}
                           <button
                             onClick={() => handleEditClass(cls)}
-                            className="px-3 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold text-sm transition-colors flex items-center space-x-1"
+                            className="btn btn-primary px-3 py-2 text-sm flex items-center space-x-1"
                             title="Edit Class"
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1789,7 +1777,7 @@ export default function AdminPanel() {
                               href={cls.meetingLink}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold text-sm transition-colors whitespace-nowrap"
+                              className="btn btn-primary px-4 py-2 text-sm whitespace-nowrap"
                             >
                               Join Class
                             </a>
@@ -1808,8 +1796,8 @@ export default function AdminPanel() {
         {activeTab === 'consultations' && (
           <div className="space-y-6">
             <div className="mb-6">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Consultation Requests Management</h2>
-              <p className="text-gray-600 dark:text-gray-400 text-sm">
+              <h2 className="text-2xl font-bold mb-2 text-ink">Consultation Requests Management</h2>
+              <p className="text-sm text-ink-muted">
                 View and manage consultation requests. Publish your own hours from Consultation availability.
               </p>
               <p className="mt-3 text-sm">
@@ -1825,21 +1813,21 @@ export default function AdminPanel() {
 
             {loadingConsultations ? (
               <div className="text-center py-12">
-                <p className="text-gray-600 dark:text-gray-400">Loading consultation requests...</p>
+                <p className="text-ink-muted">Loading consultation requests...</p>
               </div>
             ) : consultationRequests.length === 0 ? (
               <div className="text-center py-12">
                 <svg className="w-16 h-16 mx-auto mb-4 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                 </svg>
-                <p className="text-gray-500 dark:text-gray-400">No consultation requests at the moment</p>
+                <p className="text-ink-muted">No consultation requests at the moment</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-4">
                 {consultationRequests.map((request) => (
                   <div
                     key={request._id}
-                    className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6"
+                    className="card rounded-xl p-6"
                   >
                     <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
                       <div className="flex-1">
@@ -1853,7 +1841,7 @@ export default function AdminPanel() {
                           }`}>
                             {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
                           </span>
-                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                          <span className="text-xs text-ink-muted">
                             {formatDistanceToNow(new Date(request.createdAt), { addSuffix: true })}
                           </span>
                         </div>
@@ -1870,9 +1858,9 @@ export default function AdminPanel() {
                                 />
                               )}
                               <div>
-                                <p className="text-sm font-semibold text-gray-900 dark:text-white">Student</p>
-                                <p className="text-sm text-gray-600 dark:text-gray-400">{request.student.name}</p>
-                                <p className="text-xs text-gray-500 dark:text-gray-500">{request.student.email}</p>
+                                <p className="text-sm font-semibold text-ink">Student</p>
+                                <p className="text-sm text-ink-muted">{request.student.name}</p>
+                                <p className="text-xs dark:text-gray-500 text-ink-muted">{request.student.email}</p>
                               </div>
                             </div>
                           )}
@@ -1888,25 +1876,25 @@ export default function AdminPanel() {
                                 />
                               )}
                               <div>
-                                <p className="text-sm font-semibold text-gray-900 dark:text-white">Instructor</p>
-                                <p className="text-sm text-gray-600 dark:text-gray-400">{request.expert.name}</p>
-                                <p className="text-xs text-gray-500 dark:text-gray-500">{request.expert.email}</p>
+                                <p className="text-sm font-semibold text-ink">Instructor</p>
+                                <p className="text-sm text-ink-muted">{request.expert.name}</p>
+                                <p className="text-xs dark:text-gray-500 text-ink-muted">{request.expert.email}</p>
                               </div>
                             </div>
                           )}
                         </div>
 
                         <div className="mb-3">
-                          <p className="text-sm font-semibold text-gray-900 dark:text-white mb-1">Topic</p>
-                          <p className="text-sm text-gray-700 dark:text-gray-300">{request.topic}</p>
+                          <p className="text-sm font-semibold mb-1 text-ink">Topic</p>
+                          <p className="text-sm text-ink-muted">{request.topic}</p>
                         </div>
 
                         <div className="mb-3">
-                          <p className="text-sm font-semibold text-gray-900 dark:text-white mb-1">Description</p>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">{request.description}</p>
+                          <p className="text-sm font-semibold mb-1 text-ink">Description</p>
+                          <p className="text-sm text-ink-muted">{request.description}</p>
                         </div>
 
-                        <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
+                        <div className="flex items-center gap-4 text-xs text-ink-muted">
                           <span>
                             Type: <span className="capitalize font-semibold">{String(request.consultationType || 'consultation').replace('-', ' ')}</span>
                           </span>
@@ -1979,12 +1967,12 @@ export default function AdminPanel() {
 
       {/* News Modal - View All Updates with Edit/Delete */}
       {showNewsModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="glass-scrim fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="card rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
             {/* Modal Header */}
             <div className="p-6 border-b border-gray-200 dark:border-gray-700 bg-neutral-50 dark:bg-neutral-900">
               <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center">
+                <h2 className="text-2xl font-bold flex items-center text-ink">
                   <svg className="w-6 h-6 mr-2 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
                   </svg>
@@ -1997,7 +1985,7 @@ export default function AdminPanel() {
                       setEditingNews(null);
                       setNewsEditForm({ title: '', description: '', category: 'market', content: '', link: '' });
                     }}
-                    className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold text-sm transition-colors flex items-center space-x-2"
+                    className="btn btn-primary px-4 py-2 text-sm flex items-center space-x-2"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -2026,7 +2014,7 @@ export default function AdminPanel() {
                   <svg className="w-16 h-16 mx-auto mb-4 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
                   </svg>
-                  <p className="text-gray-500 dark:text-gray-400">No updates available at the moment</p>
+                  <p className="text-ink-muted">No updates available at the moment</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -2039,14 +2027,14 @@ export default function AdminPanel() {
                         <span className="px-2 py-1 bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 text-xs font-semibold rounded capitalize">
                           {news.category}
                         </span>
-                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                        <span className="text-xs text-ink-muted">
                           {news.createdAt ? formatDistanceToNow(new Date(news.createdAt as string | number | Date), { addSuffix: true }) : 'Unknown date'}
                         </span>
                       </div>
-                      <h3 className="font-semibold text-gray-900 dark:text-white text-sm mb-2">{news.title}</h3>
-                      <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-3 mb-2">{news.description}</p>
+                      <h3 className="font-semibold text-sm mb-2 text-ink">{news.title}</h3>
+                      <p className="text-xs line-clamp-3 mb-2 text-ink-muted">{news.description}</p>
                       {news.content && (
-                        <p className="text-xs text-gray-500 dark:text-gray-500 line-clamp-2 mb-2">{news.content}</p>
+                        <p className="text-xs dark:text-gray-500 line-clamp-2 mb-2 text-ink-muted">{news.content}</p>
                       )}
                       <div className="flex items-center justify-between mt-3">
                         {news.link && (
@@ -2121,12 +2109,12 @@ export default function AdminPanel() {
 
       {/* Edit/Create News Modal */}
       {editingNews && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="glass-scrim fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="card rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
             {/* Modal Header */}
             <div className="p-6 border-b border-gray-200 dark:border-gray-700 bg-neutral-50 dark:bg-neutral-900">
               <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center">
+                <h2 className="text-2xl font-bold flex items-center text-ink">
                   {editingNews._id ? (
                     <svg className="w-6 h-6 mr-2 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -2181,7 +2169,7 @@ export default function AdminPanel() {
               className="flex-1 overflow-y-auto p-6 space-y-4"
             >
               <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                <label className="block text-sm font-semibold mb-2 text-ink-muted">
                   Title <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -2189,13 +2177,13 @@ export default function AdminPanel() {
                   value={newsEditForm.title}
                   onChange={(e) => setNewsEditForm({ ...newsEditForm, title: e.target.value })}
                   placeholder="e.g., NFP Results: 200K Jobs Added"
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-600 focus:border-transparent"
+                  className="input w-full"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                <label className="block text-sm font-semibold mb-2 text-ink-muted">
                   Description <span className="text-red-500">*</span>
                 </label>
                 <textarea
@@ -2203,19 +2191,19 @@ export default function AdminPanel() {
                   onChange={(e) => setNewsEditForm({ ...newsEditForm, description: e.target.value })}
                   placeholder="Brief summary of the news update"
                   rows={3}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-600 focus:border-transparent"
+                  className="input w-full"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                <label className="block text-sm font-semibold mb-2 text-ink-muted">
                   Category <span className="text-red-500">*</span>
                 </label>
                 <select
                   value={newsEditForm.category}
                   onChange={(e) => setNewsEditForm({ ...newsEditForm, category: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-600 focus:border-transparent"
+                  className="input w-full"
                   required
                 >
                   <option value="market">Market News</option>
@@ -2228,7 +2216,7 @@ export default function AdminPanel() {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                <label className="block text-sm font-semibold mb-2 text-ink-muted">
                   Content (Optional)
                 </label>
                 <textarea
@@ -2236,12 +2224,12 @@ export default function AdminPanel() {
                   onChange={(e) => setNewsEditForm({ ...newsEditForm, content: e.target.value })}
                   placeholder="Detailed content or analysis"
                   rows={5}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-600 focus:border-transparent"
+                  className="input w-full"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                <label className="block text-sm font-semibold mb-2 text-ink-muted">
                   Link (Optional)
                 </label>
                 <input
@@ -2249,7 +2237,7 @@ export default function AdminPanel() {
                   value={newsEditForm.link}
                   onChange={(e) => setNewsEditForm({ ...newsEditForm, link: e.target.value })}
                   placeholder="https://example.com/article"
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-600 focus:border-transparent"
+                  className="input w-full"
                 />
               </div>
 

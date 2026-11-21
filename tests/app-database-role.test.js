@@ -158,6 +158,7 @@ const MEMBER_COLLECTION_MODULES = new Map([
   ['lib/quiz-attempts.js', ['lib/quiz-attempts.js', 'COLLECTIONS']],
   ['lib/trading/engine.js', ['lib/trading/engine.js', 'COLLECTIONS']],
   ['lib/trading/retention.js', ['lib/trading/engine.js', 'COLLECTIONS']],
+  ['lib/trading/reviews.js', ['lib/trading/reviews.js', 'COLLECTIONS']],
   ['pages/api/admin/market.ts', ['lib/trading/market-data.js', 'COLLECTIONS']],
   ['lib/market/series.js', ['lib/market/series.js', 'COLLECTIONS']],
   ['lib/market/health.js', ['lib/market/health.js', 'COLLECTIONS']],

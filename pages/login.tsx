@@ -92,7 +92,7 @@ export default function Login() {
       }
     >
       {error ? (
-        <p className="mb-5 text-sm leading-relaxed text-[#9f1239]" role="alert">{error}</p>
+        <p className="notice mb-5 !border-[color-mix(in_srgb,var(--fo-down)_40%,transparent)] !text-down" role="alert">{error}</p>
       ) : null}
       <form onSubmit={handleSubmit} className="space-y-3.5">
         <div>

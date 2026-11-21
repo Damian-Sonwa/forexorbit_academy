@@ -74,22 +74,22 @@ export default function ConsultationAdmin() {
   if (!user || user.role !== 'superadmin') return <div className="flex min-h-screen items-center justify-center">Access denied</div>;
 
   return (
-    <div className="flex min-h-screen flex-col bg-gray-50 dark:bg-gray-900">
+    <div className="flex min-h-screen flex-col">
       <Header />
       <div className="flex flex-1 lg:items-start">
         <Sidebar />
         <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-8 pt-16 lg:pt-8">
           <p className="page-kicker">Super admin</p>
           <h1 className="page-title mt-2">Consultation admin</h1>
-          <p className="mt-2 max-w-2xl text-sm text-neutral-600">Approve who may publish consultation hours. Your own hours are published from Consultation availability.</p>
-          <Link href="/consultations/expert" className="mt-4 inline-flex rounded-full bg-primary-400 px-5 py-2.5 text-sm font-semibold text-neutral-900">Publish my hours</Link>
+          <p className="page-lede">Approve who may publish consultation hours. Your own hours are published from Consultation availability.</p>
+          <Link href="/consultations/expert" className="btn btn-primary mt-4 rounded-full px-5">Publish my hours</Link>
           {error ? <p className="mt-4 text-sm text-red-700" role="alert">{error}</p> : null}
           {notice ? <p className="mt-4 text-sm font-semibold" role="status">{notice}</p> : null}
           {loading ? <div className="mt-6 h-24 animate-pulse rounded-2xl bg-neutral-200" aria-hidden /> : null}
 
           <form className="mt-8 border-t border-neutral-200 pt-6" onSubmit={toggleFeature}>
             <h2 className="font-display text-lg font-semibold">Bookings</h2>
-            <p className="mt-2 text-sm text-neutral-600">{enabled ? 'Learners can request consultations.' : 'Learners cannot start a new consultation.'}</p>
+            <p className="mt-2 text-sm text-ink-muted">{enabled ? 'Learners can request consultations.' : 'Learners cannot start a new consultation.'}</p>
             <button type="submit" className="mt-3 text-sm font-semibold text-primary-700">{enabled ? 'Turn bookings off' : 'Turn bookings on'}</button>
           </form>
 
@@ -102,7 +102,7 @@ export default function ConsultationAdmin() {
                 <li key={id} className="flex flex-wrap items-center justify-between gap-3 py-3">
                   <span>
                     <span className="block font-medium">{person.name || 'Staff member'}</span>
-                    <span className="text-sm capitalize text-neutral-500">{person.role}{person.isExpert ? ' · expert' : ''}</span>
+                    <span className="text-sm capitalize text-ink-muted">{person.role}{person.isExpert ? ' · expert' : ''}</span>
                   </span>
                   <button type="button" className="text-sm font-semibold text-primary-700" onClick={() => setExpert(id, !person.isExpert)}>
                     {person.isExpert ? 'Remove expert approval' : 'Approve as expert'}
@@ -111,7 +111,7 @@ export default function ConsultationAdmin() {
                 );
               })}
             </ul>
-            {!loading && staff.length === 0 ? <p className="mt-3 text-sm text-neutral-600">No instructor or admin accounts were found.</p> : null}
+            {!loading && staff.length === 0 ? <p className="mt-3 text-sm text-ink-muted">No instructor or admin accounts were found.</p> : null}
           </section>
 
           <section className="mt-8">
@@ -120,11 +120,11 @@ export default function ConsultationAdmin() {
               {experts.map((expert) => (
                 <li key={expert._id} className="py-3 text-sm">
                   <span className="font-medium">{expert.name || 'Expert'}</span>
-                  <span className="text-neutral-500"> · {expert.expertAvailable === false ? 'Paused' : 'Taking consultations'}</span>
+                  <span className="text-ink-muted"> · {expert.expertAvailable === false ? 'Paused' : 'Taking consultations'}</span>
                 </li>
               ))}
             </ul>
-            {!loading && experts.length === 0 ? <p className="mt-3 text-sm text-neutral-600">Nobody has been approved yet. Publishing your own hours also approves your account.</p> : null}
+            {!loading && experts.length === 0 ? <p className="mt-3 text-sm text-ink-muted">Nobody has been approved yet. Publishing your own hours also approves your account.</p> : null}
           </section>
         </main>
       </div>

@@ -9,6 +9,8 @@ import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
 import Footer from '@/components/Footer';
 import CourseCover from '@/components/CourseCover';
+import OrbitProgress from '@/components/ui/OrbitProgress';
+import { difficultyChip } from '@/lib/difficulty-style';
 import { decodeHtmlEntities } from '@/lib/plain-text';
 import BackButton from '@/components/BackButton';
 import LoadingSpinner from '@/components/LoadingSpinner';
@@ -170,7 +172,7 @@ export default function CourseDetailPage() {
           <Sidebar />
           <main className="flex-1 flex items-center justify-center px-6 pt-16">
             <div className="max-w-md text-center">
-              <p className="text-lg font-semibold text-neutral-900">{error ? 'This course could not be loaded' : 'Course not found'}</p>
+              <p className="text-lg font-semibold text-ink">{error ? 'This course could not be loaded' : 'Course not found'}</p>
               {error && (
                 <button type="button" onClick={() => refetchCourse()} className="btn btn-primary mt-4">Try again</button>
               )}
@@ -181,39 +183,37 @@ export default function CourseDetailPage() {
     );
   }
 
-  const difficultyColors = {
-    beginner: 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-300',
-    intermediate: 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-300',
-    advanced: 'border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-400/30 dark:bg-rose-400/10 dark:text-rose-300',
-  };
 
   const difficultyKey = ((course && (course.difficulty as any)) || 'beginner') as 'beginner' | 'intermediate' | 'advanced';
-  const difficultyClass = difficultyColors[difficultyKey];
+  const difficultyClass = difficultyChip(difficultyKey);
 
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
       <div className="flex flex-1 lg:items-start">
         <Sidebar />
-        <main className="flex-1 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pt-16 lg:pt-8 w-full">
+        <main className="mx-auto w-full max-w-6xl flex-1 px-4 pb-12 pt-20 sm:px-6 lg:px-10 lg:pt-8">
         {/* Back Button */}
         <div className="mb-3">
           <BackButton href="/courses" />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:gap-8">
           {/* Main Content */}
           <div className="lg:col-span-2">
-            <div className="mb-4 overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-soft">
-              <CourseCover course={course} aspect="aspect-[16/9] sm:aspect-[21/9]" priority />
-              <div className="p-5 sm:p-7">
-              <div className="mb-3">
-                <div className="mb-3 flex flex-wrap items-center gap-2">
-                  <span className={`chip ${difficultyClass}`}>{course.difficulty}</span>
-                  {course.category && <span className="text-sm capitalize text-neutral-500">{course.category}</span>}
+            <div className="panel-hero mb-6">
+              <div className="relative">
+                <CourseCover course={course} aspect="aspect-[16/9] sm:aspect-[21/9]" priority className="rounded-none" />
+                <div aria-hidden className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[var(--fo-surface-1)] via-[color-mix(in_srgb,var(--fo-surface-1)_35%,transparent)] to-transparent" />
+                <div className="absolute inset-x-0 bottom-0 p-5 sm:p-7">
+                  <div className="mb-3 flex flex-wrap items-center gap-2">
+                    <span className={`chip backdrop-blur-md ${difficultyClass}`}>{course.difficulty}</span>
+                    {course.category && <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-muted">{course.category.replace(/-/g, ' ')}</span>}
+                  </div>
+                  <h1 className="page-title break-words sm:!text-[2.5rem]">{course.title}</h1>
                 </div>
-                <h1 className="page-title break-words sm:text-4xl">{course.title}</h1>
               </div>
+              <div className="p-5 pt-2 sm:p-7 sm:pt-3">
 
               {course.description && hasVisibleHtml(sanitizeForStudentView(course.description)) && (
                 <div className="rich-html-readable text-base leading-relaxed mb-4">
@@ -223,46 +223,35 @@ export default function CourseDetailPage() {
 
               {/* Progress Bar */}
               {course.progress !== undefined && course.progress > 0 && (
-                <div className="mt-5 rounded-xl border border-neutral-200 bg-neutral-50 p-4">
-                  <div className="mb-2 flex justify-between text-sm">
-                    <span className="font-semibold text-neutral-700">Your progress</span>
-                    <span className="font-semibold text-neutral-900">{Math.round(course.progress)}%</span>
-                  </div>
-                  <div
-                    className="h-2 w-full overflow-hidden rounded-full bg-neutral-200"
-                    role="progressbar"
-                    aria-valuenow={Math.round(course.progress)}
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                    aria-label="Course progress"
-                  >
-                    <div
-                      className="h-2 rounded-full bg-primary-500 transition-[width] duration-500"
-                      style={{ width: `${course.progress}%` }}
-                    />
-                  </div>
+                <div className="mt-5 flex items-center gap-4 rounded-xl border border-line bg-surface-2 p-4">
+                  <OrbitProgress value={course.progress} size={60} label="Course progress" tone={course.progress >= 100 ? 'complete' : 'brand'} />
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-ink">Your progress</p>
+                    <p className="text-xs text-ink-subtle"><span className="num font-semibold text-ink">{Math.round(course.progress)}%</span> of the current course covered</p>
                   {course.completedAt && course.progress < 100 && (
-                    <p className="mt-2 text-xs text-neutral-600">
+                    <p className="mt-1 text-xs text-ink-muted">
                       You completed this course on {new Date(course.completedAt).toLocaleDateString()}. New lessons have been added since; the bar shows how much of the current course you have covered. Your completion and certificate are kept.
                     </p>
                   )}
+                  </div>
                 </div>
               )}
               </div>
             </div>
 
             {/* Lessons — source: GET /api/courses/:id/lessons { lessons } */}
-            <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-soft sm:p-7">
-              <h2 className="mb-4 font-display text-xl font-semibold text-neutral-900 sm:text-2xl">Course lessons</h2>
+            <div className="card rounded-2xl p-5 sm:p-7">
+              <p className="page-kicker">Curriculum</p>
+              <h2 className="mb-5 mt-2 section-title !text-xl">Course lessons</h2>
               {lessonsLoading && lessons.length === 0 ? (
-                <p className="py-10 text-center text-gray-500" role="status">Loading lessons…</p>
+                <p className="py-10 text-center text-ink-muted" role="status">Loading lessons…</p>
               ) : lessonsError && lessons.length === 0 ? (
                 <div className="py-10 text-center" role="alert">
-                  <p className="text-gray-700 dark:text-gray-300">{lessonsError}</p>
+                  <p className="text-ink-muted">{lessonsError}</p>
                   <button type="button" onClick={() => void refetchLessons()} className="btn btn-primary mt-4">Try again</button>
                 </div>
               ) : lessons.length > 0 ? (
-                <div className="space-y-3">
+                <div className="relative space-y-2.5">
                   {course.enrolled && continueTarget && (
                     <Link
                       href={lessonHref(String(id), continueTarget.id)}
@@ -294,33 +283,33 @@ export default function CourseDetailPage() {
                     const inner = (
                       <>
                         <div className="flex min-w-0 flex-1 items-center space-x-4">
-                          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${lesson.completed ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-300' : 'bg-primary-50 text-primary-700 dark:bg-primary-400/10 dark:text-primary-300'}`}>
+                          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold num ring-4 ring-[var(--fo-surface-1)] ${lesson.completed ? 'bg-primary-500 text-neutral-950 shadow-[0_0_12px_rgba(255,112,18,0.45)]' : locked ? 'border border-[var(--fo-line-strong)] bg-surface-1 text-ink-subtle' : 'border border-primary-500/50 bg-tint text-primary-600 dark:text-primary-300'}`}>
                             {lesson.completed ? '✓' : index + 1}
                           </div>
                           <div className="min-w-0 flex-1 text-left">
                             <h3
-                              className={`font-semibold ${locked ? 'text-gray-600 dark:text-gray-400' : 'text-gray-900 group-hover:text-primary-600 dark:text-gray-100'}`}
+                              className={`font-semibold ${locked ? 'text-ink-subtle' : 'text-ink transition-colors group-hover:text-primary-600 dark:group-hover:text-primary-400'}`}
                               dangerouslySetInnerHTML={{ __html: sanitizeForStudentView(lesson.title) }}
                             />
                             {!locked && hasVisibleHtml(lessonDescStudent) && previewPlain && (
-                              <p className="mt-1 line-clamp-2 text-sm text-gray-600 dark:text-gray-300">
+                              <p className="mt-1 line-clamp-2 text-sm text-ink-muted">
                                 {previewPlain.length > 200 ? `${previewPlain.slice(0, 200)}…` : previewPlain}
                               </p>
                             )}
                             {badge && (
-                              <span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${locked ? 'bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-300' : 'bg-primary-50 text-primary-700 dark:bg-primary-400/10 dark:text-primary-300'}`}>
+                              <span className={`chip mt-1.5 ${locked ? '' : 'chip-brand'}`}>
                                 {badge}
                               </span>
                             )}
                           </div>
                         </div>
                         {locked ? (
-                          <svg className="h-5 w-5 shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                          <svg className="h-5 w-5 shrink-0 text-ink-subtle" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                           </svg>
                         ) : (
                           <svg
-                            className="h-6 w-6 shrink-0 text-gray-400 transition-all group-hover:translate-x-1 group-hover:text-primary-600"
+                            className="h-6 w-6 shrink-0 transition-all group-hover:translate-x-1 group-hover:text-primary-600 text-ink-subtle"
                             fill="none"
                             stroke="currentColor"
                             viewBox="0 0 24 24"
@@ -334,13 +323,13 @@ export default function CourseDetailPage() {
                     return (
                       <div key={key}>
                         {locked ? (
-                          <div className="flex w-full items-center justify-between gap-3 rounded-xl border border-dashed border-neutral-200 p-4 sm:p-5" data-testid="course-lesson-locked">
+                          <div className="flex w-full items-center justify-between gap-3 rounded-xl border border-dashed border-line-strong p-4 opacity-80 sm:p-5" data-testid="course-lesson-locked">
                             {inner}
                           </div>
                         ) : (
                           <Link
                             href={lessonHref(String(id), lessonId)}
-                            className="group relative flex w-full items-center justify-between gap-3 rounded-xl border border-neutral-200 p-4 text-left transition-colors hover:border-primary-300 hover:bg-primary-50 dark:hover:border-primary-400/40 dark:hover:bg-primary-400/5 sm:p-5"
+                            className="group relative flex w-full items-center justify-between gap-3 rounded-xl border border-line bg-surface-1 p-4 text-left transition-all duration-200 ease-orbit hover:-translate-y-px hover:border-line-strong hover:shadow-lift sm:p-5"
                             data-testid="course-lesson-open"
                           >
                             {inner}
@@ -350,14 +339,14 @@ export default function CourseDetailPage() {
                     );
                   })}
                   {lockedCount > 0 && (
-                    <div className="rounded-xl border border-primary-200 bg-primary-50/70 p-5 dark:border-primary-400/25 dark:bg-primary-400/[0.06]">
-                      <p className="mb-1 text-sm text-gray-700 dark:text-gray-300">
+                    <div className="notice notice-brand !p-5">
+                      <p className="mb-1 text-sm text-ink-muted">
                         {lockedCount} locked lesson{lockedCount > 1 ? 's' : ''} in this course
                       </p>
                       {typeof id === 'string' && (
                         <PaystackCourseUnlock courseId={id} variant="compact" onUnlocked={handleCourseUnlocked} />
                       )}
-                      <p className="mt-3 text-xs text-gray-600 dark:text-gray-400">
+                      <p className="mt-3 text-xs text-ink-muted">
                         Paid but still locked? Enter your Paystack reference below.
                       </p>
                       <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -379,14 +368,14 @@ export default function CourseDetailPage() {
                         </button>
                       </div>
                       {fixMessage && (
-                        <p className="mt-2 text-sm text-gray-700 dark:text-gray-300" role="status">{fixMessage}</p>
+                        <p className="mt-2 text-sm text-ink-muted" role="status">{fixMessage}</p>
                       )}
                     </div>
                   )}
                 </div>
               ) : (
                 <div className="py-12 text-center">
-                  <p className="text-gray-500">No lessons available yet.</p>
+                  <p className="text-ink-muted">No lessons available yet.</p>
                 </div>
               )}
             </div>
@@ -394,28 +383,28 @@ export default function CourseDetailPage() {
 
           {/* Sidebar */}
           <div>
-            <div className="sticky top-20 rounded-2xl border border-neutral-200 bg-white p-5 shadow-soft sm:top-24 sm:p-6">
+            <div className="card panel-instrument sticky top-20 p-5 sm:p-6">
               <dl className="grid grid-cols-3 gap-3 lg:grid-cols-1 lg:gap-4">
                 <div>
-                  <dt className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Category</dt>
-                  <dd className="mt-1 font-semibold capitalize text-neutral-900">{course.category}</dd>
+                  <dt className="readout-label">Category</dt>
+                  <dd className="mt-1 font-semibold capitalize text-ink">{course.category}</dd>
                 </div>
                 <div>
-                  <dt className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Level</dt>
-                  <dd className="mt-1 font-semibold capitalize text-neutral-900">{course.difficulty}</dd>
+                  <dt className="readout-label">Level</dt>
+                  <dd className="mt-1 font-semibold capitalize text-ink">{course.difficulty}</dd>
                 </div>
                 <div>
-                  <dt className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Lessons</dt>
-                  <dd className="mt-1 font-semibold text-neutral-900">
+                  <dt className="readout-label">Lessons</dt>
+                  <dd className="mt-1 font-semibold text-ink">
                     {lessonsLoading ? '…' : lessons.length} lessons
                   </dd>
                 </div>
               </dl>
               <div className="space-y-3">
 
-                <div className="mt-5 border-t border-neutral-200 pt-5">
+                <div className="mt-5 border-t border-line pt-5">
                   {course.owned ? (
-                    <p className="mb-3 rounded-lg bg-primary-50 px-3 py-2 text-sm font-semibold text-primary-800 dark:bg-primary-400/10 dark:text-primary-300">
+                    <p className="notice notice-brand mb-3 !py-2.5 font-semibold !text-ink">
                       You have full access to this course.
                     </p>
                   ) : null}
@@ -423,7 +412,7 @@ export default function CourseDetailPage() {
                     <p className="mb-3 text-sm font-semibold text-emerald-700 dark:text-emerald-300">Completed</p>
                   ) : null}
                   {isAuthenticated && course.status === 'archived' && !course.enrolled && !course.owned ? (
-                    <p className="text-sm text-neutral-600">This course is archived and no longer takes new students.</p>
+                    <p className="text-sm text-ink-muted">This course is archived and no longer takes new students.</p>
                   ) : isAuthenticated ? (
                     <button
                       type="button"

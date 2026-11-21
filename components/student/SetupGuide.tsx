@@ -1,363 +1,280 @@
 /**
- * Demo Account Setup Guide Component
- * Comprehensive guide for students to set up demo trading accounts
+ * Practice desk guide: how to use ForexOrbit's built-in simulator, step by step.
+ *
+ * Every rule and number here mirrors what the server enforces (lib/trading/instruments.js and
+ * lib/trading/engine.js): USD 10,000 virtual funds, leverage 1:30, 1,000 to 10,000,000 units, a
+ * stop-loss on every order, at most 2% of equity at risk per trade and 5% in total, at most 50 open
+ * items, a margin call at 100% and a stop-out at 50%, pending orders expiring after 1 to 168 hours,
+ * and a reset once every 30 days with no open positions. If those change, change this text too.
  */
 
-import { useState } from 'react';
-import Link from 'next/link';
-import { BarChart3, CheckCircle2, ClipboardList, Lightbulb, Monitor, Rocket } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
 
-export default function SetupGuide() {
-  const [activeStep, setActiveStep] = useState<number | null>(null);
+type Section = 'live' | 'tasks' | 'journal';
 
-  const steps = [
+interface SetupGuideProps {
+  /** Opens another tab of the practice desk (the page's own section switcher). */
+  onNavigate?: (section: Section) => void;
+}
+
+const RULES: Array<[string, string]> = [
+  ['Virtual funds', 'USD 10,000'],
+  ['Leverage', '1:30'],
+  ['Trade size', '1,000+ units'],
+  ['Stop-loss', 'Every order'],
+  ['Risk per trade', 'Max 2%'],
+  ['Total open risk', 'Max 5%'],
+];
+
+function Term({ children }: { children: ReactNode }) {
+  return <strong className="font-semibold text-ink">{children}</strong>;
+}
+
+function Point({ children }: { children: ReactNode }) {
+  return (
+    <li className="relative pl-5 before:absolute before:left-0 before:top-[0.6em] before:h-1.5 before:w-1.5 before:rounded-full before:border before:border-primary-500">
+      {children}
+    </li>
+  );
+}
+
+export default function SetupGuide({ onNavigate }: SetupGuideProps) {
+  const [activeStep, setActiveStep] = useState<number | null>(1);
+
+  const go = (section: Section, label: string) =>
+    onNavigate ? (
+      <button type="button" onClick={() => onNavigate(section)} className="btn btn-secondary btn-sm mt-4">
+        {label} →
+      </button>
+    ) : null;
+
+  const steps: Array<{ id: number; title: string; summary: string; content: ReactNode }> = [
     {
       id: 1,
-      title: 'What is a Demo Trading Account?',
+      title: 'What the practice desk is',
+      summary: 'A simulator with virtual money, built into the academy.',
       content: (
-        <div className="space-y-4">
-          <p className="text-gray-700">
-            A <strong>demo trading account</strong> (also called a practice account or paper trading account) is a 
-            simulated trading environment that allows you to practice trading with virtual money. The demo account of an external broker shows the prices and tools of that broker. The Practice account on this site is separate: it is our own simulated market, not live market data.
+        <div className="space-y-3">
+          <p>
+            The practice desk lets you trade six currency pairs with <Term>USD 10,000 of virtual money</Term>:
+            EUR/USD, GBP/USD, AUD/USD, USD/JPY, USD/CAD and USD/CHF. There is nothing to install and no account
+            to open anywhere else.
           </p>
-          <div className="bg-neutral-50 border-l-4 border-primary-400 p-4 rounded">
-            <h4 className="font-semibold text-neutral-900 mb-2">Key Features:</h4>
-            <ul className="list-disc list-inside space-y-1 text-neutral-800 text-sm">
-              <li><strong>Virtual Money:</strong> Start with a virtual balance (typically $10,000 - $100,000)</li>
-              <li><strong>Market Prices:</strong> The demo of an external broker shows the prices of that broker</li>
-              <li><strong>Full Trading Tools:</strong> Use all features of the trading platform</li>
-              <li><strong>No Financial Risk:</strong> You cannot lose or make real money</li>
-              <li><strong>Learning Environment:</strong> Perfect for practicing strategies and techniques</li>
+          <ul className="space-y-1.5">
+            <Point>Prices come from the <Term>ForexOrbit simulated market</Term>, a model. They do not follow any real market or broker, and every screen says so.</Point>
+            <Point>No order reaches a broker. Nothing can be deposited, traded for real or withdrawn.</Point>
+            <Point>The simulated market keeps the real trading week: it is <Term>closed from Friday 22:00 to Sunday 22:00 UTC</Term> and on market holidays.</Point>
+          </ul>
+          <p className="notice notice-caution !py-2.5 text-[13px]">
+            Practice results do not predict real results. Real trading has commissions, overnight fees and slippage, and prices can move faster than any stop.
+          </p>
+        </div>
+      ),
+    },
+    {
+      id: 2,
+      title: 'Create your practice account',
+      summary: 'One click; the server opens it with USD 10,000.',
+      content: (
+        <div className="space-y-3">
+          <p>Open the <Term>Practice account</Term> tab and click <Term>Create practice account</Term>. Your account opens with USD 10,000.00 and the ledger records the opening funds. You then see six figures:</p>
+          <dl className="grid gap-px overflow-hidden rounded-xl border border-line bg-[var(--fo-line)] sm:grid-cols-2">
+            {[
+              ['Virtual balance', 'Your cash after closed trades.'],
+              ['Virtual equity', 'Balance plus the profit or loss of open trades.'],
+              ['Used margin', 'Money set aside to hold your open trades.'],
+              ['Free margin', 'What is left for new trades.'],
+              ['Margin level', 'Equity divided by used margin.'],
+              ['Open P&L', 'The current result of open trades: green for a profit, red for a loss.'],
+            ].map(([term, text]) => (
+              <div key={term} className="bg-surface-1 px-4 py-3">
+                <dt className="readout-label">{term}</dt>
+                <dd className="mt-1 text-[13px]">{text}</dd>
+              </div>
+            ))}
+          </dl>
+          {go('live', 'Open the practice account')}
+        </div>
+      ),
+    },
+    {
+      id: 3,
+      title: 'Read the market',
+      summary: 'Bid, ask, spread and pips, and when the market is open.',
+      content: (
+        <div className="space-y-3">
+          <p>The status bar shows whether the simulated market is open, the simulated time and the active sessions (Sydney, Tokyo, London, New York). Each pair has a quote tile:</p>
+          <ul className="space-y-1.5">
+            <Point><Term>Ask</Term>: the price you pay when you <em>buy</em>.</Point>
+            <Point><Term>Bid</Term>: the price you receive when you <em>sell</em>.</Point>
+            <Point><Term>Spread</Term>: the gap between them, and the only cost of a trade here.</Point>
+            <Point>A <Term>pip</Term> is the usual unit of movement: 0.0001 for most pairs, 0.01 for USD/JPY.</Point>
+          </ul>
+          <p>Click a tile to select that pair in the order ticket and on the chart. The timeframe buttons (M1 to D1) change the candle size. The desk refreshes every 15 seconds; when the market is closed it says why and when it opens again.</p>
+        </div>
+      ),
+    },
+    {
+      id: 4,
+      title: 'Plan the trade before you place it',
+      summary: 'Choose your stop first, then let the risk preview check the size.',
+      content: (
+        <div className="space-y-3">
+          <p>Every order needs a <Term>stop-loss</Term>: the price at which the trade closes to limit the loss. Decide it from the chart before you choose the size.</p>
+          <ul className="space-y-1.5">
+            <Point>A <Term>buy</Term> needs its stop-loss <em>below</em> the entry price, and any take-profit <em>above</em> it.</Point>
+            <Point>A <Term>sell</Term> needs its stop-loss <em>above</em> the entry price, and any take-profit <em>below</em> it.</Point>
+            <Point>If the stop is hit, you may lose at most <Term>2% of your equity</Term> on one trade, and at most <Term>5%</Term> across all open trades and pending orders.</Point>
+            <Point>Trade size is <Term>1,000 to 10,000,000 units</Term>. Leverage is 1:30, so a trade holds about one thirtieth of its value as margin.</Point>
+          </ul>
+          <p>Enter the units and the stop-loss: the ticket then shows the server&apos;s <Term>risk preview</Term> (entry, margin, planned risk and risk of equity), and says in red if a rule would be broken.</p>
+          <div className="rounded-xl border border-line bg-surface-2 p-4 text-[13px]">
+            <p className="readout-label">Worked example</p>
+            <p className="mt-2">EUR/USD ask 1.11102. Buy 1,000 units with the stop 40 pips lower, at 1.10702:</p>
+            <ul className="mt-2 space-y-1">
+              <Point>Margin ≈ 1,000 × 1.11102 ÷ 30 = <Term>USD 37.03</Term></Point>
+              <Point>Planned risk = 1,000 × 0.0040 = <Term>USD 4.00</Term>, 0.04% of USD 10,000</Point>
+              <Point>The 2% limit is USD 200, so with a 40-pip stop the largest size is about 50,000 units</Point>
             </ul>
           </div>
         </div>
       ),
     },
     {
-      id: 2,
-      title: 'Choose Your Platform',
-      content: (
-        <div className="space-y-4">
-          <p className="text-gray-700">
-            MetaTrader offers two platforms: MT4 (MetaTrader 4) and MT5 (MetaTrader 5). 
-            Both are excellent for learning, but MT5 has more features and is the newer version.
-          </p>
-          <div className="grid md:grid-cols-2 gap-4">
-            <div className="border border-gray-200 rounded-lg p-4 bg-white">
-              <h4 className="font-semibold mb-2 text-gray-900">MetaTrader 4 (MT4)</h4>
-              <ul className="list-disc list-inside text-sm text-gray-600 space-y-1">
-                <li>Most popular platform</li>
-                <li>Simpler interface</li>
-                <li>Great for beginners</li>
-                <li>Widely supported by brokers</li>
-              </ul>
-            </div>
-            <div className="border border-gray-200 rounded-lg p-4 bg-white">
-              <h4 className="font-semibold mb-2 text-gray-900">MetaTrader 5 (MT5)</h4>
-              <ul className="list-disc list-inside text-sm text-gray-600 space-y-1">
-                <li>More advanced features</li>
-                <li>Better charting tools</li>
-                <li>More timeframes</li>
-                <li>Enhanced backtesting</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      ),
-    },
-    {
-      id: 3,
-      title: 'Create a Demo Account',
-      content: (
-        <div className="space-y-6">
-          <div className="bg-neutral-50 border-2 border-neutral-200 rounded-xl p-6">
-            <h4 className="font-bold text-lg mb-4 text-gray-900"><Rocket className="mr-2 inline h-5 w-5 shrink-0 text-primary-600" aria-hidden />Quick Start - Create Account Now</h4>
-            <div className="grid md:grid-cols-2 gap-4">
-              <a
-                href="https://hub.oanda.com/apply/demo/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center space-x-2 bg-primary-600 hover:bg-primary-700 text-white px-6 py-4 rounded-lg font-medium transition-colors shadow-md hover:shadow-lg"
-              >
-                <BarChart3 className="h-4 w-4 shrink-0 text-white" aria-hidden />
-                <span>Create OANDA Demo Account</span>
-                <span>→</span>
-              </a>
-              <a
-                href="https://www.metatrader4.com/en/download"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn btn-secondary px-6 py-4"
-              >
-                <Monitor className="h-4 w-4 shrink-0 text-white" aria-hidden />
-                <span>Download MetaTrader</span>
-                <span>→</span>
-              </a>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <div className="bg-neutral-50 border-l-4 border-primary-400 p-4 rounded">
-              <h4 className="font-semibold mb-2 text-neutral-900">Option A: OANDA Demo Account (Recommended for API Integration)</h4>
-              <ol className="list-decimal list-inside space-y-2 text-sm text-neutral-800">
-                <li>Click the &quot;Create OANDA Demo Account&quot; button above</li>
-                <li>Fill in the registration form with your email and details</li>
-                <li>Verify your email address</li>
-                <li>Log in to your OANDA practice account</li>
-                <li>Get your Account ID from the dashboard</li>
-                <li>Generate an API token from Account → Manage API Access</li>
-              </ol>
-            </div>
-
-            <div className="bg-green-50 border-l-4 border-green-400 p-4 rounded dark:bg-emerald-400/10 dark:border-emerald-400/40">
-              <h4 className="font-semibold mb-2 text-green-900">Option B: MetaTrader Demo Account (Recommended for Desktop Trading)</h4>
-              <ol className="list-decimal list-inside space-y-2 text-sm text-green-800">
-                <li>Click the &quot;Download MetaTrader&quot; button above</li>
-                <li>Download and install MT4 or MT5</li>
-                <li>Open the platform and click &quot;Open an Account&quot;</li>
-                <li>Select a broker (e.g., IC Markets, FXTM, XM)</li>
-                <li>Choose &quot;Demo Account&quot; option</li>
-                <li>Fill in the registration form</li>
-                <li>You&apos;ll receive login credentials via email</li>
-              </ol>
-            </div>
-          </div>
-        </div>
-      ),
-    },
-    {
-      id: 4,
-      title: 'Access Your Demo Account',
-      content: (
-        <div className="space-y-4">
-          <div className="border border-gray-200 rounded-lg p-4 bg-white">
-            <h4 className="font-semibold mb-2 text-gray-900">WebTrader Access</h4>
-            <p className="text-sm text-gray-700 mb-2">
-              Most brokers provide a WebTrader link. Simply click the link, enter your demo account credentials, 
-              and you can trade directly in your browser - no download required!
-            </p>
-            <p className="text-sm text-gray-600 italic">
-              <Lightbulb className="mr-2 inline h-4 w-4 shrink-0 text-primary-600" aria-hidden />Tip: Contact your instructor if you need help accessing your broker&apos;s WebTrader platform.
-            </p>
-          </div>
-
-          <div className="border border-gray-200 rounded-lg p-4 bg-white">
-            <h4 className="font-semibold mb-2 text-gray-900">Desktop/Mobile App Access</h4>
-            <p className="text-sm text-gray-700 mb-2">
-              Use your demo account credentials (login, password, server) to connect via MT4/MT5 apps.
-            </p>
-            <div className="mt-2 space-y-1 text-sm text-gray-600">
-              <p><strong>Login:</strong> Your demo account number</p>
-              <p><strong>Password:</strong> The password you received</p>
-              <p><strong>Server:</strong> Usually something like &quot;BrokerName-Demo&quot; or &quot;Demo-Server&quot;</p>
-            </div>
-          </div>
-        </div>
-      ),
-    },
-    {
       id: 5,
-      title: 'Access Tasks & Submit for Review',
+      title: 'Place an order',
+      summary: 'Market orders fill now; limit and stop orders wait for a price.',
       content: (
-        <div className="space-y-4">
-          <div className="bg-neutral-50 border-2 border-neutral-200 rounded-xl p-6">
-            <h4 className="font-bold text-lg mb-4 text-gray-900"><ClipboardList className="mr-2 inline h-5 w-5 shrink-0 text-neutral-700" aria-hidden />How to Access and Submit Tasks</h4>
-            
-            <div className="space-y-4">
-              <div className="bg-white rounded-lg p-4 border border-neutral-200">
-                <h5 className="font-semibold mb-2 text-neutral-900 flex items-center">
-                  <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary-50 text-xs font-semibold text-primary-800 dark:bg-primary-400/15">1</span>
-                  Navigate to Trading Dashboard
-                </h5>
-                <p className="text-sm text-gray-700 mb-2">
-                  Click on <strong>&quot;Trading Dashboard&quot;</strong> in the sidebar or from the main dashboard page.
-                </p>
-                <p className="text-xs text-gray-600">
-                  You&apos;ll see three tabs: <strong>Live Trading</strong>, <strong>Tasks</strong>, and <strong>Trade Journal</strong>
-                </p>
-              </div>
-
-              <div className="bg-white rounded-lg p-4 border border-neutral-200">
-                <h5 className="font-semibold mb-2 text-neutral-900 flex items-center">
-                  <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary-50 text-xs font-semibold text-primary-800 dark:bg-primary-400/15">2</span>
-                  View Your Assigned Tasks
-                </h5>
-                <p className="text-sm text-gray-700 mb-2">
-                  Click on the <strong>&quot;Tasks&quot;</strong> tab to see all tasks assigned to you by your instructor.
-                </p>
-                <ul className="text-xs text-gray-600 list-disc list-inside space-y-1">
-                  <li>Tasks are organized by status: <strong>Pending</strong> and <strong>Submitted</strong></li>
-                  <li>Each task shows: Title, Description, Level (Beginner/Intermediate/Advanced), and Due Date</li>
-                  <li>Pending tasks have a <span className="px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded text-xs dark:bg-amber-400/15 dark:text-amber-200 dark:border-amber-400/30">Pending</span> badge</li>
-                </ul>
-              </div>
-
-              <div className="bg-white rounded-lg p-4 border border-neutral-200">
-                <h5 className="font-semibold mb-2 text-neutral-900 flex items-center">
-                  <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary-50 text-xs font-semibold text-primary-800 dark:bg-primary-400/15">3</span>
-                  Open Task Details
-                </h5>
-                <p className="text-sm text-gray-700 mb-2">
-                  Click the <strong>&quot;View Task&quot;</strong> button on any pending task card.
-                </p>
-                <p className="text-xs text-gray-600">
-                  This opens the Task Detail page where you can see:
-                </p>
-                <ul className="text-xs text-gray-600 list-disc list-inside space-y-1 mt-1">
-                  <li>Full task instructions</li>
-                  <li>Task level and requirements</li>
-                  <li>Submission form</li>
-                </ul>
-              </div>
-
-              <div className="bg-white rounded-lg p-4 border border-neutral-200">
-                <h5 className="font-semibold mb-2 text-neutral-900 flex items-center">
-                  <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary-50 text-xs font-semibold text-primary-800 dark:bg-primary-400/15">4</span>
-                  Complete the Task
-                </h5>
-                <p className="text-sm text-gray-700 mb-2">
-                  Use your demo trading account to complete the task requirements.
-                </p>
-                <p className="text-xs text-gray-600">
-                  This might involve:
-                </p>
-                <ul className="text-xs text-gray-600 list-disc list-inside space-y-1 mt-1">
-                  <li>Placing specific trades</li>
-                  <li>Analyzing market conditions</li>
-                  <li>Applying trading strategies</li>
-                  <li>Taking screenshots of your trading activity</li>
-                </ul>
-              </div>
-
-              <div className="bg-white rounded-lg p-4 border border-neutral-200">
-                <h5 className="font-semibold mb-2 text-neutral-900 flex items-center">
-                  <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary-50 text-xs font-semibold text-primary-800 dark:bg-primary-400/15">5</span>
-                  Submit Your Work
-                </h5>
-                <p className="text-sm text-gray-700 mb-2">
-                  On the Task Detail page, fill out the submission form:
-                </p>
-                <ul className="text-xs text-gray-600 list-disc list-inside space-y-1">
-                  <li><strong>Reasoning / Analysis:</strong> Explain your approach, analysis, or reasoning (required)</li>
-                  <li><strong>Screenshot:</strong> Upload a screenshot of your demo trading activity (optional)</li>
-                </ul>
-                <p className="text-sm text-gray-700 mt-3 mb-2">
-                  Click <strong>&quot;Submit Task&quot;</strong> to send your work for instructor review.
-                </p>
-              </div>
-
-              <div className="bg-white rounded-lg p-4 border border-neutral-200">
-                <h5 className="font-semibold mb-2 text-neutral-900 flex items-center">
-                  <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary-50 text-xs font-semibold text-primary-800 dark:bg-primary-400/15">6</span>
-                  Track Your Submission Status
-                </h5>
-                <p className="text-sm text-gray-700 mb-2">
-                  After submission, you can track the status of your work:
-                </p>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  <span className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-medium dark:bg-amber-400/15 dark:text-amber-200 dark:border-amber-400/30">Submitted</span>
-                  <span className="px-3 py-1 bg-neutral-100 text-neutral-800 rounded-full text-xs font-medium">Reviewed</span>
-                  <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium dark:bg-emerald-400/15 dark:text-emerald-200">Graded</span>
-                </div>
-                <p className="text-xs text-gray-600 mt-2">
-                  Once reviewed, you&apos;ll see instructor feedback and grades on the task detail page.
-                </p>
-              </div>
-            </div>
-          </div>
+        <div className="space-y-3">
+          <ul className="space-y-1.5">
+            <Point><Term>Market</Term> fills at once: a buy at the ask, a sell at the bid. The confirmation states the actual fill price, which can differ slightly from the screen because prices move between refreshes.</Point>
+            <Point><Term>Limit</Term> waits for a better price: a buy limit sits below the current price, a sell limit above it.</Point>
+            <Point><Term>Stop</Term> waits for the price to break through a level: a buy stop sits above the current price, a sell stop below it.</Point>
+          </ul>
+          <p>Limit and stop orders also need an <Term>order price</Term> and an expiry of <Term>1 to 168 hours</Term>. They wait under Pending orders until they fill, expire or you cancel them. A pending order fills at the quote that reaches its level, which can be better than the level you set.</p>
+          <p>Use <Term>Why am I taking this trade?</Term> on the ticket to write your plan before you place it. It is kept with the order and shown again when you review the trade.</p>
+          <p>You can have up to <Term>50</Term> open positions and pending orders together. If the connection drops while you place an order, trying again cannot open it twice.</p>
+          {go('live', 'Go to the order ticket')}
         </div>
       ),
     },
     {
       id: 6,
-      title: 'Important Notes',
+      title: 'Manage open trades',
+      summary: 'Close by hand, or let the stop-loss and take-profit work.',
       content: (
-        <div className="space-y-3 text-sm text-gray-700">
-          <div className="flex items-start">
-            <CheckCircle2 className="mr-2 h-4 w-4 shrink-0 text-green-700" aria-hidden />
-            <p><strong>Demo accounts use virtual money</strong> - you cannot lose real money, but you also cannot withdraw profits.</p>
-          </div>
-          <div className="flex items-start">
-            <CheckCircle2 className="mr-2 h-4 w-4 shrink-0 text-green-700" aria-hidden />
-            <p><strong>Demo accounts expire</strong> - typically after 30 days. You can create a new one anytime.</p>
-          </div>
-          <div className="flex items-start">
-            <CheckCircle2 className="mr-2 h-4 w-4 shrink-0 text-green-700" aria-hidden />
-            <p><strong>Market conditions may differ</strong> - demo accounts sometimes have different spreads and execution speeds than live accounts.</p>
-          </div>
-          <div className="flex items-start">
-            <CheckCircle2 className="mr-2 h-4 w-4 shrink-0 text-green-700" aria-hidden />
-            <p><strong>Practice makes perfect</strong> - use demo accounts to test strategies, learn the platform, and build confidence before trading with real money.</p>
-          </div>
-          <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded mt-4 dark:bg-amber-400/10 dark:border-amber-400/40">
-            <p className="text-sm text-yellow-800">
-              <strong><Lightbulb className="mr-2 inline h-4 w-4 shrink-0 text-primary-600" aria-hidden />Important:</strong> Demo accounts are essential for your ForexOrbit Academy journey. 
-              They allow you to complete practice tasks, log trades in your journal, and demonstrate your 
-              understanding of trading concepts without any financial risk.
-            </p>
-          </div>
+        <div className="space-y-3">
+          <ul className="space-y-1.5">
+            <Point><Term>Close</Term> exits a trade straight away: a buy closes at the bid, a sell at the ask.</Point>
+            <Point>The server checks every new price. A trade closes on the first price that reaches its stop-loss or take-profit, <em>at that price</em>: if the market jumps past your stop, you get the worse price, as in real trading.</Point>
+            <Point><Term>Margin call</Term>: at a margin level of 100% or less, new orders are refused until it recovers.</Point>
+            <Point><Term>Stop-out</Term>: at 50% or less, the server closes your largest losing trade, then the next, until the level recovers.</Point>
+          </ul>
+        </div>
+      ),
+    },
+    {
+      id: 7,
+      title: 'Review your results',
+      summary: 'Results, history and the ledger keep a full record.',
+      content: (
+        <div className="space-y-3">
+          <p>After your first closed trade, <Term>Your simulated results</Term> shows closed trades, win rate, net result, return and largest drawdown. The history tabs keep everything:</p>
+          <ul className="space-y-1.5">
+            <Point><Term>Closed trades</Term>: entry and exit, and why each trade closed (by you, stop-loss, take-profit or stop-out).</Point>
+            <Point><Term>Orders</Term> and <Term>Executions</Term>: every order and every fill, at its simulated time.</Point>
+            <Point><Term>Ledger</Term>: the opening funds and every trade result, with the running balance.</Point>
+            <Point><Term>Accounts</Term>: your current account and any archived after a reset.</Point>
+          </ul>
+          <p>Every closed trade then waits in the <Term>Trade Journal</Term> for your review. Its figures come from the simulator; you add the setup, why you entered, whether you followed your plan, how you felt and what you would change. Link a review to a task to share it with your instructor.</p>
+          {go('journal', 'Open the trade journal')}
+        </div>
+      ),
+    },
+    {
+      id: 8,
+      title: 'Tasks, leaderboard and resets',
+      summary: 'Instructor tasks, an optional ranking, and a fresh start every 30 days.',
+      content: (
+        <div className="space-y-3">
+          <ul className="space-y-1.5">
+            <Point><Term>Tasks</Term>: your instructor can assign practice exercises. Do the work on the desk, then submit it from the Tasks tab, and link your trade reviews to the task so your instructor sees the trades themselves.</Point>
+            <Point><Term>Practice leaderboard</Term>: optional. You appear under a random name, ranked by percentage return with your largest drawdown, after at least 5 closed trades. Ranks are simulated results, not evidence of real skill.</Point>
+            <Point><Term>Reset</Term>: once every 30 days you can start again with USD 10,000. Close your open positions first. Your old account and its history are kept and still count in your results.</Point>
+          </ul>
+          {go('tasks', 'See your tasks')}
         </div>
       ),
     },
   ];
 
   return (
-    <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Demo Account Setup Guide</h2>
-        <p className="text-gray-600">Complete guide to setting up your demo trading account and submitting tasks</p>
+    <div className="card !p-5 sm:!p-7">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <p className="page-kicker">Getting started</p>
+          <h2 className="mt-3 font-display text-2xl font-semibold tracking-[-0.02em] text-ink">Practice desk guide</h2>
+          <p className="mt-2 max-w-2xl text-sm text-ink-muted">
+            How to use ForexOrbit&apos;s built-in simulator: open your account, read the market, plan a trade, place it and review the result.
+          </p>
+        </div>
+        {onNavigate && (
+          <button type="button" onClick={() => onNavigate('live')} className="btn btn-primary self-start lg:self-auto">
+            Open the practice desk →
+          </button>
+        )}
       </div>
 
-      <div className="space-y-3">
-        {steps.map((step) => (
-          <div
-            key={step.id}
-            className="border border-gray-200 rounded-lg overflow-hidden transition-all hover:shadow-md"
-          >
-            <button
-              onClick={() => setActiveStep(activeStep === step.id ? null : step.id)}
-              className="w-full flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 transition-colors text-left"
-            >
-              <div className="flex items-center space-x-3">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
-                  activeStep === step.id
-                    ? 'bg-primary-600 text-white'
-                    : 'bg-gray-200 text-gray-700'
-                }`}>
-                  {step.id}
-                </div>
-                <h3 className="font-semibold text-gray-900">{step.title}</h3>
-              </div>
-              <svg
-                className={`w-5 h-5 text-gray-500 transition-transform ${
-                  activeStep === step.id ? 'transform rotate-180' : ''
-                }`}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-            {activeStep === step.id && (
-              <div className="p-4 bg-white border-t border-gray-200 animate-in slide-in-from-top-2">
-                {step.content}
-              </div>
-            )}
+      {/* The rules at a glance (enforced by the server). */}
+      <dl className="mt-6 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-line bg-[var(--fo-line)] sm:grid-cols-3 lg:grid-cols-6">
+        {RULES.map(([label, value]) => (
+          <div key={label} className="bg-surface-2 px-4 py-3">
+            <dt className="readout-label">{label}</dt>
+            <dd className="mt-1 font-display text-base font-semibold text-ink num">{value}</dd>
           </div>
         ))}
-      </div>
+      </dl>
 
-      <div className="mt-6 rounded-xl border border-primary-200 bg-primary-50 p-4 dark:border-primary-400/25 dark:bg-primary-400/[0.06]">
-        <p className="text-sm text-gray-700">
-          <strong>Ready to get started?</strong> Once you&apos;ve set up your demo account, head to the{' '}
-          <Link href="/student-dashboard" className="text-primary-700 hover:text-primary-800 font-semibold underline dark:text-primary-400 dark:hover:text-primary-300">
-            Practice desk
-          </Link>{' '}
-          to view your assigned tasks and start practicing!
-        </p>
-      </div>
+      {/* Steps along the orbit track */}
+      <ol className="relative mt-6 space-y-2 before:pointer-events-none before:absolute before:bottom-6 before:left-[1.45rem] before:top-6 before:w-px before:bg-[var(--fo-line-strong)]">
+        {steps.map((step) => {
+          const open = activeStep === step.id;
+          return (
+            <li key={step.id} className={`relative rounded-xl border transition-colors ${open ? 'border-line-strong bg-surface-2' : 'border-transparent hover:bg-[color-mix(in_srgb,var(--fo-text)_4%,transparent)]'}`}>
+              <button
+                type="button"
+                onClick={() => setActiveStep(open ? null : step.id)}
+                aria-expanded={open}
+                aria-controls={`guide-step-${step.id}`}
+                className="flex min-h-[56px] w-full items-center gap-4 px-2.5 py-2.5 text-left"
+              >
+                <span
+                  className={`relative z-[1] flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold num ring-4 ring-[var(--fo-surface-1)] transition-all ${open ? 'bg-primary-500 text-neutral-950 shadow-[0_0_12px_rgba(255,112,18,0.55)]' : 'border border-[var(--fo-line-strong)] bg-surface-1 text-ink-muted'}`}
+                  aria-hidden
+                >
+                  {step.id}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block font-display text-[15px] font-semibold text-ink">{step.title}</span>
+                  <span className="block text-xs text-ink-subtle">{step.summary}</span>
+                </span>
+                <svg className={`h-5 w-5 shrink-0 text-ink-subtle transition-transform ${open ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {open && (
+                <div id={`guide-step-${step.id}`} className="animate-fade-in-fast pb-5 pl-[3.6rem] pr-4 text-sm leading-relaxed text-ink-muted">
+                  {step.content}
+                </div>
+              )}
+            </li>
+          );
+        })}
+      </ol>
+
+      <p className="mt-6 border-t border-line pt-4 text-xs text-ink-subtle">
+        Educational simulation only. ForexOrbit Academy does not provide brokerage services and this is not financial advice.
+      </p>
     </div>
   );
 }
-

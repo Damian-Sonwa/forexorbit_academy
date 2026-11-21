@@ -55,14 +55,14 @@ export default function LessonAssignmentsPanel({ courseId, lessonId }: { courseI
 
   return (
     <section className="space-y-3" data-testid="lesson-assignments-admin">
-      {rows === null && !error && <p className="text-sm text-gray-500" role="status">Loading assignments…</p>}
-      {rows && rows.length === 0 && <p className="text-sm text-gray-600 dark:text-gray-300">No assignments on this lesson yet.</p>}
+      {rows === null && !error && <p className="text-sm text-ink-muted" role="status">Loading assignments…</p>}
+      {rows && rows.length === 0 && <p className="text-sm text-ink-muted">No assignments on this lesson yet.</p>}
       {rows && rows.length > 0 && (
         <ul className="divide-y divide-gray-200 text-sm dark:divide-gray-700">
           {rows.map((row) => (
             <li key={row._id} className="flex flex-wrap items-center justify-between gap-2 py-2">
-              <span className="min-w-0 break-words text-gray-900 dark:text-white">
-                {row.title} <span className="text-xs text-gray-500">{row.points} points{row.dueDate ? ` · due ${new Date(row.dueDate).toLocaleString()}` : ''}</span>
+              <span className="min-w-0 break-words text-ink">
+                {row.title} <span className="text-xs text-ink-muted">{row.points} points{row.dueDate ? ` · due ${new Date(row.dueDate).toLocaleString()}` : ''}</span>
               </span>
               <Link href={`/instructor/assignments/analytics/${row._id}`} className="font-semibold text-primary-600 hover:underline">Submissions and grading</Link>
             </li>
@@ -70,20 +70,20 @@ export default function LessonAssignmentsPanel({ courseId, lessonId }: { courseI
         </ul>
       )}
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-        <label className="text-sm text-gray-700 dark:text-gray-300">Title
+        <label className="text-sm text-ink-muted">Title
           <input className={input} value={title} onChange={(e) => setTitle(e.target.value)} />
         </label>
-        <label className="text-sm text-gray-700 dark:text-gray-300">Points
+        <label className="text-sm text-ink-muted">Points
           <input className={input} type="number" min={0} value={points} onChange={(e) => setPoints(e.target.value)} />
         </label>
-        <label className="text-sm text-gray-700 sm:col-span-2 dark:text-gray-300">Instructions
+        <label className="text-sm sm:col-span-2 text-ink-muted">Instructions
           <textarea className={input} rows={3} value={instructions} onChange={(e) => setInstructions(e.target.value)} />
         </label>
-        <label className="text-sm text-gray-700 dark:text-gray-300">Due (optional)
+        <label className="text-sm text-ink-muted">Due (optional)
           <input className={input} type="datetime-local" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
         </label>
       </div>
-      <button type="button" onClick={() => void add()} disabled={busy || !title.trim() || !instructions.trim()} className="min-h-[44px] w-full rounded-lg bg-primary-600 px-4 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-50 sm:w-auto">
+      <button type="button" onClick={() => void add()} disabled={busy || !title.trim() || !instructions.trim()} className="btn btn-primary min-h-[44px] w-full px-4 text-sm sm:w-auto">
         {busy ? 'Adding…' : 'Add assignment'}
       </button>
       {error && <p role="alert" className="text-sm text-red-700">{error}</p>}

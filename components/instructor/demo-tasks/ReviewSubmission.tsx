@@ -125,13 +125,13 @@ export default function ReviewSubmission() {
   return (
     <div className="space-y-6">
       {/* Unreviewed Submissions */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
-        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
+      <div className="card rounded-xl p-6">
+        <h2 className="text-xl font-bold mb-4 text-ink">
           Pending Review ({unreviewed.length})
         </h2>
 
         {unreviewed.length === 0 ? (
-          <p className="text-gray-500 dark:text-gray-400 text-center py-8">
+          <p className="text-center py-8 text-ink-muted">
             All submissions have been reviewed.
           </p>
         ) : (
@@ -150,7 +150,7 @@ export default function ReviewSubmission() {
                     )}
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      <label className="block text-sm font-medium mb-1 text-ink-muted">
                         Grade (0-100 or letter grade)
                       </label>
                       <input
@@ -158,20 +158,20 @@ export default function ReviewSubmission() {
                         value={reviewForm.grade}
                         onChange={(e) => setReviewForm({ ...reviewForm, grade: e.target.value })}
                         placeholder="e.g., 85 or A"
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 dark:text-white bg-white dark:bg-gray-700"
+                        className="input w-full"
                       />
                     </div>
 
                     <div>
                       <div className="flex items-center justify-between mb-1">
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        <label className="block text-sm font-medium text-ink-muted">
                           Feedback
                         </label>
                         <button
                           type="button"
                           onClick={() => handleDraftFeedback(submission._id)}
                           disabled={draftingFeedback === submission._id}
-                          className="px-3 py-1 text-xs bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-1"
+                          className="btn btn-primary px-3 py-1 text-xs flex items-center space-x-1"
                         >
                           {draftingFeedback === submission._id ? (
                             <>
@@ -191,10 +191,10 @@ export default function ReviewSubmission() {
                         onChange={(e) => setReviewForm({ ...reviewForm, feedback: e.target.value })}
                         rows={4}
                         placeholder="Provide constructive feedback for the student... (You can use AI to draft feedback)"
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 dark:text-white bg-white dark:bg-gray-700"
+                        className="input w-full"
                       />
                       {reviewForm.feedback && (
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        <p className="text-xs mt-1 text-ink-muted">
                           <Lightbulb className="mr-2 inline h-4 w-4 shrink-0 text-primary-600" aria-hidden />AI-drafted feedback is editable. Review and customize before submitting.
                         </p>
                       )}
@@ -203,13 +203,13 @@ export default function ReviewSubmission() {
                     <div className="flex justify-end space-x-3">
                       <button
                         onClick={handleCancelReview}
-                        className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                        className="btn btn-secondary px-4 py-2 text-ink-muted"
                       >
                         Cancel
                       </button>
                       <button
                         onClick={() => handleSubmitReview(submission._id)}
-                        className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium"
+                        className="btn btn-primary px-4 py-2"
                       >
                         Submit Review
                       </button>
@@ -219,28 +219,28 @@ export default function ReviewSubmission() {
                   <>
                     <div className="flex items-start justify-between mb-3">
                       <div>
-                        <h3 className="font-semibold text-gray-900 dark:text-white">
+                        <h3 className="font-semibold text-ink">
                           {submission.studentName}
                         </h3>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                        <p className="text-sm text-ink-muted">
                           {submission.studentEmail}
                         </p>
-                        <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mt-1">
+                        <p className="text-sm font-medium mt-1 text-ink-muted">
                           Task: {submission.taskTitle}
                         </p>
                       </div>
                     </div>
 
                     {submission.reasoning && (
-                      <div className="mb-3 p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600">
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Reasoning / Analysis</p>
-                        <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{submission.reasoning}</p>
+                      <div className="card mb-3 p-3 rounded-lg">
+                        <p className="text-xs mb-1 text-ink-muted">Reasoning / Analysis</p>
+                        <p className="text-sm whitespace-pre-wrap text-ink-muted">{submission.reasoning}</p>
                       </div>
                     )}
 
                     {submission.screenshotUrls && submission.screenshotUrls.length > 0 && (
                       <div className="mb-3">
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                        <p className="text-xs mb-2 text-ink-muted">
                           Screenshot{submission.screenshotUrls.length > 1 ? 's' : ''}
                         </p>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -273,12 +273,12 @@ export default function ReviewSubmission() {
                     )}
 
                     <div className="flex items-center justify-between mt-4">
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                      <p className="text-xs text-ink-muted">
                         Submitted: {format(new Date(submission.submittedAt), 'MMM dd, yyyy HH:mm')}
                       </p>
                       <button
                         onClick={() => handleStartReview(submission)}
-                        className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium"
+                        className="btn btn-primary px-4 py-2 text-sm"
                       >
                         Review
                       </button>
@@ -293,8 +293,8 @@ export default function ReviewSubmission() {
 
       {/* Reviewed Submissions */}
       {reviewed.length > 0 && (
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
+        <div className="card rounded-xl p-6">
+          <h2 className="text-xl font-bold mb-4 text-ink">
             Reviewed ({reviewed.length})
           </h2>
           <div className="space-y-4">
@@ -305,16 +305,16 @@ export default function ReviewSubmission() {
               >
                 <div className="flex items-start justify-between mb-3">
                   <div>
-                    <h3 className="font-semibold text-gray-900 dark:text-white">
+                    <h3 className="font-semibold text-ink">
                       {submission.studentName}
                     </h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                    <p className="text-sm text-ink-muted">
                       {submission.studentEmail} • Task: {submission.taskTitle}
                     </p>
                   </div>
                   {submission.grade && (
                     <div className="text-right">
-                      <p className="text-xs text-gray-500 dark:text-gray-400">Grade</p>
+                      <p className="text-xs text-ink-muted">Grade</p>
                       <p className="text-lg font-bold text-primary-600 dark:text-primary-400">
                         {submission.grade}
                       </p>
@@ -323,24 +323,24 @@ export default function ReviewSubmission() {
                 </div>
 
                 {submission.feedback && (
-                  <div className="mb-3 p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600">
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Feedback</p>
-                    <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                  <div className="card mb-3 p-3 rounded-lg">
+                    <p className="text-xs mb-1 text-ink-muted">Feedback</p>
+                    <p className="text-sm whitespace-pre-wrap text-ink-muted">
                       {submission.feedback}
                     </p>
                   </div>
                 )}
 
                 {submission.reasoning && (
-                  <div className="mb-3 p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600">
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Reasoning / Analysis</p>
-                    <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{submission.reasoning}</p>
+                  <div className="card mb-3 p-3 rounded-lg">
+                    <p className="text-xs mb-1 text-ink-muted">Reasoning / Analysis</p>
+                    <p className="text-sm whitespace-pre-wrap text-ink-muted">{submission.reasoning}</p>
                   </div>
                 )}
 
                 {submission.screenshotUrls && submission.screenshotUrls.length > 0 && (
                   <div className="mb-3">
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                    <p className="text-xs mb-2 text-ink-muted">
                       Screenshot{submission.screenshotUrls.length > 1 ? 's' : ''}
                     </p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -372,7 +372,7 @@ export default function ReviewSubmission() {
                 )}
 
                 <div className="flex items-center justify-between mt-4">
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                  <p className="text-xs text-ink-muted">
                     Reviewed: {submission.reviewedAt ? format(new Date(submission.reviewedAt), 'MMM dd, yyyy HH:mm') : 'N/A'}
                   </p>
                   <button
@@ -389,8 +389,8 @@ export default function ReviewSubmission() {
       )}
 
       {submissions.length === 0 && (
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
-          <p className="text-gray-500 dark:text-gray-400 text-center py-8">
+        <div className="card rounded-xl p-6">
+          <p className="text-center py-8 text-ink-muted">
             No submissions to review yet.
           </p>
         </div>

@@ -153,10 +153,10 @@ export default function CommunityPage() {
     <CommunityShell>
       <div className="lg:grid lg:grid-cols-[15rem_minmax(0,1fr)] lg:gap-12">
         <aside className="mb-8 lg:mb-0">
-          <label className="mb-2 block text-sm font-semibold text-[#525252] lg:hidden" htmlFor="community-category">Category</label>
+          <label className="mb-2 block text-sm font-semibold text-ink-muted lg:hidden" htmlFor="community-category">Category</label>
           <select
             id="community-category"
-            className="mb-4 w-full rounded-xl border border-[#e5e5e5] bg-[#ffffff] px-3 py-2 text-sm lg:hidden"
+            className="input mb-4 w-full border-line bg-surface-1 text-sm lg:hidden"
             value={category}
             onChange={(event) => pushQuery({ category: event.target.value })}
           >
@@ -167,11 +167,11 @@ export default function CommunityPage() {
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary-700">Topics</p>
             <ul className="mt-3 space-y-1">
               <li>
-                <button type="button" className={`w-full rounded-lg px-3 py-2 text-left text-sm ${category === '' ? 'bg-[#fff4ea] font-semibold' : 'hover:bg-[#faf8f4]'}`} onClick={() => pushQuery({ category: '' })}>All topics</button>
+                <button type="button" className={`w-full rounded-lg px-3 py-2 text-left text-sm ${category === '' ? 'bg-tint font-semibold' : 'hover:bg-surface-2'}`} onClick={() => pushQuery({ category: '' })}>All topics</button>
               </li>
               {COMMUNITY_CATEGORIES.map((item) => (
                 <li key={item.id}>
-                  <button type="button" className={`w-full rounded-lg px-3 py-2 text-left text-sm ${category === item.id ? 'bg-[#fff4ea] font-semibold' : 'hover:bg-[#faf8f4]'}`} onClick={() => pushQuery({ category: item.id })}>{item.label}</button>
+                  <button type="button" className={`w-full rounded-lg px-3 py-2 text-left text-sm ${category === item.id ? 'bg-tint font-semibold' : 'hover:bg-surface-2'}`} onClick={() => pushQuery({ category: item.id })}>{item.label}</button>
                 </li>
               ))}
             </ul>
@@ -181,8 +181,9 @@ export default function CommunityPage() {
         <section>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <h1 className="font-display text-4xl font-bold tracking-tight">Forex Orbit Community</h1>
-              <p className="mt-2 max-w-xl text-base leading-relaxed text-[#525252]">Ask better questions. Share what you learn. Grow together.</p>
+              <p className="page-kicker">Community</p>
+              <h1 className="page-title mt-3">Forex Orbit Community</h1>
+              <p className="page-lede max-w-xl">Ask better questions. Share what you learn. Grow together.</p>
             </div>
             <CommunityLink href={`/community/ask?from=${encodeURIComponent(returnPath)}`}>Ask a question</CommunityLink>
           </div>
@@ -190,16 +191,16 @@ export default function CommunityPage() {
           <form className="mt-6 flex gap-2" onSubmit={onSearch}>
             <label className="sr-only" htmlFor="community-search">Search questions</label>
             <div className="relative min-w-0 flex-1">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#737373]" aria-hidden />
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-subtle" aria-hidden />
               <input
                 id="community-search"
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="Search questions and discussions"
-                className="w-full rounded-full border border-[#e5e5e5] bg-[#ffffff] py-2.5 pl-10 pr-4 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600"
+                className="input w-full rounded-full border-line bg-surface-1 pl-10 pr-4 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600"
               />
             </div>
-            <button type="submit" className="rounded-full border border-[#e5e5e5] px-4 py-2 text-sm font-semibold">Search</button>
+            <button type="submit" className="rounded-full border border-line px-4 py-2 text-sm font-semibold">Search</button>
           </form>
 
           <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -210,20 +211,20 @@ export default function CommunityPage() {
                   type="button"
                   role="tab"
                   aria-selected={view === item.id}
-                  className={`rounded-full px-3 py-1.5 text-sm ${view === item.id ? 'bg-[#171717] text-[#ffffff]' : 'border border-[#e5e5e5] text-[#171717]'}`}
+                  className={`rounded-full px-3 py-1.5 text-sm ${view === item.id ? 'bg-primary-500 text-neutral-950 shadow-glow' : 'border border-line text-ink-muted hover:border-line-strong hover:text-ink'}`}
                   onClick={() => pushQuery({ view: item.id, sort: item.id === 'popular' ? 'votes' : sort })}
                 >
                   {item.label}
                 </button>
               ))}
             </div>
-            <label className="flex items-center gap-2 text-sm text-[#525252]">
+            <label className="flex items-center gap-2 text-sm text-ink-muted">
               Sort
               <select
                 aria-label="Sort questions"
                 value={sort}
                 onChange={(event) => pushQuery({ sort: event.target.value })}
-                className="rounded-lg border border-[#e5e5e5] bg-[#ffffff] px-2 py-1.5 text-sm text-[#171717]"
+                className="rounded-lg border border-line bg-surface-1 px-2 py-1.5 text-sm text-ink"
               >
                 {SORTS.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
               </select>
@@ -231,14 +232,14 @@ export default function CommunityPage() {
           </div>
 
           {!authLoading && !isAuthenticated ? (
-            <div className="mt-8 rounded-2xl border border-[#e5e5e5] px-6 py-12 text-center">
+            <div className="mt-8 rounded-2xl border border-line px-6 py-12 text-center">
               <p className="text-lg font-semibold">Sign in to join the discussion.</p>
               <div className="mt-4"><CommunityLink href="/login">Sign in</CommunityLink></div>
             </div>
           ) : null}
 
           {error ? (
-            <div className="mt-6 rounded-2xl border border-[#e5e5e5] bg-[#fff4ea] px-4 py-3 text-sm" role="alert">
+            <div className="mt-6 rounded-2xl border border-line bg-tint px-4 py-3 text-sm" role="alert">
               <p>{error}</p>
               <button type="button" className="mt-2 font-semibold text-primary-700" onClick={() => setReloadKey((current) => current + 1)}>Try again</button>
             </div>
@@ -246,12 +247,12 @@ export default function CommunityPage() {
 
           {loading ? (
             <div className="mt-6 space-y-3" aria-hidden>
-              {[0, 1, 2].map((item) => <div key={item} className="h-28 motion-safe:animate-pulse rounded-2xl bg-[#f6f6f6]" />)}
+              {[0, 1, 2].map((item) => <div key={item} className="h-28 motion-safe:animate-pulse rounded-2xl bg-surface-3" />)}
             </div>
           ) : null}
 
           {!loading && isAuthenticated && questions.length === 0 && !error ? (
-            <div className="mt-8 rounded-2xl border border-dashed border-[#e5e5e5] px-6 py-14 text-center">
+            <div className="mt-8 rounded-2xl border border-dashed border-line px-6 py-14 text-center">
               <MessageCircle className="mx-auto h-6 w-6 text-primary-600" aria-hidden />
               <p className="mt-3 text-lg font-semibold">{empty}</p>
             </div>
@@ -259,12 +260,12 @@ export default function CommunityPage() {
 
           <ul className="mt-6 space-y-3">
             {questions.map((item) => (
-              <li key={item.id} className="rounded-2xl border border-[#e5e5e5] bg-[#ffffff] p-4 shadow-[0_8px_20px_-18px_rgba(23,23,23,0.35)] sm:p-5">
+              <li key={item.id} className="rounded-2xl border border-line bg-surface-1 p-4 shadow-[0_8px_20px_-18px_rgba(23,23,23,0.35)] sm:p-5">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-wide text-primary-700">
                       <span>{item.categoryLabel}</span>
-                      <span className="rounded-full border border-[#e5e5e5] px-2 py-0.5 normal-case tracking-normal text-[#525252]">
+                      <span className="rounded-full border border-line px-2 py-0.5 normal-case tracking-normal text-ink-muted">
                         {item.answered ? 'Answered' : 'Unanswered'}
                       </span>
                     </div>
@@ -273,8 +274,8 @@ export default function CommunityPage() {
                         {item.title}
                       </Link>
                     </h2>
-                    <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-[#525252]">{item.preview}</p>
-                    <p className="mt-3 flex flex-wrap items-center gap-2 text-xs text-[#525252]">
+                    <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-ink-muted">{item.preview}</p>
+                    <p className="mt-3 flex flex-wrap items-center gap-2 text-xs text-ink-muted">
                       {item.author.photo ? <img src={item.author.photo} alt="" className="h-6 w-6 rounded-full object-cover" /> : null}
                       <span>{item.author.name} · {when(item.createdAt)}{item.lastActivityAt ? ` · Active ${when(item.lastActivityAt)}` : ''} · {item.replyCount} {item.replyCount === 1 ? 'reply' : 'replies'}</span>
                     </p>
@@ -287,9 +288,9 @@ export default function CommunityPage() {
 
           {!loading && (page > 1 || hasMore) ? (
             <div className="mt-6 flex items-center justify-between">
-              <button type="button" className="rounded-full border border-[#e5e5e5] px-4 py-2 text-sm font-semibold disabled:opacity-40" disabled={page <= 1} onClick={() => pushQuery({ page: String(page - 1) })}>Previous</button>
-              <span className="text-sm text-[#525252]">Page {page}</span>
-              <button type="button" className="rounded-full border border-[#e5e5e5] px-4 py-2 text-sm font-semibold disabled:opacity-40" disabled={!hasMore} onClick={() => pushQuery({ page: String(page + 1) })}>Next</button>
+              <button type="button" className="rounded-full border border-line px-4 py-2 text-sm font-semibold disabled:opacity-40" disabled={page <= 1} onClick={() => pushQuery({ page: String(page - 1) })}>Previous</button>
+              <span className="text-sm text-ink-muted">Page {page}</span>
+              <button type="button" className="rounded-full border border-line px-4 py-2 text-sm font-semibold disabled:opacity-40" disabled={!hasMore} onClick={() => pushQuery({ page: String(page + 1) })}>Next</button>
             </div>
           ) : null}
         </section>

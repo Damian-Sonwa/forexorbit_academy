@@ -257,12 +257,12 @@ test('F5 idempotent: two overlapping full sweeps fill each of 230 triggered orde
 // F4 and step 6: index definitions
 // ---------------------------------------------------------------------------
 
-test('F4: T17 and T18 serve the sweep and recovery reads; T1-T18, L8/L9 and A1-A6 are all defined', () => {
-  assert.deepEqual(TRADING_INDEXES.map((i) => i.id), Array.from({ length: 18 }, (_, i) => `T${i + 1}`));
+test('F4: T17 and T18 serve the sweep and recovery reads; T1-T20, L8/L9 and A1-A6 are all defined', () => {
+  assert.deepEqual(TRADING_INDEXES.map((i) => i.id), Array.from({ length: 20 }, (_, i) => `T${i + 1}`));
   const byId = Object.fromEntries(TRADING_INDEXES.map((i) => [i.id, i]));
   assert.deepEqual([byId.T17.collection, byId.T17.key, byId.T17.options], ['tradingPositions', { status: 1, accountId: 1 }, { name: 'trading_position_status_account' }]);
   assert.deepEqual([byId.T18.collection, byId.T18.key, byId.T18.options], ['tradingOrders', { status: 1, createdAt: 1 }, { name: 'trading_order_status_created' }]);
-  assert.equal(new Set(TRADING_INDEXES.map((i) => i.options.name)).size, 18, 'names are unique');
+  assert.equal(new Set(TRADING_INDEXES.map((i) => i.options.name)).size, 20, 'names are unique');
   // A unique index must carry a duplicate check whose fields are exactly its key, so the report
   // counts duplicates and --apply refuses, rather than failing part-way with E11000.
   for (const index of TRADING_INDEXES.filter((i) => i.options.unique)) assert.deepEqual(index.duplicateKey, Object.keys(index.key), index.id);

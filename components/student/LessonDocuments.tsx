@@ -50,9 +50,9 @@ export default function LessonDocuments({ pdfUrl, pdfAvailable, resources }: Pro
   if (!items.length) return null;
 
   return (
-    <section className="mb-4 rounded-xl border border-gray-100 bg-white p-4 shadow-sm sm:rounded-2xl sm:p-6 dark:border-gray-700 dark:bg-gray-800" data-testid="lesson-documents">
-      <h2 className="mb-1 text-xl font-bold text-gray-900 sm:text-2xl dark:text-white">Lesson documents</h2>
-      <p className="mb-3 text-sm text-gray-600 dark:text-gray-300">Documents open in a new tab.</p>
+    <section className="card mb-4 rounded-xl p-4 sm:rounded-2xl sm:p-6" data-testid="lesson-documents">
+      <h2 className="mb-1 text-xl font-bold sm:text-2xl text-ink">Lesson documents</h2>
+      <p className="mb-3 text-sm text-ink-muted">Documents open in a new tab.</p>
       <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {items.map((item) => {
           const inner = (
@@ -61,8 +61,8 @@ export default function LessonDocuments({ pdfUrl, pdfAvailable, resources }: Pro
                 <DocumentIcon type={item.type} />
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-semibold text-gray-900 dark:text-white">{item.title}</span>
-                <span className="mt-0.5 block text-xs text-gray-500 dark:text-gray-400">
+                <span className="block truncate text-sm font-semibold text-ink">{item.title}</span>
+                <span className="mt-0.5 block text-xs text-ink-muted">
                   {item.href ? TYPE_LABEL[item.type] || 'File' : 'Unavailable'}
                 </span>
               </span>

@@ -76,7 +76,7 @@ export default function Pricing() {
   const totalExact = formatNairaAndKobo(COURSE_LOCAL_CARD_TOTAL_KOBO);
 
   return (
-    <div className="landing-shell min-h-screen bg-[#07080c] text-white">
+    <div className="landing-shell min-h-screen text-white">
       <Head>
         <title>Pricing | ForexOrbit Academy</title>
         <meta

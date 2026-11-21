@@ -187,6 +187,11 @@
         {
           "cluster": false,
           "db": "Forex_elearning",
+          "collection": "tradingReviews"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
           "collection": "learningDays"
         },
         {
@@ -513,6 +518,11 @@
           "cluster": false,
           "db": "Forex_elearning",
           "collection": "tradingPositions"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "tradingReviews"
         },
         {
           "cluster": false,
@@ -847,6 +857,11 @@
         {
           "cluster": false,
           "db": "Forex_elearning",
+          "collection": "tradingReviews"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
           "collection": "learningDays"
         },
         {
@@ -1158,6 +1173,11 @@
           "cluster": false,
           "db": "Forex_elearning",
           "collection": "tradingPositions"
+        },
+        {
+          "cluster": false,
+          "db": "Forex_elearning",
+          "collection": "tradingReviews"
         },
         {
           "cluster": false,

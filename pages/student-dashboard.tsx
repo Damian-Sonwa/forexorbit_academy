@@ -1,6 +1,7 @@
 /**
  * Student Dashboard
- * Restructured with three main sections: Live Trading, Tasks, and Trade Journal
+ * Sections: Setup guide, Practice account, Tasks, Trade journal (reviews of closed simulator trades)
+ * and Reminders.
  */
 
 import { useState, useEffect } from 'react';
@@ -12,15 +13,14 @@ import Footer from '@/components/Footer';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import TradingInterface from '@/components/TradingInterface';
 import SetupGuide from '@/components/student/SetupGuide';
+import TradeReviews from '@/components/student/TradeReviews';
 import TodoList from '@/components/TodoList';
 import RemindersPanel from '@/components/RemindersPanel';
 import { useAuth } from '@/hooks/useAuth';
 import { useSocket } from '@/hooks/useSocket';
 import { apiClient } from '@/lib/api-client';
 import { format } from 'date-fns';
-import Image from 'next/image';
-import { AlertTriangle, BarChart3, BookOpen, Bot, Calendar, CheckCircle2, ClipboardList, Clock, FileText, Image as ImageIcon, Lightbulb, MessageSquare, Save, User, Zap } from 'lucide-react';
-import dynamic from 'next/dynamic';
+import { AlertTriangle, BarChart3, BookOpen, Calendar, ClipboardList, Clock, MessageSquare, User, Zap } from 'lucide-react';
 
 // The market signal chart pulls in recharts; load it after the page instead of in the page bundle.
 
@@ -49,6 +49,7 @@ interface TaskSubmission {
   submittedAt: string;
 }
 
+/** Entries from the old hand-typed journal, shown read-only. */
 interface TradeJournalEntry {
   _id: string;
   pair: string;
@@ -81,27 +82,7 @@ export default function StudentDashboard() {
   const [taskSubmissions, setTaskSubmissions] = useState<Record<string, TaskSubmission>>({});
   const [journalEntries, setJournalEntries] = useState<TradeJournalEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showJournalModal, setShowJournalModal] = useState(false);
-  const [editingJournalEntry, setEditingJournalEntry] = useState<TradeJournalEntry | null>(null);
-  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
-  // Trade journal form state
-  const [journalForm, setJournalForm] = useState({
-    pair: '',
-    direction: 'buy' as 'buy' | 'sell',
-    entryPrice: '',
-    stopLoss: '',
-    takeProfit: '',
-    lotSize: '',
-    result: 'open' as 'win' | 'loss' | 'breakeven' | 'open',
-    profitLoss: '',
-    notes: '',
-    screenshot: '',
-  });
-  const [uploadingScreenshot, setUploadingScreenshot] = useState(false);
-  const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -168,142 +149,6 @@ export default function StudentDashboard() {
     return 'submitted';
   };
 
-  const handleScreenshotUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setUploadError(null);
-
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
-    if (!allowedTypes.includes(file.type.toLowerCase())) {
-      setUploadError('Invalid file type. Only JPG, JPEG, and PNG images are allowed.');
-      e.target.value = '';
-      return;
-    }
-
-    if (file.size > 10 * 1024 * 1024) {
-      setUploadError('File size must be less than 10MB');
-      e.target.value = '';
-      return;
-    }
-
-    try {
-      setUploadingScreenshot(true);
-      setUploadError(null);
-      
-      const formData = new FormData();
-      formData.append('file', file);
-
-      const data = await apiClient.post<{ success: boolean; url: string; imageUrl?: string; filename: string }>(
-        '/demo-trading/journal/upload',
-        formData
-      );
-
-      const imageUrl = data.imageUrl || data.url;
-      setJournalForm({ ...journalForm, screenshot: imageUrl });
-      setScreenshotPreview(imageUrl);
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to upload screenshot';
-      setUploadError(errorMessage);
-      console.error('Screenshot upload error:');
-    } finally {
-      setUploadingScreenshot(false);
-    }
-  };
-
-  const handleEditJournalEntry = (entry: TradeJournalEntry) => {
-    setEditingJournalEntry(entry);
-    setJournalForm({
-      pair: entry.pair,
-      direction: entry.direction,
-      entryPrice: entry.entryPrice.toString(),
-      stopLoss: entry.stopLoss.toString(),
-      takeProfit: entry.takeProfit.toString(),
-      lotSize: entry.lotSize.toString(),
-      result: entry.result,
-      profitLoss: entry.profitLoss?.toString() || '',
-      notes: entry.notes || '',
-      screenshot: entry.screenshot || '',
-    });
-    if (entry.screenshot) {
-      setScreenshotPreview(entry.screenshot);
-    }
-    setShowJournalModal(true);
-  };
-
-  const handleDeleteJournalEntry = async (entryId: string) => {
-    if (!confirm('Are you sure you want to delete this trade entry? This action cannot be undone.')) {
-      return;
-    }
-
-    try {
-      await apiClient.delete(`/demo-trading/journal/${entryId}`);
-      await loadData();
-      alert('Trade entry deleted successfully');
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to delete trade entry';
-      alert(errorMessage);
-      console.error('Delete journal entry error:');
-    }
-  };
-
-  const handleSubmitJournal = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (isSubmitting) {
-      return;
-    }
-
-    try {
-      setIsSubmitting(true);
-      
-      const entryData = {
-        ...journalForm,
-        entryPrice: parseFloat(journalForm.entryPrice),
-        stopLoss: parseFloat(journalForm.stopLoss),
-        takeProfit: parseFloat(journalForm.takeProfit),
-        lotSize: parseFloat(journalForm.lotSize),
-        profitLoss: journalForm.profitLoss ? parseFloat(journalForm.profitLoss) : undefined,
-        screenshot: journalForm.screenshot || undefined,
-      };
-
-      if (editingJournalEntry) {
-        // Update existing entry
-        await apiClient.put(`/demo-trading/journal/${editingJournalEntry._id}`, entryData);
-      } else {
-        // Create new entry
-        await apiClient.post('/demo-trading/journal', entryData);
-      }
-      
-      // Reset form and close modal
-      setShowJournalModal(false);
-      setEditingJournalEntry(null);
-      setJournalForm({
-        pair: '',
-        direction: 'buy',
-        entryPrice: '',
-        stopLoss: '',
-        takeProfit: '',
-        lotSize: '',
-        result: 'open',
-        profitLoss: '',
-        notes: '',
-        screenshot: '',
-      });
-      setScreenshotPreview(null);
-      setUploadError(null);
-      
-      // Reload data
-      await loadData();
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to save trade journal entry';
-      alert(errorMessage);
-      console.error('Journal submission error:');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   if (authLoading || loading) {
     return <LoadingSpinner message="Loading dashboard..." fullScreen />;
   }
@@ -314,8 +159,6 @@ export default function StudentDashboard() {
 
   const pendingTasks = tasks.filter(t => getTaskStatus(t) === 'pending');
   const submittedTasks = tasks.filter(t => getTaskStatus(t) === 'submitted' || getTaskStatus(t) === 'reviewed' || getTaskStatus(t) === 'graded');
-  const openTrades = journalEntries.filter(t => t.result === 'open');
-  const closedTrades = journalEntries.filter(t => t.result !== 'open');
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -324,31 +167,35 @@ export default function StudentDashboard() {
       <div className="flex flex-1 relative overflow-hidden lg:items-start">
         <Sidebar />
 
-        <main className="flex-1 max-w-6xl mx-auto w-full overflow-y-auto px-4 py-6 pt-16 sm:px-6 lg:px-8 lg:py-8">
-          <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <main className="mx-auto w-full max-w-7xl flex-1 px-4 pb-12 pt-20 sm:px-6 lg:px-10 lg:pt-10">
+          <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="page-kicker mb-2">Practice</p>
-              <h1 className="page-title">Practice desk</h1>
-              <p className="mt-2 max-w-xl text-sm text-neutral-600">
+              <p className="page-kicker">Practice</p>
+              <h1 className="page-title mt-3">Practice desk</h1>
+              <p className="page-lede">
                 Paper trading, instructor tasks, and a journal. No real money is deposited or withdrawn.
               </p>
             </div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-sm text-neutral-700">
-              <span className={`h-2 w-2 rounded-full ${connected ? 'bg-green-600' : 'bg-neutral-400'}`} />
+            <div className="inline-flex w-fit items-center gap-2 rounded-full border border-line bg-surface-1 px-3 py-1.5 text-xs font-medium text-ink-muted shadow-panel">
+              <span className={`relative flex h-2 w-2`}>
+                {connected && <span className="absolute inline-flex h-full w-full rounded-full bg-up opacity-60 motion-safe:animate-ping" />}
+                <span className={`relative inline-flex h-2 w-2 rounded-full ${connected ? 'bg-up' : 'bg-[var(--fo-line-strong)]'}`} />
+              </span>
               {connected ? 'Connected' : 'Connecting'}
             </div>
           </div>
 
           <div className="mb-6">
-            <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-neutral-100 p-1">
+            <div className="overflow-x-auto rounded-2xl border border-line bg-surface-1 p-1.5 shadow-panel">
               <nav className="flex min-w-max gap-1" aria-label="Sections">
                 <button
                   onClick={() => setActiveSection('guide')}
+                  aria-current={activeSection === 'guide' ? 'page' : undefined}
                   className={`
-                    flex items-center space-x-2 px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap
+                    relative flex min-h-[44px] items-center gap-2 rounded-xl px-4 text-sm font-medium whitespace-nowrap transition-colors
                     ${activeSection === 'guide'
-                      ? 'bg-primary-400 text-neutral-900'
-                      : 'text-neutral-600 hover:bg-white hover:text-neutral-900'
+                      ? 'bg-tint text-ink after:absolute after:inset-x-4 after:-bottom-px after:h-px after:bg-[linear-gradient(90deg,transparent,#ff7012,transparent)]'
+                      : 'text-ink-muted hover:bg-[color-mix(in_srgb,var(--fo-text)_5%,transparent)] hover:text-ink'
                     }
                   `}
                 >
@@ -357,11 +204,12 @@ export default function StudentDashboard() {
                 </button>
                 <button
                   onClick={() => setActiveSection('live')}
+                  aria-current={activeSection === 'live' ? 'page' : undefined}
                   className={`
-                    flex items-center space-x-2 px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap
+                    relative flex min-h-[44px] items-center gap-2 rounded-xl px-4 text-sm font-medium whitespace-nowrap transition-colors
                     ${activeSection === 'live'
-                      ? 'bg-primary-400 text-neutral-900'
-                      : 'text-neutral-600 hover:bg-white hover:text-neutral-900'
+                      ? 'bg-tint text-ink after:absolute after:inset-x-4 after:-bottom-px after:h-px after:bg-[linear-gradient(90deg,transparent,#ff7012,transparent)]'
+                      : 'text-ink-muted hover:bg-[color-mix(in_srgb,var(--fo-text)_5%,transparent)] hover:text-ink'
                     }
                   `}
                 >
@@ -370,29 +218,31 @@ export default function StudentDashboard() {
                 </button>
                 <button
                   onClick={() => setActiveSection('tasks')}
+                  aria-current={activeSection === 'tasks' ? 'page' : undefined}
                   className={`
-                    flex items-center space-x-2 px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap relative
+                    relative flex min-h-[44px] items-center gap-2 rounded-xl px-4 text-sm font-medium whitespace-nowrap transition-colors
                     ${activeSection === 'tasks'
-                      ? 'bg-primary-400 text-neutral-900'
-                      : 'text-neutral-600 hover:bg-white hover:text-neutral-900'
+                      ? 'bg-tint text-ink after:absolute after:inset-x-4 after:-bottom-px after:h-px after:bg-[linear-gradient(90deg,transparent,#ff7012,transparent)]'
+                      : 'text-ink-muted hover:bg-[color-mix(in_srgb,var(--fo-text)_5%,transparent)] hover:text-ink'
                     }
                   `}
                 >
                   <ClipboardList className="h-4 w-4 shrink-0" aria-hidden />
                   <span>Tasks</span>
                   {pendingTasks.length > 0 && (
-                    <span className="ml-2 px-2.5 py-0.5 bg-red-600 text-white text-xs font-bold rounded-full motion-safe:animate-pulse">
+                    <span className="ml-1 rounded-full bg-primary-500 px-2 py-0.5 text-[11px] font-bold leading-none text-neutral-950">
                       {pendingTasks.length}
                     </span>
                   )}
                 </button>
                 <button
                   onClick={() => setActiveSection('journal')}
+                  aria-current={activeSection === 'journal' ? 'page' : undefined}
                   className={`
-                    flex items-center space-x-2 px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap
+                    relative flex min-h-[44px] items-center gap-2 rounded-xl px-4 text-sm font-medium whitespace-nowrap transition-colors
                     ${activeSection === 'journal'
-                      ? 'bg-primary-400 text-neutral-900'
-                      : 'text-neutral-600 hover:bg-white hover:text-neutral-900'
+                      ? 'bg-tint text-ink after:absolute after:inset-x-4 after:-bottom-px after:h-px after:bg-[linear-gradient(90deg,transparent,#ff7012,transparent)]'
+                      : 'text-ink-muted hover:bg-[color-mix(in_srgb,var(--fo-text)_5%,transparent)] hover:text-ink'
                     }
                   `}
                 >
@@ -401,11 +251,12 @@ export default function StudentDashboard() {
                 </button>
                 <button
                   onClick={() => setActiveSection('reminders')}
+                  aria-current={activeSection === 'reminders' ? 'page' : undefined}
                   className={`
-                    flex items-center space-x-2 px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap
+                    relative flex min-h-[44px] items-center gap-2 rounded-xl px-4 text-sm font-medium whitespace-nowrap transition-colors
                     ${activeSection === 'reminders'
-                      ? 'bg-primary-400 text-neutral-900'
-                      : 'text-neutral-600 hover:bg-white hover:text-neutral-900'
+                      ? 'bg-tint text-ink after:absolute after:inset-x-4 after:-bottom-px after:h-px after:bg-[linear-gradient(90deg,transparent,#ff7012,transparent)]'
+                      : 'text-ink-muted hover:bg-[color-mix(in_srgb,var(--fo-text)_5%,transparent)] hover:text-ink'
                     }
                   `}
                 >
@@ -422,25 +273,23 @@ export default function StudentDashboard() {
             {/* Setup Guide Section */}
             {activeSection === 'guide' && (
               <div className="animate-in fade-in duration-300">
-                <SetupGuide />
+                <SetupGuide onNavigate={setActiveSection} />
               </div>
             )}
 
             {/* Live Trading Section */}
             {activeSection === 'live' && (
               <div className="space-y-6 animate-in fade-in duration-300">
-                <div className="bg-red-50 border-l-4 border-red-500 rounded-xl p-6 shadow-md">
-                  <div className="flex items-start">
-                    <div className="flex-shrink-0">
-                      <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
-                        <AlertTriangle className="h-6 w-6 shrink-0 text-amber-700" aria-hidden />
-                      </div>
+                <div className="notice notice-caution !p-5">
+                  <div className="flex items-start gap-4">
+                    <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border border-[color-mix(in_srgb,var(--fo-warn)_35%,transparent)] bg-[color-mix(in_srgb,var(--fo-warn)_12%,transparent)]">
+                      <AlertTriangle className="h-5 w-5 shrink-0 text-caution" aria-hidden />
                     </div>
-                    <div className="ml-4 flex-1">
-                      <h3 className="text-lg font-bold text-red-900 mb-2">Practice simulator notice</h3>
-                      <div className="space-y-2 text-sm text-red-800">
-                        <p className="font-semibold">This is a practice simulator. No order reaches a broker or a real market.</p>
-                        <ul className="list-disc list-inside space-y-1 ml-2">
+                    <div className="min-w-0 flex-1">
+                      <h3 className="text-sm font-semibold text-ink">Practice simulator notice</h3>
+                      <div className="mt-1 space-y-2 text-sm text-ink-muted">
+                        <p className="font-medium text-ink">This is a practice simulator. No order reaches a broker or a real market.</p>
+                        <ul className="grid gap-x-6 gap-y-1 text-[13px] sm:grid-cols-2 [&>li]:relative [&>li]:pl-4 [&>li]:before:absolute [&>li]:before:left-0 [&>li]:before:top-[0.6em] [&>li]:before:h-1.5 [&>li]:before:w-1.5 [&>li]:before:rounded-full [&>li]:before:border [&>li]:before:border-[var(--fo-warn)]">
                           <li>All trades are simulated on this site with virtual money</li>
                           <li>No real money can be deposited, traded, or withdrawn</li>
                           <li>ForexOrbit Academy does not provide brokerage services</li>
@@ -644,271 +493,9 @@ export default function StudentDashboard() {
               </div>
             )}
 
-            {/* Trade Journal Section */}
+            {/* Trade journal: reviews of closed simulator trades (components/student/TradeReviews.tsx) */}
             {activeSection === 'journal' && (
-              <div className="space-y-6 animate-in fade-in duration-300">
-                <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6">
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-                    <div>
-                      <h2 className="text-3xl font-bold text-neutral-900 dark:text-white mb-2">
-                        Trade Journal
-                      </h2>
-                      <p className="text-gray-600">Track your trading performance and learn from each trade</p>
-                    </div>
-                    <button
-                      onClick={() => setShowJournalModal(true)}
-                      className="inline-flex items-center space-x-2 px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-bold transition-colors"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                      </svg>
-                      <span>Add Trade</span>
-                    </button>
-                  </div>
-
-                  {/* Open Trades */}
-                  {openTrades.length > 0 && (
-                    <div className="mb-8">
-                      <div className="flex items-center space-x-3 mb-6">
-                        <div className="w-1 h-8 bg-primary-500 rounded-full"></div>
-                        <h3 className="text-xl font-bold text-gray-900">Open Trades</h3>
-                        <span className="px-3 py-1 bg-neutral-100 text-neutral-800 rounded-full text-xs font-bold">
-                          {openTrades.length}
-                        </span>
-                      </div>
-                      <div className="overflow-x-auto rounded-xl border border-gray-200 shadow-sm">
-                        <table className="min-w-full divide-y divide-gray-200">
-                          <thead className="bg-neutral-50">
-                            <tr>
-                              <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Pair</th>
-                              <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Direction</th>
-                              <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Entry</th>
-                              <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">SL</th>
-                              <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">TP</th>
-                              <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Lot Size</th>
-                              <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Date</th>
-                              <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Actions</th>
-                            </tr>
-                          </thead>
-                          <tbody className="bg-white divide-y divide-gray-200">
-                            {openTrades.map((trade) => (
-                              <tr key={trade._id} className="hover:bg-neutral-50 transition-colors">
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">{trade.pair}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm">
-                                  <span className={`px-3 py-1.5 rounded-full text-xs font-bold ${
-                                    trade.direction === 'buy' ? 'bg-green-100 text-green-700 border border-green-300' : 'bg-red-100 text-red-700 border border-red-300'
-                                  }`}>
-                                    {trade.direction.toUpperCase()}
-                                  </span>
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{trade.entryPrice}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{trade.stopLoss}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{trade.takeProfit}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{trade.lotSize}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{format(new Date(trade.createdAt), 'MMM dd, yyyy')}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm">
-                                  <div className="flex items-center space-x-2">
-                                    <button
-                                      onClick={() => handleEditJournalEntry(trade)}
-                                      className="p-2 text-primary-600 hover:bg-neutral-100 rounded-lg transition-colors"
-                                      title="Edit"
-                                    >
-                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                      </svg>
-                                    </button>
-                                    <button
-                                      onClick={() => handleDeleteJournalEntry(trade._id)}
-                                      className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
-                                      title="Delete"
-                                    >
-                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                      </svg>
-                                    </button>
-                                  </div>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Closed Trades */}
-                  {closedTrades.length > 0 && (
-                    <div className={openTrades.length > 0 ? 'mt-8' : ''}>
-                      <div className="flex items-center space-x-3 mb-6">
-                        <div className="w-1 h-8 bg-neutral-800 rounded-full"></div>
-                        <h3 className="text-xl font-bold text-gray-900">Closed Trades</h3>
-                        <span className="px-3 py-1 bg-neutral-100 text-neutral-800 rounded-full text-xs font-bold">
-                          {closedTrades.length}
-                        </span>
-                      </div>
-                      <div className="grid gap-4">
-                        {closedTrades.map((trade) => (
-                          <div 
-                            key={trade._id} 
-                            className="bg-white border-2 border-gray-200 rounded-2xl p-6 transition-colors"
-                          >
-                            <div className="grid md:grid-cols-6 gap-6 items-center mb-4">
-                              <div>
-                                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Pair</p>
-                                <p className="text-lg font-bold text-gray-900">{trade.pair}</p>
-                              </div>
-                              <div>
-                                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Direction</p>
-                                <span className={`inline-block px-3 py-1.5 rounded-full text-xs font-bold ${
-                                  trade.direction === 'buy' ? 'bg-green-100 text-green-700 border border-green-300' : 'bg-red-100 text-red-700 border border-red-300'
-                                }`}>
-                                  {trade.direction.toUpperCase()}
-                                </span>
-                              </div>
-                              <div>
-                                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Entry</p>
-                                <p className="text-lg font-bold text-gray-900">{trade.entryPrice}</p>
-                              </div>
-                              <div>
-                                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Result</p>
-                                <span className={`inline-block px-3 py-1.5 rounded-full text-xs font-bold ${
-                                  trade.result === 'win' ? 'bg-green-100 text-green-700 border border-green-300' :
-                                  trade.result === 'loss' ? 'bg-red-100 text-red-700 border border-red-300' :
-                                  'bg-gray-100 text-gray-700 border border-gray-300'
-                                }`}>
-                                  {trade.result.toUpperCase()}
-                                </span>
-                              </div>
-                              <div>
-                                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">P/L</p>
-                                <p className={`text-lg font-bold ${
-                                  trade.profitLoss && trade.profitLoss > 0 ? 'text-green-600' :
-                                  trade.profitLoss && trade.profitLoss < 0 ? 'text-red-600' : 'text-gray-900'
-                                }`}>
-                                  {trade.profitLoss !== undefined ? `$${trade.profitLoss.toFixed(2)}` : '-'}
-                                </p>
-                              </div>
-                              <div>
-                                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Date</p>
-                                <p className="text-sm text-gray-600">{format(new Date(trade.createdAt), 'MMM dd, yyyy')}</p>
-                              </div>
-                            </div>
-                            {(trade.notes || trade.screenshot || trade.aiFeedback) && (
-                              <div className="mt-6 pt-6 border-t-2 border-gray-200">
-                                {trade.notes && (
-                                  <div className="mb-4">
-                                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2"><FileText className="mr-2 inline h-4 w-4 shrink-0 text-neutral-500" aria-hidden />Notes</p>
-                                    <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed bg-gray-50 rounded-lg p-4">{trade.notes}</p>
-                                  </div>
-                                )}
-                                {trade.screenshot && (
-                                  <div className="mb-4">
-                                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2"><ImageIcon className="mr-2 inline h-4 w-4 shrink-0 text-neutral-500" aria-hidden />Screenshot</p>
-                                    <div className="relative w-full max-w-md h-64 rounded-xl overflow-hidden border-2 border-gray-300 shadow-md">
-                                      <Image
-                                        src={trade.screenshot}
-                                        alt="Trade screenshot"
-                                        fill
-                                        className="object-contain"
-                                        onError={(e) => {
-                                          console.error('Failed to load trade screenshot:', trade.screenshot);
-                                          const img = e.target as HTMLImageElement;
-                                          img.style.display = 'none';
-                                        }}
-                                      />
-                                    </div>
-                                  </div>
-                                )}
-                                {trade.aiFeedback && (
-                                  <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-4 mb-4">
-                                    <div className="flex items-center mb-3">
-                                      <Bot className="mr-2 h-5 w-5 shrink-0 text-primary-700" aria-hidden />
-                                      <h4 className="text-sm font-bold text-gray-900">AI Feedback</h4>
-                                    </div>
-                                    {trade.aiFeedback.strengths && trade.aiFeedback.strengths.length > 0 && (
-                                      <div className="mb-3">
-                                        <p className="text-xs font-semibold text-green-700 mb-1"><CheckCircle2 className="mr-2 inline h-4 w-4 shrink-0 text-green-700" aria-hidden />Strengths:</p>
-                                        <ul className="list-disc list-inside space-y-1">
-                                          {trade.aiFeedback.strengths.map((strength, idx) => (
-                                            <li key={idx} className="text-xs text-gray-700">{strength}</li>
-                                          ))}
-                                        </ul>
-                                      </div>
-                                    )}
-                                    {trade.aiFeedback.mistakes && trade.aiFeedback.mistakes.length > 0 && (
-                                      <div className="mb-3">
-                                        <p className="text-xs font-semibold text-orange-700 mb-1"><AlertTriangle className="mr-1 inline h-4 w-4 shrink-0 text-amber-700" aria-hidden />Areas for Improvement:</p>
-                                        <ul className="list-disc list-inside space-y-1">
-                                          {trade.aiFeedback.mistakes.map((mistake, idx) => (
-                                            <li key={idx} className="text-xs text-gray-700">{mistake}</li>
-                                          ))}
-                                        </ul>
-                                      </div>
-                                    )}
-                                    {trade.aiFeedback.suggestions && trade.aiFeedback.suggestions.length > 0 && (
-                                      <div className="mb-3">
-                                        <p className="text-xs font-semibold text-primary-700 mb-1"><Lightbulb className="mr-2 inline h-4 w-4 shrink-0 text-primary-600" aria-hidden />Suggestions:</p>
-                                        <ul className="list-disc list-inside space-y-1">
-                                          {trade.aiFeedback.suggestions.map((suggestion, idx) => (
-                                            <li key={idx} className="text-xs text-gray-700">{suggestion}</li>
-                                          ))}
-                                        </ul>
-                                      </div>
-                                    )}
-                                    {trade.aiFeedback.riskReward && (
-                                      <div>
-                                        <p className="text-xs font-semibold text-primary-700 mb-1"><BarChart3 className="mr-2 inline h-4 w-4 shrink-0 text-neutral-700" aria-hidden />Risk-to-Reward:</p>
-                                        <p className="text-xs text-gray-700">{trade.aiFeedback.riskReward}</p>
-                                      </div>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                            <div className="mt-4 pt-4 border-t-2 border-gray-200 flex justify-end space-x-2">
-                              <button
-                                onClick={() => handleEditJournalEntry(trade)}
-                                className="inline-flex items-center space-x-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-semibold transition-all"
-                              >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                </svg>
-                                <span>Edit</span>
-                              </button>
-                              <button
-                                onClick={() => handleDeleteJournalEntry(trade._id)}
-                                className="btn btn-danger-quiet"
-                              >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                </svg>
-                                <span>Delete</span>
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {journalEntries.length === 0 && (
-                    <div className="text-center py-16 bg-white rounded-2xl border-2 border-dashed border-gray-300">
-                      <BarChart3 className="mx-auto mb-4 h-12 w-12 text-neutral-400" aria-hidden />
-                      <p className="text-xl font-semibold text-gray-700 mb-2">No trades logged yet</p>
-                      <p className="text-gray-500 mb-6">Start tracking your trading performance</p>
-                      <button
-                        onClick={() => setShowJournalModal(true)}
-                        className="inline-flex items-center space-x-2 px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-bold transition-colors"
-                      >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                        </svg>
-                        <span>Log Your First Trade</span>
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
+              <TradeReviews tasks={tasks} legacyEntries={journalEntries} onOpenDesk={() => setActiveSection('live')} />
             )}
 
             {/* Reminders & To-Do Section */}
@@ -940,267 +527,6 @@ export default function StudentDashboard() {
           </div>
         </main>
       </div>
-
-      {/* Trade Journal Modal - Enhanced Design */}
-      {showJournalModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto transform transition-all animate-in zoom-in-95 duration-200">
-            <div className="sticky top-0 bg-white border-b border-neutral-200 text-neutral-900 p-6 rounded-t-2xl">
-              <div className="flex justify-between items-center">
-                <div>
-                  <h2 className="text-2xl font-bold mb-1">{editingJournalEntry ? 'Edit Trade' : 'Log Trade'}</h2>
-                  <p className="text-neutral-500 text-sm">{editingJournalEntry ? 'Update your trade entry' : 'Record your trading activity and analysis'}</p>
-                </div>
-                <button
-                  onClick={() => {
-                    setShowJournalModal(false);
-                    setEditingJournalEntry(null);
-                    setJournalForm({
-                      pair: '',
-                      direction: 'buy',
-                      entryPrice: '',
-                      stopLoss: '',
-                      takeProfit: '',
-                      lotSize: '',
-                      result: 'open',
-                      profitLoss: '',
-                      notes: '',
-                      screenshot: '',
-                    });
-                    setScreenshotPreview(null);
-                    setUploadError(null);
-                  }}
-                  className="w-10 h-10 rounded-full bg-neutral-100 hover:bg-neutral-200 text-neutral-700 flex items-center justify-center transition-colors"
-                  aria-label="Close"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-            <div className="p-6">
-
-              <form onSubmit={handleSubmitJournal} className="space-y-6">
-                <div className="grid md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-2">Currency Pair *</label>
-                    <input
-                      type="text"
-                      required
-                      value={journalForm.pair}
-                      onChange={(e) => setJournalForm({ ...journalForm, pair: e.target.value.toUpperCase() })}
-                      placeholder="EUR/USD"
-                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-gray-900 bg-white transition-all"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-2">Direction *</label>
-                    <select
-                      required
-                      value={journalForm.direction}
-                      onChange={(e) => setJournalForm({ ...journalForm, direction: e.target.value as 'buy' | 'sell' })}
-                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-gray-900 bg-white transition-all"
-                    >
-                      <option value="buy">Buy (Long)</option>
-                      <option value="sell">Sell (Short)</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Entry Price *</label>
-                    <input
-                      type="number"
-                      required
-                      step="0.00001"
-                      value={journalForm.entryPrice}
-                      onChange={(e) => setJournalForm({ ...journalForm, entryPrice: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 bg-white"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Stop Loss *</label>
-                    <input
-                      type="number"
-                      required
-                      step="0.00001"
-                      value={journalForm.stopLoss}
-                      onChange={(e) => setJournalForm({ ...journalForm, stopLoss: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 bg-white"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Take Profit *</label>
-                    <input
-                      type="number"
-                      required
-                      step="0.00001"
-                      value={journalForm.takeProfit}
-                      onChange={(e) => setJournalForm({ ...journalForm, takeProfit: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 bg-white"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Lot Size *</label>
-                    <input
-                      type="number"
-                      required
-                      step="0.01"
-                      value={journalForm.lotSize}
-                      onChange={(e) => setJournalForm({ ...journalForm, lotSize: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 bg-white"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Result *</label>
-                    <select
-                      required
-                      value={journalForm.result}
-                      onChange={(e) => setJournalForm({ ...journalForm, result: e.target.value as 'win' | 'loss' | 'breakeven' | 'open' })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 bg-white"
-                    >
-                      <option value="open">Open</option>
-                      <option value="win">Win</option>
-                      <option value="loss">Loss</option>
-                      <option value="breakeven">Breakeven</option>
-                    </select>
-                  </div>
-
-                  {journalForm.result !== 'open' && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Profit/Loss ($)</label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={journalForm.profitLoss}
-                        onChange={(e) => setJournalForm({ ...journalForm, profitLoss: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 bg-white"
-                      />
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-                  <textarea
-                    value={journalForm.notes}
-                    onChange={(e) => setJournalForm({ ...journalForm, notes: e.target.value })}
-                    rows={4}
-                    placeholder="What did you learn from this trade? Any observations?"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 bg-white"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Screenshot (Optional)
-                  </label>
-                  <p className="text-xs text-gray-500 mb-2">
-                    Upload a screenshot of your demo trading activity (JPG, JPEG, or PNG only, max 10MB)
-                  </p>
-                  <div className="space-y-2">
-                    <input
-                      type="file"
-                      accept="image/jpeg,image/jpg,image/png"
-                      onChange={handleScreenshotUpload}
-                      disabled={uploadingScreenshot || isSubmitting}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 bg-white disabled:opacity-50 disabled:cursor-not-allowed"
-                    />
-                    {uploadingScreenshot && (
-                      <p className="text-sm text-primary-600 flex items-center">
-                        <span className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-primary-600 mr-2"></span>
-                        Uploading screenshot...
-                      </p>
-                    )}
-                    {uploadError && (
-                      <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-2">
-                        {uploadError}
-                      </p>
-                    )}
-                    {screenshotPreview && !uploadError && (
-                      <div className="mt-2">
-                        <div className="relative w-full h-48 rounded-lg overflow-hidden border border-gray-300">
-                          <Image
-                            src={screenshotPreview}
-                            alt="Screenshot preview"
-                            fill
-                            className="object-contain"
-                            onError={() => {
-                              setUploadError('Failed to load image preview. Please try uploading again.');
-                            }}
-                          />
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setScreenshotPreview(null);
-                            setJournalForm({ ...journalForm, screenshot: '' });
-                            setUploadError(null);
-                          }}
-                          disabled={isSubmitting}
-                          className="mt-2 text-sm text-red-600 hover:text-red-800 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          Remove screenshot
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex justify-end space-x-4 pt-6 border-t-2 border-gray-200">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowJournalModal(false);
-                      setEditingJournalEntry(null);
-                      setJournalForm({
-                        pair: '',
-                        direction: 'buy',
-                        entryPrice: '',
-                        stopLoss: '',
-                        takeProfit: '',
-                        lotSize: '',
-                        result: 'open',
-                        profitLoss: '',
-                        notes: '',
-                        screenshot: '',
-                      });
-                      setScreenshotPreview(null);
-                      setUploadError(null);
-                    }}
-                    disabled={isSubmitting}
-                    className="px-6 py-3 border-2 border-gray-300 rounded-xl text-gray-700 font-bold hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <span className="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-white"></span>
-                        <span>Saving...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Save className="h-4 w-4 shrink-0" aria-hidden />
-                        <span>Save Trade</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
 
       <Footer />
     </div>

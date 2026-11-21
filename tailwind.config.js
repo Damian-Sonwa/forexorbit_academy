@@ -106,6 +106,26 @@ module.exports = {
           bg: '#FAF8F4',
           surface: '#FFFFFF',
         },
+        canvas: 'var(--fo-bg)',
+        shell: 'var(--fo-shell)',
+        surface: {
+          1: 'var(--fo-surface-1)',
+          2: 'var(--fo-surface-2)',
+          3: 'var(--fo-surface-3)',
+        },
+        line: {
+          DEFAULT: 'var(--fo-line)',
+          strong: 'var(--fo-line-strong)',
+        },
+        ink: {
+          DEFAULT: 'var(--fo-text)',
+          muted: 'var(--fo-text-muted)',
+          subtle: 'var(--fo-text-subtle)',
+        },
+        tint: 'var(--fo-brand-tint)',
+        up: 'var(--fo-up)',
+        down: 'var(--fo-down)',
+        caution: 'var(--fo-warn)',
         'level-basic': {
           DEFAULT: '#FF7012',
           light: '#FFF6EE',
@@ -122,9 +142,22 @@ module.exports = {
           dark: '#171717',
         },
       },
+      /**
+       * Orbit Instrument design tokens (styles/globals.css defines the variables per theme).
+       * Use these for new UI: bg-surface-1, border-line, text-ink-muted, bg-brand-tint ...
+       */
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
-        display: ['Poppins', 'system-ui', 'sans-serif'],
+        display: ['Poppins', 'Inter', 'system-ui', 'sans-serif'],
+      },
+      fontSize: {
+        '2xs': ['0.6875rem', { lineHeight: '1rem', letterSpacing: '0.01em' }],
+      },
+      borderRadius: {
+        panel: '1.125rem',
+      },
+      transitionTimingFunction: {
+        orbit: 'cubic-bezier(0.22, 1, 0.36, 1)',
       },
       spacing: {
         18: '4.5rem',
@@ -135,15 +168,33 @@ module.exports = {
         soft: '0 1px 2px rgba(23, 23, 23, 0.04)',
         card: '0 1px 2px rgba(23, 23, 23, 0.04), 0 8px 24px rgba(23, 23, 23, 0.04)',
         raised: '0 1px 2px rgba(23, 23, 23, 0.06), 0 12px 32px -12px rgba(23, 23, 23, 0.18)',
+        panel: 'var(--fo-shadow-panel)',
+        lift: 'var(--fo-shadow-lift)',
+        glow: '0 0 0 1px rgba(255, 112, 18, 0.35), 0 8px 28px -10px rgba(255, 112, 18, 0.45)',
+        panel: 'var(--fo-shadow-panel)',
+        lift: 'var(--fo-shadow-lift)',
+        glow: '0 0 0 1px rgba(255, 112, 18, 0.35), 0 8px 28px -10px rgba(255, 112, 18, 0.45)',
       },
       animation: {
         'spin-slow': 'spin 3s linear infinite',
         'slide-up': 'slideUp 0.3s ease-out',
+        'rise-in': 'riseIn 0.45s cubic-bezier(0.22, 1, 0.36, 1) both',
+        'fade-in-fast': 'fadeInFast 0.2s ease-out both',
+        'rise-in': 'riseIn 0.45s cubic-bezier(0.22, 1, 0.36, 1) both',
+        'fade-in-fast': 'fadeInFast 0.2s ease-out both',
       },
       keyframes: {
         slideUp: {
           '0%': { transform: 'translateY(100%)', opacity: '0' },
           '100%': { transform: 'translateY(0)', opacity: '1' },
+        },
+        riseIn: {
+          '0%': { transform: 'translateY(8px)', opacity: '0' },
+          '100%': { transform: 'translateY(0)', opacity: '1' },
+        },
+        fadeInFast: {
+          '0%': { opacity: '0' },
+          '100%': { opacity: '1' },
         },
       },
     },

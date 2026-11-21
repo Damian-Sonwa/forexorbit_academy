@@ -88,10 +88,10 @@ function formatClock(ms: number): string {
 function StaffPreview({ questions }: { questions: StaffQuestion[] }) {
   return (
     <div className="space-y-4" data-testid="quiz-staff-preview">
-      <p className="text-sm text-gray-600 dark:text-gray-300">Preview with the answer key. Students take this quiz in server-timed attempts and never receive the key before review.</p>
+      <p className="text-sm text-ink-muted">Preview with the answer key. Students take this quiz in server-timed attempts and never receive the key before review.</p>
       {questions.map((q, qi) => (
         <div key={q.id || qi} className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
-          <p className="font-semibold text-gray-900 dark:text-white">{qi + 1}. {q.question} <span className="text-xs font-normal text-gray-500">({q.points || 1} pt)</span></p>
+          <p className="font-semibold text-ink">{qi + 1}. {q.question} <span className="text-xs font-normal text-ink-muted">({q.points || 1} pt)</span></p>
           <ul className="mt-2 space-y-1 text-sm">
             {q.options.map((o, oi) => (
               <li key={oi} className={oi === q.correctAnswer ? 'font-semibold text-green-700' : 'text-gray-700 dark:text-gray-300'}>
@@ -267,10 +267,10 @@ function StudentQuiz({ lessonId }: { lessonId: string }) {
 
   const unanswered = useMemo(() => (attempt ? attempt.questions.filter((q) => answers[q.id] === undefined).length : 0), [attempt, answers]);
 
-  if (busy === 'loading') return <p className="text-sm text-gray-500" role="status">Loading quiz…</p>;
+  if (busy === 'loading') return <p className="text-sm text-ink-muted" role="status">Loading quiz…</p>;
   if (!overview) {
     return (
-      <div role="alert" className="text-sm text-gray-700">
+      <div role="alert" className="text-sm text-ink-muted">
         <p>{error || 'This quiz could not be loaded.'}</p>
         <button type="button" onClick={() => void loadOverview()} className="mt-2 font-semibold text-primary-600 hover:underline">Try again</button>
       </div>
@@ -284,13 +284,13 @@ function StudentQuiz({ lessonId }: { lessonId: string }) {
     return (
       <div className="space-y-4" data-testid="quiz-attempt">
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-gray-50 px-4 py-3 dark:bg-gray-900/40">
-          <span className="text-sm font-semibold text-gray-900 dark:text-white">Attempt {attempt.number} · Question {current + 1} of {attempt.questions.length}</span>
+          <span className="text-sm font-semibold text-ink">Attempt {attempt.number} · Question {current + 1} of {attempt.questions.length}</span>
           {remaining !== null && (
             <span className={`font-mono text-sm font-bold ${remaining < 60000 ? 'text-red-700' : 'text-gray-900 dark:text-white'}`} role="timer" aria-live="off" data-testid="quiz-timer">
               Time left {formatClock(remaining)}
             </span>
           )}
-          <span className="text-xs text-gray-600 dark:text-gray-300" data-testid="quiz-save-state" aria-live="polite">
+          <span className="text-xs text-ink-muted" data-testid="quiz-save-state" aria-live="polite">
             {Object.keys(pending).length ? `Saving… (${Object.keys(pending).length} not saved yet)` : `${savedCount} answer${savedCount === 1 ? '' : 's'} saved`}
           </span>
         </div>
@@ -314,12 +314,12 @@ function StudentQuiz({ lessonId }: { lessonId: string }) {
         {remaining !== null && remaining <= 0 && <p className="text-sm font-semibold text-red-700" role="status" data-testid="quiz-time-up">Time is up. Submitting your answers…</p>}
         {q && (
           <fieldset className="rounded-xl border border-gray-200 p-4 sm:p-6 dark:border-gray-700">
-            <legend className="px-1 text-base font-semibold text-gray-900 sm:text-lg dark:text-white">{q.question} <span className="text-xs font-normal text-gray-500">({q.points} pt)</span></legend>
+            <legend className="px-1 text-base font-semibold sm:text-lg text-ink">{q.question} <span className="text-xs font-normal text-ink-muted">({q.points} pt)</span></legend>
             <div className="mt-3 space-y-3">
               {q.options.map((option, index) => (
                 <label key={index} className={`flex min-h-[44px] cursor-pointer items-center gap-3 rounded-xl border-2 p-3 ${answers[q.id] === index ? 'border-primary-500 bg-primary-50 dark:bg-primary-400/10' : 'border-gray-200 hover:border-primary-300 dark:border-gray-700'}`}>
                   <input type="radio" name={`q-${q.id}`} checked={answers[q.id] === index} onChange={() => choose(q.id, index)} className="h-5 w-5" />
-                  <span className="flex-1 break-words text-gray-800 dark:text-gray-100">{option}</span>
+                  <span className="flex-1 break-words text-ink">{option}</span>
                 </label>
               ))}
             </div>
@@ -336,8 +336,8 @@ function StudentQuiz({ lessonId }: { lessonId: string }) {
         </div>
         {confirming && (
           <div role="dialog" aria-modal="true" aria-labelledby="quiz-confirm-title" className="rounded-xl border-2 border-amber-300 bg-amber-50 p-4 dark:bg-amber-950/40" data-testid="quiz-confirm">
-            <p id="quiz-confirm-title" className="font-semibold text-gray-900 dark:text-white">Submit this attempt?</p>
-            <p className="mt-1 text-sm text-gray-700 dark:text-gray-300">
+            <p id="quiz-confirm-title" className="font-semibold text-ink">Submit this attempt?</p>
+            <p className="mt-1 text-sm text-ink-muted">
               {unanswered ? `${unanswered} question${unanswered === 1 ? ' is' : 's are'} not answered and will score 0. ` : 'All questions are answered. '}
               {attempt.questions.length === unanswered ? 'An attempt with no answers does not complete this lesson. ' : ''}
               You cannot change your answers after submitting.
@@ -362,16 +362,16 @@ function StudentQuiz({ lessonId }: { lessonId: string }) {
     <div className="space-y-5" data-testid="quiz-overview">
       {finished && finished.result && (
         <div className="rounded-2xl border-2 border-gray-200 p-5 dark:border-gray-700" data-testid="quiz-result">
-          <p className="text-sm text-gray-600 dark:text-gray-300">
+          <p className="text-sm text-ink-muted">
             Attempt {finished.number} {finished.status === 'expired' ? '· time ran out; answers saved in time were graded' : '· submitted'}
           </p>
-          <p className="mt-1 text-4xl font-bold text-gray-900 dark:text-white">{finished.result.percent}%</p>
-          <p className="text-sm text-gray-700 dark:text-gray-300">{finished.result.earned} of {finished.result.available} points · {finished.result.correctCount} of {finished.result.total} correct</p>
+          <p className="mt-1 text-4xl font-bold text-ink">{finished.result.percent}%</p>
+          <p className="text-sm text-ink-muted">{finished.result.earned} of {finished.result.available} points · {finished.result.correctCount} of {finished.result.total} correct</p>
           {finished.result.passed !== null && (
             <p className={`mt-2 inline-block rounded-full px-3 py-1 text-sm font-semibold ${finished.result.passed ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>{finished.result.passed ? 'Passed' : 'Not passed'}</p>
           )}
           {finished.result.answeredCount === 0 && (
-            <p className="mt-2 text-sm font-medium text-gray-700 dark:text-gray-300" data-testid="quiz-no-answers">No questions were answered, so this attempt does not complete the lesson.</p>
+            <p className="mt-2 text-sm font-medium text-ink-muted" data-testid="quiz-no-answers">No questions were answered, so this attempt does not complete the lesson.</p>
           )}
           {finished.review ? (
             <ol className="mt-4 space-y-3" data-testid="quiz-review">
@@ -380,35 +380,35 @@ function StudentQuiz({ lessonId }: { lessonId: string }) {
                 const mine = finished.answers[question.id];
                 return (
                   <li key={question.id} className={`rounded-xl border-2 p-3 ${r.correct ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}>
-                    <p className="font-semibold text-gray-900">{index + 1}. {question.question}</p>
-                    <p className="mt-1 text-sm text-gray-700">Your answer: {mine === undefined ? 'not answered' : question.options[mine]}</p>
+                    <p className="font-semibold text-ink">{index + 1}. {question.question}</p>
+                    <p className="mt-1 text-sm text-ink-muted">Your answer: {mine === undefined ? 'not answered' : question.options[mine]}</p>
                     {!r.correct && <p className="text-sm text-green-800">Correct answer: {question.options[r.correctAnswer]}</p>}
-                    {r.explanation && <p className="mt-1 text-sm text-gray-600">{r.explanation}</p>}
+                    {r.explanation && <p className="mt-1 text-sm text-ink-muted">{r.explanation}</p>}
                   </li>
                 );
               })}
             </ol>
           ) : (
-            <p className="mt-3 text-sm text-gray-600 dark:text-gray-300">{REVIEW_TEXT[s.reviewPolicy] || ''}</p>
+            <p className="mt-3 text-sm text-ink-muted">{REVIEW_TEXT[s.reviewPolicy] || ''}</p>
           )}
         </div>
       )}
-      <div className="rounded-xl bg-gray-50 p-4 text-sm text-gray-700 dark:bg-gray-900/40 dark:text-gray-300" data-testid="quiz-instructions">
+      <div className="rounded-xl bg-gray-50 p-4 text-sm dark:bg-gray-900/40 text-ink-muted" data-testid="quiz-instructions">
         <p>{s.questionCount} question{s.questionCount === 1 ? '' : 's'} · {s.totalPoints} point{s.totalPoints === 1 ? '' : 's'}{s.timeLimitMinutes ? ` · ${s.timeLimitMinutes} minute${s.timeLimitMinutes === 1 ? '' : 's'}, timed from when you start` : ' · no time limit'}</p>
         <p>{s.maxAttempts ? `${overview.attemptsRemaining} of ${s.maxAttempts} attempt${s.maxAttempts === 1 ? '' : 's'} left` : 'Unlimited attempts'}{s.passingPercent !== null ? ` · pass mark ${s.passingPercent}%` : ''}</p>
         <p>{REVIEW_TEXT[s.reviewPolicy] || ''}{s.availableUntil ? ` Closes ${new Date(s.availableUntil).toLocaleString()}.` : ''}</p>
         <p data-testid="quiz-leaderboard-note">Every attempt you finish, including retakes and attempts that run out of time, counts toward your quiz average on the leaderboard.</p>
       </div>
-      {overview.unavailableReason && <p className="text-sm font-medium text-gray-700">{UNAVAILABLE_TEXT[overview.unavailableReason] || 'This quiz is not available.'}</p>}
-      {!overview.canStart && !overview.unavailableReason && <p className="text-sm font-medium text-gray-700" data-testid="quiz-no-attempts">You have used all attempts for this quiz.</p>}
+      {overview.unavailableReason && <p className="text-sm font-medium text-ink-muted">{UNAVAILABLE_TEXT[overview.unavailableReason] || 'This quiz is not available.'}</p>}
+      {!overview.canStart && !overview.unavailableReason && <p className="text-sm font-medium text-ink-muted" data-testid="quiz-no-attempts">You have used all attempts for this quiz.</p>}
       {overview.canStart && (
-        <button type="button" onClick={() => void start()} disabled={busy === 'starting'} className="min-h-[44px] w-full rounded-xl bg-primary-600 px-6 text-base font-semibold text-white hover:bg-primary-700 disabled:opacity-60 sm:w-auto" data-testid="quiz-start">
+        <button type="button" onClick={() => void start()} disabled={busy === 'starting'} className="btn btn-primary min-h-[44px] w-full px-6 text-base sm:w-auto" data-testid="quiz-start">
           {busy === 'starting' ? 'Starting…' : overview.inProgressAttemptId ? 'Resume attempt' : overview.attemptsUsed ? 'Start another attempt' : 'Start quiz'}
         </button>
       )}
       {overview.attempts.length > 0 && (
         <div data-testid="quiz-history">
-          <p className="text-sm font-semibold text-gray-900 dark:text-white">Your attempts</p>
+          <p className="text-sm font-semibold text-ink">Your attempts</p>
           <ul className="mt-2 divide-y divide-gray-200 text-sm dark:divide-gray-700">
             {overview.attempts.map((a) => (
               <li key={a.id} className="flex flex-wrap items-center justify-between gap-2 py-2">

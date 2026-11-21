@@ -7,6 +7,7 @@ import { unexpectedBody } from '@/lib/public-error';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { analyzeStudentPerformance, isAIConfigured } from '@/lib/ai';
+import { practiceSummary } from '@/lib/trading/reviews';
 import { getDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 import { isStoredId } from '@/lib/account-access';
@@ -49,7 +50,6 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
       return res.status(403).json({ error: 'You can only analyse your own students' });
     }
     const users = db.collection('users');
-    const journal = db.collection('demoTradeJournal');
     const submissions = db.collection('demoTaskSubmissions');
     const tasks = db.collection('demoTasks');
 
@@ -63,15 +63,9 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
       return res.status(404).json({ error: 'Student not found' });
     }
 
-    // Get student trades
-    const trades = await journal.find({ studentId }).toArray();
-    const totalTrades = trades.length;
-    const closedTrades = trades.filter(t => t.result !== 'open');
-    const winTrades = closedTrades.filter(t => t.result === 'win');
-    const winRate = closedTrades.length > 0 ? winTrades.length / closedTrades.length : 0;
-    const averageProfitLoss = closedTrades.length > 0
-      ? closedTrades.reduce((sum, t) => sum + (t.profitLoss || 0), 0) / closedTrades.length
-      : 0;
+    // Practice results as the simulator recorded them, and the student's review habits
+    // (lib/trading/reviews.js). The old self-reported journal is no longer used for figures.
+    const { totalTrades, winRate, averageProfitLoss, reviewedTrades, planFollowedRate } = await practiceSummary(db, studentId);
 
     // Get student submissions
     const studentSubmissions = await submissions.find({ studentId }).toArray();
@@ -113,6 +107,8 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
       completedTasks,
       pendingTasks,
       averageGrade,
+      reviewedTrades,
+      planFollowedRate,
       recentSubmissions: recentSubmissions.filter(s => s !== null) as Array<{
         taskTitle: string;
         grade?: number;

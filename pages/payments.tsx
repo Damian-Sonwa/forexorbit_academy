@@ -66,7 +66,7 @@ export default function PaymentsPage() {
 
   if (authLoading || (isAuthenticated && loading)) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+      <div className="min-h-screen flex items-center justify-center">
         <LoadingSpinner />
       </div>
     );
@@ -74,7 +74,7 @@ export default function PaymentsPage() {
   if (!isAuthenticated || !user) return null;
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen flex flex-col">
       <Header />
       <main className="flex-1 px-4 sm:px-6 lg:px-8 py-6">
         <div className="max-w-4xl mx-auto">

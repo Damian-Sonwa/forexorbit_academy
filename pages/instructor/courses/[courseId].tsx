@@ -462,14 +462,14 @@ export default function InstructorCoursePage() {
   // Show error if course not found
   if (!course) {
     return (
-      <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
+      <div className="min-h-screen flex flex-col">
         <Header />
         <div className="flex flex-1 overflow-hidden pt-20 lg:pt-0">
           <Sidebar />
           <main className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Course Not Found</h1>
-              <p className="text-gray-600 dark:text-gray-400 mb-4">The course you're looking for doesn't exist or you don't have permission to access it.</p>
+            <div className="card rounded-xl p-6">
+              <h1 className="section-title mb-4 !text-2xl">Course Not Found</h1>
+              <p className="mb-4 text-ink-muted">The course you're looking for doesn't exist or you don't have permission to access it.</p>
               <Link href="/instructor/dashboard" className="text-primary-600 dark:text-primary-400 hover:underline">
                 ← Back to Dashboard
               </Link>
@@ -487,7 +487,7 @@ export default function InstructorCoursePage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen flex flex-col">
       <Header />
       <div className="flex flex-1 overflow-hidden pt-20 lg:pt-0">
         <Sidebar />
@@ -499,31 +499,32 @@ export default function InstructorCoursePage() {
                 <Link href="/instructor/dashboard" className="text-primary-600 dark:text-primary-400 hover:underline text-sm mb-2 inline-block">
                   ← Back to Dashboard
                 </Link>
-                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Course Management</h1>
-                <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">Manage course content, lessons, and quizzes</p>
+                <p className="page-kicker">Instructor workspace</p>
+                <h1 className="page-title mt-3">Course Management</h1>
+                <p className="page-lede">Manage course content, lessons, and quizzes</p>
               </div>
             </div>
           </div>
 
           {/* Course Info Section */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 mb-6">
+          <div className="card rounded-xl p-6 mb-6">
             {editingCourse ? (
               <form onSubmit={handleSaveCourse} className="space-y-4">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Edit Course</h2>
+                <h2 className="text-xl font-bold mb-4 text-ink">Edit Course</h2>
                 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Course Title *</label>
+                  <label className="block text-sm font-semibold mb-2 text-ink-muted">Course Title *</label>
                   <input
                     type="text"
                     value={courseForm.title || ''}
                     onChange={(e) => setCourseForm({ ...courseForm, title: e.target.value })}
                     required
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500"
+                    className="input w-full"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Description *</label>
+                  <label className="block text-sm font-semibold mb-2 text-ink-muted">Description *</label>
                   <RichTextEditor
                     key="course-description"
                     value={courseForm.description || ''}
@@ -534,12 +535,12 @@ export default function InstructorCoursePage() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Category *</label>
+                    <label className="block text-sm font-semibold mb-2 text-ink-muted">Category *</label>
                     <select
                       value={courseForm.category || ''}
                       onChange={(e) => setCourseForm({ ...courseForm, category: e.target.value })}
                       required
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500"
+                      className="input w-full"
                     >
                       <option value="">Select category</option>
                       <option value="basics">Basics</option>
@@ -550,12 +551,12 @@ export default function InstructorCoursePage() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Difficulty Level *</label>
+                    <label className="block text-sm font-semibold mb-2 text-ink-muted">Difficulty Level *</label>
                     <select
                       value={courseForm.difficulty || 'beginner'}
                       onChange={(e) => setCourseForm({ ...courseForm, difficulty: e.target.value as any })}
                       required
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500"
+                      className="input w-full"
                     >
                       <option value="beginner">Beginner</option>
                       <option value="intermediate">Intermediate</option>
@@ -565,13 +566,13 @@ export default function InstructorCoursePage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Thumbnail URL</label>
+                  <label className="block text-sm font-semibold mb-2 text-ink-muted">Thumbnail URL</label>
                   <input
                     type="url"
                     value={courseForm.thumbnail || ''}
                     onChange={(e) => setCourseForm({ ...courseForm, thumbnail: e.target.value })}
                     placeholder="https://example.com/image.jpg"
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500"
+                    className="input w-full"
                   />
                 </div>
 
@@ -579,7 +580,7 @@ export default function InstructorCoursePage() {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="flex-1 px-4 py-2 bg-primary-600 hover:bg-primary-700 disabled:bg-gray-400 text-white rounded-lg font-semibold transition-colors"
+                    className="btn btn-primary flex-1 px-4 py-2"
                   >
                     {loading ? 'Saving...' : 'Save Changes'}
                   </button>
@@ -614,20 +615,20 @@ export default function InstructorCoursePage() {
               <div>
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex-1">
-                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">{course.title}</h2>
+                    <h2 className="text-2xl font-bold mb-2 text-ink">{course.title}</h2>
                     <div className="flex items-center gap-3 mb-4">
                       <span className={`px-3 py-1 rounded-full text-sm font-semibold ${difficultyColors[course.difficulty]}`}>
                         {course.difficulty}
                       </span>
-                      <span className="text-sm text-gray-500 dark:text-gray-400">•</span>
-                      <span className="text-sm text-gray-600 dark:text-gray-400">{course.category}</span>
-                      <span className="text-sm text-gray-500 dark:text-gray-400">•</span>
-                      <span className="text-sm text-gray-600 dark:text-gray-400">{courseLessons.length} lessons</span>
+                      <span className="text-sm text-ink-muted">•</span>
+                      <span className="text-sm text-ink-muted">{course.category}</span>
+                      <span className="text-sm text-ink-muted">•</span>
+                      <span className="text-sm text-ink-muted">{courseLessons.length} lessons</span>
                       <span className="chip" data-course-status={course.status || 'published'}>{STATUS_LABELS[course.status || 'published']}</span>
                     </div>
-                    <p className="text-gray-700 dark:text-gray-300">{course.description}</p>
+                    <p className="text-ink-muted">{course.description}</p>
                     {user?.role === 'instructor' && course.status !== 'draft' && (
-                      <p className="mt-3 text-sm text-gray-600 dark:text-gray-400">
+                      <p className="mt-3 text-sm text-ink-muted">
                         {course.status === 'in_review'
                           ? 'This course is in review. Withdraw it to draft to make changes.'
                           : 'Only draft courses can be edited by their instructor. Ask an administrator for changes to a published or archived course.'}
@@ -637,7 +638,7 @@ export default function InstructorCoursePage() {
                   <div className="flex flex-col items-end gap-2">
                     <button
                       onClick={handleEditCourse}
-                      className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold transition-colors"
+                      className="btn btn-primary px-4 py-2"
                     >
                       Edit Course
                     </button>
@@ -659,9 +660,9 @@ export default function InstructorCoursePage() {
           </div>
 
           {/* Lessons Management */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
+          <div className="card rounded-xl p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Lessons</h2>
+              <h2 className="text-xl font-bold text-ink">Lessons</h2>
               {!showLessonForm && !lessonsRestricted && (
                 <button
                   onClick={() => {
@@ -669,7 +670,7 @@ export default function InstructorCoursePage() {
                     setLessonForm({ order: courseLessons.length + 1, type: 'video', resources: [] });
                     setShowLessonForm(true);
                   }}
-                  className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold transition-colors"
+                  className="btn btn-primary px-4 py-2"
                 >
                   + Add Lesson
                 </button>
@@ -677,19 +678,19 @@ export default function InstructorCoursePage() {
             </div>
 
             {lessonsRestricted ? (
-              <p className="text-sm text-gray-600 dark:text-gray-300">
+              <p className="text-sm text-ink-muted">
                 Lessons for this course are available to its assigned instructor.
               </p>
             ) : null}
 
             {showLessonForm ? (
               <form onSubmit={editingLesson ? handleSaveLesson : handleCreateLesson} className="space-y-4">
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                <h3 className="text-lg font-bold text-ink">
                   {editingLesson ? 'Edit Lesson' : 'Create New Lesson'}
                 </h3>
                 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Lesson Title *</label>
+                  <label className="block text-sm font-semibold mb-2 text-ink-muted">Lesson Title *</label>
                   <RichTextEditor
                     key={`lesson-title-${editingLesson || 'new'}`}
                     value={lessonForm.title || ''}
@@ -699,7 +700,7 @@ export default function InstructorCoursePage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Description *</label>
+                  <label className="block text-sm font-semibold mb-2 text-ink-muted">Description *</label>
                   <RichTextEditor
                     key={`lesson-description-${editingLesson || 'new'}`}
                     value={lessonForm.description || ''}
@@ -709,7 +710,7 @@ export default function InstructorCoursePage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Summary</label>
+                  <label className="block text-sm font-semibold mb-2 text-ink-muted">Summary</label>
                   <RichTextEditor
                     key={`lesson-summary-${editingLesson || 'new'}`}
                     value={lessonForm.content || ''}
@@ -721,17 +722,17 @@ export default function InstructorCoursePage() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Video URL</label>
+                    <label className="block text-sm font-semibold mb-2 text-ink-muted">Video URL</label>
                     <input
                       type="url"
                       value={lessonForm.videoUrl || ''}
                       onChange={(e) => setLessonForm({ ...lessonForm, videoUrl: e.target.value })}
                       placeholder="https://www.youtube.com/watch?v=..."
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500"
+                      className="input w-full"
                     />
                   </div>
                   <div>
-                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
+                    <label className="flex items-center gap-2 text-sm font-semibold text-ink-muted">
                       <input
                         type="checkbox"
                         checked={lessonForm.isFreePreview === true}
@@ -739,14 +740,14 @@ export default function InstructorCoursePage() {
                       />
                       Free preview
                     </label>
-                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Enrolled students can open this lesson without buying the course. Moving lessons does not change it.</p>
+                    <p className="mt-1 text-xs text-ink-muted">Enrolled students can open this lesson without buying the course. Moving lessons does not change it.</p>
                   </div>
                 </div>
 
                 {/* Resources Section */}
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300">Resources</label>
+                    <label className="block text-sm font-semibold text-ink-muted">Resources</label>
                     <button
                       type="button"
                       onClick={addResource}
@@ -760,7 +761,7 @@ export default function InstructorCoursePage() {
                       <select
                         value={resource.type}
                         onChange={(e) => updateResource(index, 'type', e.target.value)}
-                        className="px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg text-sm"
+                        className="input text-sm"
                       >
                         <option value="pdf">PDF</option>
                         <option value="link">Link</option>
@@ -771,14 +772,14 @@ export default function InstructorCoursePage() {
                         value={resource.title}
                         onChange={(e) => updateResource(index, 'title', e.target.value)}
                         placeholder="Resource title"
-                        className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg text-sm"
+                        className="input flex-1 text-sm"
                       />
                       <input
                         type="url"
                         value={resource.url}
                         onChange={(e) => updateResource(index, 'url', e.target.value)}
                         placeholder="URL"
-                        className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg text-sm"
+                        className="input flex-1 text-sm"
                       />
                       <button
                         type="button"
@@ -795,7 +796,7 @@ export default function InstructorCoursePage() {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="flex-1 px-4 py-2 bg-primary-600 hover:bg-primary-700 disabled:bg-gray-400 text-white rounded-lg font-semibold transition-colors"
+                    className="btn btn-primary flex-1 px-4 py-2"
                   >
                     {loading ? 'Saving...' : editingLesson ? 'Save Changes' : 'Create Lesson'}
                   </button>
@@ -815,7 +816,7 @@ export default function InstructorCoursePage() {
             ) : showQuizForm ? (
               <form onSubmit={handleSaveQuiz} className="space-y-4">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">Edit Quiz</h3>
+                  <h3 className="text-lg font-bold text-ink">Edit Quiz</h3>
                   <button
                     type="button"
                     onClick={addQuizQuestion}
@@ -828,7 +829,7 @@ export default function InstructorCoursePage() {
                 {(quizForm.questions || []).map((question, qIndex) => (
                   <div key={qIndex} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Question {qIndex + 1}</span>
+                      <span className="text-sm font-semibold text-ink-muted">Question {qIndex + 1}</span>
                       <button
                         type="button"
                         onClick={() => removeQuizQuestion(qIndex)}
@@ -878,14 +879,14 @@ export default function InstructorCoursePage() {
                 ))}
 
                 {(!quizForm.questions || quizForm.questions.length === 0) && (
-                  <p className="text-gray-500 dark:text-gray-400 text-center py-4">No questions yet. Click "+ Add Question" to start.</p>
+                  <p className="text-center py-4 text-ink-muted">No questions yet. Click "+ Add Question" to start.</p>
                 )}
 
                 <div className="flex gap-2">
                   <button
                     type="submit"
                     disabled={loading}
-                    className="flex-1 px-4 py-2 bg-primary-600 hover:bg-primary-700 disabled:bg-gray-400 text-white rounded-lg font-semibold transition-colors"
+                    className="btn btn-primary flex-1 px-4 py-2"
                   >
                     {loading ? 'Saving...' : 'Save Quiz'}
                   </button>
@@ -906,7 +907,7 @@ export default function InstructorCoursePage() {
               <div>
                 {courseLessons.length === 0 ? (
                   <div className="text-center py-8">
-                    <p className="text-gray-500 dark:text-gray-400 mb-4">No lessons yet. Click "+ Add Lesson" to create one.</p>
+                    <p className="mb-4 text-ink-muted">No lessons yet. Click "+ Add Lesson" to create one.</p>
                   </div>
                 ) : (
                   <div className="space-y-3">
@@ -917,13 +918,13 @@ export default function InstructorCoursePage() {
                       >
                         <div className="flex items-start justify-between mb-2">
                           <div className="flex-1">
-                            <h3 className="font-bold text-gray-900 dark:text-white mb-1" dangerouslySetInnerHTML={{ __html: sanitizeHtml(lesson.title) }} />
+                            <h3 className="font-bold mb-1 text-ink" dangerouslySetInnerHTML={{ __html: sanitizeHtml(lesson.title) }} />
                             {(() => {
                               const bodyRaw = (lesson as any).content || (lesson as any).lessonSummary?.overview || lesson.summary || '';
                               const bodyPlain = stripHtml(sanitizeHtml(bodyRaw)).replace(/\s+/g, ' ').trim();
                               if (!bodyPlain) return null;
                               return (
-                                <p className="text-sm text-gray-600 dark:text-gray-400 mb-2 line-clamp-3">{bodyPlain}</p>
+                                <p className="text-sm mb-2 line-clamp-3 text-ink-muted">{bodyPlain}</p>
                               );
                             })()}
                             {(() => {
@@ -932,7 +933,7 @@ export default function InstructorCoursePage() {
                               const descPlain = stripHtml(sanitizeHtml(descRaw)).replace(/\s+/g, ' ').trim();
                               if (!descPlain) return null;
                               return (
-                                <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 mt-1">{descPlain}</p>
+                                <p className="text-xs line-clamp-2 mt-1 text-ink-muted">{descPlain}</p>
                               );
                             })()}
                           </div>
@@ -975,7 +976,7 @@ export default function InstructorCoursePage() {
                             </button>
                           </div>
                         </div>
-                        <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400">
+                        <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700 text-xs text-ink-muted">
                           Position: {lessonIndex + 1} • Type: {lesson.type}{lesson.isFreePreview ? ' • Free preview' : ''}
                         </div>
                       </div>

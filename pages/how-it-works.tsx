@@ -105,7 +105,7 @@ export default function HowItWorks() {
   const accountHref = isAuthenticated ? '/dashboard' : '/signup';
 
   return (
-    <div className="landing-shell min-h-screen bg-[#07080c] text-white">
+    <div className="landing-shell min-h-screen text-white">
       <Head>
         <title>How it works | ForexOrbit Academy</title>
         <meta

@@ -57,7 +57,7 @@ export default function LessonCompletion({ courseId, lessonId, completed, videoF
   }, [completed, courseId, lessonId, onCompleted]);
 
   return (
-    <section className="mb-4 rounded-xl border border-gray-100 bg-white p-4 shadow-sm sm:rounded-2xl sm:p-6 dark:border-gray-700 dark:bg-gray-800" data-testid="lesson-completion">
+    <section className="card mb-4 rounded-xl p-4 sm:rounded-2xl sm:p-6" data-testid="lesson-completion">
       {completed ? (
         <p className="flex items-center gap-2 text-sm font-semibold text-green-700 dark:text-green-400" role="status">
           <span className="flex h-6 w-6 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/40" aria-hidden>✓</span>
@@ -66,8 +66,8 @@ export default function LessonCompletion({ courseId, lessonId, completed, videoF
       ) : (
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-sm font-semibold text-gray-900 dark:text-white">Finished this lesson?</p>
-            <p className="text-xs text-gray-600 dark:text-gray-300">
+            <p className="text-sm font-semibold text-ink">Finished this lesson?</p>
+            <p className="text-xs text-ink-muted">
               {videoFinished
                 ? 'The video has ended. Mark the lesson complete when you have finished the material.'
                 : 'Mark it complete to record your progress. Watching the video alone does not complete it.'}

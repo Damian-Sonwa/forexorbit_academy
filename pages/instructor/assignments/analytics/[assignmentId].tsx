@@ -123,7 +123,7 @@ export default function AssignmentAnalytics() {
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-primary-500"></div>
       </div>
     );
@@ -131,7 +131,7 @@ export default function AssignmentAnalytics() {
 
   if (!isAuthenticated || !user || (user.role !== 'instructor' && user.role !== 'admin' && user.role !== 'superadmin')) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+      <div className="min-h-screen flex items-center justify-center">
         <p className="text-red-500 text-lg">Access Denied: You do not have permission to view this page.</p>
       </div>
     );
@@ -139,7 +139,7 @@ export default function AssignmentAnalytics() {
 
   if (error) {
     return (
-      <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
+      <div className="min-h-screen flex flex-col">
         <Header />
         <div className="flex flex-1 overflow-hidden pt-20 lg:pt-0">
           <Sidebar />
@@ -163,8 +163,8 @@ export default function AssignmentAnalytics() {
 
   if (!analytics) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <p className="text-gray-500">No analytics data available</p>
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-ink-muted">No analytics data available</p>
       </div>
     );
   }
@@ -188,7 +188,7 @@ export default function AssignmentAnalytics() {
     }));
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen flex flex-col">
       <Header />
       <div className="flex flex-1 overflow-hidden pt-20 lg:pt-0">
         <Sidebar />
@@ -205,21 +205,22 @@ export default function AssignmentAnalytics() {
                 </svg>
                 Back
               </button>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+              <p className="page-kicker">Instructor workspace</p>
+              <h1 className="page-title mt-3 mb-2">
                 Assignment Analytics
               </h1>
-              <p className="text-gray-600 dark:text-gray-400">
+              <p className="text-ink-muted">
                 {analytics.assignment.title} - {analytics.assignment.courseName}
               </p>
             </div>
 
             {/* Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
+              <div className="card rounded-xl p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Total Students</p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{analytics.summary.totalStudents}</p>
+                    <p className="text-sm mb-1 text-ink-muted">Total Students</p>
+                    <p className="text-2xl font-bold text-ink">{analytics.summary.totalStudents}</p>
                   </div>
                   <div className="w-12 h-12 bg-neutral-100 dark:bg-neutral-900/30 rounded-lg flex items-center justify-center">
                     <svg className="w-6 h-6 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -229,12 +230,12 @@ export default function AssignmentAnalytics() {
                 </div>
               </div>
 
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
+              <div className="card rounded-xl p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Submissions</p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{analytics.summary.totalSubmissions}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    <p className="text-sm mb-1 text-ink-muted">Submissions</p>
+                    <p className="text-2xl font-bold text-ink">{analytics.summary.totalSubmissions}</p>
+                    <p className="text-xs mt-1 text-ink-muted">
                       {analytics.summary.submissionRate.toFixed(1)}% submission rate
                     </p>
                   </div>
@@ -246,14 +247,14 @@ export default function AssignmentAnalytics() {
                 </div>
               </div>
 
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
+              <div className="card rounded-xl p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Average Score</p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                    <p className="text-sm mb-1 text-ink-muted">Average Score</p>
+                    <p className="text-2xl font-bold text-ink">
                       {analytics.summary.averageScore.toFixed(1)}%
                     </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    <p className="text-xs mt-1 text-ink-muted">
                       {analytics.summary.gradedSubmissions} graded
                     </p>
                   </div>
@@ -265,12 +266,12 @@ export default function AssignmentAnalytics() {
                 </div>
               </div>
 
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
+              <div className="card rounded-xl p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Pending Grading</p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{analytics.summary.pendingGrading}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    <p className="text-sm mb-1 text-ink-muted">Pending Grading</p>
+                    <p className="text-2xl font-bold text-ink">{analytics.summary.pendingGrading}</p>
+                    <p className="text-xs mt-1 text-ink-muted">
                       {analytics.summary.pendingGrading > 0 ? 'Needs attention' : 'All graded'}
                     </p>
                   </div>
@@ -286,8 +287,8 @@ export default function AssignmentAnalytics() {
             {/* Charts Row */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
               {/* Submission Timeline Chart */}
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Submission Timeline</h2>
+              <div className="card rounded-xl p-6">
+                <h2 className="text-xl font-bold mb-4 text-ink">Submission Timeline</h2>
                 <ResponsiveContainer width="100%" height={300}>
                   <LineChart data={analytics.submissionTimeline}>
                     <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} />
@@ -308,8 +309,8 @@ export default function AssignmentAnalytics() {
               </div>
 
               {/* Score Distribution Chart */}
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Score Distribution</h2>
+              <div className="card rounded-xl p-6">
+                <h2 className="text-xl font-bold mb-4 text-ink">Score Distribution</h2>
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={scoreDistributionData}>
                     <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} />
@@ -331,8 +332,8 @@ export default function AssignmentAnalytics() {
 
             {/* Student Scores Bar Chart */}
             {studentScoresData.length > 0 && (
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700 mb-8">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Top Student Scores</h2>
+              <div className="card rounded-xl p-6 mb-8">
+                <h2 className="text-xl font-bold mb-4 text-ink">Top Student Scores</h2>
                 <ResponsiveContainer width="100%" height={400}>
                   <BarChart data={studentScoresData} layout="vertical">
                     <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} />
@@ -350,33 +351,33 @@ export default function AssignmentAnalytics() {
             )}
 
             {/* Student Submissions Table */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <div className="card rounded-xl overflow-hidden">
               <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Student Submissions</h2>
+                <h2 className="text-xl font-bold text-ink">Student Submissions</h2>
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50 dark:bg-gray-700">
+                <table className="table-orbit w-full">
+                  <thead className="">
                     <tr>
                       <th className="px-6 py-3"><span className="sr-only">Grade</span></th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-ink-muted">
                         Student
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-ink-muted">
                         Email
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-ink-muted">
                         Score
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-ink-muted">
                         Status
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-ink-muted">
                         Submitted At
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                  <tbody className="">
                     {analytics.studentSubmissions.map((submission) => (
                       <tr key={submission._id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
@@ -384,13 +385,13 @@ export default function AssignmentAnalytics() {
                             {grading === submission._id ? 'Close' : 'Grade'}
                           </button>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-ink">
                           {submission.studentName}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-ink-muted">
                           {submission.studentEmail}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-ink">
                           {submission.grade !== null ? (
                             <span className={`font-semibold ${
                               submission.grade >= 90 ? 'text-green-600' :
@@ -401,7 +402,7 @@ export default function AssignmentAnalytics() {
                               {submission.grade}%
                             </span>
                           ) : (
-                            <span className="text-gray-400">Not graded</span>
+                            <span className="text-ink-subtle">Not graded</span>
                           )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -413,7 +414,7 @@ export default function AssignmentAnalytics() {
                             {submission.status}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-ink-muted">
                           {submission.submittedAt
                             ? format(new Date(submission.submittedAt), 'MMM dd, yyyy HH:mm')
                             : 'N/A'}
@@ -426,7 +427,7 @@ export default function AssignmentAnalytics() {
               </div>
               {analytics.studentSubmissions.filter((submission) => submission._id === grading).map((submission) => (
                 <div key={submission._id} className="border-t border-gray-200 p-4 dark:border-gray-700 sm:p-6">
-                  <p className="mb-2 font-semibold text-gray-900 dark:text-white">{submission.studentName}</p>
+                  <p className="mb-2 font-semibold text-ink">{submission.studentName}</p>
                   <SubmissionGradeForm assignmentId={assignmentId as string} submission={submission} onSaved={loadAnalytics} />
                 </div>
               ))}

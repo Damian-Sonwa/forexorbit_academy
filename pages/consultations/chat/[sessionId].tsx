@@ -314,7 +314,7 @@ export default function ConsultationChat() {
   const isStudent = user?.role === 'student';
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen flex flex-col">
       <Header />
       <div className="flex flex-1 overflow-hidden pt-20 lg:pt-0">
         <Sidebar />

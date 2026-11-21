@@ -25,6 +25,7 @@ import { apiClient } from '@/lib/api-client';
 import { sanitizeForStudentView } from '@/lib/html-sanitizer';
 import { previewText } from '@/lib/plain-text';
 import { ArrowRight } from 'lucide-react';
+import OrbitProgress from '@/components/ui/OrbitProgress';
 
 interface UpcomingConsultation {
   _id: string;
@@ -126,7 +127,7 @@ export default function Dashboard() {
         <Header />
         <div className="flex flex-1 relative overflow-hidden lg:items-start">
           <Sidebar />
-          <main className="flex-1 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-10 pt-16 lg:pt-10 w-full">
+          <main className="mx-auto w-full max-w-6xl flex-1 px-4 pb-12 pt-20 sm:px-6 lg:px-10 lg:pt-10">
             <p className="page-kicker mb-2">Learning home</p>
             <h1 className="page-title">Welcome back, {firstName}</h1>
             <div className="mt-8 space-y-8">
@@ -157,138 +158,150 @@ export default function Dashboard() {
       <Header />
       <div className="flex flex-1 relative overflow-hidden lg:items-start">
         <Sidebar />
-        <main className="flex-1 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-10 pt-16 lg:pt-10 overflow-y-auto w-full">
-          <header className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <p className="page-kicker mb-2">Learning home</p>
-              <h1 className="page-title">{started ? `Welcome back, ${firstName}` : `Welcome, ${firstName}`}</h1>
-              <p className="mt-2 max-w-xl text-sm text-neutral-600">
-                {started ? 'Your next lesson is ready when you are.' : 'Start with a course. Your place in it will stay here.'}
-              </p>
-              {progressView === 'refresh' && (
-                <div className="mt-3">
-                  <LoadingStatus label="Updating your dashboard" compact />
+        <main className="mx-auto w-full max-w-6xl flex-1 px-4 pb-12 pt-20 sm:px-6 lg:px-10 lg:pt-10">
+          {/* Hero: the learning orbit. Greeting on the left, the next lesson on the right. */}
+          <section className="panel-hero mb-8 animate-rise-in" data-testid={nextLesson ? 'continue-learning' : undefined}>
+            <svg aria-hidden className="pointer-events-none absolute -right-24 -top-28 h-[340px] w-[560px] text-primary-500 opacity-25" viewBox="0 0 560 340" fill="none">
+              <ellipse cx="280" cy="170" rx="260" ry="118" transform="rotate(-16 280 170)" stroke="currentColor" />
+              <ellipse cx="280" cy="170" rx="210" ry="88" transform="rotate(-16 280 170)" stroke="currentColor" strokeDasharray="2 8" />
+            </svg>
+            <div className="relative grid gap-6 p-5 sm:p-7 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)] lg:gap-8 lg:p-8">
+              <div className="flex flex-col justify-between gap-5">
+                <div>
+                  <p className="page-kicker">Learning home</p>
+                  <h1 className="page-title mt-3">{started ? `Welcome back, ${firstName}` : `Welcome, ${firstName}`}</h1>
+                  <p className="page-lede">
+                    {started ? 'Your next lesson is ready when you are.' : 'Start with a course. Your place in it will stay here.'}
+                  </p>
+                  {progressView === 'refresh' && (
+                    <div className="mt-3">
+                      <LoadingStatus label="Updating your dashboard" compact />
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-            {level ? (
-              <span className="inline-flex w-fit items-center rounded-full border border-neutral-200 px-3 py-1 text-sm font-medium capitalize text-neutral-800">
-                {level}
-              </span>
-            ) : (
-              <Link href="/onboarding" className="text-sm font-medium text-neutral-600 underline-offset-4 hover:underline">
-                Set your level
-              </Link>
-            )}
-          </header>
+                <div className="flex flex-wrap items-center gap-2">
+                  {level ? (
+                    <span className="chip chip-brand !px-3 !py-1 text-xs">Level · {level}</span>
+                  ) : (
+                    <Link href="/onboarding" className="chip !px-3 !py-1 text-xs hover:border-primary-400 hover:text-ink">
+                      Set your level
+                    </Link>
+                  )}
+                  <Link href="/progress" className="chip !px-3 !py-1 text-xs hover:border-primary-400 hover:text-ink">My progress</Link>
+                  <Link href="/student-dashboard" className="chip !px-3 !py-1 text-xs hover:border-primary-400 hover:text-ink">Practice desk</Link>
+                </div>
+              </div>
 
-          {nextLesson ? (
-            <section className="mb-10 border-t border-neutral-200 pt-8" data-testid="continue-learning">
-              <p className="page-kicker">Continue learning</p>
-              <div className="mt-4 flex flex-col gap-5 rounded-2xl border border-neutral-200 bg-white p-4 shadow-soft sm:flex-row sm:items-center sm:p-5">
-                <CourseCover
-                  course={continueCourse || { id: nextLesson.courseId, title: nextLesson.courseTitle }}
-                  className="w-full shrink-0 rounded-xl sm:w-60"
-                />
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm text-neutral-500">{nextLesson.courseTitle}</p>
-                  <h2 className="mt-1 font-display text-2xl font-semibold tracking-tight text-neutral-900" dangerouslySetInnerHTML={{ __html: sanitizeForStudentView(nextLesson.lessonTitle || 'Unlock the course to continue') }} />
-                  {typeof nextLesson.percent === 'number' ? (
-                    <div className="mt-3 max-w-sm">
-                      <p className="text-sm text-neutral-600">{Math.round(nextLesson.percent)}% of this course</p>
-                      <div
-                        className="mt-2 h-1.5 overflow-hidden rounded-full bg-neutral-100"
-                        role="progressbar"
-                        aria-valuenow={Math.round(nextLesson.percent)}
-                        aria-valuemin={0}
-                        aria-valuemax={100}
-                        aria-label={`${nextLesson.courseTitle} progress`}
-                      >
-                        <div className="h-full rounded-full bg-primary-500" style={{ width: `${Math.min(100, Math.max(0, nextLesson.percent))}%` }} />
+              {nextLesson ? (
+                <div className="flex flex-col gap-4 rounded-2xl border border-line bg-[color-mix(in_srgb,var(--fo-surface-1)_88%,transparent)] p-4 sm:flex-row sm:items-center sm:p-5">
+                  <div className="relative w-full shrink-0 sm:w-48">
+                    <CourseCover
+                      course={continueCourse || { id: nextLesson.courseId, title: nextLesson.courseTitle }}
+                      className="w-full rounded-xl ring-1 ring-[var(--fo-line)]"
+                    />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-subtle">Continue · {nextLesson.courseTitle}</p>
+                    <h2 className="mt-1.5 font-display text-xl font-semibold leading-snug tracking-tight text-ink sm:text-2xl" dangerouslySetInnerHTML={{ __html: sanitizeForStudentView(nextLesson.lessonTitle || 'Unlock the course to continue') }} />
+                    <div className="mt-4 flex items-center gap-4">
+                      {typeof nextLesson.percent === 'number' ? (
+                        <OrbitProgress value={nextLesson.percent} size={52} label={`${nextLesson.courseTitle} progress`} />
+                      ) : null}
+                      <div className="min-w-0">
+                        {typeof nextLesson.percent === 'number' ? (
+                          <p className="text-xs text-ink-subtle"><span className="num font-semibold text-ink">{Math.round(nextLesson.percent)}%</span> of this course</p>
+                        ) : null}
+                        <Link href={continueHref} className="btn btn-primary mt-2 rounded-full px-5">
+                          Continue learning
+                          <ArrowRight className="h-4 w-4" aria-hidden />
+                        </Link>
                       </div>
                     </div>
-                  ) : null}
-                  <Link
-                    href={continueHref}
-                    className="btn btn-primary mt-5 rounded-full px-5 py-2.5"
-                  >
-                    Continue learning
+                  </div>
+                </div>
+              ) : progressError ? (
+                <div className="rounded-2xl border border-line bg-surface-1 p-5">
+                  <p className="page-kicker">Progress</p>
+                  <h2 className="mt-2 font-display text-xl font-semibold tracking-tight text-ink">Progress could not be loaded</h2>
+                  <p className="mt-2 text-sm text-ink-muted">Your enrollments are unchanged. Try again before treating this as an empty enrollment list.</p>
+                  <button type="button" onClick={() => refetchProgress()} className="btn btn-primary mt-4 rounded-full px-5">Try again</button>
+                </div>
+              ) : enrolledCount > 0 ? (
+                <div className="rounded-2xl border border-line bg-surface-1 p-5">
+                  <p className="page-kicker">Continue learning</p>
+                  <h2 className="mt-2 font-display text-xl font-semibold tracking-tight text-ink">You have finished the lessons in your current courses</h2>
+                  <p className="mt-2 text-sm text-ink-muted">Review a course, or open another one from the library.</p>
+                  <Link href="/courses" className="btn btn-primary mt-4 rounded-full px-5">
+                    View your courses
                     <ArrowRight className="h-4 w-4" aria-hidden />
                   </Link>
                 </div>
-              </div>
-            </section>
-          ) : progressError ? (
-            <section className="mb-10 border-t border-neutral-200 pt-8">
-              <p className="page-kicker">Progress</p>
-              <h2 className="mt-2 font-display text-2xl font-semibold tracking-tight text-neutral-900">Progress could not be loaded</h2>
-              <p className="mt-2 max-w-xl text-sm text-neutral-600">Your enrollments are unchanged. Try again before treating this as an empty enrollment list.</p>
-              <button type="button" onClick={() => refetchProgress()} className="btn btn-primary mt-5 rounded-full px-5 py-2.5">Try again</button>
-            </section>
-          ) : enrolledCount > 0 ? (
-            <section className="mb-10 border-t border-neutral-200 pt-8">
-              <p className="page-kicker">Continue learning</p>
-              <h2 className="mt-2 font-display text-2xl font-semibold tracking-tight text-neutral-900">You have finished the lessons in your current courses</h2>
-              <p className="mt-2 max-w-xl text-sm text-neutral-600">Review a course, or open another one from the library.</p>
-              <Link href="/courses" className="btn btn-primary mt-5 rounded-full px-5 py-2.5">
-                View your courses
-                <ArrowRight className="h-4 w-4" aria-hidden />
-              </Link>
-            </section>
-          ) : (
-            <section className="mb-10 border-t border-neutral-200 pt-8">
-              <p className="page-kicker">Where to begin</p>
-              <h2 className="mt-2 font-display text-2xl font-semibold tracking-tight text-neutral-900">Choose a course, then open its first lesson</h2>
-              <p className="mt-2 max-w-xl text-sm leading-relaxed text-neutral-600">
-                Lessons, practice on the demo desk, and questions in the community all start from a course. Progress is kept on this page and on My progress.
-              </p>
-              <Link href="/courses" className="btn btn-primary mt-5 rounded-full px-5 py-2.5">
-                Browse courses
-                <ArrowRight className="h-4 w-4" aria-hidden />
-              </Link>
-            </section>
-          )}
+              ) : (
+                <div className="rounded-2xl border border-line bg-surface-1 p-5">
+                  <p className="page-kicker">Where to begin</p>
+                  <h2 className="mt-2 font-display text-xl font-semibold tracking-tight text-ink">Choose a course, then open its first lesson</h2>
+                  <p className="mt-2 text-sm leading-relaxed text-ink-muted">
+                    Lessons, practice on the demo desk, and questions in the community all start from a course. Progress is kept on this page and on My progress.
+                  </p>
+                  <Link href="/courses" className="btn btn-primary mt-4 rounded-full px-5">
+                    Browse courses
+                    <ArrowRight className="h-4 w-4" aria-hidden />
+                  </Link>
+                </div>
+              )}
+            </div>
+          </section>
 
           {progressError && !summary ? null : <LearningStatsTiles summary={summary} />}
-          {summary && <CourseLists summary={summary} />}
-          {summary && <RecentActivity summary={summary} />}
 
-          {catalogSuggestion ? (
-            <section className="mb-10">
-              <p className="page-kicker">From the catalog</p>
-              <h2 className="mt-2 font-display text-xl font-semibold text-neutral-900" dangerouslySetInnerHTML={{ __html: sanitizeForStudentView(catalogSuggestion.title) }} />
-              <p className="mt-2 line-clamp-3 max-w-xl text-sm text-neutral-600">{previewText(catalogSuggestion.description)}</p>
-              <p className="mt-2 text-xs capitalize text-neutral-600">{catalogSuggestion.difficulty} · {catalogSuggestion.category}</p>
-              <Link href={`/courses/${catalogSuggestion._id || catalogSuggestion.id}`} className="mt-3 inline-flex text-sm font-semibold text-primary-700 hover:underline">
-                View this course
-              </Link>
-            </section>
-          ) : null}
+          <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_20rem]">
+            <div className="min-w-0">
+              {summary && <CourseLists summary={summary} />}
+              {summary && <RecentActivity summary={summary} />}
+            </div>
 
-          {consultations.length > 0 ? (
-            <section className="mb-10">
-              <h2 className="font-display text-lg font-semibold text-neutral-900">Consultations</h2>
-              <ul className="mt-3 divide-y divide-neutral-200">
-                {consultations.map((booking) => (
-                  <li key={booking._id} className="flex items-center justify-between gap-4 py-3">
-                    <span className="min-w-0">
-                      <span className="block truncate font-medium text-neutral-900">{booking.topic}</span>
-                      <span className="block text-sm text-neutral-500">{booking.startsAt ? new Date(booking.startsAt).toLocaleString() : ''}</span>
-                    </span>
-                    <Link href="/consultations" className="shrink-0 text-sm font-semibold text-primary-700">Open</Link>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ) : null}
+            <aside className="space-y-6" aria-label="Suggestions and reminders">
+              {catalogSuggestion ? (
+                <section className="card card-interactive overflow-hidden !p-0">
+                  <CourseCover course={catalogSuggestion} className="w-full rounded-none" />
+                  <div className="p-5">
+                    <p className="page-kicker">From the catalog</p>
+                    <h2 className="mt-2 font-display text-lg font-semibold tracking-tight text-ink" dangerouslySetInnerHTML={{ __html: sanitizeForStudentView(catalogSuggestion.title) }} />
+                    <p className="mt-2 line-clamp-3 text-sm text-ink-muted">{previewText(catalogSuggestion.description)}</p>
+                    <p className="mt-3 text-xs capitalize text-ink-subtle">{catalogSuggestion.difficulty} · {catalogSuggestion.category}</p>
+                    <Link href={`/courses/${catalogSuggestion._id || catalogSuggestion.id}`} className="btn btn-secondary btn-sm mt-4">
+                      View this course
+                      <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+                    </Link>
+                  </div>
+                </section>
+              ) : null}
 
-          <RemindersPanel hideWhenEmpty />
+              {consultations.length > 0 ? (
+                <section className="card">
+                  <h2 className="section-title">Consultations</h2>
+                  <ul className="mt-3 divide-y divide-[var(--fo-line)]">
+                    {consultations.map((booking) => (
+                      <li key={booking._id} className="flex items-center justify-between gap-4 py-3">
+                        <span className="min-w-0">
+                          <span className="block truncate text-sm font-medium text-ink">{booking.topic}</span>
+                          <span className="block text-xs text-ink-subtle">{booking.startsAt ? new Date(booking.startsAt).toLocaleString() : ''}</span>
+                        </span>
+                        <Link href="/consultations" className="shrink-0 text-sm font-semibold text-primary-600 dark:text-primary-400">Open</Link>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ) : null}
 
-          <p className="mt-10 text-sm text-neutral-500">
-            <Link href="/courses" className="font-semibold text-neutral-800 underline-offset-4 hover:underline">All courses</Link>
-            <span aria-hidden> · </span>
-            <Link href="/progress" className="font-semibold text-neutral-800 underline-offset-4 hover:underline">Progress</Link>
-          </p>
+              <RemindersPanel hideWhenEmpty />
+
+              <nav className="flex flex-wrap gap-2 text-sm" aria-label="More">
+                <Link href="/courses" className="btn btn-ghost btn-sm">All courses</Link>
+                <Link href="/progress" className="btn btn-ghost btn-sm">Progress</Link>
+              </nav>
+            </aside>
+          </div>
         </main>
       </div>
       <Footer />

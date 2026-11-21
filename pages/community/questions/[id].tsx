@@ -215,9 +215,9 @@ export default function DiscussionPage() {
   return (
     <CommunityShell>
       <Link href={back} className="text-sm font-semibold text-primary-700">Back to community</Link>
-      {loading ? <div className="mt-6 h-40 motion-safe:animate-pulse rounded-2xl bg-[#f6f6f6]" aria-hidden /> : null}
+      {loading ? <div className="mt-6 h-40 motion-safe:animate-pulse rounded-2xl bg-surface-3" aria-hidden /> : null}
       {error ? <p className="mt-4 text-sm text-primary-700" role="alert">{error} <button type="button" className="font-semibold" onClick={() => load(replyPage)}>Try again</button></p> : null}
-      {notice ? <p className="mt-4 text-sm font-semibold text-[#171717]" role="status">{notice}</p> : null}
+      {notice ? <p className="mt-4 text-sm font-semibold text-ink" role="status">{notice}</p> : null}
       {!authLoading && !isAuthenticated ? <p className="mt-8">Sign in to read this discussion. <Link className="font-semibold text-primary-700" href="/login">Sign in</Link></p> : null}
       {question ? (
         <article className="mt-6">
@@ -226,29 +226,29 @@ export default function DiscussionPage() {
             <h1 className="font-display text-3xl font-bold leading-tight sm:text-4xl">{question.title}</h1>
             <VoteControl score={question.score} vote={question.viewerVote} disabled={submitting} onVote={(value) => vote('question', question.id, value)} />
           </div>
-          <p className="mt-3 flex items-center gap-2 text-sm text-[#525252]">
+          <p className="mt-3 flex items-center gap-2 text-sm text-ink-muted">
             {question.author.photo ? <img src={question.author.photo} alt="" className="h-8 w-8 rounded-full object-cover" /> : null}
             <span>{question.author.name} · {when(question.createdAt)} · {question.answered ? 'Answered' : 'Unanswered'}</span>
           </p>
-          <p className="mt-1 text-xs text-[#525252]">
+          <p className="mt-1 text-xs text-ink-muted">
             {question.authorStats.questions} questions · {question.authorStats.replies} replies · {question.authorStats.helpful} helpful votes
           </p>
           {editingQuestion ? (
             <form className="mt-5 space-y-3" onSubmit={saveQuestion}>
               <label className="block text-sm font-semibold" htmlFor="question-title">Title
-                <input id="question-title" className="mt-2 w-full rounded-xl border border-[#e5e5e5] px-3 py-2 font-normal" value={titleDraft} onChange={(event) => setTitleDraft(event.target.value)} />
+                <input id="question-title" className="input mt-2 w-full border-line font-normal" value={titleDraft} onChange={(event) => setTitleDraft(event.target.value)} />
               </label>
               <label className="block text-sm font-semibold" htmlFor="question-category">Category
-                <select id="question-category" className="mt-2 w-full rounded-xl border border-[#e5e5e5] bg-[#ffffff] px-3 py-2 font-normal" value={categoryDraft} onChange={(event) => setCategoryDraft(event.target.value)}>
+                <select id="question-category" className="input mt-2 w-full border-line bg-surface-1 font-normal" value={categoryDraft} onChange={(event) => setCategoryDraft(event.target.value)}>
                   {COMMUNITY_CATEGORIES.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
                 </select>
               </label>
               <label className="block text-sm font-semibold" htmlFor="question-body">Question details
-                <textarea id="question-body" className="mt-2 w-full rounded-xl border border-[#e5e5e5] px-3 py-2 font-normal" rows={6} value={questionDraft} onChange={(event) => setQuestionDraft(event.target.value)} />
+                <textarea id="question-body" className="input mt-2 w-full border-line font-normal" rows={6} value={questionDraft} onChange={(event) => setQuestionDraft(event.target.value)} />
               </label>
               <div className="mt-3 flex gap-2">
-                <button type="submit" disabled={submitting} className="rounded-full bg-primary-500 px-4 py-2 text-sm font-semibold text-neutral-950">Save</button>
-                <button type="button" className="rounded-full border border-[#e5e5e5] px-4 py-2 text-sm" onClick={() => setEditingQuestion(false)}>Cancel</button>
+                <button type="submit" disabled={submitting} className="btn btn-primary px-4 py-2 text-sm">Save</button>
+                <button type="button" className="rounded-full border border-line px-4 py-2 text-sm" onClick={() => setEditingQuestion(false)}>Cancel</button>
               </div>
             </form>
           ) : (
@@ -257,15 +257,15 @@ export default function DiscussionPage() {
           {question.canEdit ? (
             <div className="mt-4 flex gap-3 text-sm">
               <button type="button" className="font-semibold text-primary-700" onClick={() => setEditingQuestion(true)}>Edit question</button>
-              <button type="button" className="font-semibold text-[#525252]" onClick={removeQuestion}>Delete question</button>
+              <button type="button" className="font-semibold text-ink-muted" onClick={removeQuestion}>Delete question</button>
             </div>
           ) : null}
 
           <h2 className="mt-10 font-display text-2xl font-bold">Replies</h2>
-          {replies.length === 0 ? <p className="mt-3 text-sm text-[#525252]">No replies yet. Be the first to answer.</p> : null}
+          {replies.length === 0 ? <p className="mt-3 text-sm text-ink-muted">No replies yet. Be the first to answer.</p> : null}
           <ul className="mt-4 space-y-4">
             {replies.map((reply) => (
-              <li key={reply.id} className={`rounded-2xl border p-4 ${reply.accepted ? 'border-primary-600 bg-[#fff8f1]' : 'border-[#e5e5e5] bg-[#ffffff]'}`}>
+              <li key={reply.id} className={`rounded-2xl border p-4 ${reply.accepted ? 'border-primary-600 bg-tint' : 'border-line bg-surface-1'}`}>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0">
                     {reply.accepted ? (
@@ -274,13 +274,13 @@ export default function DiscussionPage() {
                         Accepted answer
                       </p>
                     ) : null}
-                    <p className="text-sm text-[#525252]">{reply.author.name} · {when(reply.createdAt)}</p>
+                    <p className="text-sm text-ink-muted">{reply.author.name} · {when(reply.createdAt)}</p>
                     {editingReply === reply.id ? (
                       <div className="mt-3">
                         <label className="sr-only" htmlFor={`reply-${reply.id}`}>Reply text</label>
-                        <textarea id={`reply-${reply.id}`} className="w-full rounded-xl border border-[#e5e5e5] px-3 py-2" rows={4} value={replyDraft} onChange={(event) => setReplyDraft(event.target.value)} />
+                        <textarea id={`reply-${reply.id}`} className="w-full rounded-xl border border-line px-3 py-2" rows={4} value={replyDraft} onChange={(event) => setReplyDraft(event.target.value)} />
                         <div className="mt-2 flex gap-2">
-                          <button type="button" className="rounded-full bg-primary-500 px-4 py-2 text-sm font-semibold text-neutral-950" onClick={() => saveReply(reply.id)}>Save reply</button>
+                          <button type="button" className="btn btn-primary px-4 py-2 text-sm" onClick={() => saveReply(reply.id)}>Save reply</button>
                           <button type="button" className="text-sm" onClick={() => setEditingReply('')}>Cancel</button>
                         </div>
                       </div>
@@ -296,7 +296,7 @@ export default function DiscussionPage() {
                       {reply.canEdit ? (
                         <>
                           <button type="button" className="font-semibold" onClick={() => { setEditingReply(reply.id); setReplyDraft(reply.body); }}>Edit</button>
-                          <button type="button" className="font-semibold text-[#525252]" onClick={() => removeReply(reply.id)}>Delete</button>
+                          <button type="button" className="font-semibold text-ink-muted" onClick={() => removeReply(reply.id)}>Delete</button>
                         </>
                       ) : null}
                     </div>
@@ -323,9 +323,9 @@ export default function DiscussionPage() {
               rows={5}
               value={replyBody}
               onChange={(event) => setReplyBody(event.target.value)}
-              className="mt-2 w-full rounded-xl border border-[#e5e5e5] px-3 py-2"
+              className="input mt-2 w-full border-line"
             />
-            <button type="submit" disabled={submitting} className="mt-3 rounded-full bg-primary-500 px-5 py-2.5 text-sm font-semibold text-neutral-950 disabled:opacity-60">
+            <button type="submit" disabled={submitting} className="btn btn-primary mt-3 px-5 py-2.5 text-sm">
               {submitting ? 'Posting reply…' : 'Post reply'}
             </button>
           </form>

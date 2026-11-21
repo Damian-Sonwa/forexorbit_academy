@@ -91,11 +91,11 @@ export default function DemoTaskSubmissions() {
   return (
     <div className="space-y-6">
       {/* Tasks List */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
-        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Select a Task</h2>
+      <div className="card rounded-xl p-6">
+        <h2 className="text-xl font-bold mb-4 text-ink">Select a Task</h2>
         
         {tasks.length === 0 ? (
-          <p className="text-gray-500 dark:text-gray-400">No tasks created yet.</p>
+          <p className="text-ink-muted">No tasks created yet.</p>
         ) : (
           <div className="space-y-3">
             {tasks.map((task) => (
@@ -111,9 +111,9 @@ export default function DemoTaskSubmissions() {
                   }
                 `}
               >
-                <h3 className="font-semibold text-gray-900 dark:text-white">{task.title}</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{task.description}</p>
-                <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
+                <h3 className="font-semibold text-ink">{task.title}</h3>
+                <p className="text-sm mt-1 text-ink-muted">{task.description}</p>
+                <p className="text-xs dark:text-gray-500 mt-2 text-ink-muted">
                   Created: {format(new Date(task.createdAt), 'MMM dd, yyyy')}
                 </p>
               </button>
@@ -124,14 +124,14 @@ export default function DemoTaskSubmissions() {
 
       {/* Submissions for Selected Task */}
       {selectedTaskId && (
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
+        <div className="card rounded-xl p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+            <h2 className="text-xl font-bold text-ink">
               {submissions?.task.title || 'Loading...'} - Submissions
             </h2>
             <button
               onClick={() => loadSubmissions(selectedTaskId)}
-              className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium"
+              className="btn btn-primary px-4 py-2 text-sm"
             >
               Refresh
             </button>
@@ -148,25 +148,25 @@ export default function DemoTaskSubmissions() {
                 >
                   <div className="flex items-start justify-between mb-3">
                     <div>
-                      <h3 className="font-semibold text-gray-900 dark:text-white">
+                      <h3 className="font-semibold text-ink">
                         {submission.studentName}
                       </h3>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                      <p className="text-sm text-ink-muted">
                         {submission.studentEmail}
                       </p>
                     </div>
                   </div>
 
                   {submission.reasoning && (
-                    <div className="mb-3 p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600">
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Reasoning / Analysis</p>
-                      <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{submission.reasoning}</p>
+                    <div className="card mb-3 p-3 rounded-lg">
+                      <p className="text-xs mb-1 text-ink-muted">Reasoning / Analysis</p>
+                      <p className="text-sm whitespace-pre-wrap text-ink-muted">{submission.reasoning}</p>
                     </div>
                   )}
 
                   {submission.screenshotUrls && submission.screenshotUrls.length > 0 && (
                     <div className="mb-3">
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                      <p className="text-xs mb-2 text-ink-muted">
                         Screenshot{submission.screenshotUrls.length > 1 ? 's' : ''}
                       </p>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -198,14 +198,14 @@ export default function DemoTaskSubmissions() {
                     </div>
                   )}
 
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                  <p className="text-xs text-ink-muted">
                     Submitted: {format(new Date(submission.submittedAt), 'MMM dd, yyyy HH:mm')}
                   </p>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-gray-500 dark:text-gray-400 text-center py-8">
+            <p className="text-center py-8 text-ink-muted">
               No submissions yet for this task.
             </p>
           )}

@@ -15,6 +15,7 @@ import DemoTasksTabs from '@/components/instructor/demo-tasks/DemoTasksTabs';
 import CreateDemoTask from '@/components/instructor/demo-tasks/CreateDemoTask';
 import DemoTaskSubmissions from '@/components/instructor/demo-tasks/DemoTaskSubmissions';
 import ReviewSubmission from '@/components/instructor/demo-tasks/ReviewSubmission';
+import TaskTradeReviews from '@/components/instructor/demo-tasks/TaskTradeReviews';
 
 interface Student {
   _id: string;
@@ -78,7 +79,7 @@ export default function InstructorDemoTasks() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen flex flex-col">
       <Header />
 
       <div className="flex flex-1 relative overflow-hidden lg:items-start">
@@ -87,8 +88,9 @@ export default function InstructorDemoTasks() {
         <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:ml-0 pt-14 lg:pt-6 bg-white lg:bg-gray-50 dark:bg-gray-900 overflow-y-auto w-full">
           {/* Header */}
           <div className="mb-6">
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Demo Trading Tasks</h1>
-            <p className="text-gray-600 dark:text-gray-400">
+            <p className="page-kicker">Instructor workspace</p>
+            <h1 className="page-title mt-3">Demo Trading Tasks</h1>
+            <p className="page-lede">
               Create tasks, view student submissions, and provide feedback
             </p>
           </div>
@@ -97,7 +99,12 @@ export default function InstructorDemoTasks() {
           <DemoTasksTabs>
             {{
               create: <CreateDemoTask students={students} onTaskCreated={handleTaskCreated} />,
-              submissions: <DemoTaskSubmissions />,
+              submissions: (
+                <>
+                  <DemoTaskSubmissions />
+                  <TaskTradeReviews />
+                </>
+              ),
               review: <ReviewSubmission />,
             }}
           </DemoTasksTabs>

@@ -80,7 +80,7 @@ export function PwaInstallModal() {
         >
           <button
             type="button"
-            className="absolute inset-0 bg-black/50 backdrop-blur-[1px]"
+            className="glass-scrim absolute inset-0"
             aria-label="Close install dialog"
             onClick={handleNotNow}
           />
@@ -88,7 +88,7 @@ export function PwaInstallModal() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="pwa-install-title"
-            className="relative z-10 w-full max-w-md rounded-t-2xl sm:rounded-2xl bg-white p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-2xl dark:bg-gray-900 dark:ring-1 dark:ring-white/10 sm:p-6"
+            className="relative z-10 w-full max-w-md rounded-t-2xl sm:rounded-2xl glass-panel p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:p-6"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-100 text-primary-700 dark:bg-primary-900/40 dark:text-primary-200">
@@ -134,7 +134,7 @@ export function PwaInstallModal() {
         <div className="fixed inset-0 z-[10050] flex items-end justify-center sm:items-center p-0 sm:p-4" role="presentation">
           <button
             type="button"
-            className="absolute inset-0 bg-black/50 backdrop-blur-[1px]"
+            className="glass-scrim absolute inset-0"
             aria-label="Dismiss"
             onClick={dismissIosHint}
           />
@@ -142,7 +142,7 @@ export function PwaInstallModal() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="pwa-ios-title"
-            className="relative z-10 w-full max-w-md rounded-t-2xl sm:rounded-2xl bg-white p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-2xl dark:bg-gray-900 dark:ring-1 dark:ring-white/10 sm:p-6"
+            className="relative z-10 w-full max-w-md rounded-t-2xl sm:rounded-2xl glass-panel p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:p-6"
             onClick={(e) => e.stopPropagation()}
           >
             <h2 id="pwa-ios-title" className="text-center text-lg font-bold text-gray-900 dark:text-white sm:text-xl">

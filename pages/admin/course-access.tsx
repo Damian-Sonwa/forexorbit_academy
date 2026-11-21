@@ -138,12 +138,12 @@ function CourseAccessPanel() {
       ) : null}
 
       {data ? (
-        <section className="rounded-2xl border border-neutral-200 bg-white p-5 dark:border-neutral-700 dark:bg-neutral-900">
+        <section className="card rounded-2xl p-5">
           <h2 className="text-lg font-bold">{data.student.name || 'Student'}</h2>
-          <p className="text-sm text-neutral-600 dark:text-neutral-400">{data.student.email} · account {data.student.status}</p>
+          <p className="text-sm text-ink-muted">{data.student.email} · account {data.student.status}</p>
 
           {data.courses.length === 0 ? (
-            <p className="mt-4 text-sm text-neutral-600 dark:text-neutral-400">No enrollments or course access yet.</p>
+            <p className="mt-4 text-sm text-ink-muted">No enrollments or course access yet.</p>
           ) : (
             <ul className="mt-4 divide-y divide-neutral-200 dark:divide-neutral-700">
               {data.courses.map((entry) => {
@@ -154,9 +154,9 @@ function CourseAccessPanel() {
                     <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                       <div>
                         <p className="font-semibold">{entry.title || 'Unknown course'}{entry.courseStatus === 'archived' ? ' (archived)' : ''}</p>
-                        <p className="text-sm text-neutral-600 dark:text-neutral-400">{enrollmentLabel(entry)} · {accessLabel(entry)}</p>
-                        {entry.access?.grantReason ? <p className="text-xs text-neutral-500">Grant reason: {entry.access.grantReason}</p> : null}
-                        {entry.access?.revokedReason ? <p className="text-xs text-neutral-500">Revoked: {entry.access.revokedReason}</p> : null}
+                        <p className="text-sm text-ink-muted">{enrollmentLabel(entry)} · {accessLabel(entry)}</p>
+                        {entry.access?.grantReason ? <p className="text-xs text-ink-muted">Grant reason: {entry.access.grantReason}</p> : null}
+                        {entry.access?.revokedReason ? <p className="text-xs text-ink-muted">Revoked: {entry.access.revokedReason}</p> : null}
                       </div>
                       <div className="flex gap-2">
                         {revocable ? (
@@ -221,14 +221,14 @@ export default function AdminCourseAccess() {
   if (!user || user.role !== 'superadmin') return <div className="flex min-h-screen items-center justify-center">Access denied</div>;
 
   return (
-    <div className="flex min-h-screen flex-col bg-gray-50 dark:bg-gray-900">
+    <div className="flex min-h-screen flex-col">
       <Header />
       <div className="flex flex-1 lg:items-start">
         <Sidebar />
         <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8 pt-16 lg:pt-8">
           <p className="page-kicker">Super admin</p>
           <h1 className="page-title mt-2">Course access</h1>
-          <p className="mt-2 max-w-3xl text-sm text-neutral-600 dark:text-neutral-400">
+          <p className="page-lede max-w-3xl">
             See a student&apos;s enrollments and course access. You can grant complimentary access, which also enrolls the student, and revoke a complimentary grant. Paid access ends only through a full refund with access removal on the Course purchases page. Every change needs a reason and is kept in the audit trail.
           </p>
           <Link href="/admin" className="mt-3 inline-flex text-sm font-semibold underline">Back to admin panel</Link>

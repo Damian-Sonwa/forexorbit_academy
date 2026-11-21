@@ -333,7 +333,7 @@ export default function InstructorLessons() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen flex flex-col">
       <Header />
       {/* Persistent Sidebar Layout - Sidebar remains visible across all instructor pages */}
       <div className="flex flex-1 overflow-hidden pt-20 lg:pt-0">
@@ -341,16 +341,17 @@ export default function InstructorLessons() {
         <main className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
           {/* Header Section */}
           <div className="mb-3 sm:mb-4 flex-shrink-0">
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Lessons Management</h1>
-            <p className="text-gray-600 dark:text-gray-400 text-xs sm:text-sm mt-1">Manage your courses and lessons</p>
+            <p className="page-kicker">Instructor workspace</p>
+            <h1 className="page-title mt-3">Lessons Management</h1>
+            <p className="page-lede">Manage your courses and lessons</p>
           </div>
 
           {/* Main Content Area */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
             {/* Left Panel: Courses by Level */}
-            <div className="lg:col-span-1 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700">
+            <div className="card lg:col-span-1 rounded-xl">
               <div className="p-3 sm:p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between sticky top-0 bg-white dark:bg-gray-800 z-10">
-                <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">All Courses</h2>
+                <h2 className="text-lg sm:text-xl font-bold text-ink">All Courses</h2>
                 <button
                   onClick={() => {
                     setEditingCourse(null);
@@ -384,8 +385,8 @@ export default function InstructorLessons() {
                             onClick={() => handleSelectCourse(course._id || course.id || '')}
                             className="w-full text-left p-3"
                           >
-                            <p className="font-semibold text-sm text-gray-900 dark:text-white">{course.title}</p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">{course.description}</p>
+                            <p className="font-semibold text-sm text-ink">{course.title}</p>
+                            <p className="text-xs mt-1 line-clamp-2 text-ink-muted">{course.description}</p>
                           </button>
                           <div className="px-3 pb-2 flex gap-1">
                             <button
@@ -424,8 +425,8 @@ export default function InstructorLessons() {
                             onClick={() => handleSelectCourse(course._id || course.id || '')}
                             className="w-full text-left p-3"
                           >
-                            <p className="font-semibold text-sm text-gray-900 dark:text-white">{course.title}</p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">{course.description}</p>
+                            <p className="font-semibold text-sm text-ink">{course.title}</p>
+                            <p className="text-xs mt-1 line-clamp-2 text-ink-muted">{course.description}</p>
                           </button>
                           <div className="px-3 pb-2 flex gap-1">
                             <button
@@ -464,8 +465,8 @@ export default function InstructorLessons() {
                             onClick={() => handleSelectCourse(course._id || course.id || '')}
                             className="w-full text-left p-3"
                           >
-                            <p className="font-semibold text-sm text-gray-900 dark:text-white">{course.title}</p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">{course.description}</p>
+                            <p className="font-semibold text-sm text-ink">{course.title}</p>
+                            <p className="text-xs mt-1 line-clamp-2 text-ink-muted">{course.description}</p>
                           </button>
                           <div className="px-3 pb-2 flex gap-1">
                             <button
@@ -486,14 +487,14 @@ export default function InstructorLessons() {
 
                 {allCourses.length === 0 && (
                   <div className="text-center py-8">
-                    <p className="text-gray-500 dark:text-gray-400 text-sm mb-3">No courses yet.</p>
+                    <p className="text-sm mb-3 text-ink-muted">No courses yet.</p>
                     <button
                       onClick={() => {
                         setEditingCourse(null);
                         setCourseForm({ difficulty: 'beginner' });
                         setShowCourseForm(true);
                       }}
-                      className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-semibold transition-colors"
+                      className="btn btn-primary px-4 py-2 text-sm"
                     >
                       Create First Course
                     </button>
@@ -503,53 +504,53 @@ export default function InstructorLessons() {
             </div>
 
             {/* Right Panel: Lessons Management */}
-            <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700">
+            <div className="card lg:col-span-2 rounded-xl">
               {!selectedCourse ? (
                 <div className="flex items-center justify-center p-6 sm:p-12 min-h-[300px] sm:min-h-[400px]">
                   <div className="text-center px-4">
-                    <svg className="w-12 h-12 sm:w-16 sm:h-16 text-gray-500 dark:text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-4 text-ink-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                     </svg>
-                    <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">Select a course from the left to manage its lessons</p>
+                    <p className="text-sm sm:text-base text-ink-muted">Select a course from the left to manage its lessons</p>
                   </div>
                 </div>
               ) : showCourseForm ? (
                 <div className="p-4 sm:p-6">
                   <form onSubmit={editingCourse ? handleSaveCourse : handleCreateCourse} className="space-y-4">
-                    <h3 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white mb-4">
+                    <h3 className="text-lg sm:text-xl font-bold mb-4 text-ink">
                       {editingCourse ? 'Edit Course' : 'Create New Course'}
                     </h3>
                     
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Course Title *</label>
+                      <label className="block text-sm font-semibold mb-2 text-ink-muted">Course Title *</label>
                       <input
                         type="text"
                         value={courseForm.title || ''}
                         onChange={(e) => setCourseForm({ ...courseForm, title: e.target.value })}
                         required
-                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500"
+                        className="input w-full"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Description *</label>
+                      <label className="block text-sm font-semibold mb-2 text-ink-muted">Description *</label>
                       <textarea
                         value={courseForm.description || ''}
                         onChange={(e) => setCourseForm({ ...courseForm, description: e.target.value })}
                         required
                         rows={4}
-                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500"
+                        className="input w-full"
                       />
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Category *</label>
+                        <label className="block text-sm font-semibold mb-2 text-ink-muted">Category *</label>
                         <select
                           value={courseForm.category || ''}
                           onChange={(e) => setCourseForm({ ...courseForm, category: e.target.value })}
                           required
-                          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500"
+                          className="input w-full"
                         >
                           <option value="">Select category</option>
                           <option value="basics">Basics</option>
@@ -560,12 +561,12 @@ export default function InstructorLessons() {
                         </select>
                       </div>
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Difficulty Level *</label>
+                        <label className="block text-sm font-semibold mb-2 text-ink-muted">Difficulty Level *</label>
                         <select
                           value={courseForm.difficulty || 'beginner'}
                           onChange={(e) => setCourseForm({ ...courseForm, difficulty: e.target.value as 'beginner' | 'intermediate' | 'advanced' })}
                           required
-                          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500"
+                          className="input w-full"
                         >
                           <option value="beginner">Beginner</option>
                           <option value="intermediate">Intermediate</option>
@@ -575,13 +576,13 @@ export default function InstructorLessons() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Thumbnail URL</label>
+                      <label className="block text-sm font-semibold mb-2 text-ink-muted">Thumbnail URL</label>
                       <input
                         type="url"
                         value={courseForm.thumbnail || ''}
                         onChange={(e) => setCourseForm({ ...courseForm, thumbnail: e.target.value })}
                         placeholder="https://example.com/image.jpg"
-                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500"
+                        className="input w-full"
                       />
                     </div>
 
@@ -589,7 +590,7 @@ export default function InstructorLessons() {
                       <button
                         type="submit"
                         disabled={loading}
-                        className="flex-1 px-4 py-2 bg-primary-600 hover:bg-primary-700 disabled:bg-gray-400 text-white rounded-lg font-semibold transition-colors"
+                        className="btn btn-primary flex-1 px-4 py-2"
                       >
                         {loading ? 'Saving...' : editingCourse ? 'Save Changes' : 'Create Course'}
                       </button>
@@ -611,11 +612,11 @@ export default function InstructorLessons() {
                 <>
                   <div className="p-3 sm:p-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                     <div className="flex-1">
-                      <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white break-words">
+                      <h2 className="text-lg sm:text-xl font-bold break-words text-ink">
                         {selectedCourseData?.title || 'Lessons'}
                       </h2>
                       {selectedCourseData && (
-                        <div className="mt-1 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                        <div className="mt-1 flex items-center gap-2 text-xs text-ink-muted">
                           <span className="capitalize">{selectedCourseData.difficulty}</span>
                           <span>•</span>
                           <span>{selectedCourseData.category}</span>
@@ -627,7 +628,7 @@ export default function InstructorLessons() {
                     <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                       <button
                         onClick={() => handleEditCourse(selectedCourseData!)}
-                        className="w-full sm:w-auto px-3 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-semibold hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                        className="w-full sm:w-auto px-3 py-2 bg-gray-200 dark:bg-gray-700 rounded-lg text-sm font-semibold hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors text-ink-muted"
                       >
                         Edit Course
                       </button>
@@ -637,7 +638,7 @@ export default function InstructorLessons() {
                           setLessonForm({ order: courseLessons.length + 1, type: 'video', resources: [] });
                           setShowLessonForm(true);
                         }}
-                        className="w-full sm:w-auto px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-semibold transition-colors"
+                        className="btn btn-primary w-full sm:w-auto px-4 py-2 text-sm"
                       >
                         + Add Lesson
                       </button>
@@ -648,18 +649,18 @@ export default function InstructorLessons() {
                     <div className="flex-1 overflow-y-auto p-3 sm:p-4">
                       <form onSubmit={editingLesson ? handleSaveLesson : handleCreateLesson} className="space-y-4">
                         <div>
-                          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Lesson Title *</label>
+                          <label className="block text-sm font-semibold mb-2 text-ink-muted">Lesson Title *</label>
                           <input
                             type="text"
                             value={lessonForm.title || ''}
                             onChange={(e) => setLessonForm({ ...lessonForm, title: e.target.value })}
                             required
-                            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500"
+                            className="input w-full"
                           />
                         </div>
 
                         <div>
-                          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Description *</label>
+                          <label className="block text-sm font-semibold mb-2 text-ink-muted">Description *</label>
                           <RichTextEditor
                             key={`instructor-lessons-desc-${editingLesson || 'new'}`}
                             value={lessonForm.description || ''}
@@ -669,7 +670,7 @@ export default function InstructorLessons() {
                         </div>
 
                         <div>
-                          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                          <label className="block text-sm font-semibold mb-2 text-ink-muted">
                             Lesson summary / body
                           </label>
                           <RichTextEditor
@@ -682,26 +683,26 @@ export default function InstructorLessons() {
 
                         <div className="grid grid-cols-2 gap-4">
                           <div>
-                            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Video URL (YouTube/MP4/WebM)</label>
+                            <label className="block text-sm font-semibold mb-2 text-ink-muted">Video URL (YouTube/MP4/WebM)</label>
                             <input
                               type="url"
                               value={lessonForm.videoUrl || ''}
                               onChange={(e) => setLessonForm({ ...lessonForm, videoUrl: e.target.value })}
                               placeholder="https://www.youtube.com/watch?v=... or https://example.com/video.mp4"
-                              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500"
+                              className="input w-full"
                             />
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Supports YouTube, Vimeo, or direct video file URLs</p>
+                            <p className="text-xs mt-1 text-ink-muted">Supports YouTube, Vimeo, or direct video file URLs</p>
                           </div>
                           <div>
-                            <p className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Position</p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">New lessons are added at the end. Reorder lessons with the arrows on the course page.</p>
+                            <p className="block text-sm font-semibold mb-2 text-ink-muted">Position</p>
+                            <p className="text-xs text-ink-muted">New lessons are added at the end. Reorder lessons with the arrows on the course page.</p>
                           </div>
                         </div>
 
                         {/* Resources Section */}
                         <div>
                           <div className="flex items-center justify-between mb-2">
-                            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300">Resources</label>
+                            <label className="block text-sm font-semibold text-ink-muted">Resources</label>
                             <button
                               type="button"
                               onClick={addResource}
@@ -715,7 +716,7 @@ export default function InstructorLessons() {
                               <select
                                 value={resource.type}
                                 onChange={(e) => updateResource(index, 'type', e.target.value)}
-                                className="px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg text-sm"
+                                className="input text-sm"
                               >
                                 <option value="pdf">PDF</option>
                                 <option value="link">Link</option>
@@ -726,14 +727,14 @@ export default function InstructorLessons() {
                                 value={resource.title}
                                 onChange={(e) => updateResource(index, 'title', e.target.value)}
                                 placeholder="Resource title"
-                                className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg text-sm"
+                                className="input flex-1 text-sm"
                               />
                               <input
                                 type="url"
                                 value={resource.url}
                                 onChange={(e) => updateResource(index, 'url', e.target.value)}
                                 placeholder="URL"
-                                className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg text-sm"
+                                className="input flex-1 text-sm"
                               />
                               <button
                                 type="button"
@@ -750,7 +751,7 @@ export default function InstructorLessons() {
                           <button
                             type="submit"
                             disabled={loading}
-                            className="flex-1 px-4 py-2 bg-primary-600 hover:bg-primary-700 disabled:bg-gray-400 text-white rounded-lg font-semibold transition-colors"
+                            className="btn btn-primary flex-1 px-4 py-2"
                           >
                             {loading ? 'Saving...' : editingLesson ? 'Save Changes' : 'Create Lesson'}
                           </button>
@@ -776,7 +777,7 @@ export default function InstructorLessons() {
                         </div>
                       ) : courseLessons.length === 0 ? (
                         <div className="text-center py-8">
-                          <p className="text-gray-500 dark:text-gray-400 mb-4">No lessons yet. Click "+ Add Lesson" to create one.</p>
+                          <p className="mb-4 text-ink-muted">No lessons yet. Click "+ Add Lesson" to create one.</p>
                         </div>
                       ) : (
                         <div className="space-y-3">
@@ -787,10 +788,10 @@ export default function InstructorLessons() {
                             >
                               <div className="flex items-start justify-between mb-2">
                                 <div className="flex-1">
-                                  <h3 className="font-bold text-gray-900 dark:text-white mb-1" dangerouslySetInnerHTML={{ __html: sanitizeHtml(lesson.title) }} />
+                                  <h3 className="font-bold mb-1 text-ink" dangerouslySetInnerHTML={{ __html: sanitizeHtml(lesson.title) }} />
                                   {((lesson as any).content || (lesson as any).lessonSummary?.overview || lesson.summary) && (
                                     <div
-                                      className="text-sm text-gray-600 dark:text-gray-400 mb-2 prose prose-sm max-w-none"
+                                      className="text-sm mb-2 prose prose-sm max-w-none text-ink-muted"
                                       dangerouslySetInnerHTML={{
                                         __html: sanitizeHtml(
                                           (lesson as any).content || (lesson as any).lessonSummary?.overview || lesson.summary || ''
@@ -840,19 +841,19 @@ export default function InstructorLessons() {
                                       PDF
                                     </span>
                                   )}
-                                  <span className="text-gray-500 dark:text-gray-400 capitalize">Type: {lesson.type}</span>
-                                  <span className="text-gray-500 dark:text-gray-400">Order: {lesson.order}</span>
+                                  <span className="capitalize text-ink-muted">Type: {lesson.type}</span>
+                                  <span className="text-ink-muted">Order: {lesson.order}</span>
                                 </div>
                                 
                                 {lesson.resources && lesson.resources.length > 0 && (
                                   <div>
-                                    <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Resources:</p>
+                                    <p className="text-xs font-semibold mb-1 text-ink-muted">Resources:</p>
                                     <div className="flex flex-wrap gap-2">
                                       {lesson.resources.map((resource, idx) => (
                                         <SafeExternalLink
                                           key={idx}
                                           href={resource.url}
-                                          className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-600 flex items-center gap-1"
+                                          className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded hover:bg-gray-200 dark:hover:bg-gray-600 flex items-center gap-1 text-ink-muted"
                                         >
                                           {resource.type === 'pdf' && (
                                             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">

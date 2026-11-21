@@ -61,8 +61,8 @@ export default function CreateDemoTask({ students, onTaskCreated }: CreateDemoTa
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
-      <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Create New Demo Task</h2>
+    <div className="card rounded-xl p-6">
+      <h2 className="text-2xl font-bold mb-6 text-ink">Create New Demo Task</h2>
 
       {error && (
         <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
@@ -72,7 +72,7 @@ export default function CreateDemoTask({ students, onTaskCreated }: CreateDemoTa
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          <label className="block text-sm font-medium mb-1 text-ink-muted">
             Task Title *
           </label>
           <input
@@ -81,12 +81,12 @@ export default function CreateDemoTask({ students, onTaskCreated }: CreateDemoTa
             value={taskForm.title}
             onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })}
             placeholder="e.g., Open a Buy trade on EUR/USD with 1% risk"
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 dark:text-white bg-white dark:bg-gray-700"
+            className="input w-full"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          <label className="block text-sm font-medium mb-1 text-ink-muted">
             Description *
           </label>
           <textarea
@@ -95,12 +95,12 @@ export default function CreateDemoTask({ students, onTaskCreated }: CreateDemoTa
             onChange={(e) => setTaskForm({ ...taskForm, description: e.target.value })}
             rows={3}
             placeholder="Brief description of what students need to do"
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 dark:text-white bg-white dark:bg-gray-700"
+            className="input w-full"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          <label className="block text-sm font-medium mb-1 text-ink-muted">
             Detailed Instructions
           </label>
           <textarea
@@ -108,21 +108,21 @@ export default function CreateDemoTask({ students, onTaskCreated }: CreateDemoTa
             onChange={(e) => setTaskForm({ ...taskForm, instructions: e.target.value })}
             rows={6}
             placeholder="Step-by-step instructions for students to follow..."
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 dark:text-white bg-white dark:bg-gray-700"
+            className="input w-full"
           />
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+          <p className="text-xs mt-1 text-ink-muted">
             Provide clear, actionable steps for students to complete this task.
           </p>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          <label className="block text-sm font-medium mb-1 text-ink-muted">
             Assign To
           </label>
           <select
             value={taskForm.assignedTo}
             onChange={(e) => setTaskForm({ ...taskForm, assignedTo: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 dark:text-white bg-white dark:bg-gray-700"
+            className="input w-full"
           >
             <option value="">All Students</option>
             {students.map((student) => (
@@ -131,20 +131,20 @@ export default function CreateDemoTask({ students, onTaskCreated }: CreateDemoTa
               </option>
             ))}
           </select>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+          <p className="text-xs mt-1 text-ink-muted">
             Leave as "All Students" to assign to everyone, or select a specific student.
           </p>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          <label className="block text-sm font-medium mb-1 text-ink-muted">
             Due Date (Optional)
           </label>
           <input
             type="date"
             value={taskForm.dueDate}
             onChange={(e) => setTaskForm({ ...taskForm, dueDate: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 dark:text-white bg-white dark:bg-gray-700"
+            className="input w-full"
           />
         </div>
 
@@ -161,14 +161,14 @@ export default function CreateDemoTask({ students, onTaskCreated }: CreateDemoTa
               });
               setError(null);
             }}
-            className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+            className="btn btn-secondary px-4 py-2"
           >
             Clear
           </button>
           <button
             type="submit"
             disabled={submitting}
-            className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            className="btn btn-primary px-4 py-2"
           >
             {submitting ? 'Creating...' : 'Create Task'}
           </button>

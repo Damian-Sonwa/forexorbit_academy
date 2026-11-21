@@ -137,7 +137,7 @@ export default function ExpertConsultation() {
   const ownBookings = bookings.filter((booking) => booking.expertId === user.id);
 
   return (
-    <div className="flex min-h-screen flex-col bg-gray-50 dark:bg-gray-900">
+    <div className="flex min-h-screen flex-col">
       <Header />
       <div className="flex flex-1">
         <Sidebar />

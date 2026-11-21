@@ -3,7 +3,8 @@
 /**
  * A small in-memory stand-in for the MongoDB collections API, enough for the Phase 4 flows:
  * find/findOne (with sort, limit and projections recorded but not applied), countDocuments,
- * insertOne, updateOne/updateMany/findOneAndUpdate ($set, $unset, $inc, $max, $addToSet),
+ * insertOne, updateOne/updateMany/findOneAndUpdate ($set, $unset, $inc, $max, $addToSet, and
+ * $setOnInsert on an upsert's insert), cursor skip, the $nin operator,
  * deleteOne/deleteMany and bulkWrite of updateOne operations. Each single-document update is
  * applied synchronously, as MongoDB applies it atomically. Not a real database: tests that use
  * it say so, and nothing here is claimed as real-MongoDB coverage.
@@ -43,6 +44,7 @@ function valueMatches(value, cond) {
     return Object.entries(cond).every(([op, arg]) => {
       switch (op) {
         case '$in': return arg.some((candidate) => (Array.isArray(value) ? value.some((v) => same(v, candidate)) : same(value, candidate)));
+        case '$nin': return !arg.some((candidate) => (Array.isArray(value) ? value.some((v) => same(v, candidate)) : same(value, candidate)));
         case '$exists': return arg ? value !== undefined : value === undefined;
         case '$ne': return !same(value, arg);
         case '$gte': return value !== undefined && compare(value, arg) >= 0;
@@ -69,10 +71,11 @@ function matches(doc, query) {
   });
 }
 
-function applyUpdate(doc, update) {
+function applyUpdate(doc, update, inserted = false) {
   for (const [op, fields] of Object.entries(update)) {
     for (const [key, value] of Object.entries(fields)) {
       if (op === '$set') doc[key] = value;
+      else if (op === '$setOnInsert') { if (inserted) doc[key] = value; }
       else if (op === '$unset') delete doc[key];
       else if (op === '$inc') doc[key] = (typeof doc[key] === 'number' ? doc[key] : 0) + value;
       else if (op === '$max') doc[key] = doc[key] === undefined || compare(value, doc[key]) > 0 ? value : doc[key];
@@ -120,6 +123,7 @@ function memoryDb(seed = {}) {
               });
               return cursor;
             },
+            skip: (n) => { rows = rows.slice(n); return cursor; },
             limit: (n) => { rows = rows.slice(0, n); return cursor; },
             toArray: async () => rows.map(clone),
           };
@@ -138,12 +142,14 @@ function memoryDb(seed = {}) {
         async updateOne(filter, update, options = {}) {
           log.push({ name, method: 'updateOne', filter, update });
           let doc = docs.find((row) => matches(row, filter));
+          let inserted = false;
           if (!doc && options.upsert) {
             doc = { _id: new ObjectId(), ...seedOf('updateOne', filter) };
             docs.push(doc);
+            inserted = true;
           }
           if (!doc) return { matchedCount: 0, modifiedCount: 0 };
-          applyUpdate(doc, update);
+          applyUpdate(doc, update, inserted);
           return { matchedCount: 1, modifiedCount: 1 };
         },
         async updateMany(filter, update) {

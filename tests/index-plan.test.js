@@ -164,20 +164,20 @@ test('L1 is covered by the prefix of the unique progress_user_course; prefix cov
 // Part 5: report and apply share the plan
 // ---------------------------------------------------------------------------
 
-test('production shape: all 33 definitions classify as the read-only production report found, with the fixes', async () => {
+test('production shape: all 35 definitions classify as the read-only production report found, with the fixes', async () => {
   const db = fakeDb();
   const rows = [
     ...await plan.planIndexes(db, LEARNING_INDEXES),
     ...await plan.planIndexes(db, ASSESSMENT_INDEXES),
     ...await plan.planIndexes(db, TRADING_INDEXES),
   ];
-  assert.equal(rows.length, 33);
+  assert.equal(rows.length, 35);
   const by = Object.fromEntries(rows.map((r) => [r.id, r]));
   assert.deepEqual(['L1', 'L2', 'L3'].map((id) => [by[id].state, by[id].satisfiedBy]), [['present', 'progress_user_course'], ['present', 'lessons_course_order'], ['present', 'quizscores_user_course']]);
   assert.equal(by.A4.state, 'conflicting');
-  assert.deepEqual(rows.filter((r) => r.state === 'no collection').map((r) => r.id), ['L8', 'L9', 'A1', 'A2', 'A3', 'T1', 'T2', 'T3', 'T4', 'T5', 'T8', 'T11', 'T12', 'T13', 'T17', 'T18']);
+  assert.deepEqual(rows.filter((r) => r.state === 'no collection').map((r) => r.id), ['L8', 'L9', 'A1', 'A2', 'A3', 'T1', 'T2', 'T3', 'T4', 'T5', 'T8', 'T11', 'T12', 'T13', 'T17', 'T18', 'T19', 'T20']);
   assert.deepEqual([...new Set(rows.filter((r) => r.createsCollection).map((r) => r.collection))].sort(),
-    ['assignmentSubmissions', 'learningDays', 'learningMinutes', 'marketCheckpoints', 'marketIncidents', 'marketQuotes', 'quizAttempts', 'tradingOperations', 'tradingOrders', 'tradingPositions']);
+    ['assignmentSubmissions', 'learningDays', 'learningMinutes', 'marketCheckpoints', 'marketIncidents', 'marketQuotes', 'quizAttempts', 'tradingOperations', 'tradingOrders', 'tradingPositions', 'tradingReviews']);
   assert.deepEqual(rows.filter((r) => r.state === 'missing').map((r) => r.id), ['L4', 'L5', 'L6', 'L7', 'A5', 'A6', 'T6', 'T7', 'T9', 'T10', 'T14', 'T15', 'T16']);
   assert.equal(db.writes.length, 0, 'planning only reads');
 });

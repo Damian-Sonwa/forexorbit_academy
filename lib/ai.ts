@@ -414,6 +414,64 @@ IMPORTANT: This is educational feedback only. Do not provide real trading advice
 }
 
 /**
+ * Feedback on a reviewed practice-desk trade (lib/trading/reviews.js). The trade's figures come from
+ * the simulator as recorded by the server (exact decimal strings), never typed by the student; the
+ * reflection is the student's. Educational feedback on the process, not trading advice.
+ */
+export async function analyzeTradeReview(
+  review: {
+    trade: { instrument: string; side: string; units: string; entry: string; exit: string | null; stopLoss: string; takeProfit: string | null; realizedPl: string | null; closeReason: string | null; planNote: string | null };
+    setup: string;
+    followedPlan: string;
+    confidence: number;
+    emotion: string | null;
+    reason: string;
+    lesson: string;
+  },
+  userId?: string
+): Promise<{ strengths: string[]; mistakes: string[]; suggestions: string[]; riskReward: string }> {
+  const t = review.trade;
+  const closed: Record<string, string> = { manual: 'closed by the student', stop_loss: 'stop-loss hit', take_profit: 'take-profit hit', stop_out: 'stopped out by the margin rule' };
+  const prompt = `Give educational feedback on a student's reviewed trade from a practice simulator (virtual funds, simulated prices).
+
+Recorded by the simulator:
+- Pair: ${t.instrument.replace('_', '/')}, ${t.side.toUpperCase()} ${t.units} units
+- Entry ${t.entry}, exit ${t.exit ?? 'n/a'}, stop-loss ${t.stopLoss}, take-profit ${t.takeProfit ?? 'none'}
+- Result ${t.realizedPl ?? 'n/a'} USD, ${closed[t.closeReason || ''] || 'closed'}
+- Plan note written before the trade: ${t.planNote || 'none'}
+
+The student's review:
+- Setup: ${review.setup}
+- Followed the plan: ${review.followedPlan}
+- Confidence (1-5): ${review.confidence}${review.emotion ? `, emotion: ${review.emotion}` : ''}
+- Why they entered: ${review.reason}
+- Lesson / what they would change: ${review.lesson}
+
+Focus on the process (planning, stop placement, discipline, whether the reasoning matches what happened), not on whether it made money.
+Respond as JSON with keys strengths, mistakes, suggestions (arrays of 2-3 short strings) and riskReward (one sentence on the stop and target placement).
+IMPORTANT: Educational feedback only. Do not give real trading advice.`;
+
+  const response = await getAIResponse({ prompt, role: 'student', context: userId ? { userId } : undefined, temperature: 0.4 });
+  try {
+    const parsed = JSON.parse(response);
+    const list = (value: unknown, fallback: string) => (Array.isArray(value) ? value.map(String).slice(0, 4) : [String(value || fallback)]);
+    return {
+      strengths: list(parsed.strengths, 'You reviewed the trade, which is the habit that matters most.'),
+      mistakes: list(parsed.mistakes, 'Compare your plan note with what you actually did.'),
+      suggestions: list(parsed.suggestions, 'Keep reviewing every closed trade.'),
+      riskReward: String(parsed.riskReward || '').slice(0, 300),
+    };
+  } catch {
+    return {
+      strengths: ['You reviewed the trade, which is the habit that matters most.'],
+      mistakes: ['Compare your plan note with what you actually did.'],
+      suggestions: ['Keep reviewing every closed trade.'],
+      riskReward: response.substring(0, 200),
+    };
+  }
+}
+
+/**
  * Get AI hint for a demo task
  */
 export async function getTaskHint(
@@ -487,6 +545,9 @@ export async function analyzeStudentPerformance(
     completedTasks?: number;
     pendingTasks?: number;
     averageGrade?: number;
+    /** Practice desk trade reviews (lib/trading/reviews.js). */
+    reviewedTrades?: number;
+    planFollowedRate?: number | null;
     recentSubmissions?: Array<{
       taskTitle: string;
       grade?: number;
@@ -504,12 +565,14 @@ export async function analyzeStudentPerformance(
 
 Student: ${studentData.name} (${studentData.email})
 Level: ${studentData.level || 'Unknown'}
-Total Trades: ${studentData.totalTrades || 0}
+Closed practice trades (recorded by the simulator): ${studentData.totalTrades || 0}
 Win Rate: ${studentData.winRate ? (studentData.winRate * 100).toFixed(1) + '%' : 'N/A'}
 Average P/L: ${studentData.averageProfitLoss ? `$${studentData.averageProfitLoss.toFixed(2)}` : 'N/A'}
 Completed Tasks: ${studentData.completedTasks || 0}
 Pending Tasks: ${studentData.pendingTasks || 0}
 Average Grade: ${studentData.averageGrade ? studentData.averageGrade.toFixed(1) : 'N/A'}
+Trades reviewed by the student: ${studentData.reviewedTrades ?? 0}
+Plan followed (in reviews): ${typeof studentData.planFollowedRate === 'number' ? (studentData.planFollowedRate * 100).toFixed(0) + '%' : 'N/A'}
 Recent Submissions: ${studentData.recentSubmissions?.length || 0}
 
 Please provide:

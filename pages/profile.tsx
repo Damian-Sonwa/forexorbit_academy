@@ -230,7 +230,7 @@ export default function Profile() {
   ];
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen flex flex-col">
       <Header />
       <div className="flex flex-1 lg:items-start">
         <Sidebar />

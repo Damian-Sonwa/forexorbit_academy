@@ -15,6 +15,7 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
+import PageHeader, { ReadoutStrip } from '@/components/ui/PageHeader';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import RichTextEditor from '@/components/RichTextEditor';
 import { useAuth } from '@/hooks/useAuth';
@@ -686,33 +687,44 @@ export default function InstructorDashboard() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen flex flex-col">
       <Header />
       {/* Persistent Sidebar Layout - Sidebar remains visible across all instructor dashboard pages */}
       {/* Sidebar is NOT controlled by chat state, modal state, or consultation selection */}
-      <div className="flex flex-1 overflow-hidden pt-20 lg:pt-0">
+      <div className="flex flex-1 overflow-hidden pt-14 lg:pt-0 lg:items-start">
         <Sidebar />
-        <main className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
-        {/* Header Section */}
-        <div className="mb-3 sm:mb-4 flex-shrink-0">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-1">Instructor Dashboard</h1>
-          <p className="text-gray-600 dark:text-gray-400 text-xs sm:text-sm">Manage your courses, lessons, and track student progress</p>
-        </div>
+        <main className="mx-auto w-full max-w-7xl flex-1 px-4 pb-12 pt-6 sm:px-6 lg:px-10 lg:pt-10">
+        <PageHeader
+          kicker="Instructor workspace"
+          title="Instructor Dashboard"
+          lede="Manage your courses, lessons, and track student progress"
+          className="!mb-6"
+        />
+
+        <ReadoutStrip
+          className="mb-6"
+          items={[
+            { label: 'All Courses', value: analytics === null ? <span className="orbit-skeleton inline-block h-7 w-14 rounded-md" aria-label="Loading" /> : (analytics?.totalCourses ?? allCourses.length) },
+            { label: 'Total Lessons', value: analytics === null ? <span className="orbit-skeleton inline-block h-7 w-14 rounded-md" aria-label="Loading" /> : (analytics?.totalLessons ?? 0) },
+            { label: 'Total Students', value: analytics === null ? <span className="orbit-skeleton inline-block h-7 w-14 rounded-md" aria-label="Loading" /> : (analytics?.totalStudents ?? 0) },
+            { label: 'Enrollments', value: analytics === null ? <span className="orbit-skeleton inline-block h-7 w-14 rounded-md" aria-label="Loading" /> : (analytics?.totalEnrollments ?? analytics?.enrolledStudents ?? 0) },
+          ]}
+        />
 
         {FEATURES.COMMUNITY && (
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4 mb-3 sm:mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 flex-shrink-0">
+        <div className="card rounded-xl p-3 sm:p-4 mb-3 sm:mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 flex-shrink-0">
           <div className="flex items-center space-x-3">
             <svg className="w-6 h-6 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
             </svg>
             <div>
-              <h3 className="text-sm font-bold text-gray-900 dark:text-white">Forex News Updates</h3>
-              <p className="text-xs text-gray-600 dark:text-gray-400">Share important updates with the community</p>
+              <h3 className="text-sm font-bold text-ink">Forex News Updates</h3>
+              <p className="text-xs text-ink-muted">Share important updates with the community</p>
             </div>
           </div>
           <button
             onClick={() => setShowNewsModal(true)}
-            className="w-full sm:w-auto px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold text-sm transition-colors flex items-center justify-center space-x-2"
+            className="btn btn-primary w-full sm:w-auto px-4 py-2 text-sm flex items-center justify-center space-x-2"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -725,14 +737,14 @@ export default function InstructorDashboard() {
         {/* Consultation removed from dashboard - now only in sidebar page (/consultations/expert) */}
 
         {/* FIX: Upcoming Classes Section - Allow instructors to post upcoming classes */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4 mb-3 sm:mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 flex-shrink-0">
+        <div className="card rounded-xl p-3 sm:p-4 mb-3 sm:mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 flex-shrink-0">
           <div className="flex items-center space-x-3">
-            <svg className="w-6 h-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-6 h-6 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
             <div>
-              <h3 className="text-sm font-bold text-gray-900 dark:text-white">Upcoming Classes & Events</h3>
-              <p className="text-xs text-gray-600 dark:text-gray-400">Schedule classes that students can see on their dashboard</p>
+              <h3 className="text-sm font-bold text-ink">Upcoming Classes & Events</h3>
+              <p className="text-xs text-ink-muted">Schedule classes that students can see on their dashboard</p>
             </div>
           </div>
           <button
@@ -748,12 +760,12 @@ export default function InstructorDashboard() {
 
         {/* FIX: Class Creation Form */}
         {showClassForm && (
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6 mb-3 sm:mb-4">
-            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Create New Class/Event</h3>
+          <div className="card rounded-xl p-4 sm:p-6 mb-3 sm:mb-4">
+            <h3 className="text-lg font-bold mb-4 text-ink">Create New Class/Event</h3>
             <form onSubmit={editingClass ? handleUpdateClass : handleCreateClass} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                  <label className="block text-sm font-semibold mb-2 text-ink-muted">
                     Title <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -761,25 +773,25 @@ export default function InstructorDashboard() {
                     value={classForm.title}
                     onChange={(e) => setClassForm({ ...classForm, title: e.target.value })}
                     placeholder="e.g., Advanced Trading Strategies Workshop"
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    className="input w-full"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                  <label className="block text-sm font-semibold mb-2 text-ink-muted">
                     Date <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="date"
                     value={classForm.date}
                     onChange={(e) => setClassForm({ ...classForm, date: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    className="input w-full"
                     required
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                <label className="block text-sm font-semibold mb-2 text-ink-muted">
                   Description <span className="text-red-500">*</span>
                 </label>
                 <textarea
@@ -787,25 +799,25 @@ export default function InstructorDashboard() {
                   onChange={(e) => setClassForm({ ...classForm, description: e.target.value })}
                   placeholder="Describe the class or event..."
                   rows={3}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  className="input w-full"
                   required
                 />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                  <label className="block text-sm font-semibold mb-2 text-ink-muted">
                     Time <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="time"
                     value={classForm.time}
                     onChange={(e) => setClassForm({ ...classForm, time: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    className="input w-full"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                  <label className="block text-sm font-semibold mb-2 text-ink-muted">
                     Meeting Link (Optional)
                   </label>
                   <input
@@ -813,18 +825,18 @@ export default function InstructorDashboard() {
                     value={classForm.meetingLink}
                     onChange={(e) => setClassForm({ ...classForm, meetingLink: e.target.value })}
                     placeholder="https://meet.google.com/..."
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    className="input w-full"
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                <label className="block text-sm font-semibold mb-2 text-ink-muted">
                   Course for enrolled students
                 </label>
                 <select
                   value={classForm.courseId}
                   onChange={(e) => setClassForm({ ...classForm, courseId: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  className="input w-full"
                 >
                   <option value="">No course notification</option>
                   {courses.filter((course) => canReadCourseLessons(user?.role, user?.id, course.instructorId)).map((course) => (
@@ -851,7 +863,7 @@ export default function InstructorDashboard() {
                 <button
                   type="submit"
                   disabled={submittingClass}
-                  className="flex-1 md:w-auto px-6 py-3 bg-primary-600 hover:bg-primary-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-xl font-semibold transition-colors"
+                  className="btn btn-primary flex-1 md:w-auto px-6 py-3"
                 >
                   {submittingClass ? (editingClass ? 'Updating...' : 'Creating...') : (editingClass ? 'Update Class' : 'Create Class')}
                 </button>
@@ -862,8 +874,8 @@ export default function InstructorDashboard() {
 
         {/* FIX: List of Upcoming Classes */}
         {upcomingClasses.length > 0 && (
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6 mb-3 sm:mb-4">
-            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Your Scheduled Classes</h3>
+          <div className="card rounded-xl p-4 sm:p-6 mb-3 sm:mb-4">
+            <h3 className="text-lg font-bold mb-4 text-ink">Your Scheduled Classes</h3>
             <div className="space-y-3">
               {upcomingClasses.map((cls) => (
                 <div
@@ -872,9 +884,9 @@ export default function InstructorDashboard() {
                 >
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                       <div className="flex-1">
-                        <h4 className="font-bold text-gray-900 dark:text-white mb-1">{cls.title}</h4>
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">{cls.description}</p>
-                        <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
+                        <h4 className="font-bold mb-1 text-ink">{cls.title}</h4>
+                        <p className="text-sm mb-2 text-ink-muted">{cls.description}</p>
+                        <div className="flex flex-wrap items-center gap-3 text-xs text-ink-muted">
                           <span className="flex items-center">
                             <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -893,7 +905,7 @@ export default function InstructorDashboard() {
                         {/* FIX: Edit and Delete buttons */}
                         <button
                           onClick={() => handleEditClass(cls)}
-                          className="px-3 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold text-sm transition-colors flex items-center space-x-1"
+                          className="btn btn-primary px-3 py-2 text-sm flex items-center space-x-1"
                           title="Edit Class"
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -916,7 +928,7 @@ export default function InstructorDashboard() {
                             href={cls.meetingLink}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold text-sm transition-colors whitespace-nowrap"
+                            className="btn btn-primary px-4 py-2 text-sm whitespace-nowrap"
                           >
                             Join Class
                           </a>
@@ -930,15 +942,15 @@ export default function InstructorDashboard() {
         )}
 
         {/* Student Demo Task Submissions */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6 mb-3 sm:mb-4">
+        <div className="card rounded-xl p-4 sm:p-6 mb-3 sm:mb-4">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white">Student Demo Task Submissions</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400">View student submissions for your demo trading tasks</p>
+              <h3 className="text-lg font-bold text-ink">Student Demo Task Submissions</h3>
+              <p className="text-sm text-ink-muted">View student submissions for your demo trading tasks</p>
             </div>
             <button
               onClick={loadDemoSubmissions}
-              className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold text-sm transition-colors flex items-center space-x-2"
+              className="btn btn-primary px-4 py-2 text-sm flex items-center space-x-2"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -949,7 +961,7 @@ export default function InstructorDashboard() {
 
           {loadingSubmissions ? (
             <div className="text-center py-8">
-              <p className="text-gray-500">Loading submissions...</p>
+              <p className="text-ink-muted">Loading submissions...</p>
             </div>
           ) : demoSubmissions.length > 0 ? (
             <div className="space-y-4">
@@ -962,8 +974,8 @@ export default function InstructorDashboard() {
                     <div className="flex-1">
                       <div className="flex items-start justify-between mb-2">
                         <div>
-                          <h4 className="font-bold text-gray-900 dark:text-white">{submission.taskTitle}</h4>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                          <h4 className="font-bold text-ink">{submission.taskTitle}</h4>
+                          <p className="text-sm text-ink-muted">
                             Submitted by: <span className="font-medium">{submission.studentName}</span> ({submission.studentEmail})
                           </p>
                         </div>
@@ -978,19 +990,19 @@ export default function InstructorDashboard() {
                       
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3 text-sm">
                         <div>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">Pair</p>
-                          <p className="font-medium text-gray-900 dark:text-white">{submission.pair}</p>
+                          <p className="text-xs text-ink-muted">Pair</p>
+                          <p className="font-medium text-ink">{submission.pair}</p>
                         </div>
                         <div>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">Direction</p>
-                          <p className="font-medium text-gray-900 dark:text-white">{submission.direction?.toUpperCase()}</p>
+                          <p className="text-xs text-ink-muted">Direction</p>
+                          <p className="font-medium text-ink">{submission.direction?.toUpperCase()}</p>
                         </div>
                         <div>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">Entry Price</p>
-                          <p className="font-medium text-gray-900 dark:text-white">{submission.entryPrice}</p>
+                          <p className="text-xs text-ink-muted">Entry Price</p>
+                          <p className="font-medium text-ink">{submission.entryPrice}</p>
                         </div>
                         <div>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">P/L</p>
+                          <p className="text-xs text-ink-muted">P/L</p>
                           <p className={`font-medium ${
                             submission.profitLoss > 0 ? 'text-green-600 dark:text-green-400' :
                             submission.profitLoss < 0 ? 'text-red-600 dark:text-red-400' :
@@ -1002,15 +1014,15 @@ export default function InstructorDashboard() {
                       </div>
 
                       {submission.notes && (
-                        <div className="mt-3 p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600">
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Notes</p>
-                          <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{submission.notes}</p>
+                        <div className="card mt-3 p-3 rounded-lg">
+                          <p className="text-xs mb-1 text-ink-muted">Notes</p>
+                          <p className="text-sm whitespace-pre-wrap text-ink-muted">{submission.notes}</p>
                         </div>
                       )}
 
                       {submission.screenshot && (
                         <div className="mt-3">
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Screenshot</p>
+                          <p className="text-xs mb-2 text-ink-muted">Screenshot</p>
                           <a
                             href={submission.screenshot}
                             target="_blank"
@@ -1035,7 +1047,7 @@ export default function InstructorDashboard() {
                         </div>
                       )}
 
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">
+                      <p className="text-xs mt-3 text-ink-muted">
                         Submitted: {new Date(submission.createdAt).toLocaleString()}
                       </p>
                     </div>
@@ -1045,87 +1057,20 @@ export default function InstructorDashboard() {
             </div>
           ) : (
             <div className="text-center py-8">
-              <p className="text-gray-500 dark:text-gray-400">No student submissions yet.</p>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+              <p className="text-ink-muted">No student submissions yet.</p>
+              <p className="text-sm mt-2 text-ink-muted">
                 Students will appear here when they submit demo trading tasks assigned by you.
               </p>
             </div>
           )}
         </div>
 
-        {/* Statistics Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 mb-3 sm:mb-4 flex-shrink-0">
-          <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-sm p-4 text-neutral-900 dark:text-white">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-neutral-500 text-xs font-medium mb-1">All Courses</p>
-                {analytics === null ? (
-                  <div className="h-8 w-16 bg-primary-400/50 rounded animate-pulse"></div>
-                ) : (
-                  <p className="text-2xl font-bold">{analytics?.totalCourses ?? allCourses.length}</p>
-                )}
-              </div>
-              <svg className="w-8 h-8 text-primary-600 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-              </svg>
-            </div>
-          </div>
-
-          <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-sm p-4 text-neutral-900 dark:text-white">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-neutral-500 text-xs font-medium mb-1">Total Lessons</p>
-                {analytics === null ? (
-                  <div className="h-8 w-16 bg-secondary-400/50 rounded animate-pulse"></div>
-                ) : (
-                  <p className="text-2xl font-bold">{analytics?.totalLessons ?? 0}</p>
-                )}
-              </div>
-              <svg className="w-8 h-8 text-primary-600 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
-            </div>
-          </div>
-
-          <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-sm p-4 text-neutral-900 dark:text-white">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-neutral-500 text-xs font-medium mb-1">Total Students</p>
-                {analytics === null ? (
-                  <div className="h-8 w-16 bg-green-400/50 rounded animate-pulse"></div>
-                ) : (
-                  <p className="text-2xl font-bold">{analytics?.totalStudents ?? 0}</p>
-                )}
-              </div>
-              <svg className="w-8 h-8 text-primary-600 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-              </svg>
-            </div>
-          </div>
-
-          <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-sm p-4 text-neutral-900 dark:text-white">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-neutral-500 text-xs font-medium mb-1">Enrollments</p>
-                {analytics === null ? (
-                  <div className="h-8 w-16 bg-yellow-400/50 rounded animate-pulse"></div>
-                ) : (
-                  <p className="text-2xl font-bold">{analytics?.totalEnrollments ?? analytics?.enrolledStudents ?? 0}</p>
-                )}
-              </div>
-              <svg className="w-8 h-8 text-primary-600 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-          </div>
-        </div>
-
         {/* Main Content Area */}
         <div id="course-management-section" className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
           {/* Left Panel: Courses by Level */}
-          <div className="lg:col-span-1 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700">
+          <div className="card lg:col-span-1 rounded-xl">
             <div className="p-3 sm:p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between sticky top-0 bg-white dark:bg-gray-800 z-10">
-              <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">All Courses</h2>
+              <h2 className="text-lg sm:text-xl font-bold text-ink">All Courses</h2>
               <button
                 onClick={() => {
                   setEditingCourse(null);
@@ -1160,13 +1105,13 @@ export default function InstructorDashboard() {
                           href={`/instructor/courses/${course._id || course.id}`}
                           className="w-full text-left p-3 block hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded transition-colors"
                         >
-                          <p className="font-semibold text-sm text-gray-900 dark:text-white">{course.title}</p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">{course.description}</p>
+                          <p className="font-semibold text-sm text-ink">{course.title}</p>
+                          <p className="text-xs mt-1 line-clamp-2 text-ink-muted">{course.description}</p>
                         </Link>
                         ) : (
                         <div className="w-full text-left p-3 block rounded">
-                          <p className="font-semibold text-sm text-gray-900 dark:text-white">{course.title}</p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">{course.description}</p>
+                          <p className="font-semibold text-sm text-ink">{course.title}</p>
+                          <p className="text-xs mt-1 line-clamp-2 text-ink-muted">{course.description}</p>
                         </div>
                         )}
                         <div className="px-3 pb-2 flex gap-1">
@@ -1207,13 +1152,13 @@ export default function InstructorDashboard() {
                           href={`/instructor/courses/${course._id || course.id}`}
                           className="w-full text-left p-3 block hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded transition-colors"
                         >
-                          <p className="font-semibold text-sm text-gray-900 dark:text-white">{course.title}</p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">{course.description}</p>
+                          <p className="font-semibold text-sm text-ink">{course.title}</p>
+                          <p className="text-xs mt-1 line-clamp-2 text-ink-muted">{course.description}</p>
                         </Link>
                         ) : (
                         <div className="w-full text-left p-3 block rounded">
-                          <p className="font-semibold text-sm text-gray-900 dark:text-white">{course.title}</p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">{course.description}</p>
+                          <p className="font-semibold text-sm text-ink">{course.title}</p>
+                          <p className="text-xs mt-1 line-clamp-2 text-ink-muted">{course.description}</p>
                         </div>
                         )}
                         <div className="px-3 pb-2 flex gap-1">
@@ -1254,13 +1199,13 @@ export default function InstructorDashboard() {
                           href={`/instructor/courses/${course._id || course.id}`}
                           className="w-full text-left p-3 block hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded transition-colors"
                         >
-                          <p className="font-semibold text-sm text-gray-900 dark:text-white">{course.title}</p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">{course.description}</p>
+                          <p className="font-semibold text-sm text-ink">{course.title}</p>
+                          <p className="text-xs mt-1 line-clamp-2 text-ink-muted">{course.description}</p>
                         </Link>
                         ) : (
                         <div className="w-full text-left p-3 block rounded">
-                          <p className="font-semibold text-sm text-gray-900 dark:text-white">{course.title}</p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">{course.description}</p>
+                          <p className="font-semibold text-sm text-ink">{course.title}</p>
+                          <p className="text-xs mt-1 line-clamp-2 text-ink-muted">{course.description}</p>
                         </div>
                         )}
                         <div className="px-3 pb-2 flex gap-1">
@@ -1282,14 +1227,14 @@ export default function InstructorDashboard() {
 
               {allCourses.length === 0 && (
                 <div className="text-center py-8">
-                  <p className="text-gray-500 dark:text-gray-400 text-sm mb-3">No courses yet.</p>
+                  <p className="text-sm mb-3 text-ink-muted">No courses yet.</p>
                   <button
                     onClick={() => {
                       setEditingCourse(null);
                       setCourseForm({ difficulty: 'beginner' });
                       setShowCourseForm(true);
                     }}
-                    className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-semibold transition-colors"
+                    className="btn btn-primary px-4 py-2 text-sm"
                   >
                     Create First Course
                   </button>
@@ -1299,53 +1244,53 @@ export default function InstructorDashboard() {
           </div>
 
           {/* Right Panel: Lessons Management */}
-          <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700">
+          <div className="card lg:col-span-2 rounded-xl">
             {!selectedCourse ? (
               <div className="flex items-center justify-center p-6 sm:p-12 min-h-[300px] sm:min-h-[400px]">
                 <div className="text-center px-4">
-                  <svg className="w-12 h-12 sm:w-16 sm:h-16 text-gray-500 dark:text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-4 text-ink-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                   </svg>
-                  <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">Select a course from the left to manage its lessons</p>
+                  <p className="text-sm sm:text-base text-ink-muted">Select a course from the left to manage its lessons</p>
                 </div>
               </div>
             ) : showCourseForm ? (
               <div className="p-4 sm:p-6">
                 <form onSubmit={editingCourse ? handleSaveCourse : handleCreateCourse} className="space-y-4">
-                  <h3 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white mb-4">
+                  <h3 className="text-lg sm:text-xl font-bold mb-4 text-ink">
                     {editingCourse ? 'Edit Course' : 'Create New Course'}
                   </h3>
                   
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Course Title *</label>
+                    <label className="block text-sm font-semibold mb-2 text-ink-muted">Course Title *</label>
                     <input
                       type="text"
                       value={courseForm.title || ''}
                       onChange={(e) => setCourseForm({ ...courseForm, title: e.target.value })}
                       required
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500"
+                      className="input w-full"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Description *</label>
+                    <label className="block text-sm font-semibold mb-2 text-ink-muted">Description *</label>
                     <textarea
                       value={courseForm.description || ''}
                       onChange={(e) => setCourseForm({ ...courseForm, description: e.target.value })}
                       required
                       rows={4}
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500"
+                      className="input w-full"
                     />
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Category *</label>
+                      <label className="block text-sm font-semibold mb-2 text-ink-muted">Category *</label>
                       <select
                         value={courseForm.category || ''}
                         onChange={(e) => setCourseForm({ ...courseForm, category: e.target.value })}
                         required
-                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500"
+                        className="input w-full"
                       >
                         <option value="">Select category</option>
                         <option value="basics">Basics</option>
@@ -1356,12 +1301,12 @@ export default function InstructorDashboard() {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Difficulty Level *</label>
+                      <label className="block text-sm font-semibold mb-2 text-ink-muted">Difficulty Level *</label>
                       <select
                         value={courseForm.difficulty || 'beginner'}
                         onChange={(e) => setCourseForm({ ...courseForm, difficulty: e.target.value as any })}
                         required
-                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500"
+                        className="input w-full"
                       >
                         <option value="beginner">Beginner</option>
                         <option value="intermediate">Intermediate</option>
@@ -1371,13 +1316,13 @@ export default function InstructorDashboard() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Thumbnail URL</label>
+                    <label className="block text-sm font-semibold mb-2 text-ink-muted">Thumbnail URL</label>
                     <input
                       type="url"
                       value={courseForm.thumbnail || ''}
                       onChange={(e) => setCourseForm({ ...courseForm, thumbnail: e.target.value })}
                       placeholder="https://example.com/image.jpg"
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500"
+                      className="input w-full"
                     />
                   </div>
 
@@ -1385,7 +1330,7 @@ export default function InstructorDashboard() {
                     <button
                       type="submit"
                       disabled={loading}
-                      className="flex-1 px-4 py-2 bg-primary-600 hover:bg-primary-700 disabled:bg-gray-400 text-white rounded-lg font-semibold transition-colors"
+                      className="btn btn-primary flex-1 px-4 py-2"
                     >
                       {loading ? 'Saving...' : editingCourse ? 'Save Changes' : 'Create Course'}
                     </button>
@@ -1407,11 +1352,11 @@ export default function InstructorDashboard() {
               <>
                 <div className="p-3 sm:p-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                   <div className="flex-1">
-                    <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white break-words">
+                    <h2 className="text-lg sm:text-xl font-bold break-words text-ink">
                       {selectedCourseData?.title || 'Lessons'}
                     </h2>
                     {selectedCourseData && (
-                      <div className="mt-1 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                      <div className="mt-1 flex items-center gap-2 text-xs text-ink-muted">
                         <span className="capitalize">{selectedCourseData.difficulty}</span>
                         <span>•</span>
                         <span>{selectedCourseData.category}</span>
@@ -1423,7 +1368,7 @@ export default function InstructorDashboard() {
                   <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                     <button
                       onClick={() => handleEditCourse(selectedCourseData!)}
-                      className="w-full sm:w-auto px-3 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-semibold hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                      className="w-full sm:w-auto px-3 py-2 bg-gray-200 dark:bg-gray-700 rounded-lg text-sm font-semibold hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors text-ink-muted"
                     >
                       Edit Course
                     </button>
@@ -1433,7 +1378,7 @@ export default function InstructorDashboard() {
                         setLessonForm({ order: courseLessons.length + 1, type: 'video', resources: [] });
                         setShowLessonForm(true);
                       }}
-                      className="w-full sm:w-auto px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-semibold transition-colors"
+                      className="btn btn-primary w-full sm:w-auto px-4 py-2 text-sm"
                     >
                       + Add Lesson
                     </button>
@@ -1444,18 +1389,18 @@ export default function InstructorDashboard() {
                   <div className="flex-1 overflow-y-auto p-3 sm:p-4">
                     <form onSubmit={editingLesson ? handleSaveLesson : handleCreateLesson} className="space-y-4">
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Lesson Title *</label>
+                        <label className="block text-sm font-semibold mb-2 text-ink-muted">Lesson Title *</label>
                         <input
                           type="text"
                           value={lessonForm.title || ''}
                           onChange={(e) => setLessonForm({ ...lessonForm, title: e.target.value })}
                           required
-                          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500"
+                          className="input w-full"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Description *</label>
+                        <label className="block text-sm font-semibold mb-2 text-ink-muted">Description *</label>
                         <RichTextEditor
                           key={`instructor-dash-desc-${editingLesson || 'new'}`}
                           value={lessonForm.description || ''}
@@ -1465,7 +1410,7 @@ export default function InstructorDashboard() {
                       </div>
 
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                        <label className="block text-sm font-semibold mb-2 text-ink-muted">
                           Lesson summary / body
                         </label>
                         <RichTextEditor
@@ -1474,33 +1419,33 @@ export default function InstructorDashboard() {
                           onChange={(html) => setLessonForm({ ...lessonForm, content: html })}
                           height={360}
                         />
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        <p className="text-xs mt-1 text-ink-muted">
                           Stored in the lesson content field and kept in sync with older lesson summary views.
                         </p>
                       </div>
 
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Video URL (YouTube/MP4/WebM)</label>
+                          <label className="block text-sm font-semibold mb-2 text-ink-muted">Video URL (YouTube/MP4/WebM)</label>
                           <input
                             type="url"
                             value={lessonForm.videoUrl || ''}
                             onChange={(e) => setLessonForm({ ...lessonForm, videoUrl: e.target.value })}
                             placeholder="https://www.youtube.com/watch?v=... or https://example.com/video.mp4"
-                            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500"
+                            className="input w-full"
                           />
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Supports YouTube, Vimeo, or direct video file URLs</p>
+                          <p className="text-xs mt-1 text-ink-muted">Supports YouTube, Vimeo, or direct video file URLs</p>
                         </div>
                         <div>
-                          <p className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Position</p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">New lessons are added at the end. Reorder lessons with the arrows on the course page.</p>
+                          <p className="block text-sm font-semibold mb-2 text-ink-muted">Position</p>
+                          <p className="text-xs text-ink-muted">New lessons are added at the end. Reorder lessons with the arrows on the course page.</p>
                         </div>
                       </div>
 
                       {/* Resources Section */}
                       <div>
                         <div className="flex items-center justify-between mb-2">
-                          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300">Resources</label>
+                          <label className="block text-sm font-semibold text-ink-muted">Resources</label>
                           <button
                             type="button"
                             onClick={addResource}
@@ -1514,7 +1459,7 @@ export default function InstructorDashboard() {
                             <select
                               value={resource.type}
                               onChange={(e) => updateResource(index, 'type', e.target.value)}
-                              className="px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg text-sm"
+                              className="input text-sm"
                             >
                               <option value="pdf">PDF</option>
                               <option value="link">Link</option>
@@ -1525,14 +1470,14 @@ export default function InstructorDashboard() {
                               value={resource.title}
                               onChange={(e) => updateResource(index, 'title', e.target.value)}
                               placeholder="Resource title"
-                              className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg text-sm"
+                              className="input flex-1 text-sm"
                             />
                             <input
                               type="url"
                               value={resource.url}
                               onChange={(e) => updateResource(index, 'url', e.target.value)}
                               placeholder="URL"
-                              className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg text-sm"
+                              className="input flex-1 text-sm"
                             />
                             <button
                               type="button"
@@ -1549,7 +1494,7 @@ export default function InstructorDashboard() {
                         <button
                           type="submit"
                           disabled={loading}
-                          className="flex-1 px-4 py-2 bg-primary-600 hover:bg-primary-700 disabled:bg-gray-400 text-white rounded-lg font-semibold transition-colors"
+                          className="btn btn-primary flex-1 px-4 py-2"
                         >
                           {loading ? 'Saving...' : editingLesson ? 'Save Changes' : 'Create Lesson'}
                         </button>
@@ -1571,7 +1516,7 @@ export default function InstructorDashboard() {
                   <div className="p-6">
                     <form onSubmit={handleSaveQuiz} className="space-y-4">
                       <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-lg font-bold text-gray-900 dark:text-white">Edit Quiz</h3>
+                        <h3 className="text-lg font-bold text-ink">Edit Quiz</h3>
                         <button
                           type="button"
                           onClick={addQuizQuestion}
@@ -1584,7 +1529,7 @@ export default function InstructorDashboard() {
                       {(quizForm.questions || []).map((question, qIndex) => (
                         <div key={qIndex} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-3">
                           <div className="flex items-center justify-between">
-                            <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Question {qIndex + 1}</span>
+                            <span className="text-sm font-semibold text-ink-muted">Question {qIndex + 1}</span>
                             <button
                               type="button"
                               onClick={() => removeQuizQuestion(qIndex)}
@@ -1634,14 +1579,14 @@ export default function InstructorDashboard() {
                       ))}
 
                       {(!quizForm.questions || quizForm.questions.length === 0) && (
-                        <p className="text-gray-500 dark:text-gray-400 text-center py-4">No questions yet. Click "+ Add Question" to start.</p>
+                        <p className="text-center py-4 text-ink-muted">No questions yet. Click "+ Add Question" to start.</p>
                       )}
 
                       <div className="flex gap-2">
                         <button
                           type="submit"
                           disabled={loading}
-                          className="flex-1 px-4 py-2 bg-primary-600 hover:bg-primary-700 disabled:bg-gray-400 text-white rounded-lg font-semibold transition-colors"
+                          className="btn btn-primary flex-1 px-4 py-2"
                         >
                           {loading ? 'Saving...' : 'Save Quiz'}
                         </button>
@@ -1667,7 +1612,7 @@ export default function InstructorDashboard() {
                       </div>
                     ) : courseLessons.length === 0 ? (
                       <div className="text-center py-8">
-                        <p className="text-gray-500 dark:text-gray-400 mb-4">No lessons yet. Click "+ Add Lesson" to create one.</p>
+                        <p className="mb-4 text-ink-muted">No lessons yet. Click "+ Add Lesson" to create one.</p>
                       </div>
                     ) : (
                       <div className="space-y-3">
@@ -1678,10 +1623,10 @@ export default function InstructorDashboard() {
                           >
                             <div className="flex items-start justify-between mb-2">
                               <div className="flex-1">
-                                <h3 className="font-bold text-gray-900 dark:text-white mb-1" dangerouslySetInnerHTML={{ __html: sanitizeHtml(lesson.title) }} />
+                                <h3 className="font-bold mb-1 text-ink" dangerouslySetInnerHTML={{ __html: sanitizeHtml(lesson.title) }} />
                                 {((lesson as any).content || (lesson as any).lessonSummary?.overview || lesson.summary) && (
                                   <div
-                                    className="text-sm text-gray-600 dark:text-gray-400 mb-2 prose prose-sm max-w-none"
+                                    className="text-sm mb-2 prose prose-sm max-w-none text-ink-muted"
                                     dangerouslySetInnerHTML={{
                                       __html: sanitizeHtml(
                                         (lesson as any).content || (lesson as any).lessonSummary?.overview || lesson.summary || ''
@@ -1738,20 +1683,20 @@ export default function InstructorDashboard() {
                                     PDF
                                   </span>
                                 )}
-                                <span className="text-gray-500 dark:text-gray-400 capitalize">Type: {lesson.type}</span>
-                                <span className="text-gray-500 dark:text-gray-400">Order: {lesson.order}</span>
+                                <span className="capitalize text-ink-muted">Type: {lesson.type}</span>
+                                <span className="text-ink-muted">Order: {lesson.order}</span>
                               </div>
                               
                               {/* Resources */}
                               {lesson.resources && lesson.resources.length > 0 && (
                                 <div>
-                                  <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Resources:</p>
+                                  <p className="text-xs font-semibold mb-1 text-ink-muted">Resources:</p>
                                   <div className="flex flex-wrap gap-2">
                                     {lesson.resources.map((resource, idx) => (
                                       <SafeExternalLink
                                         key={idx}
                                         href={resource.url}
-                                        className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-600 flex items-center gap-1"
+                                        className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded hover:bg-gray-200 dark:hover:bg-gray-600 flex items-center gap-1 text-ink-muted"
                                       >
                                         {resource.type === 'pdf' && (
                                           <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1789,12 +1734,12 @@ export default function InstructorDashboard() {
 
       {/* News Modal - View All Updates with Edit/Delete */}
       {showNewsModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-2 sm:p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-2xl max-w-4xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="glass-scrim fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4">
+          <div className="card rounded-xl sm:rounded-2xl shadow-2xl max-w-4xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col">
             {/* Modal Header */}
             <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700 bg-neutral-50 dark:bg-neutral-900">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white flex items-center">
+                <h2 className="text-xl sm:text-2xl font-bold flex items-center text-ink">
                   <svg className="w-6 h-6 mr-2 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
                   </svg>
@@ -1807,7 +1752,7 @@ export default function InstructorDashboard() {
                       setEditingNews({ _id: null });
                       setNewsEditForm({ title: '', description: '', category: 'market', content: '', link: '' });
                     }}
-                    className="flex-1 sm:flex-none px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold text-sm transition-colors flex items-center justify-center space-x-2"
+                    className="btn btn-primary flex-1 sm:flex-none px-4 py-2 text-sm flex items-center justify-center space-x-2"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -1836,7 +1781,7 @@ export default function InstructorDashboard() {
                   <svg className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-4 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
                   </svg>
-                  <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400">No updates available at the moment</p>
+                  <p className="text-sm sm:text-base text-ink-muted">No updates available at the moment</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
@@ -1849,14 +1794,14 @@ export default function InstructorDashboard() {
                         <span className="px-2 py-1 bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 text-xs font-semibold rounded capitalize">
                           {news.category}
                         </span>
-                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                        <span className="text-xs text-ink-muted">
                           {formatDistanceToNow(new Date(news.createdAt), { addSuffix: true })}
                         </span>
                       </div>
-                      <h3 className="font-semibold text-gray-900 dark:text-white text-sm mb-2">{news.title}</h3>
-                      <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-3 mb-2">{news.description}</p>
+                      <h3 className="font-semibold text-sm mb-2 text-ink">{news.title}</h3>
+                      <p className="text-xs line-clamp-3 mb-2 text-ink-muted">{news.description}</p>
                       {news.content && (
-                        <p className="text-xs text-gray-500 dark:text-gray-500 line-clamp-2 mb-2">{news.content}</p>
+                        <p className="text-xs dark:text-gray-500 line-clamp-2 mb-2 text-ink-muted">{news.content}</p>
                       )}
                       <div className="flex items-center justify-between mt-3">
                         {news.link && (
@@ -1920,12 +1865,12 @@ export default function InstructorDashboard() {
 
       {/* Edit/Create News Modal */}
       {editingNews && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-2 sm:p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-2xl max-w-2xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="glass-scrim fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4">
+          <div className="card rounded-xl sm:rounded-2xl shadow-2xl max-w-2xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col">
             {/* Modal Header */}
             <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700 bg-neutral-50 dark:bg-neutral-900">
               <div className="flex items-center justify-between">
-                <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 dark:text-white flex items-center">
+                <h2 className="text-lg sm:text-xl md:text-2xl font-bold flex items-center text-ink">
                   {editingNews._id ? (
                     <svg className="w-6 h-6 mr-2 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -1980,7 +1925,7 @@ export default function InstructorDashboard() {
               className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4"
             >
               <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                <label className="block text-sm font-semibold mb-2 text-ink-muted">
                   Title <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -1988,13 +1933,13 @@ export default function InstructorDashboard() {
                   value={newsEditForm.title}
                   onChange={(e) => setNewsEditForm({ ...newsEditForm, title: e.target.value })}
                   placeholder="e.g., NFP Results: 200K Jobs Added"
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-600 focus:border-transparent"
+                  className="input w-full"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                <label className="block text-sm font-semibold mb-2 text-ink-muted">
                   Description <span className="text-red-500">*</span>
                 </label>
                 <textarea
@@ -2002,19 +1947,19 @@ export default function InstructorDashboard() {
                   onChange={(e) => setNewsEditForm({ ...newsEditForm, description: e.target.value })}
                   placeholder="Brief summary of the news update"
                   rows={3}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-600 focus:border-transparent"
+                  className="input w-full"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                <label className="block text-sm font-semibold mb-2 text-ink-muted">
                   Category <span className="text-red-500">*</span>
                 </label>
                 <select
                   value={newsEditForm.category}
                   onChange={(e) => setNewsEditForm({ ...newsEditForm, category: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-600 focus:border-transparent"
+                  className="input w-full"
                   required
                 >
                   <option value="market">Market News</option>
@@ -2027,7 +1972,7 @@ export default function InstructorDashboard() {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                <label className="block text-sm font-semibold mb-2 text-ink-muted">
                   Content (Optional)
                 </label>
                 <textarea
@@ -2035,12 +1980,12 @@ export default function InstructorDashboard() {
                   onChange={(e) => setNewsEditForm({ ...newsEditForm, content: e.target.value })}
                   placeholder="Detailed content or analysis"
                   rows={5}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-600 focus:border-transparent"
+                  className="input w-full"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                <label className="block text-sm font-semibold mb-2 text-ink-muted">
                   Link (Optional)
                 </label>
                 <input
@@ -2048,7 +1993,7 @@ export default function InstructorDashboard() {
                   value={newsEditForm.link}
                   onChange={(e) => setNewsEditForm({ ...newsEditForm, link: e.target.value })}
                   placeholder="https://example.com/article"
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-600 focus:border-transparent"
+                  className="input w-full"
                 />
               </div>
 

@@ -146,7 +146,7 @@ const severityStyle: Record<LedgerWarning['severity'], string> = {
 };
 
 function Warnings({ items }: { items: LedgerWarning[] }) {
-  if (!items.length) return <p className="text-sm text-neutral-600 dark:text-neutral-400">No warnings.</p>;
+  if (!items.length) return <p className="text-sm text-ink-muted">No warnings.</p>;
   return (
     <ul className="space-y-2">
       {items.map((w) => (
@@ -162,8 +162,8 @@ function Warnings({ items }: { items: LedgerWarning[] }) {
 function Field({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div>
-      <dt className="text-xs font-semibold uppercase tracking-wide text-neutral-500">{label}</dt>
-      <dd className="mt-0.5 break-words text-sm text-neutral-900 dark:text-neutral-100">{value}</dd>
+      <dt className="text-xs font-semibold uppercase tracking-wide text-ink-muted">{label}</dt>
+      <dd className="mt-0.5 break-words text-sm text-ink">{value}</dd>
     </div>
   );
 }
@@ -171,7 +171,7 @@ function Field({ label, value }: { label: string; value: ReactNode }) {
 function Pager({ page, totalPages, total, onPage, lowerBound = false }: { page: number; totalPages: number; total: number; onPage: (p: number) => void; lowerBound?: boolean }) {
   return (
     <div className="mt-4 flex items-center justify-between text-sm">
-      <span className="text-neutral-600 dark:text-neutral-400">
+      <span className="text-ink-muted">
         {lowerBound ? <strong className="text-amber-800 dark:text-amber-300">At least {total} records (incomplete)</strong> : <>{total} record{total === 1 ? '' : 's'}</>} · page {page} of {lowerBound ? `at least ${totalPages}` : totalPages}
       </span>
       <div className="flex gap-2">
@@ -197,7 +197,7 @@ function LinkedRecord({ title, row }: { title: string; row: Record<string, unkno
           ))}
         </dl>
       ) : (
-        <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">No linked record.</p>
+        <p className="mt-1 text-sm text-ink-muted">No linked record.</p>
       )}
     </section>
   );
@@ -240,7 +240,7 @@ function ReviewForm({
       {withStatus ? (
         <label className="text-sm">
           <span className="font-semibold">Resolution status</span>
-          <select className="mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2 dark:bg-neutral-900" value={status} onChange={(e) => setStatus(e.target.value)}>
+          <select className="input mt-1 w-full" value={status} onChange={(e) => setStatus(e.target.value)}>
             {EXCEPTION_STATUS_OPTIONS.map((s) => (
               <option key={s} value={s}>{s}</option>
             ))}
@@ -249,7 +249,7 @@ function ReviewForm({
       ) : null}
       <label className="text-sm">
         <span className="font-semibold">Investigation outcome</span>
-        <select className="mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2 dark:bg-neutral-900" value={outcome} onChange={(e) => setOutcome(e.target.value)}>
+        <select className="input mt-1 w-full" value={outcome} onChange={(e) => setOutcome(e.target.value)}>
           {OUTCOMES.map(([key, label]) => (
             <option key={key} value={key}>{label}</option>
           ))}
@@ -257,29 +257,29 @@ function ReviewForm({
       </label>
       <label className="text-sm">
         <span className="font-semibold">Notes</span>
-        <textarea className="mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2 dark:bg-neutral-900" rows={3} maxLength={2000} value={notes} onChange={(e) => setNotes(e.target.value)} />
+        <textarea className="input mt-1 w-full" rows={3} maxLength={2000} value={notes} onChange={(e) => setNotes(e.target.value)} />
       </label>
       <label className="text-sm">
         <span className="font-semibold">Reason for this change (required, kept in the audit trail)</span>
-        <input className="mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2 dark:bg-neutral-900" required minLength={3} maxLength={500} value={reason} onChange={(e) => setReason(e.target.value)} />
+        <input className="input mt-1 w-full" required minLength={3} maxLength={500} value={reason} onChange={(e) => setReason(e.target.value)} />
       </label>
-      <button type="submit" disabled={busy} className="justify-self-start rounded-full bg-primary-400 px-5 py-2 text-sm font-semibold text-neutral-900 disabled:opacity-50">
+      <button type="submit" disabled={busy} className="justify-self-start rounded-full bg-primary-400 px-5 py-2 text-sm font-semibold disabled:opacity-50 text-ink">
         {busy ? 'Saving…' : submitLabel}
       </button>
-      <p className="text-xs text-neutral-600 dark:text-neutral-400">This records an investigation only. It does not grant, revoke, reassign, charge, or refund anything.</p>
+      <p className="text-xs text-ink-muted">This records an investigation only. It does not grant, revoke, reassign, charge, or refund anything.</p>
     </form>
   );
 }
 
 function AuditList({ items }: { items: AuditEntry[] }) {
-  if (!items.length) return <p className="text-sm text-neutral-600 dark:text-neutral-400">No audit entries.</p>;
+  if (!items.length) return <p className="text-sm text-ink-muted">No audit entries.</p>;
   return (
     <ul className="space-y-2">
       {items.map((entry) => (
         <li key={entry.id} className="rounded-lg border border-neutral-200 px-3 py-2 text-sm dark:border-neutral-700">
           <div className="flex flex-wrap justify-between gap-2">
             <span className="font-semibold">{entry.action.replace(/_/g, ' ')}</span>
-            <span className="text-neutral-600 dark:text-neutral-400">{formatDate(entry.createdAt)}</span>
+            <span className="text-ink-muted">{formatDate(entry.createdAt)}</span>
           </div>
           <p className="mt-1">By {entry.actor?.email || entry.actor?.userId || 'Unknown'}{entry.reference ? ` · ${entry.reference}` : ''}</p>
           {entry.reason ? <p className="mt-1">Reason: {entry.reason}</p> : null}
@@ -408,7 +408,7 @@ function RefundsSection({ reference, amountKobo, grantedAccess, onChanged }: { r
       {error ? <p className="mt-2 text-sm text-red-700" role="alert">{error}</p> : null}
       {notice ? <p className="mt-2 text-sm font-semibold" role="status">{notice}</p> : null}
       {data ? (
-        <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
+        <p className="mt-1 text-sm text-ink-muted">
           Refunded {formatNairaFromKobo(data.summary.refundedKobo)} of {formatAmount(amountKobo, 'NGN')}
           {data.summary.pendingKobo ? ` · ${formatNairaFromKobo(data.summary.pendingKobo)} in progress` : ''}
         </p>
@@ -419,15 +419,15 @@ function RefundsSection({ reference, amountKobo, grantedAccess, onChanged }: { r
             <li key={r.id} className="rounded-xl border border-neutral-200 p-3 dark:border-neutral-700">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="font-semibold">{formatNairaFromKobo(r.amountKobo)} · {REFUND_STATUS_LABELS[r.status] || r.status}</span>
-                <span className="text-xs text-neutral-600 dark:text-neutral-400">{formatDate(r.requestedAt)}</span>
+                <span className="text-xs text-ink-muted">{formatDate(r.requestedAt)}</span>
               </div>
-              <p className="mt-1 text-neutral-700 dark:text-neutral-300">
+              <p className="mt-1 text-ink-muted">
                 {r.initiatedBy === 'external' ? 'Made in the Paystack dashboard. ' : ''}
                 {r.revokeAccess ? 'Removes access when processed. ' : 'Access unchanged. '}
                 {r.accessOutcome === 'revoked' ? 'Access removed. ' : ''}
                 {r.reason}
               </p>
-              {r.providerMessage ? <p className="mt-1 text-xs text-neutral-600 dark:text-neutral-400">Paystack: {r.providerMessage}</p> : null}
+              {r.providerMessage ? <p className="mt-1 text-xs text-ink-muted">Paystack: {r.providerMessage}</p> : null}
               {['requested', 'pending', 'processing', 'needs_attention', 'uncertain'].includes(r.status) ? (
                 <div className="mt-2 flex flex-wrap gap-2">
                   <button type="button" disabled={busy} onClick={() => act(r.id, 'refresh')} className="rounded-full border border-neutral-400 px-3 py-1 text-xs font-semibold disabled:opacity-40">Refresh from Paystack</button>
@@ -440,13 +440,13 @@ function RefundsSection({ reference, amountKobo, grantedAccess, onChanged }: { r
           ))}
         </ul>
       ) : data ? (
-        <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">No refunds recorded.</p>
+        <p className="mt-2 text-sm text-ink-muted">No refunds recorded.</p>
       ) : null}
       {remaining > 0 && !open ? (
         <form onSubmit={submit} className="mt-4 space-y-3 rounded-xl border border-neutral-200 p-3 dark:border-neutral-700">
           <label className="block text-sm">
             <span className="font-semibold">Amount in naira</span> (empty = full remaining {formatNairaFromKobo(remaining)})
-            <input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" className="mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2 dark:bg-neutral-900" />
+            <input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" className="input mt-1 w-full" />
           </label>
           <fieldset className="text-sm">
             <legend className="font-semibold">Course access once Paystack processes the refund</legend>
@@ -459,7 +459,7 @@ function RefundsSection({ reference, amountKobo, grantedAccess, onChanged }: { r
           </fieldset>
           <label className="block text-sm">
             <span className="font-semibold">Reason</span> (kept in the audit trail)
-            <textarea value={reason} onChange={(e) => setReason(e.target.value)} minLength={3} maxLength={500} required className="mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2 dark:bg-neutral-900" />
+            <textarea value={reason} onChange={(e) => setReason(e.target.value)} minLength={3} maxLength={500} required className="input mt-1 w-full" />
           </label>
           <button type="submit" disabled={busy} className="rounded-full bg-red-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">
             {busy ? 'Working…' : 'Refund through Paystack'}
@@ -493,7 +493,7 @@ function ReconcilePanel() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-base font-semibold">Reconcile with Paystack</h2>
-          <p className="text-sm text-neutral-600 dark:text-neutral-400">
+          <p className="text-sm text-ink-muted">
             Finishes confirmations that stopped, settles checkouts Paystack reports paid, refreshes refunds, and lists anything that needs a person. It never charges or refunds.
           </p>
         </div>
@@ -581,7 +581,7 @@ function DetailPanel({ id, onClose }: { id: string; onClose: () => void }) {
 
   const record = detail?.record;
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/40" role="dialog" aria-modal="true" aria-labelledby="purchase-detail-title">
+    <div className="fixed inset-0 z-50 flex justify-end glass-scrim" role="dialog" aria-modal="true" aria-labelledby="purchase-detail-title">
       <div className="h-full w-full max-w-3xl overflow-y-auto bg-white p-6 shadow-xl dark:bg-neutral-950">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -619,12 +619,12 @@ function DetailPanel({ id, onClose }: { id: string; onClose: () => void }) {
                 <Field label="Refund / dispute" value={refundLabel(record.refundDispute)} />
                 <Field label="Created" value={formatDate(record.createdAt)} />
               </dl>
-              {detail?.notes.verifiedAt ? <p className="mt-2 text-xs text-neutral-600 dark:text-neutral-400">{detail.notes.verifiedAt}</p> : null}
+              {detail?.notes.verifiedAt ? <p className="mt-2 text-xs text-ink-muted">{detail.notes.verifiedAt}</p> : null}
             </section>
 
             <section>
               <h3 className="text-base font-semibold">Paystack comparison</h3>
-              <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
+              <p className="mt-1 text-sm text-ink-muted">
                 Looks up this reference with Paystack (read-only) and compares it with the local records. Provider metadata is evidence to compare, not proof of who should own the purchase. Nothing is saved except an audit entry.
               </p>
               <button type="button" onClick={checkProvider} disabled={checking || !record.paystackReference} className="mt-3 rounded-full border border-neutral-400 px-4 py-2 text-sm font-semibold disabled:opacity-40">
@@ -665,7 +665,7 @@ function DetailPanel({ id, onClose }: { id: string; onClose: () => void }) {
               <LinkedRecord title="Course access" row={detail.linked.access} />
               <LinkedRecord title="Purchase" row={detail.linked.purchase} />
               <LinkedRecord title="Payment" row={detail.linked.payment} />
-              {detail.linked.payment?.storedMetadata ? <p className="text-xs text-neutral-600 dark:text-neutral-400">{detail.notes.storedMetadata}</p> : null}
+              {detail.linked.payment?.storedMetadata ? <p className="text-xs text-ink-muted">{detail.notes.storedMetadata}</p> : null}
               <LinkedRecord title="Checkout" row={detail.linked.checkout} />
               <section className="rounded-xl border border-neutral-200 p-3 dark:border-neutral-700">
                 <h4 className="text-sm font-semibold">Payment exceptions</h4>
@@ -676,7 +676,7 @@ function DetailPanel({ id, onClose }: { id: string; onClose: () => void }) {
                     ))}
                   </ul>
                 ) : (
-                  <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">None recorded.</p>
+                  <p className="mt-1 text-sm text-ink-muted">None recorded.</p>
                 )}
               </section>
             </section>
@@ -735,11 +735,11 @@ function LedgerTab() {
       <form onSubmit={submit} className="grid gap-3 rounded-2xl border border-neutral-200 p-4 sm:grid-cols-2 lg:grid-cols-5 dark:border-neutral-700">
         <label className="text-sm lg:col-span-2">
           <span className="font-semibold">Search</span>
-          <input className="mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2 dark:bg-neutral-900" placeholder="Student, email, course, reference, or ID" maxLength={100} value={filters.q} onChange={(e) => setFilters({ ...filters, q: e.target.value })} />
+          <input className="input mt-1 w-full" placeholder="Student, email, course, reference, or ID" maxLength={100} value={filters.q} onChange={(e) => setFilters({ ...filters, q: e.target.value })} />
         </label>
         <label className="text-sm">
           <span className="font-semibold">Source</span>
-          <select className="mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2 dark:bg-neutral-900" value={filters.source} onChange={(e) => setFilters({ ...filters, source: e.target.value })}>
+          <select className="input mt-1 w-full" value={filters.source} onChange={(e) => setFilters({ ...filters, source: e.target.value })}>
             {SOURCE_OPTIONS.map(([value, label]) => (
               <option key={value} value={value}>{label}</option>
             ))}
@@ -747,7 +747,7 @@ function LedgerTab() {
         </label>
         <label className="text-sm">
           <span className="font-semibold">Access</span>
-          <select className="mt-1 w-full rounded-lg border border-neutral-300 px-3 py-2 dark:bg-neutral-900" value={filters.access} onChange={(e) => setFilters({ ...filters, access: e.target.value })}>
+          <select className="input mt-1 w-full" value={filters.access} onChange={(e) => setFilters({ ...filters, access: e.target.value })}>
             <option value="">Any</option>
             <option value="active">Active</option>
             <option value="inactive">Inactive or none</option>
@@ -758,7 +758,7 @@ function LedgerTab() {
             <input type="checkbox" checked={filters.review === 'needs_review'} onChange={(e) => setFilters({ ...filters, review: e.target.checked ? 'needs_review' : '' })} />
             Needs review
           </label>
-          <button type="submit" className="rounded-full bg-primary-400 px-4 py-2 text-sm font-semibold text-neutral-900">Apply</button>
+          <button type="submit" className="rounded-full bg-primary-400 px-4 py-2 text-sm font-semibold text-ink">Apply</button>
         </div>
       </form>
 
@@ -773,8 +773,8 @@ function LedgerTab() {
       ) : null}
 
       <div className="mt-4 overflow-x-auto rounded-2xl border border-neutral-200 dark:border-neutral-700">
-        <table className="min-w-full divide-y divide-neutral-200 text-sm dark:divide-neutral-700">
-          <thead className="bg-neutral-50 text-left dark:bg-neutral-900">
+        <table className="table-orbit min-w-full divide-y text-sm">
+          <thead className="text-left">
             <tr>
               <th scope="col" className="px-3 py-2">Created</th>
               <th scope="col" className="px-3 py-2">Student</th>
@@ -787,18 +787,18 @@ function LedgerTab() {
               <th scope="col" className="px-3 py-2"><span className="sr-only">Open</span></th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-neutral-200 dark:divide-neutral-800">
+          <tbody className="">
             {loading && !data ? (
-              <tr><td colSpan={9} className="px-3 py-6 text-center text-neutral-500">Loading…</td></tr>
+              <tr><td colSpan={9} className="px-3 py-6 text-center text-ink-muted">Loading…</td></tr>
             ) : data && data.items.length === 0 ? (
-              <tr><td colSpan={9} className="px-3 py-6 text-center text-neutral-500">No records match these filters.</td></tr>
+              <tr><td colSpan={9} className="px-3 py-6 text-center text-ink-muted">No records match these filters.</td></tr>
             ) : (
               data?.items.map((r) => (
                 <tr key={r.id} className={r.needsReview ? 'bg-amber-50/60 dark:bg-amber-950/20' : ''}>
                   <td className="whitespace-nowrap px-3 py-2">{formatDate(r.createdAt)}</td>
                   <td className="px-3 py-2">
                     <div className="font-semibold">{r.student.name || 'Unknown'}</div>
-                    <div className="text-xs text-neutral-600 dark:text-neutral-400">{r.student.email || 'Unknown'}</div>
+                    <div className="text-xs text-ink-muted">{r.student.email || 'Unknown'}</div>
                   </td>
                   <td className="px-3 py-2">{r.course.title || 'Unknown'}</td>
                   <td className="whitespace-nowrap px-3 py-2">{formatAmount(r.amountKobo, r.currency)}</td>
@@ -883,7 +883,7 @@ function ExceptionsTab() {
       {error ? <p className="mt-4 text-sm text-red-700" role="alert">{error}</p> : null}
       {notice ? <p className="mt-4 text-sm font-semibold" role="status">{notice}</p> : null}
       <ul className="mt-4 space-y-3">
-        {data && data.items.length === 0 ? <li className="text-sm text-neutral-600 dark:text-neutral-400">No exceptions with this status.</li> : null}
+        {data && data.items.length === 0 ? <li className="text-sm text-ink-muted">No exceptions with this status.</li> : null}
         {data?.items.map((e) => (
           <li key={e.id} className="rounded-2xl border border-neutral-200 p-4 dark:border-neutral-700">
             <div className="flex flex-wrap items-start justify-between gap-2">
@@ -905,7 +905,7 @@ function ExceptionsTab() {
             </dl>
             {e.auditPending ? <p className="mt-2 text-sm font-semibold text-amber-800" role="status">An audit entry for this exception is still being written.</p> : null}
             {e.notes ? <p className="mt-2 text-sm">Notes: {e.notes}</p> : null}
-            {e.reviewedBy ? <p className="mt-1 text-xs text-neutral-600 dark:text-neutral-400">Last reviewed by {e.reviewedBy.email || e.reviewedBy.userId} on {formatDate(e.reviewedAt)}</p> : null}
+            {e.reviewedBy ? <p className="mt-1 text-xs text-ink-muted">Last reviewed by {e.reviewedBy.email || e.reviewedBy.userId} on {formatDate(e.reviewedAt)}</p> : null}
             {e.history.length ? (
               <details className="mt-2 text-sm">
                 <summary className="cursor-pointer font-semibold">History ({e.history.length})</summary>
@@ -978,14 +978,14 @@ export default function AdminPurchases() {
   ];
 
   return (
-    <div className="flex min-h-screen flex-col bg-gray-50 dark:bg-gray-900">
+    <div className="flex min-h-screen flex-col">
       <Header />
       <div className="flex flex-1 lg:items-start">
         <Sidebar />
         <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 pt-16 lg:pt-8">
           <p className="page-kicker">Super admin</p>
           <h1 className="page-title mt-2">Course purchases</h1>
-          <p className="mt-2 max-w-3xl text-sm text-neutral-600 dark:text-neutral-400">
+          <p className="page-lede max-w-3xl">
             Trace each course purchase from checkout to payment to access. The ledger never grants, reassigns or charges. Refunds are made only from a purchase&apos;s detail panel, through Paystack, and change access only when you choose it for a full refund and Paystack reports it processed. A payer email that differs from the student&apos;s is a warning, not proof of a problem.
           </p>
           <Link href="/admin" className="mt-3 inline-flex text-sm font-semibold underline">Back to admin panel</Link>

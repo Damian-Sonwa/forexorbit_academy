@@ -39,8 +39,8 @@ export default function AdminAnalyticsCharts({ analytics }: { analytics: AdminAn
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* User Roles Distribution - Pie Chart */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
-        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">User Roles Distribution</h3>
+      <div className="card rounded-xl p-6">
+        <h3 className="text-lg font-bold mb-4 text-ink">User Roles Distribution</h3>
         <ResponsiveContainer width="100%" height={300}>
           <PieChart>
             <Pie
@@ -64,8 +64,8 @@ export default function AdminAnalyticsCharts({ analytics }: { analytics: AdminAn
       </div>
 
       {/* Course Difficulty Distribution - Bar Chart */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
-        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Courses by Difficulty</h3>
+      <div className="card rounded-xl p-6">
+        <h3 className="text-lg font-bold mb-4 text-ink">Courses by Difficulty</h3>
         <ResponsiveContainer width="100%" height={300}>
           <BarChart
             data={[
@@ -86,8 +86,8 @@ export default function AdminAnalyticsCharts({ analytics }: { analytics: AdminAn
       </div>
 
       {/* Enrollment Trends - Line Chart */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
-        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Enrollment Trends (Last 7 Days)</h3>
+      <div className="card rounded-xl p-6">
+        <h3 className="text-lg font-bold mb-4 text-ink">Enrollment Trends (Last 7 Days)</h3>
         <ResponsiveContainer width="100%" height={300}>
           <LineChart
             data={analytics.enrollmentTrends || [
@@ -120,8 +120,8 @@ export default function AdminAnalyticsCharts({ analytics }: { analytics: AdminAn
       </div>
 
       {/* Course Completion Rate - Bar Chart */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
-        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Course Completion Rates</h3>
+      <div className="card rounded-xl p-6">
+        <h3 className="text-lg font-bold mb-4 text-ink">Course Completion Rates</h3>
         <ResponsiveContainer width="100%" height={300}>
           <BarChart
             data={analytics.courseCompletion || [

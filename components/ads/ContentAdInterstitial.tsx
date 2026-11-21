@@ -30,7 +30,7 @@ export function ContentAdInterstitial({ storageKey, enabled }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-[140] flex items-end justify-center sm:items-center bg-black/50 p-3 sm:p-6"
+      className="fixed inset-0 z-[140] flex items-end justify-center sm:items-center glass-scrim p-3 sm:p-6"
       role="dialog"
       aria-modal="true"
       aria-label="Advertisement"

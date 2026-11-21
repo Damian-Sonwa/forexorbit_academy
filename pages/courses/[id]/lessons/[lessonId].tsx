@@ -192,21 +192,21 @@ export default function LessonPage() {
   );
 
   const shell = (body: React.ReactNode) => (
-    <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen flex flex-col">
       <Header />
       <div className="flex flex-1 relative">
         <Sidebar />
-        <main className="flex-1 min-w-0 max-w-6xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-6 md:py-8 pt-20 lg:pt-8">
+        <main className="mx-auto w-full min-w-0 max-w-6xl flex-1 px-4 pb-12 pt-20 sm:px-6 lg:px-10 lg:pt-8">
           {!online && (
-            <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-900 dark:border-amber-800/50 dark:bg-amber-950/40 dark:text-amber-200" role="status" data-testid="offline-banner">
+            <p className="notice notice-caution mb-4" role="status" data-testid="offline-banner">
               You are offline. What is on screen stays available; anything new loads when your connection is back.
             </p>
           )}
           <div className="mb-2">
             <BackButton href={courseId ? `/courses/${courseId}` : '/courses'} label="Back to Course" />
           </div>
-          <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start lg:gap-6">
-            <div className="lg:order-2 lg:sticky lg:top-24">{outline}</div>
+          <div className="flex flex-col gap-5 lg:grid lg:grid-cols-[minmax(0,1fr)_19rem] lg:items-start lg:gap-8">
+            <div className="lg:order-2 lg:sticky lg:top-20">{outline}</div>
             <div className="min-w-0 lg:order-1">{body}</div>
           </div>
         </main>
@@ -225,7 +225,7 @@ export default function LessonPage() {
         title={lessonOffline ? 'You are offline' : 'This lesson could not be loaded'}
         message={lessonError}
       >
-        <button type="button" onClick={() => void refetchLesson()} className="inline-flex min-h-[44px] items-center rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700">
+        <button type="button" onClick={() => void refetchLesson()} className="btn btn-primary min-h-[44px]">
           Try again
         </button>
         {courseId && (
@@ -240,7 +240,7 @@ export default function LessonPage() {
   if (lessonStatus === 'not_found') {
     return shell(
       <StatePanel title="Lesson not found" message={lessonError}>
-        <Link href={courseId ? `/courses/${courseId}` : '/courses'} className="inline-flex min-h-[44px] items-center rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700">
+        <Link href={courseId ? `/courses/${courseId}` : '/courses'} className="btn btn-primary min-h-[44px]">
           {courseId ? 'Back to course' : 'Browse courses'}
         </Link>
       </StatePanel>
@@ -250,7 +250,7 @@ export default function LessonPage() {
   if (lessonStatus === 'forbidden') {
     return shell(
       <StatePanel title="This lesson is not open to you yet" message={lessonError}>
-        <Link href={courseId ? `/courses/${courseId}` : '/courses'} className="inline-flex min-h-[44px] items-center rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700">
+        <Link href={courseId ? `/courses/${courseId}` : '/courses'} className="btn btn-primary min-h-[44px]">
           Go to the course
         </Link>
       </StatePanel>
@@ -284,19 +284,19 @@ export default function LessonPage() {
   const videoUrl = displayLesson ? safeLinkUrl(displayLesson.videoUrl) : null;
   const isStudent = user?.role === 'student';
 
-  const navButton = 'flex min-h-[44px] items-center justify-center px-4 sm:px-6 py-2 sm:py-3 rounded-xl text-sm sm:text-base transition-colors';
+  const navButton = 'btn btn-lg min-h-[48px]';
 
   return shell(
     <>
       {/* Lesson Header */}
-      <div className="mb-4">
+      <div className="mb-6">
         {navigation.position > 0 && (
-          <p className="mb-1 text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400" data-testid="lesson-position">
+          <p className="page-kicker mb-3" data-testid="lesson-position">
             Lesson {navigation.position} of {navigation.total}
           </p>
         )}
         <h1
-          className="text-2xl sm:text-3xl md:text-4xl font-display font-bold text-gray-900 dark:text-white mb-2 break-words"
+          className="font-display text-[1.75rem] font-semibold leading-tight tracking-[-0.02em] text-ink break-words sm:text-[2.25rem]"
           dangerouslySetInnerHTML={{ __html: sanitizeForStudentView(displayTitleHtml) }}
         />
       </div>
@@ -313,9 +313,9 @@ export default function LessonPage() {
       )}
 
       {payBlocked && monetization && lessonId && courseId && (
-        <div className="mb-8 rounded-xl border-2 border-amber-200 bg-amber-50/80 p-6 dark:border-amber-800/50 dark:bg-amber-950/40" data-testid="lesson-locked">
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white">This lesson is locked</h2>
-          <p className="mt-2 text-sm text-gray-700 dark:text-gray-300">
+        <div className="panel-hero mb-8 p-6" data-testid="lesson-locked">
+          <h2 className="section-title">This lesson is locked</h2>
+          <p className="mt-2 text-sm text-ink-muted">
             {lockedPayload?.message ||
               'Pay once to unlock this course. Free preview and demo lessons stay free.'}
           </p>
@@ -331,7 +331,7 @@ export default function LessonPage() {
 
       {/* Video Player - Display YouTube videos and other video URLs */}
       {!payBlocked && displayLesson && videoUrl && (
-        <div className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 p-2 mb-4 overflow-hidden">
+        <div className="panel-instrument mb-6 overflow-hidden rounded-[1.375rem] border border-line p-2 shadow-lift">
           <VideoPlayer
             url={videoUrl}
             resumeKey={user?.id ? playbackKey(user.id, lessonId) : null}
@@ -349,9 +349,9 @@ export default function LessonPage() {
       )}
 
       {!payBlocked && hasVisibleHtml(lessonDescStudent) && (
-        <div className="lesson-reading mb-8 border-t border-neutral-200 pt-6">
-          <h2 className="font-display text-lg font-semibold text-neutral-900 dark:text-white">Lesson</h2>
-          <div className="rich-html-readable mt-4 text-base leading-relaxed">
+        <div className="lesson-reading mb-8 pt-2">
+          <h2 className="sr-only">Lesson</h2>
+          <div className="rich-html-readable text-[1.0625rem] leading-relaxed">
             <div dangerouslySetInnerHTML={{ __html: lessonDescStudent }} />
           </div>
         </div>
@@ -361,10 +361,10 @@ export default function LessonPage() {
       {user?.role === 'instructor' && displayLesson && (
         <div className="mb-4">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Lesson Content Editor</h2>
+            <h2 className="section-title">Lesson Content Editor</h2>
             <button
               onClick={() => setShowContentEditor(!showContentEditor)}
-              className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-semibold text-sm transition-colors"
+              className="btn btn-outline btn-sm"
             >
               {showContentEditor ? 'Hide Editor' : 'Edit Content'}
             </button>
@@ -392,8 +392,8 @@ export default function LessonPage() {
 
       {/* Lesson Content - Summary (stored in `content`; legacy: lessonSummary.overview / summary) */}
       {!payBlocked && hasVisibleHtml(lessonBodyStudent) && (
-        <div className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-4 sm:p-6 mb-4">
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-3">Lesson Content</h2>
+        <div className="card mb-6">
+          <h2 className="section-title mb-3">Lesson Content</h2>
           <div className="rich-html-readable text-base leading-relaxed break-words">
             <div dangerouslySetInnerHTML={{ __html: lessonBodyStudent }} />
           </div>
@@ -411,21 +411,22 @@ export default function LessonPage() {
 
       {/* Quiz */}
       {!payBlocked && displayLesson && displayLesson.quiz && (
-        <div className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-4 sm:p-6 mb-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-3 gap-3">
+        <div className="card panel-instrument mb-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div className="flex-1">
-              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-1">Lesson Quiz</h2>
-              <p className="text-gray-600 dark:text-gray-300 text-xs sm:text-sm">Test your understanding</p>
+              <p className="page-kicker">Check your understanding</p>
+              <h2 className="section-title mt-2">Lesson Quiz</h2>
+              <p className="mt-1 text-sm text-ink-muted">Test your understanding</p>
             </div>
             <button
               onClick={() => setShowQuiz(!showQuiz)}
-              className="w-full sm:w-auto px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-semibold transition-colors shadow-sm"
+              className="btn btn-primary btn-lg w-full sm:w-auto"
             >
               {showQuiz ? 'Hide Quiz' : 'Take Quiz'}
             </button>
           </div>
           {showQuiz && (
-            <div className="border-t border-gray-200 pt-4">
+            <div className="mt-5 border-t border-line pt-5">
               <Quiz
                 lessonId={lessonId}
                 courseId={courseId}
@@ -458,11 +459,11 @@ export default function LessonPage() {
       )}
 
       {/* Previous / next, from the outline only */}
-      <nav aria-label="Lesson navigation" className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center mb-4 gap-3 sm:gap-4" data-testid="lesson-nav">
+      <nav aria-label="Lesson navigation" className="mt-8 flex flex-col items-stretch justify-between gap-3 border-t border-line pt-6 sm:flex-row sm:items-center sm:gap-4" data-testid="lesson-nav">
         {navigation.prev ? (
           <Link
             href={navigation.prev.locked ? `/courses/${courseId}` : lessonHref(courseId, navigation.prev.id)}
-            className={`${navButton} border-2 border-gray-300 text-gray-700 font-medium hover:border-primary-500 hover:text-primary-600 dark:border-gray-600 dark:text-gray-200`}
+            className={`${navButton} btn-secondary`}
             data-testid="lesson-prev"
           >
             <svg className="w-4 h-4 sm:w-5 sm:h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
@@ -477,7 +478,7 @@ export default function LessonPage() {
           navigation.next.locked ? (
             <Link
               href={`/courses/${courseId}`}
-              className={`${navButton} bg-primary-600 hover:bg-primary-700 text-white font-semibold shadow-sm sm:ml-auto`}
+              className={`${navButton} btn-primary sm:ml-auto`}
               data-testid="lesson-next"
             >
               <span className="hidden sm:inline">Unlock full course – {COURSE_PRICE_LABEL}</span>
@@ -489,7 +490,7 @@ export default function LessonPage() {
           ) : (
             <Link
               href={lessonHref(courseId, navigation.next.id)}
-              className={`${navButton} bg-primary-600 hover:bg-primary-700 text-white font-semibold shadow-sm sm:ml-auto`}
+              className={`${navButton} btn-primary sm:ml-auto`}
               data-testid="lesson-next"
             >
               <span>Next lesson</span>

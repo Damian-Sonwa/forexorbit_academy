@@ -45,17 +45,17 @@ export default function QuizResultsPanel({ lessonId }: { lessonId: string }) {
   };
 
   if (error) return <p className="text-sm text-red-700" role="alert">{error}</p>;
-  if (!data) return <p className="text-sm text-gray-500" role="status">Loading results…</p>;
+  if (!data) return <p className="text-sm text-ink-muted" role="status">Loading results…</p>;
   return (
     <section className="space-y-2" data-testid="quiz-results">
-      <p className="text-sm text-gray-700 dark:text-gray-300" data-testid="quiz-results-summary">
+      <p className="text-sm text-ink-muted" data-testid="quiz-results-summary">
         {data.summary.attempts} finished attempt{data.summary.attempts === 1 ? '' : 's'} by {data.summary.students} student{data.summary.students === 1 ? '' : 's'}
         {data.summary.averagePercent !== null ? ` · average ${data.summary.averagePercent}%` : ''} · {data.summary.passed} passed
       </p>
       {data.attempts.length > 0 && (
         <div className="overflow-x-auto">
-          <table className="min-w-full text-left text-sm">
-            <thead><tr className="text-gray-500"><th className="py-1 pr-3">Student</th><th className="pr-3">Attempt</th><th className="pr-3">Score</th><th className="pr-3">Result</th><th className="pr-3">Finished</th><th><span className="sr-only">Review</span></th></tr></thead>
+          <table className="table-orbit min-w-full text-left text-sm">
+            <thead><tr className="text-ink-muted"><th className="py-1 pr-3">Student</th><th className="pr-3">Attempt</th><th className="pr-3">Score</th><th className="pr-3">Result</th><th className="pr-3">Finished</th><th><span className="sr-only">Review</span></th></tr></thead>
             <tbody>
               {data.attempts.map((r) => (
                 <tr key={r.attemptId} className="border-t border-gray-200 dark:border-gray-700">
@@ -81,14 +81,14 @@ export default function QuizResultsPanel({ lessonId }: { lessonId: string }) {
       {review && (
         <div className="rounded-lg border border-gray-200 p-3 dark:border-gray-700" data-testid="quiz-attempt-review">
           <div className="flex items-center justify-between">
-            <p className="text-sm font-semibold text-gray-900 dark:text-white">Attempt review</p>
+            <p className="text-sm font-semibold text-ink">Attempt review</p>
             <button type="button" className="min-h-[44px] px-2 text-sm font-semibold text-primary-600" onClick={() => setReview(null)}>Close</button>
           </div>
           <ol className="mt-2 space-y-2 text-sm">
             {review.questions.map((q, index) => (
               <li key={q.id} className={`rounded-lg border p-2 ${q.correct ? 'border-green-200' : 'border-red-200'}`}>
-                <p className="break-words font-medium text-gray-900 dark:text-white">{index + 1}. {q.question} ({q.points} pt)</p>
-                <p className="break-words text-gray-700 dark:text-gray-300">Answer: {q.answer === null ? 'not answered' : q.options[q.answer]}</p>
+                <p className="break-words font-medium text-ink">{index + 1}. {q.question} ({q.points} pt)</p>
+                <p className="break-words text-ink-muted">Answer: {q.answer === null ? 'not answered' : q.options[q.answer]}</p>
                 {!q.correct && <p className="break-words text-green-800 dark:text-green-400">Correct: {q.options[q.correctAnswer]}</p>}
               </li>
             ))}

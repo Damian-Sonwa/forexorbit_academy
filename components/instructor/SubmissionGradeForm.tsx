@@ -43,24 +43,24 @@ export default function SubmissionGradeForm({ assignmentId, submission, onSaved 
   return (
     <div className="space-y-2 text-sm" data-testid="grade-form">
       {submission.late && <p className="font-semibold text-amber-700 dark:text-amber-400">Submitted after the due date</p>}
-      {submission.submissionText && <p className="whitespace-pre-wrap break-words text-gray-800 dark:text-gray-200">{submission.submissionText}</p>}
+      {submission.submissionText && <p className="whitespace-pre-wrap break-words dark:text-gray-200 text-ink">{submission.submissionText}</p>}
       {file && <a href={file} target="_blank" rel="noreferrer" className="font-semibold text-primary-600 hover:underline">Open the attached file</a>}
       <div className="flex flex-col gap-2 sm:flex-row">
-        <label className="text-gray-700 dark:text-gray-300 sm:w-32">Grade %
-          <input type="number" min={0} max={100} value={grade} onChange={(e) => setGrade(e.target.value)} className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white" />
+        <label className="sm:w-32 text-ink-muted">Grade %
+          <input type="number" min={0} max={100} value={grade} onChange={(e) => setGrade(e.target.value)} className="input w-full" />
         </label>
-        <label className="flex-1 text-gray-700 dark:text-gray-300">Feedback
-          <textarea rows={2} maxLength={5000} value={feedback} onChange={(e) => setFeedback(e.target.value)} className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white" />
+        <label className="flex-1 text-ink-muted">Feedback
+          <textarea rows={2} maxLength={5000} value={feedback} onChange={(e) => setFeedback(e.target.value)} className="input w-full" />
         </label>
       </div>
-      <button type="button" onClick={() => void save()} disabled={busy || grade.trim() === ''} className="min-h-[44px] rounded-lg bg-primary-600 px-4 font-semibold text-white hover:bg-primary-700 disabled:opacity-50">
+      <button type="button" onClick={() => void save()} disabled={busy || grade.trim() === ''} className="btn btn-primary min-h-[44px] px-4">
         {busy ? 'Saving…' : 'Save grade'}
       </button>
       {error && <p role="alert" className="text-red-700">{error}</p>}
       {submission.gradeHistory && submission.gradeHistory.length > 0 && (
         <div data-testid="grade-history">
-          <p className="font-semibold text-gray-700 dark:text-gray-300">Grading history</p>
-          <ul className="text-xs text-gray-600 dark:text-gray-400">
+          <p className="font-semibold text-ink-muted">Grading history</p>
+          <ul className="text-xs text-ink-muted">
             {submission.gradeHistory.map((entry, index) => (
               <li key={index}>{new Date(entry.gradedAt).toLocaleString()}: {entry.previousGrade === null ? '' : `${entry.previousGrade}% → `}{entry.grade}%</li>
             ))}

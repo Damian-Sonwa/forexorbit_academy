@@ -10,6 +10,8 @@ import { messageFromUnknown } from '@/lib/public-error';
 import { useAuth } from '@/hooks/useAuth';
 import { previewText } from '@/lib/plain-text';
 import CourseCover from '@/components/CourseCover';
+import OrbitProgress from '@/components/ui/OrbitProgress';
+import { difficultyChip } from '@/lib/difficulty-style';
 
 interface CourseCardProps {
   course: Course;
@@ -17,11 +19,6 @@ interface CourseCardProps {
   onUnenroll?: (courseId: string) => void | Promise<void>;
 }
 
-const difficultyStyles: Record<string, string> = {
-  beginner: 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-300',
-  intermediate: 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-300',
-  advanced: 'border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-400/30 dark:bg-rose-400/10 dark:text-rose-300',
-};
 
 export default function CourseCard({ course, onEnroll, onUnenroll }: CourseCardProps) {
   const { isAuthenticated } = useAuth();
@@ -46,59 +43,44 @@ export default function CourseCard({ course, onEnroll, onUnenroll }: CourseCardP
   const completed = Boolean(course.completed || (course.enrolled && (course.progress ?? 0) >= 100));
 
   return (
-    <article className="group flex h-full flex-col overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-soft transition-shadow duration-200 hover:shadow-raised">
-      <Link href={`/courses/${courseId}`} aria-label={course.title} tabIndex={-1} className="block">
-        <CourseCover course={course} className="transition-transform duration-300 motion-safe:group-hover:scale-[1.02]" />
+    <article className="card card-interactive group flex h-full flex-col overflow-hidden !p-0">
+      <Link href={`/courses/${courseId}`} aria-label={course.title} tabIndex={-1} className="relative block overflow-hidden">
+        <CourseCover course={course} className="rounded-none transition-transform duration-500 ease-orbit motion-safe:group-hover:scale-[1.03]" />
+        <span aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[var(--fo-surface-1)] to-transparent" />
+        <span className="absolute left-3 top-3 flex flex-wrap gap-1.5">
+          {course.difficulty && (
+            <span className={`chip backdrop-blur-md ${difficultyChip(course.difficulty)}`}>{course.difficulty}</span>
+          )}
+          {course.status === 'archived' ? <span className="chip !bg-[color-mix(in_srgb,var(--fo-bg)_72%,transparent)] backdrop-blur-md">Archived</span> : null}
+        </span>
       </Link>
 
-      <div className="flex flex-grow flex-col p-5">
+      <div className="flex flex-grow flex-col px-5 pb-5 pt-3">
         <div className="mb-2 flex flex-wrap items-center gap-2">
-          {course.difficulty && (
-            <span className={`chip ${difficultyStyles[course.difficulty] || ''}`}>{course.difficulty}</span>
-          )}
-          {course.category && (
-            <span className="text-xs capitalize text-neutral-500">{course.category}</span>
-          )}
-          {completed ? <span className="chip border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-300">Completed</span> : null}
-          {course.owned ? <span className="chip border-primary-200 bg-primary-50 text-primary-800 dark:border-primary-400/30 dark:bg-primary-400/10 dark:text-primary-300">Full access</span> : null}
-          {course.status === 'archived' ? <span className="chip border-neutral-200 bg-neutral-50 text-neutral-700">Archived</span> : null}
+          {course.category && <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-subtle">{course.category.replace(/-/g, ' ')}</span>}
+          {completed ? <span className="chip chip-up">Completed</span> : null}
+          {course.owned ? <span className="chip chip-brand">Full access</span> : null}
         </div>
 
-        <h3 className="font-display text-lg font-semibold leading-snug tracking-tight text-neutral-900">
-          <Link href={`/courses/${courseId}`} className="hover:text-primary-700 dark:hover:text-primary-400">
+        <h3 className="font-display text-lg font-semibold leading-snug tracking-tight text-ink">
+          <Link href={`/courses/${courseId}`} className="transition-colors hover:text-primary-600 dark:hover:text-primary-400">
             {course.title}
           </Link>
         </h3>
 
         {descriptionPlain ? (
-          <p className="mt-2 mb-4 line-clamp-3 flex-grow text-sm leading-relaxed text-neutral-600">{descriptionPlain}</p>
+          <p className="mb-5 mt-2 line-clamp-3 flex-grow text-sm leading-relaxed text-ink-muted">{descriptionPlain}</p>
         ) : (
           <div className="flex-grow" />
         )}
 
-        {course.progress !== undefined && (course.enrolled || course.progress > 0) && (
-          <div className="mb-4">
-            <div className="mb-1.5 flex items-center justify-between text-xs">
-              <span className="text-neutral-500">Progress</span>
-              <span className="font-semibold text-neutral-900">{progress}%</span>
-            </div>
-            <div
-              className="h-1.5 w-full overflow-hidden rounded-full bg-neutral-100"
-              role="progressbar"
-              aria-valuenow={progress}
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-label={`${course.title} progress`}
-            >
-              <div className="h-full rounded-full bg-primary-500 transition-[width] duration-500" style={{ width: `${progress}%` }} />
-            </div>
-          </div>
-        )}
-
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3 border-t border-line pt-4">
+          {course.progress !== undefined && (course.enrolled || course.progress > 0) && (
+            <OrbitProgress value={progress} size={44} stroke={3.5} label={`${course.title} progress`} tone={progress >= 100 ? 'complete' : 'brand'} />
+          )}
           <Link
             href={`/courses/${courseId}`}
-            className={`btn flex-1 ${course.enrolled ? 'btn-primary' : 'btn-outline'}`}
+            className={`btn flex-1 ${course.enrolled ? 'btn-primary' : 'btn-secondary'}`}
           >
             {!course.enrolled ? 'View course' : (course.progress ?? 0) >= 100 ? 'Review' : (course.progress ?? 0) > 0 ? 'Continue' : 'Start'}
           </Link>
@@ -106,7 +88,7 @@ export default function CourseCard({ course, onEnroll, onUnenroll }: CourseCardP
           {isAuthenticated && (
             <>
               {course.enrolled ? (
-                <button type="button" onClick={() => void run(onUnenroll)} disabled={busy} className="btn btn-ghost px-3">
+                <button type="button" onClick={() => void run(onUnenroll)} disabled={busy} className="btn btn-ghost px-3 text-xs">
                   {busy ? 'Leaving…' : 'Unenroll'}
                 </button>
               ) : (
@@ -117,7 +99,7 @@ export default function CourseCard({ course, onEnroll, onUnenroll }: CourseCardP
             </>
           )}
         </div>
-        {actionError ? <p role="alert" className="mt-2 text-sm text-red-700 dark:text-red-300">{actionError}</p> : null}
+        {actionError ? <p role="alert" className="mt-2 text-sm text-down">{actionError}</p> : null}
       </div>
     </article>
   );

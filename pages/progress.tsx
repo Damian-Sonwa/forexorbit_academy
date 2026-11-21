@@ -11,7 +11,9 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
-// import Footer from '@/components/Footer'; // Reserved for future use
+import Footer from '@/components/Footer';
+import PageHeader, { ReadoutStrip } from '@/components/ui/PageHeader';
+import OrbitProgress from '@/components/ui/OrbitProgress';
 import BackButton from '@/components/BackButton';
 import AssessmentHistory from '@/components/AssessmentHistory';
 import LoadingSpinner from '@/components/LoadingSpinner';
@@ -140,7 +142,7 @@ export default function Progress() {
 
   if (loading && !loadError && progress.length === 0 && !staffSummary) {
     return (
-      <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
+      <div className="min-h-screen flex flex-col">
         <Header />
         <main className="flex-1 max-w-6xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6">
           <div className="mb-6">
@@ -169,93 +171,57 @@ export default function Progress() {
     const totalQuizzes = progress.reduce((sum, p) => sum + (p.quizScores?.length || 0), 0);
 
     return (
-      <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
+      <div className="min-h-screen flex flex-col">
         <Header />
         <div className="flex flex-1 lg:items-start">
           <Sidebar />
-          <main className="flex-1 px-4 sm:px-6 lg:px-8 py-6 pt-16 lg:pt-8">
+          <main className="mx-auto w-full max-w-6xl flex-1 px-4 pb-12 pt-20 sm:px-6 lg:px-10 lg:pt-8">
           {/* Back Button */}
           <div className="mb-4">
             <BackButton href="/dashboard" />
           </div>
 
-          {/* Header Section */}
-          <div className="mb-4 flex-shrink-0">
-            <h1 className="page-title">My progress</h1>
-            {refreshing && (
-              <div className="mt-2">
-                <LoadingStatus label="Updating progress" compact />
-              </div>
-            )}
-            <p className="text-gray-600 dark:text-gray-400 text-sm">Track your learning journey and quiz scores</p>
-          </div>
-
-          {/* Stats Cards */}
+          <PageHeader
+            kicker="Learn"
+            title="My progress"
+            lede="Track your learning journey and quiz scores"
+            actions={refreshing ? <LoadingStatus label="Updating progress" compact /> : undefined}
+          />
           {progress.length > 0 && (
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4 flex-shrink-0">
-              <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-sm p-4 text-neutral-900 dark:text-white">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-neutral-500 text-xs font-medium mb-1">Total Courses</p>
-                    <p className="text-2xl font-bold">{totalCourses}</p>
-                  </div>
-                  <svg className="w-8 h-8 text-primary-600 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                  </svg>
+            <div className="mb-6 grid gap-4 md:grid-cols-[auto_minmax(0,1fr)]">
+              <div className="card panel-instrument flex items-center gap-4 !py-4">
+                <OrbitProgress value={avgProgress} size={72} label="Average progress" />
+                <div>
+                  <p className="readout-label">Avg Progress</p>
+                  <p className="mt-1 text-xs text-ink-subtle">across your active courses</p>
                 </div>
               </div>
-              <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-sm p-4 text-neutral-900 dark:text-white">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-neutral-500 text-xs font-medium mb-1">Completed</p>
-                    <p className="text-2xl font-bold">{completedCourses}</p>
-                  </div>
-                  <svg className="w-8 h-8 text-primary-600 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-              </div>
-              <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-sm p-4 text-neutral-900 dark:text-white">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-neutral-500 text-xs font-medium mb-1">Avg Progress</p>
-                    <p className="text-2xl font-bold">{avgProgress}%</p>
-                  </div>
-                  <svg className="w-8 h-8 text-primary-600 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                  </svg>
-                </div>
-              </div>
-              <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-sm p-4 text-neutral-900 dark:text-white">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-neutral-500 text-xs font-medium mb-1">Quizzes Taken</p>
-                    <p className="text-2xl font-bold">{totalQuizzes}</p>
-                  </div>
-                  <svg className="w-8 h-8 text-primary-600 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                  </svg>
-                </div>
-              </div>
+              <ReadoutStrip
+                items={[
+                  { label: 'Total Courses', value: totalCourses },
+                  { label: 'Completed', value: completedCourses },
+                  { label: 'Quizzes Taken', value: totalQuizzes },
+                ]}
+              />
             </div>
           )}
 
           {loadError ? (
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-12 text-center">
-              <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Progress could not be loaded</h3>
-              <p className="text-gray-600 dark:text-gray-400">Your enrollments are unchanged.</p>
-              <button type="button" onClick={() => fetchProgress()} className="mt-6 inline-flex items-center px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-semibold">Try again</button>
+            <div className="card rounded-2xl p-12 text-center">
+              <h3 className="text-2xl font-bold mb-2 text-ink">Progress could not be loaded</h3>
+              <p className="text-ink-muted">Your enrollments are unchanged.</p>
+              <button type="button" onClick={() => fetchProgress()} className="btn btn-primary mt-6 inline-flex items-center px-6 py-3">Try again</button>
             </div>
           ) : progress.length === 0 ? (
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-12 text-center">
+            <div className="card rounded-2xl p-12 text-center">
               <div className="w-24 h-24 bg-primary-50 dark:bg-primary-950 rounded-full flex items-center justify-center mx-auto mb-6">
                 <svg className="w-12 h-12 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
                 </svg>
               </div>
-              <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">No Progress Yet</h3>
-              <p className="text-gray-600 dark:text-gray-400 mb-6">Start learning by enrolling in a course!</p>
-              <Link href="/courses" className="inline-flex items-center px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all">
+              <h3 className="text-2xl font-bold mb-2 text-ink">No Progress Yet</h3>
+              <p className="mb-6 text-ink-muted">Start learning by enrolling in a course!</p>
+              <Link href="/courses" className="btn btn-primary inline-flex items-center px-6 py-3">
                 Browse Courses
                 <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
@@ -265,7 +231,7 @@ export default function Progress() {
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
               {progress.map((item) => (
-                <div key={item._id} className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 transition-colors group">
+                <div key={item._id} className="card rounded-xl p-4 transition-colors group">
                   {/* Course Header */}
                   <div className="flex items-start justify-between mb-6">
                     <div className="flex-1">
@@ -275,14 +241,14 @@ export default function Progress() {
                           item.progress >= 50 ? 'bg-primary-600' :
                           'bg-yellow-500'
                         } ${item.progress >= 100 ? 'animate-pulse' : ''}`}></div>
-                        <h3 className="text-xl font-bold text-gray-900 dark:text-white group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
+                        <h3 className="text-xl font-bold group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors text-ink">
                           {item.course?.title || 'Unknown Course'}
                         </h3>
                         {item.active === false && (
-                          <span className="text-xs font-medium text-neutral-500">Withdrawn</span>
+                          <span className="text-xs font-medium text-ink-muted">Withdrawn</span>
                         )}
                       </div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 capitalize ml-6">
+                      <p className="text-sm capitalize ml-6 text-ink-muted">
                         {item.course?.difficulty} • {item.course?.category}
                       </p>
                     </div>
@@ -298,8 +264,8 @@ export default function Progress() {
                   {/* Enhanced Progress Bar */}
                   <div className="mb-6">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Progress</span>
-                      <span className="text-sm text-gray-600 dark:text-gray-400">
+                      <span className="text-sm font-semibold text-ink-muted">Progress</span>
+                      <span className="text-sm text-ink-muted">
                         {item.completedLessonsCount} / {item.totalLessons} lessons
                       </span>
                     </div>
@@ -318,7 +284,7 @@ export default function Progress() {
                   {/* Quiz Scores - Enhanced */}
                   {item.quizScores && item.quizScores.length > 0 && (
                     <div className="mb-6 pt-6 border-t border-gray-200 dark:border-gray-700">
-                      <h4 className="text-sm font-bold text-gray-900 dark:text-white mb-4 flex items-center">
+                      <h4 className="text-sm font-bold mb-4 flex items-center text-ink">
                         <svg className="w-5 h-5 mr-2 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
                         </svg>
@@ -327,10 +293,10 @@ export default function Progress() {
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                         {item.quizScores.map((quiz, idx) => (
                           <div key={idx} className="bg-neutral-50 dark:bg-neutral-800 rounded-xl p-3 border border-gray-200 dark:border-gray-600">
-                            <p className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Quiz {idx + 1}</p>
+                            <p className="text-xs font-medium mb-1 text-ink-muted">Quiz {idx + 1}</p>
                             <div className="flex items-baseline gap-2">
-                              <p className="text-lg font-bold text-gray-900 dark:text-white">{quiz.percentage}%</p>
-                              {quiz.totalQuestions > 0 && <p className="text-xs text-gray-500 dark:text-gray-400">({quiz.score}/{quiz.totalQuestions})</p>}
+                              <p className="text-lg font-bold text-ink">{quiz.percentage}%</p>
+                              {quiz.totalQuestions > 0 && <p className="text-xs text-ink-muted">({quiz.score}/{quiz.totalQuestions})</p>}
                             </div>
                             <div className="mt-2 w-full bg-gray-200 dark:bg-gray-600 rounded-full h-1.5">
                               <div
@@ -352,7 +318,7 @@ export default function Progress() {
                   <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
                     <Link
                       href={`/courses/${item.courseId}`}
-                      className="inline-flex items-center justify-center w-full px-4 py-3 bg-primary-600 hover:bg-primary-700 dark:bg-primary-600 dark:hover:bg-primary-700 text-white rounded-xl font-semibold shadow-md hover:shadow-lg transition-all"
+                      className="btn btn-primary inline-flex items-center justify-center w-full px-4 py-3"
                     >
                       {isCompleted(item) ? 'View Certificate' : 'Continue Learning'}
                       <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -379,148 +345,106 @@ export default function Progress() {
   const staffCourses = staffSummary?.courses || [];
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen flex flex-col">
       <Header />
-      <main className="flex-1 px-4 sm:px-6 lg:px-8 py-6">
-        {/* Header Section */}
-        <div className="mb-4 flex-shrink-0">
-          <h1 className="page-title">
-            {user.role === 'admin' ? 'All student progress' : 'Student progress'}
-          </h1>
-          {refreshing && (
-            <div className="mt-2">
-              <LoadingStatus label="Updating progress" compact />
-            </div>
-          )}
-          <p className="text-gray-600 dark:text-gray-400 text-sm">
-            {user.role === 'admin' 
-              ? 'Monitor progress across all courses and students'
-              : 'Track your students\' learning progress'}
-          </p>
-        </div>
+      <main className="mx-auto w-full max-w-7xl flex-1 px-4 pb-12 pt-8 sm:px-6 lg:px-10">
+        <PageHeader
+          kicker={user.role === 'admin' ? 'Academy overview' : 'Teaching'}
+          title={user.role === 'admin' ? 'All student progress' : 'Student progress'}
+          lede={user.role === 'admin' ? 'Monitor progress across all courses and students' : 'Track your students\' learning progress'}
+          actions={refreshing ? <LoadingStatus label="Updating progress" compact /> : undefined}
+        />
 
-        {/* Enhanced Filters */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 mb-4 flex-shrink-0">
-          <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Filters</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <ReadoutStrip
+          className="mb-6"
+          items={[
+            { label: 'Total Students', value: uniqueStudents },
+            { label: 'Total Courses', value: uniqueCourses },
+            { label: 'Completed', value: completedCount },
+            { label: 'In Progress', value: inProgressCount },
+          ]}
+        />
+
+        <section className="card mb-6 !p-4" aria-label="Filters">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
             {user.role === 'admin' && (
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Filter by Difficulty</label>
+              <label className="block text-xs font-medium text-ink-muted">Filter by Difficulty
                 <select
                   value={filter.difficulty || ''}
                   onChange={(e) => setFilter({ ...filter, difficulty: e.target.value || undefined })}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  className="input mt-1.5"
                 >
                   <option value="">All Levels</option>
                   <option value="beginner">Beginner</option>
                   <option value="intermediate">Intermediate</option>
                   <option value="advanced">Advanced</option>
                 </select>
-              </div>
+              </label>
             )}
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Search Course</label>
+            <label className="block text-xs font-medium text-ink-muted">Search Course
               <input
                 type="text"
                 placeholder="Course ID..."
                 value={filter.courseId || ''}
                 onChange={(e) => setFilter({ ...filter, courseId: e.target.value || undefined })}
-                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                className="input mt-1.5"
               />
-            </div>
+            </label>
           </div>
-        </div>
+        </section>
 
-        {/* Enhanced Summary Stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4 flex-shrink-0">
-          <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-sm p-4 text-neutral-900 dark:text-white">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-neutral-500 text-xs font-medium mb-1">Total Students</p>
-                <p className="text-2xl font-bold">{uniqueStudents}</p>
-              </div>
-              <svg className="w-8 h-8 text-primary-600 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-              </svg>
-            </div>
-          </div>
-          <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-sm p-4 text-neutral-900 dark:text-white">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-neutral-500 text-xs font-medium mb-1">Total Courses</p>
-                <p className="text-2xl font-bold">{uniqueCourses}</p>
-              </div>
-              <svg className="w-8 h-8 text-primary-600 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-              </svg>
-            </div>
-          </div>
-          <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-sm p-4 text-neutral-900 dark:text-white">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-neutral-500 text-xs font-medium mb-1">Completed</p>
-                <p className="text-2xl font-bold">{completedCount}</p>
-              </div>
-              <svg className="w-8 h-8 text-primary-600 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-          </div>
-          <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-sm p-4 text-neutral-900 dark:text-white">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-neutral-500 text-xs font-medium mb-1">In Progress</p>
-                <p className="text-2xl font-bold">{inProgressCount}</p>
-              </div>
-              <svg className="w-8 h-8 text-primary-600 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-          </div>
-        </div>
-
-        {/* Enhanced Progress Table */}
         {loadError ? (
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-12 text-center">
-            <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Progress could not be loaded</h3>
-            <p className="text-gray-600 dark:text-gray-400">Enrollment records were not changed.</p>
-            <button type="button" onClick={() => fetchProgress()} className="mt-6 inline-flex items-center px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-semibold">Try again</button>
+          <div className="card p-12 text-center">
+            <h3 className="section-title !text-xl">Progress could not be loaded</h3>
+            <p className="mt-2 text-ink-muted">Enrollment records were not changed.</p>
+            <button type="button" onClick={() => fetchProgress()} className="btn btn-primary mt-6">Try again</button>
           </div>
         ) : staffCourses.length === 0 ? (
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-12 text-center min-h-[400px] flex items-center justify-center">
-            <p className="text-gray-600 dark:text-gray-400">No active course enrollments found</p>
+          <div className="card flex min-h-[320px] flex-col items-center justify-center p-12 text-center">
+            <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full border border-line bg-surface-2 text-ink-subtle">
+              <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+            </div>
+            <p className="text-ink-muted">No active course enrollments found</p>
           </div>
         ) : (
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <div className="card overflow-hidden !p-0">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-full">
-                <thead className="bg-neutral-50 dark:bg-neutral-800 sticky top-0 z-10">
+              <table className="table-orbit min-w-full">
+                <thead className="sticky top-0 z-10 bg-surface-2">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Course</th>
-                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Active enrollments</th>
-                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Completed</th>
-                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">In progress</th>
+                    <th>Course</th>
+                    <th>Active enrollments</th>
+                    <th>Completed</th>
+                    <th>In progress</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                  {staffCourses.map((course) => (
-                    <tr key={course.courseId} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                      <td className="px-4 py-3">
-                        <p className="text-sm font-bold text-gray-900 dark:text-white">{course.title || 'Untitled course'}</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">{course.difficulty}</p>
-                      </td>
-                      <td className="px-4 py-3 text-sm font-semibold text-gray-900 dark:text-white">{course.activeEnrollments}</td>
-                      <td className="px-4 py-3 text-sm font-semibold text-gray-900 dark:text-white">{course.completed}</td>
-                      <td className="px-4 py-3 text-sm font-semibold text-gray-900 dark:text-white">{course.inProgress}</td>
-                    </tr>
-                  ))}
+                <tbody>
+                  {staffCourses.map((course) => {
+                    const total = Math.max(1, course.activeEnrollments);
+                    return (
+                      <tr key={course.courseId}>
+                        <td>
+                          <p className="text-sm font-semibold text-ink">{course.title || 'Untitled course'}</p>
+                          <p className="text-xs capitalize text-ink-subtle">{course.difficulty}</p>
+                        </td>
+                        <td className="font-semibold num">{course.activeEnrollments}</td>
+                        <td>
+                          <div className="flex items-center gap-3">
+                            <span className="w-8 font-semibold num">{course.completed}</span>
+                            <span className="progress-track w-24" aria-hidden><span className="progress-fill" style={{ width: `${Math.round((course.completed / total) * 100)}%` }} /></span>
+                          </div>
+                        </td>
+                        <td className="font-semibold num">{course.inProgress}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
           </div>
         )}
       </main>
+      <Footer />
     </div>
   );
 }
-

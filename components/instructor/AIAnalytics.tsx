@@ -58,21 +58,21 @@ export default function AIAnalytics({ studentId, studentName, onClose }: AIAnaly
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
+    <div className="card rounded-xl p-6">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center">
+          <h3 className="text-lg font-bold flex items-center text-ink">
             <Bot className="mr-2 h-4 w-4 shrink-0" aria-hidden />
             AI Performance Analysis
           </h3>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+          <p className="text-sm mt-1 text-ink-muted">
             Get AI-powered insights for {studentName}
           </p>
         </div>
         {onClose && (
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+            className="hover:text-gray-600 dark:hover:text-gray-300 text-ink-subtle"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -83,12 +83,12 @@ export default function AIAnalytics({ studentId, studentName, onClose }: AIAnaly
 
       {!analysis && !loading && (
         <div className="text-center py-8">
-          <p className="text-gray-600 dark:text-gray-400 mb-4">
+          <p className="mb-4 text-ink-muted">
             Get AI-powered insights about this student&apos;s performance, including strengths, concerns, and recommendations.
           </p>
           <button
             onClick={handleAnalyze}
-            className="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold transition-all flex items-center space-x-2 mx-auto"
+            className="btn btn-primary px-6 py-3 flex items-center space-x-2 mx-auto"
           >
             <Bot className="h-4 w-4 shrink-0" aria-hidden />
             <span>Analyze Student Performance</span>
@@ -99,7 +99,7 @@ export default function AIAnalytics({ studentId, studentName, onClose }: AIAnaly
       {loading && (
         <div className="text-center py-8">
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400">Analyzing student performance...</p>
+          <p className="text-ink-muted">Analyzing student performance...</p>
         </div>
       )}
 
@@ -114,23 +114,23 @@ export default function AIAnalytics({ studentId, studentName, onClose }: AIAnaly
           {/* Student Data Summary */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="bg-neutral-50 dark:bg-neutral-900/20 rounded-lg p-3">
-              <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Total Trades</p>
+              <p className="text-xs mb-1 text-ink-muted">Total Trades</p>
               <p className="text-lg font-bold text-primary-600 dark:text-primary-400">{studentData.totalTrades}</p>
             </div>
             <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-3">
-              <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Win Rate</p>
+              <p className="text-xs mb-1 text-ink-muted">Win Rate</p>
               <p className="text-lg font-bold text-green-600 dark:text-green-400">
                 {(studentData.winRate * 100).toFixed(1)}%
               </p>
             </div>
             <div className="bg-neutral-50 dark:bg-neutral-900/20 rounded-lg p-3">
-              <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Avg Grade</p>
+              <p className="text-xs mb-1 text-ink-muted">Avg Grade</p>
               <p className="text-lg font-bold text-primary-600 dark:text-primary-400">
                 {studentData.averageGrade.toFixed(1)}
               </p>
             </div>
             <div className="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-3">
-              <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Pending Tasks</p>
+              <p className="text-xs mb-1 text-ink-muted">Pending Tasks</p>
               <p className="text-lg font-bold text-orange-600 dark:text-orange-400">
                 {studentData.pendingTasks}
               </p>
@@ -139,11 +139,11 @@ export default function AIAnalytics({ studentId, studentName, onClose }: AIAnaly
 
           {/* AI Summary */}
           <div className="bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-lg p-4">
-            <h4 className="text-sm font-bold text-gray-900 dark:text-white mb-2 flex items-center">
-              <BarChart3 className="mr-2 h-4 w-4 shrink-0 text-neutral-600" aria-hidden />
+            <h4 className="text-sm font-bold mb-2 flex items-center text-ink">
+              <BarChart3 className="mr-2 h-4 w-4 shrink-0 text-ink-muted" aria-hidden />
               Performance Summary
             </h4>
-            <p className="text-sm text-gray-700 dark:text-gray-300">{analysis.summary}</p>
+            <p className="text-sm text-ink-muted">{analysis.summary}</p>
           </div>
 
           {/* Strengths */}
@@ -155,7 +155,7 @@ export default function AIAnalytics({ studentId, studentName, onClose }: AIAnaly
               </h4>
               <ul className="list-disc list-inside space-y-1">
                 {analysis.strengths.map((strength, idx) => (
-                  <li key={idx} className="text-sm text-gray-700 dark:text-gray-300">{strength}</li>
+                  <li key={idx} className="text-sm text-ink-muted">{strength}</li>
                 ))}
               </ul>
             </div>
@@ -170,7 +170,7 @@ export default function AIAnalytics({ studentId, studentName, onClose }: AIAnaly
               </h4>
               <ul className="list-disc list-inside space-y-1">
                 {analysis.concerns.map((concern, idx) => (
-                  <li key={idx} className="text-sm text-gray-700 dark:text-gray-300">{concern}</li>
+                  <li key={idx} className="text-sm text-ink-muted">{concern}</li>
                 ))}
               </ul>
             </div>
@@ -185,7 +185,7 @@ export default function AIAnalytics({ studentId, studentName, onClose }: AIAnaly
               </h4>
               <ul className="list-disc list-inside space-y-1">
                 {analysis.recommendations.map((rec, idx) => (
-                  <li key={idx} className="text-sm text-gray-700 dark:text-gray-300">{rec}</li>
+                  <li key={idx} className="text-sm text-ink-muted">{rec}</li>
                 ))}
               </ul>
             </div>
@@ -193,7 +193,7 @@ export default function AIAnalytics({ studentId, studentName, onClose }: AIAnaly
 
           <button
             onClick={handleAnalyze}
-            className="w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-medium transition-colors"
+            className="w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg font-medium transition-colors text-ink-muted"
           >
             Refresh Analysis
           </button>

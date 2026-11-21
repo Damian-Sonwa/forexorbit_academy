@@ -34,32 +34,32 @@ export default function LessonOutline({ courseId, lessons, currentLessonId, load
   const position = lessons.findIndex((lesson) => lessonKey(lesson) === currentLessonId) + 1;
 
   return (
-    <nav aria-label="Course outline" className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800" data-testid="lesson-outline">
+    <nav aria-label="Course outline" className="overflow-hidden rounded-panel border border-line bg-surface-1 shadow-panel" data-testid="lesson-outline">
       <button
         type="button"
-        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left lg:cursor-default"
+        className="flex w-full items-center justify-between gap-3 bg-surface-2 px-4 py-3.5 text-left lg:cursor-default"
         aria-expanded={open}
         aria-controls="lesson-outline-list"
         onClick={() => setOpen((v) => !v)}
       >
         <span>
-          <span className="block text-sm font-semibold text-gray-900 dark:text-white">Course outline</span>
+          <span className="block font-display text-sm font-semibold text-ink">Course outline</span>
           {lessons.length > 0 && (
-            <span className="block text-xs text-gray-600 dark:text-gray-300">
+            <span className="mt-0.5 block text-xs text-ink-subtle num">
               {position > 0 ? `Lesson ${position} of ${lessons.length}` : `${lessons.length} lessons`} · {completed} completed
             </span>
           )}
         </span>
-        <svg className={`h-5 w-5 shrink-0 text-gray-500 transition-transform lg:hidden ${open ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+        <svg className={`h-5 w-5 shrink-0 text-ink-subtle transition-transform lg:hidden ${open ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
         </svg>
       </button>
-      <div id="lesson-outline-list" className={`${open ? 'block' : 'hidden'} border-t border-gray-100 lg:block dark:border-gray-700`}>
+      <div id="lesson-outline-list" className={`${open ? 'block' : 'hidden'} border-t border-line lg:block`}>
         {loading && lessons.length === 0 ? (
-          <p className="px-4 py-3 text-sm text-gray-500" role="status">Loading lessons…</p>
+          <p className="px-4 py-3 text-sm text-ink-subtle" role="status">Loading lessons…</p>
         ) : error && lessons.length === 0 ? (
           <div className="px-4 py-3 text-sm" role="alert">
-            <p className="text-gray-700 dark:text-gray-300">{error}</p>
+            <p className="text-ink-muted">{error}</p>
             {onRetry && (
               <button type="button" onClick={onRetry} className="mt-2 font-semibold text-primary-600 hover:underline">
                 Try again
@@ -67,9 +67,9 @@ export default function LessonOutline({ courseId, lessons, currentLessonId, load
             )}
           </div>
         ) : lessons.length === 0 ? (
-          <p className="px-4 py-3 text-sm text-gray-500">This course has no lessons yet.</p>
+          <p className="px-4 py-3 text-sm text-ink-subtle">This course has no lessons yet.</p>
         ) : (
-          <ol className="max-h-[60vh] overflow-y-auto py-1 lg:max-h-[calc(100vh-12rem)]">
+          <ol className="relative max-h-[60vh] overflow-y-auto py-2 lg:max-h-[calc(100vh-12rem)] before:pointer-events-none before:absolute before:bottom-5 before:left-[1.69rem] before:top-5 before:w-px before:bg-[var(--fo-line-strong)]">
             {lessons.map((lesson, index) => {
               const id = lessonKey(lesson);
               const current = id === currentLessonId;
@@ -87,8 +87,12 @@ export default function LessonOutline({ courseId, lessons, currentLessonId, load
               const body = (
                 <>
                   <span
-                    className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
-                      lesson.completed ? 'bg-green-100 text-green-700' : current ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-200'
+                    className={`relative z-[1] flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold num ring-4 ring-[var(--fo-surface-1)] ${
+                      current
+                        ? 'bg-primary-500 text-neutral-950 shadow-[0_0_12px_rgba(255,112,18,0.6)]'
+                        : lesson.completed
+                          ? 'bg-[color-mix(in_srgb,#ff7012_22%,var(--fo-surface-1))] text-primary-600 dark:text-primary-300'
+                          : 'border border-[var(--fo-line-strong)] bg-surface-1 text-ink-subtle'
                     }`}
                     aria-hidden
                   >
@@ -96,7 +100,7 @@ export default function LessonOutline({ courseId, lessons, currentLessonId, load
                   </span>
                   <span className="min-w-0 flex-1 truncate">{title}</span>
                   {locked && (
-                    <svg className="h-4 w-4 shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                    <svg className="h-4 w-4 shrink-0 text-ink-subtle" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                     </svg>
                   )}
@@ -107,13 +111,13 @@ export default function LessonOutline({ courseId, lessons, currentLessonId, load
               return (
                 <li key={id || index}>
                   {current ? (
-                    <span aria-current="page" className={`${base} bg-primary-50 font-semibold text-primary-800 dark:bg-primary-400/10 dark:text-primary-200`}>
+                    <span aria-current="page" className={`${base} bg-tint font-semibold text-ink`}>
                       {body}
                     </span>
                   ) : (
                     <Link
                       href={locked ? `/courses/${encodeURIComponent(courseId)}` : lessonHref(courseId, id)}
-                      className={`${base} text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-white/5 ${locked ? 'opacity-75' : ''}`}
+                      className={`${base} text-ink-muted transition-colors hover:bg-[color-mix(in_srgb,var(--fo-text)_5%,transparent)] hover:text-ink ${locked ? 'opacity-70' : ''}`}
                       title={locked ? 'Unlock the full course to open this lesson' : undefined}
                     >
                       {body}

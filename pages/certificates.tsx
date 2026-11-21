@@ -205,7 +205,7 @@ export default function Certificates() {
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 dark:border-primary-400 mx-auto"></div>
           <p className="mt-4 text-gray-600 dark:text-gray-400">Loading certificates...</p>
@@ -219,7 +219,7 @@ export default function Certificates() {
   // Student View - Enhanced Design
   if (user.role === 'student') {
     return (
-      <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
+      <div className="min-h-screen flex flex-col">
         <Header />
         <main className="flex-1 px-4 sm:px-6 lg:px-8 py-6">
           {/* Back Button */}
@@ -322,7 +322,7 @@ export default function Certificates() {
   }).length;
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen flex flex-col">
       <Header />
       <main className="flex-1 px-4 sm:px-6 lg:px-8 py-6">
         {/* Back Button */}

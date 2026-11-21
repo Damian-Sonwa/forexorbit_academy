@@ -436,6 +436,18 @@
     {
       "resource": {
         "db": "Forex_elearning",
+        "collection": "tradingReviews"
+      },
+      "actions": [
+        "find",
+        "insert",
+        "update",
+        "remove"
+      ]
+    },
+    {
+      "resource": {
+        "db": "Forex_elearning",
         "collection": "learningDays"
       },
       "actions": [

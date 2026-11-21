@@ -51,7 +51,9 @@ test('the browser keeps one socket connection for the signed-in session', () => 
 });
 
 test('landing and catalog images are served as WebP under a size budget', () => {
-  const page = read('pages/index.tsx');
+  // The hero image lives in its animated wrapper (components/landing/HeroVisual.tsx).
+  const page = read('pages/index.tsx') + read('components/landing/HeroVisual.tsx');
+  assert.ok(read('pages/index.tsx').includes('<HeroVisual />'), 'the landing page renders the hero');
   assert.equal(page.includes('/images/smd.webp'), true);
   assert.equal(page.includes('.jpg'), false);
   assert.match(page, /fetchPriority="high"|fetchpriority: 'high'/);
