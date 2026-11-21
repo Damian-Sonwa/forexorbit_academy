@@ -14,6 +14,15 @@ import { unexpectedBody } from '@/lib/public-error';
  *   interrupted one is finished by the next grade or the sweep, never lost or repeated;
  * - a grade applies only to the work the grader read: a resubmission in between is a 409;
  * - the student is notified (existing notification feed + their live room).
+ *
+ * Phase 12 (lib/academic-operations.js):
+ * - changing an existing grade needs a reason (5-500 characters), kept in the history entry;
+ * - every grade is also written to the append-only audit log (actor, student, course, assignment,
+ *   previous and new grade, reason, time, outcome) under a deterministic id, so a retry or the
+ *   repair never writes it twice; `gradeAuditPending` is set atomically with the grade and cleared
+ *   once the entry exists;
+ * - the notification carries a dedupe key per grade version, so a retried request cannot notify
+ *   twice. Automated quiz scores are never changed here.
  */
 
 import type { NextApiResponse } from 'next';
@@ -23,6 +32,7 @@ import { ObjectId, type Document, type UpdateFilter } from 'mongodb';
 import { decideAccountAccess, decideAssignmentGrade, isStoredId } from '@/lib/account-access';
 import { gradePoints, previouslyAwarded, settlePendingPoints } from '@/lib/assignment-grading';
 import { createNotification } from '@/lib/notifications';
+import { decideGradeChange, gradeAuditEntry, writeGradeAudit } from '@/lib/academic-operations';
 import { allowRequest, authoringLimiter } from '@/lib/content-rate-limit';
 import { setPrivateNoStore } from '@/lib/lesson-documents';
 
@@ -48,7 +58,7 @@ async function gradeAssignment(req: AuthRequest, res: NextApiResponse) {
     const course = courseId
       ? await db.collection('courses').findOne(
           { _id: new ObjectId(courseId) },
-          { projection: { instructorId: 1, status: 1 } }
+          { projection: { instructorId: 1, status: 1, title: 1 } }
         )
       : null;
     const submission = await db.collection('assignmentSubmissions').findOne({ _id: new ObjectId(submissionId) });
@@ -65,6 +75,10 @@ async function gradeAssignment(req: AuthRequest, res: NextApiResponse) {
     }
     if (decision.userId === decision.gradedBy) {
       return res.status(403).json({ error: 'You cannot grade your own submission.' });
+    }
+    const change = decideGradeChange({ currentGrade: typeof submission!.grade === 'number' ? submission!.grade : null, newGrade: decision.grade, reason: body.reason });
+    if (!change.ok) {
+      return res.status(change.status).json({ error: change.error, code: change.code });
     }
     await settlePendingPoints(db, submission);
     const now = new Date();
@@ -90,6 +104,7 @@ async function gradeAssignment(req: AuthRequest, res: NextApiResponse) {
         pointsAwarded: award,
         gradeVersion: nextVersion,
         updatedAt: now,
+        gradeAuditPending: nextVersion,
         ...(pointsPending ? { pointsPending } : {}),
       },
       $push: {
@@ -100,6 +115,8 @@ async function gradeAssignment(req: AuthRequest, res: NextApiResponse) {
           gradedAt: now,
           previousGrade: typeof submission!.grade === 'number' ? submission!.grade : typeof lastGrade === 'number' ? lastGrade : null,
           pointsAwarded: award,
+          reason: change.reason || null,
+          version: nextVersion,
         },
       },
     } as unknown as UpdateFilter<Document>;
@@ -116,16 +133,36 @@ async function gradeAssignment(req: AuthRequest, res: NextApiResponse) {
       return res.status(409).json({ error: 'This submission changed while you were grading it. Reload and try again.', code: 'submission_changed' });
     }
     if (pointsPending) await settlePendingPoints(db, { _id: submission!._id, userId: decision.userId, pointsPending });
+    const previousGrade = typeof submission!.grade === 'number' ? submission!.grade : null;
+    const audited = await writeGradeAudit(db, gradeAuditEntry({
+      submissionId: decision.submissionId,
+      version: nextVersion,
+      previousGrade,
+      grade: decision.grade,
+      reason: change.reason,
+      regrade: change.regrade,
+      actor: { userId: decision.gradedBy, email: account.ok ? account.user.email : null, role: account.ok ? account.user.role : null },
+      context: {
+        courseId,
+        courseTitle: course && typeof course.title === 'string' ? course.title : null,
+        assignmentId: id,
+        assignmentTitle: typeof assignment!.title === 'string' ? assignment!.title : null,
+        studentId: decision.userId,
+      },
+      now,
+    })).catch(() => false);
+    if (!audited) console.error(JSON.stringify({ event: 'assignmentGradeAudit', result: 'pending', submissionId: decision.submissionId }));
     try {
       const title = typeof assignment!.title === 'string' && assignment!.title ? assignment!.title : 'your assignment';
       await createNotification({
         type: 'task_feedback',
-        title: 'Assignment graded',
-        message: `Your submission for ${title} has been graded.`,
+        title: change.changing ? 'Grade updated' : 'Assignment graded',
+        message: change.changing ? `Your grade for ${title} has been updated.` : `Your submission for ${title} has been graded.`,
         userId: decision.userId,
         relatedId: id,
         roleTarget: 'student',
         metadata: { assignmentId: id, grade: decision.grade },
+        dedupeKey: `grade:${decision.submissionId}:${nextVersion}`,
       });
       req.io?.to(`user:${decision.userId}`).emit('notification', {
         type: 'task_feedback',

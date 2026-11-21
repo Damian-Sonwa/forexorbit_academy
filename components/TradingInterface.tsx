@@ -274,7 +274,7 @@ export default function TradingInterface() {
       )}
 
       {!account ? (
-        <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_22rem]">
+        <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_22rem]">
           <div className="min-w-0">{renderChart()}</div>
           <section className="panel-hero p-6">
             <p className="page-kicker">Practice account</p>
@@ -284,7 +284,7 @@ export default function TradingInterface() {
         </div>
       ) : (
         <>
-          <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_22.5rem]">
+          <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_22.5rem]">
             {/* Right column on wide screens; first on small screens. */}
             <div className="order-first space-y-5 xl:order-none xl:col-start-2 xl:row-start-1 xl:sticky xl:top-20 xl:self-start">
               <section className="overflow-hidden rounded-panel border border-line shadow-panel" aria-label="Virtual account" data-testid="account-summary">

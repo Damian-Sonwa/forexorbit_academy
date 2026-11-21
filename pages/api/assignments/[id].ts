@@ -1,4 +1,5 @@
 import { unexpectedBody } from '@/lib/public-error';
+import { readAssignmentPatch, visibleToStudents } from '@/lib/academic-operations';
 /**
  * Assignment API Route (Single Assignment)
  * GET: Get assignment details for an authorized course member
@@ -73,6 +74,9 @@ async function getAssignment(req: AuthRequest, res: NextApiResponse) {
       const submissions = await loaded.db.collection('assignmentSubmissions').find({ assignmentId: id }).toArray();
       return res.json({ ...view, submissions: submissions.map((submission) => presentSubmission(submission)) });
     }
+    if (!visibleToStudents(loaded.assignment)) {
+      return res.status(404).json({ error: 'Assignment not found' });
+    }
     const content = await courseContentAccess(loaded.db, memberOf(loaded.account), access.courseId);
     if (!content.isOpen(loaded.assignment.lessonId ? String(loaded.assignment.lessonId) : null)) {
       return res.status(403).json({ error: LESSON_LOCKED_MESSAGE, code: 'assignment_locked' });
@@ -103,16 +107,18 @@ async function updateAssignment(req: AuthRequest, res: NextApiResponse) {
     if (!decision.ok) {
       return res.status(decision.status).json({ error: decision.error });
     }
+    // Phase 12 (lib/academic-operations.js readAssignmentPatch): validated fields only; status
+    // draft | published | closed; points locked once any submission is graded. Submissions and
+    // grades are never changed by an edit.
     const body = req.body && typeof req.body === 'object' ? req.body : {};
-    const updateData: Record<string, unknown> = { updatedAt: new Date() };
-    if (typeof body.title === 'string' && body.title.trim()) updateData.title = body.title.trim();
-    if (typeof body.description === 'string') updateData.description = body.description;
-    if (typeof body.instructions === 'string' && body.instructions.trim()) updateData.instructions = body.instructions.trim();
-    if (typeof body.dueDate === 'string' && body.dueDate) updateData.dueDate = new Date(body.dueDate);
-    if (typeof body.points === 'number' && Number.isFinite(body.points) && body.points >= 0) updateData.points = body.points;
+    const graded = await loaded.db.collection('assignmentSubmissions').countDocuments({ assignmentId: decision.assignmentId, status: 'graded' }, { limit: 1 });
+    const checked = readAssignmentPatch(body, { graded: graded > 0, currentPoints: typeof loaded.assignment!.points === 'number' ? loaded.assignment!.points : 100 });
+    if (!checked.ok) {
+      return res.status(checked.status).json({ error: checked.error, code: checked.code });
+    }
     await loaded.db.collection('assignments').updateOne(
       { _id: new ObjectId(decision.assignmentId) },
-      { $set: updateData }
+      { $set: { ...checked.set, updatedAt: new Date() } }
     );
     return res.json({ success: true });
   } catch {

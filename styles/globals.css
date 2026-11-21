@@ -1168,6 +1168,15 @@ html:not(.dark) .landing-shell [class*='radial-gradient'] {
   }
 }
 
+/* Mobile safety net: grid children may shrink below their content's one-line width, so a wide
+   table or a truncated title cannot widen a grid column (and every item in it) past the screen.
+   Utilities (min-w-*) still override this. */
+@layer base {
+  .grid > * {
+    min-width: 0;
+  }
+}
+
 /* Glass fallbacks: solid surfaces when blur is unsupported or reduced transparency is requested. */
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .glass-bar { background-color: var(--fo-shell); }

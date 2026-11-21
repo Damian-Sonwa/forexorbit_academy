@@ -64,7 +64,7 @@ export default function PracticePanel({ trading, charts }: { trading: TradingSec
       </div>
 
       {p.closedTrades > 0 && charts && (
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
           <div className="card !p-4">
             <p className="text-sm font-semibold text-ink">Running result by day</p>
             <p className="mb-2 text-xs text-ink-subtle">Realised, USD, simulated</p>

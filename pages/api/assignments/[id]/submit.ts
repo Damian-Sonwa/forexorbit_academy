@@ -19,6 +19,7 @@ import {
 import { enrollmentDecisionRecord } from '@/lib/enrollment-state';
 import { courseContentAccess, LESSON_LOCKED_MESSAGE } from '@/lib/course-lesson-list';
 import { isLate, previouslyAwarded, settlePendingPoints } from '@/lib/assignment-grading';
+import { acceptsSubmissions, visibleToStudents } from '@/lib/academic-operations';
 import { setPrivateNoStore } from '@/lib/lesson-documents';
 import { allowRequest, assessmentLimiter } from '@/lib/content-rate-limit';
 
@@ -68,6 +69,13 @@ async function submitAssignment(req: AuthRequest, res: NextApiResponse) {
     });
     if (!decision.ok) {
       return res.status(decision.status).json({ error: decision.error });
+    }
+    // Phase 12: drafts do not exist for students; a closed assignment takes no new work.
+    if (!visibleToStudents(loaded.assignment)) {
+      return res.status(404).json({ error: 'Assignment not found' });
+    }
+    if (!acceptsSubmissions(loaded.assignment)) {
+      return res.status(409).json({ error: 'This assignment is closed and no longer accepts submissions.', code: 'assignment_closed' });
     }
     // Same paywall as the lesson the assignment belongs to (Phase 6).
     const content = await courseContentAccess(

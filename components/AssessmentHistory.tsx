@@ -1,11 +1,13 @@
 /**
  * A student's quiz results across all courses, newest first (Phase 9):
  * GET /api/quizzes/history. Summaries only; answers stay behind each quiz's review policy.
+ * Lesson and course titles can be stored as rich-text HTML: they are shown as plain text.
  */
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { apiClient } from '@/lib/api-client';
+import { previewText } from '@/lib/plain-text';
 
 type Row = {
   id: string;
@@ -46,10 +48,10 @@ export default function AssessmentHistory() {
           <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
             <span className="min-w-0 break-words">
               {r.lessonTitle
-                ? <Link href={`/courses/${r.courseId}/lessons/${r.lessonId}`} className="font-medium text-primary-600 hover:underline">{r.lessonTitle}</Link>
+                ? <Link href={`/courses/${r.courseId}/lessons/${r.lessonId}`} className="font-medium text-primary-600 hover:underline">{previewText(r.lessonTitle) || 'Lesson'}</Link>
                 : <span className="font-medium text-gray-700 dark:text-gray-300">Lesson no longer available</span>}
               <span className="block text-xs text-gray-500 dark:text-gray-400">
-                {r.courseTitle || 'Course'}{r.attemptNumber ? ` · attempt ${r.attemptNumber}` : ''}{r.finishedAt ? ` · ${new Date(r.finishedAt).toLocaleDateString()}` : ''}
+                {previewText(r.courseTitle) || 'Course'}{r.attemptNumber ? ` · attempt ${r.attemptNumber}` : ''}{r.finishedAt ? ` · ${new Date(r.finishedAt).toLocaleDateString()}` : ''}
               </span>
             </span>
             <span className="font-semibold text-gray-900 dark:text-white">

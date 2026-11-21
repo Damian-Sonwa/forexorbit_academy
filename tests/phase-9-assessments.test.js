@@ -1193,7 +1193,11 @@ test('grading: the course instructor grades; another instructor, the student and
   assert.deepEqual([ok.statusCode, ok.body.pointsAwarded], [200, 40]);
   assert.deepEqual([x.sub().status, x.sub().grade, x.sub().feedback, x.sub().gradedBy], ['graded', 80, 'Good', x.w.instructor]);
   assert.match(String(ok.headers['cache-control']), /no-store/);
-  assert.equal((await x.grade(x.T.admin, id, 90)).statusCode, 200, 'admins follow the existing role policy');
+  // Phase 12: changing an existing grade needs a reason (lib/academic-operations.js decideGradeChange).
+  const noReason = await x.grade(x.T.admin, id, 90);
+  assert.deepEqual([noReason.statusCode, noReason.body.code], [400, 'reason_required']);
+  assert.equal(x.sub().grade, 80, 'a refused change leaves the grade');
+  assert.equal((await x.grade(x.T.admin, id, 90, 'ok', { reason: 'Second marking' })).statusCode, 200, 'admins follow the existing role policy');
 }));
 
 test('grading: a submission of another assignment cannot be graded through this one', route(async () => {
@@ -1214,13 +1218,14 @@ test('regrading: only the difference in points moves, up or down; a repeat moves
   const id = String(x.sub()._id);
   await x.grade(x.T.instructor, id, 80);
   assert.equal(x.points(), base + 40);
-  await x.grade(x.T.instructor, id, 100, 'Better');
+  // Phase 12: each change of an existing grade carries a reason; re-saving the same grade does not need one.
+  await x.grade(x.T.instructor, id, 100, 'Better', { reason: 'Rubric re-check' });
   assert.equal(x.points(), base + 50);
-  await x.grade(x.T.instructor, id, 50, 'Corrected');
+  await x.grade(x.T.instructor, id, 50, 'Corrected', { reason: 'Marking error' });
   assert.equal(x.points(), base + 25);
   await x.grade(x.T.instructor, id, 50, 'Corrected');
   assert.equal(x.points(), base + 25, 'the same grade again');
-  await x.grade(x.T.instructor, id, 0, 'Zero is a grade');
+  await x.grade(x.T.instructor, id, 0, 'Zero is a grade', { reason: 'Academic integrity review' });
   assert.equal(x.points(), base);
   const history = x.sub().gradeHistory;
   assert.deepEqual(history.map((h) => [h.previousGrade, h.grade, h.pointsAwarded]), [[null, 80, 40], [80, 100, 50], [100, 50, 25], [50, 50, 25], [50, 0, 0]]);
@@ -1429,7 +1434,7 @@ test('assignments: staff cannot submit; a locked lesson\'s assignment is out of 
 // Indexes, permissions and the shape of the code
 // ---------------------------------------------------------------------------
 
-test('indexes: A1-A6 are defined as documented; A5 is partial so rows from before Phase 9 cannot collide', () => {
+test('indexes: A1-A7 are defined as documented; A5 is partial so rows from before Phase 9 cannot collide', () => {
   assert.deepEqual(ASSESSMENT_INDEXES.map((d) => [d.id, d.collection, d.options.name, Boolean(d.options.unique)]), [
     ['A1', 'quizAttempts', 'quiz_attempt_user_lesson_number', true],
     ['A2', 'assignmentSubmissions', 'assignment_submission_user_assignment', true],
@@ -1437,6 +1442,7 @@ test('indexes: A1-A6 are defined as documented; A5 is partial so rows from befor
     ['A4', 'quizzes', 'quiz_lesson', true],
     ['A5', 'quizScores', 'quiz_score_attempt', true],
     ['A6', 'quizScores', 'quiz_score_user_recent', false],
+    ['A7', 'assignmentSubmissions', 'assignment_submission_queue', false],
   ]);
   const a5 = ASSESSMENT_INDEXES[4];
   assert.deepEqual(a5.options.partialFilterExpression, { attemptId: { $type: 'string' } });

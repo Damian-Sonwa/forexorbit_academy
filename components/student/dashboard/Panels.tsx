@@ -109,7 +109,7 @@ export function WelcomeHero({ data, fallbackName, levelChip }: { data: StudentDa
         <ellipse cx="280" cy="170" rx="260" ry="118" transform="rotate(-16 280 170)" stroke="currentColor" />
         <ellipse cx="280" cy="170" rx="210" ry="88" transform="rotate(-16 280 170)" stroke="currentColor" strokeDasharray="2 8" />
       </svg>
-      <div className="relative grid gap-6 p-5 sm:p-7 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] lg:gap-8 lg:p-8">
+      <div className="relative grid grid-cols-1 gap-6 p-5 sm:p-7 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] lg:gap-8 lg:p-8">
         <div className="flex flex-col justify-between gap-5">
           <div>
             <p className="page-kicker">Learning home</p>
@@ -260,10 +260,10 @@ export function UpcomingAssessments({ upcoming, limit, onViewAll }: { upcoming: 
       {shown.map((item: UpcomingItem) => {
         const status = UPCOMING_STATUS[item.status] || { label: item.status, tone: '' };
         return (
-          <li key={item.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3.5">
+          <li key={item.id} className="flex flex-col gap-2.5 px-4 py-3.5 sm:flex-row sm:items-center sm:gap-4">
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold text-ink">{txt(item.title)}</p>
-              <p className="truncate text-xs text-ink-subtle">
+              <p className="line-clamp-2 text-sm font-semibold text-ink sm:truncate">{txt(item.title)}</p>
+              <p className="line-clamp-2 text-xs text-ink-subtle sm:truncate">
                 {txt(item.courseTitle)}
                 {item.kind === 'assignment' && item.lessonTitle ? ` · ${txt(item.lessonTitle)}` : ''}
                 {item.status === 'opens_soon' && item.opensAt ? ` · opens ${formatDate(item.opensAt, true)}` : ''}
@@ -272,6 +272,7 @@ export function UpcomingAssessments({ upcoming, limit, onViewAll }: { upcoming: 
                 {item.kind === 'quiz' && item.timeLimitMinutes ? ` · ${item.timeLimitMinutes} min` : ''}
               </p>
             </div>
+            <div className="flex items-center justify-between gap-3 sm:contents">
             <span className={`chip ${status.tone}`}>{status.label}</span>
             {item.status === 'opens_soon' ? (
               <span className="btn btn-ghost btn-sm pointer-events-none opacity-60" aria-disabled="true">Not open yet</span>
@@ -280,6 +281,7 @@ export function UpcomingAssessments({ upcoming, limit, onViewAll }: { upcoming: 
                 {item.status === 'in_progress' ? 'Resume' : item.kind === 'quiz' ? 'Open quiz' : 'Open'}
               </Link>
             )}
+            </div>
           </li>
         );
       })}
@@ -347,14 +349,14 @@ export function Recommendations({ items: all, limit, exclude = [] }: { items: Re
   return (
     <ol className="space-y-2" data-testid="recommendations">
       {items.map((r, i) => (
-        <li key={r.id} className="card flex items-start gap-3 !p-4">
+        <li key={r.id} className="card flex flex-col gap-3 !p-4 sm:flex-row sm:items-start">
           <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-line-strong text-xs font-semibold text-ink-muted num" aria-hidden>{i + 1}</span>
           <div className="min-w-0 flex-1">
             <p className="text-2xs font-semibold uppercase tracking-[0.14em] text-primary-600 dark:text-primary-400">{KIND_LABEL[r.kind]}</p>
             <p className="mt-0.5 text-sm font-semibold text-ink">{txt(r.title)}</p>
             <p className="mt-0.5 text-xs text-ink-muted">{txt(r.reason)}</p>
           </div>
-          <Link href={r.href} className="btn btn-secondary btn-sm shrink-0">{r.action}</Link>
+          <Link href={r.href} className="btn btn-secondary btn-sm w-full shrink-0 sm:w-auto">{r.action}</Link>
         </li>
       ))}
     </ol>

@@ -1,4 +1,6 @@
 import { unexpectedBody } from '@/lib/public-error';
+import { applyReassignment } from '@/lib/academic-operations';
+import { createNotification } from '@/lib/notifications';
 /**
  * Course Detail API Route
  * GET: Get course by ID (lifecycle visibility: lib/course-lifecycle.js)
@@ -191,6 +193,36 @@ async function updateCourse(req: AuthRequest, res: NextApiResponse) {
     });
     if (!decision.ok) {
       return refusal(res, decision);
+    }
+
+    // Phase 12: an admin's change of instructor in the course editor goes through the same audited,
+    // conditional reassignment as POST /api/admin/courses/:id/reassign (other fields in the same
+    // update), so every handover is recorded and notified and two cannot both apply.
+    const { instructorId: newInstructor, ...otherFields } = decision.patch as Record<string, unknown> & { instructorId?: string };
+    if (typeof newInstructor === 'string' && String(course!.instructorId ?? '') !== newInstructor) {
+      const reason = typeof body.reassignReason === 'string' && body.reassignReason.trim().length >= 5
+        ? body.reassignReason.trim().slice(0, 500)
+        : 'Changed in the course editor';
+      const moved = await applyReassignment(db, {
+        course: course!,
+        from: course!.instructorId == null ? null : String(course!.instructorId),
+        to: newInstructor,
+        actor: { userId: req.user!.userId, email: req.user!.email, role: req.user!.role },
+        reason,
+        now: new Date(),
+        extraSet: otherFields,
+        notify: async (notices) => {
+          for (const n of notices) {
+            await createNotification({ type: 'system_alert', title: n.title, message: n.message, userId: n.userId, relatedId: n.relatedId, roleTarget: 'instructor', dedupeKey: n.dedupeKey });
+          }
+        },
+      });
+      if (!moved.ok) return res.status(moved.status).json({ error: moved.error, code: moved.code });
+      const droppedOnMove = removedAssets(course, { ...course, ...otherFields }, COURSE_MEDIA_FIELDS);
+      if (droppedOnMove.length) {
+        await cleanupUnreferencedAssets(db, droppedOnMove, { destroy: deleteImage, context: { courseId: decision.courseId, reason: 'course_update' } });
+      }
+      return res.json({ success: true, reassigned: true });
     }
 
     // The course must still be in the state that was checked (it may have been submitted for

@@ -1,14 +1,36 @@
 /**
  * Assignments of a lesson for its instructor (Phase 9): list them, add one, and open the grading
  * page. The existing assignment API decides who may do this.
+ *
+ * Phase 12: each assignment has a status. Draft is hidden from students; published accepts work;
+ * closed stays visible but takes no new submissions. Status changes go through
+ * PUT /api/assignments/:id (validated on the server); submissions and grades are never touched.
  */
 
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { apiClient } from '@/lib/api-client';
 
-type Row = { _id: string; title: string; dueDate: string | null; points: number };
-const input = 'w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white';
+type Status = 'draft' | 'published' | 'closed';
+type Row = { _id: string; title: string; dueDate: string | null; points: number; status?: Status };
+const input = 'input';
+
+const STATUS: Record<Status, { label: string; tone: string }> = {
+  draft: { label: 'Draft', tone: '' },
+  published: { label: 'Published', tone: 'chip-up' },
+  closed: { label: 'Closed', tone: 'chip-down' },
+};
+/** The status changes offered from each status. */
+export const NEXT_STATUS: Record<Status, Array<{ to: Status; label: string }>> = {
+  draft: [{ to: 'published', label: 'Publish' }],
+  published: [{ to: 'closed', label: 'Close' }, { to: 'draft', label: 'Back to draft' }],
+  closed: [{ to: 'published', label: 'Reopen' }],
+};
+
+const errorText = (err: unknown, fallback: string) => {
+  const ax = err as { response?: { data?: { error?: string } } };
+  return ax?.response?.data?.error || fallback;
+};
 
 export default function LessonAssignmentsPanel({ courseId, lessonId }: { courseId: string; lessonId: string }) {
   const [rows, setRows] = useState<Row[] | null>(null);
@@ -16,7 +38,9 @@ export default function LessonAssignmentsPanel({ courseId, lessonId }: { courseI
   const [instructions, setInstructions] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [points, setPoints] = useState('100');
+  const [status, setStatus] = useState<Status>('published');
   const [busy, setBusy] = useState(false);
+  const [rowBusy, setRowBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -39,6 +63,7 @@ export default function LessonAssignmentsPanel({ courseId, lessonId }: { courseI
         title,
         instructions,
         points: Number(points),
+        status,
         ...(dueDate ? { dueDate: new Date(dueDate).toISOString() } : {}),
       });
       setTitle('');
@@ -46,10 +71,22 @@ export default function LessonAssignmentsPanel({ courseId, lessonId }: { courseI
       setDueDate('');
       await load();
     } catch (err) {
-      const ax = err as { response?: { data?: { error?: string } } };
-      setError(ax?.response?.data?.error || 'The assignment could not be added.');
+      setError(errorText(err, 'The assignment could not be added.'));
     } finally {
       setBusy(false);
+    }
+  };
+
+  const changeStatus = async (row: Row, to: Status) => {
+    setRowBusy(row._id);
+    setError(null);
+    try {
+      await apiClient.put(`/assignments/${row._id}`, { status: to });
+      await load();
+    } catch (err) {
+      setError(errorText(err, 'The status could not be changed.'));
+    } finally {
+      setRowBusy(null);
     }
   };
 
@@ -58,35 +95,50 @@ export default function LessonAssignmentsPanel({ courseId, lessonId }: { courseI
       {rows === null && !error && <p className="text-sm text-ink-muted" role="status">Loading assignments…</p>}
       {rows && rows.length === 0 && <p className="text-sm text-ink-muted">No assignments on this lesson yet.</p>}
       {rows && rows.length > 0 && (
-        <ul className="divide-y divide-gray-200 text-sm dark:divide-gray-700">
-          {rows.map((row) => (
-            <li key={row._id} className="flex flex-wrap items-center justify-between gap-2 py-2">
-              <span className="min-w-0 break-words text-ink">
-                {row.title} <span className="text-xs text-ink-muted">{row.points} points{row.dueDate ? ` · due ${new Date(row.dueDate).toLocaleString()}` : ''}</span>
-              </span>
-              <Link href={`/instructor/assignments/analytics/${row._id}`} className="font-semibold text-primary-600 hover:underline">Submissions and grading</Link>
-            </li>
-          ))}
+        <ul className="divide-y divide-[var(--fo-line)] text-sm">
+          {rows.map((row) => {
+            const st: Status = row.status && row.status in STATUS ? row.status : 'published';
+            return (
+              <li key={row._id} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
+                <span className="min-w-0 break-words text-ink">
+                  {row.title} <span className={`chip ml-1 ${STATUS[st].tone}`}>{STATUS[st].label}</span>
+                  <span className="block text-xs text-ink-muted">{row.points} points{row.dueDate ? ` · due ${new Date(row.dueDate).toLocaleString()}` : ''}</span>
+                </span>
+                <span className="flex flex-wrap items-center gap-1.5">
+                  {NEXT_STATUS[st].map((next) => (
+                    <button key={next.to} type="button" className="btn btn-ghost btn-sm" disabled={rowBusy === row._id} onClick={() => void changeStatus(row, next.to)}>{next.label}</button>
+                  ))}
+                  <Link href={`/instructor/grading?assignmentId=${row._id}&courseId=${courseId}&status=all`} className="btn btn-secondary btn-sm">Submissions</Link>
+                </span>
+              </li>
+            );
+          })}
         </ul>
       )}
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         <label className="text-sm text-ink-muted">Title
-          <input className={input} value={title} onChange={(e) => setTitle(e.target.value)} />
+          <input className={input} maxLength={200} value={title} onChange={(e) => setTitle(e.target.value)} />
         </label>
         <label className="text-sm text-ink-muted">Points
-          <input className={input} type="number" min={0} value={points} onChange={(e) => setPoints(e.target.value)} />
+          <input className={input} type="number" min={0} max={1000} step={1} value={points} onChange={(e) => setPoints(e.target.value)} />
         </label>
         <label className="text-sm sm:col-span-2 text-ink-muted">Instructions
-          <textarea className={input} rows={3} value={instructions} onChange={(e) => setInstructions(e.target.value)} />
+          <textarea className={input} rows={3} maxLength={10000} value={instructions} onChange={(e) => setInstructions(e.target.value)} />
         </label>
         <label className="text-sm text-ink-muted">Due (optional)
           <input className={input} type="datetime-local" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+        </label>
+        <label className="text-sm text-ink-muted">Status
+          <select className={input} value={status} onChange={(e) => setStatus(e.target.value as Status)}>
+            <option value="published">Published: students can submit</option>
+            <option value="draft">Draft: hidden from students</option>
+          </select>
         </label>
       </div>
       <button type="button" onClick={() => void add()} disabled={busy || !title.trim() || !instructions.trim()} className="btn btn-primary min-h-[44px] w-full px-4 text-sm sm:w-auto">
         {busy ? 'Adding…' : 'Add assignment'}
       </button>
-      {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
+      {error && <p role="alert" className="text-sm text-down">{error}</p>}
     </section>
   );
 }

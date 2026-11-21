@@ -9,6 +9,7 @@ import Link from 'next/link';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import CourseCover from '@/components/CourseCover';
+import CourseReassignDialog from '@/components/admin/CourseReassignDialog';
 import { previewText } from '@/lib/plain-text';
 import Sidebar from '@/components/Sidebar';
 import { ReadoutStrip } from '@/components/ui/PageHeader';
@@ -87,6 +88,9 @@ export default function AdminPanel() {
   const { courses, refetch } = useCourses();
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [users, setUsers] = useState<User[]>([]);
+  // Phase 12: the course being reassigned (audited handover dialog) and the last result message.
+  const [reassigning, setReassigning] = useState<{ id: string; title: string } | null>(null);
+  const [reassignNotice, setReassignNotice] = useState<string | null>(null);
   const [instructors, setInstructors] = useState<User[]>([]);
   const [pendingUsers, setPendingUsers] = useState<User[]>([]);
   const [showNewsModal, setShowNewsModal] = useState(false);
@@ -1022,6 +1026,16 @@ export default function AdminPanel() {
               </div>
             )}
 
+            {reassignNotice && <p className="notice notice-brand mb-4 text-sm" role="status">{reassignNotice}</p>}
+            {reassigning && (
+              <CourseReassignDialog
+                courseId={reassigning.id}
+                courseTitle={reassigning.title}
+                instructors={users.filter((member) => member.role === 'instructor' && (!member.status || member.status === 'approved')).map((member) => ({ _id: String(member._id), name: member.name, email: member.email }))}
+                onClose={() => setReassigning(null)}
+                onDone={(message) => { setReassigning(null); setReassignNotice(message); void refetch(); }}
+              />
+            )}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {courses.map((course) => (
                 <div key={course._id || course.id} className="card flex flex-col overflow-hidden rounded-2xl transition-shadow hover:shadow-raised">
@@ -1042,6 +1056,14 @@ export default function AdminPanel() {
                     >
                       Manage
                     </Link>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={() => setReassigning({ id: String(course._id || course.id), title: course.title })}
+                      data-testid="reassign-open"
+                    >
+                      Reassign
+                    </button>
                     {(() => {
                       const courseId = course._id || course.id;
                       if (!courseId) return null;

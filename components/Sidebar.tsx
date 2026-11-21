@@ -149,9 +149,14 @@ export default function Sidebar({ }: SidebarProps) {
   // Lessons & Quizzes removed from sidebar - they remain in Dashboard only
   // Dashboard and Course Management are separate navigation items
   // Course Management uses section parameter to focus on course management area
+  // Phase 12: the teaching portal (overview, students, grading, activity) is listed here too.
   const instructorNavItems = [
+    { href: '/instructor/overview', label: 'Teaching overview', icon: AnalyticsIcon },
     { href: '/instructor/dashboard', label: 'Dashboard', icon: DashboardIcon },
     { href: '/instructor/dashboard?section=courses', label: 'Course Management', icon: CoursesIcon },
+    { href: '/instructor/students', label: 'Students', icon: UsersIcon },
+    { href: '/instructor/grading', label: 'Grading', icon: ApprovalsIcon },
+    { href: '/instructor/activity', label: 'Teaching activity', icon: ProgressIcon },
     { href: '/instructor/demo-tasks', label: 'Demo Tasks', icon: CoursesIcon },
     { href: '/progress', label: 'Progress', icon: ProgressIcon },
     { href: '/certificates', label: 'Certificates', icon: CertificatesIcon },

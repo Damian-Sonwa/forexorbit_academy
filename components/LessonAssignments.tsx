@@ -22,6 +22,8 @@ type Assignment = {
   instructions: string;
   dueDate: string | null;
   points: number;
+  /** Phase 12: a closed assignment stays visible but takes no new work. */
+  status?: 'published' | 'closed';
   submission: Submission | null;
 };
 
@@ -62,6 +64,10 @@ function AssignmentCard({ assignment, onSaved }: { assignment: Assignment; onSav
           {mine.feedback && <p className="mt-1 whitespace-pre-wrap break-words text-ink-muted" data-testid="assignment-feedback">{mine.feedback}</p>}
         </div>
       )}
+      {assignment.status === 'closed' ? (
+        <p className="mt-3 text-sm text-ink-muted" data-testid="assignment-closed">This assignment is closed and no longer accepts submissions.</p>
+      ) : (
+      <>
       <label className="mt-3 block text-sm font-medium text-ink-muted">
         Your work
         <textarea
@@ -80,6 +86,8 @@ function AssignmentCard({ assignment, onSaved }: { assignment: Assignment; onSav
       >
         {busy ? 'Submitting…' : mine ? 'Submit again' : 'Submit'}
       </button>
+      </>
+      )}
       {error && <p role="alert" className="mt-2 text-sm text-red-700">{error}</p>}
     </li>
   );

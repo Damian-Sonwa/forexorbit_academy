@@ -1,12 +1,14 @@
 /**
  * Grade one assignment submission (Phase 9): the student's work, the grade and feedback, and the
  * grading history. POST /api/assignments/:id/grade decides who may grade and validates the values;
- * a 409 means the work changed since this page loaded.
+ * a 409 means the work changed since this page loaded. Phase 12: changing an existing grade needs a
+ * reason (components/instructor/portal/GradeForm.tsx has the same rule).
  */
 
 import { useState } from 'react';
 import { apiClient } from '@/lib/api-client';
 import { safeLinkUrl } from '@/lib/safe-url';
+import { gradeFormState } from '@/components/instructor/portal/GradeForm';
 
 export type GradeHistoryEntry = { grade: number; feedback: string | null; gradedAt: string; previousGrade: number | null };
 export type GradableSubmission = {
@@ -22,15 +24,18 @@ export type GradableSubmission = {
 export default function SubmissionGradeForm({ assignmentId, submission, onSaved }: { assignmentId: string; submission: GradableSubmission; onSaved: () => Promise<void> }) {
   const [grade, setGrade] = useState(submission.grade === null ? '' : String(submission.grade));
   const [feedback, setFeedback] = useState(submission.feedback || '');
+  const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const file = submission.submissionFile ? safeLinkUrl(submission.submissionFile) : null;
+  const state = gradeFormState({ grade, feedback, reason, currentGrade: submission.grade });
 
   const save = async () => {
     setBusy(true);
     setError(null);
     try {
-      await apiClient.post(`/assignments/${assignmentId}/grade`, { submissionId: submission._id, grade: Number(grade), feedback });
+      await apiClient.post(`/assignments/${assignmentId}/grade`, { submissionId: submission._id, grade: Number(grade), feedback, ...(state.changing ? { reason: reason.trim() } : {}) });
+      setReason('');
       await onSaved();
     } catch (err) {
       const ax = err as { response?: { data?: { error?: string } } };
@@ -53,7 +58,12 @@ export default function SubmissionGradeForm({ assignmentId, submission, onSaved 
           <textarea rows={2} maxLength={5000} value={feedback} onChange={(e) => setFeedback(e.target.value)} className="input w-full" />
         </label>
       </div>
-      <button type="button" onClick={() => void save()} disabled={busy || grade.trim() === ''} className="btn btn-primary min-h-[44px] px-4">
+      {state.changing && (
+        <label className="block text-ink-muted" data-testid="grade-reason">Reason for changing the grade (required)
+          <input maxLength={500} value={reason} onChange={(e) => setReason(e.target.value)} className="input w-full" />
+        </label>
+      )}
+      <button type="button" onClick={() => void save()} disabled={busy || !state.canSave} className="btn btn-primary min-h-[44px] px-4">
         {busy ? 'Saving…' : 'Save grade'}
       </button>
       {error && <p role="alert" className="text-red-700">{error}</p>}

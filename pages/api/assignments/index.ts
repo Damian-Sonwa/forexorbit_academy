@@ -1,4 +1,5 @@
 import { unexpectedBody } from '@/lib/public-error';
+import { ASSIGNMENT_STATUSES, readDueDate, visibleToStudents } from '@/lib/academic-operations';
 /**
  * Assignments API Route
  * GET: List assignments for a course the caller can open
@@ -91,7 +92,8 @@ async function getAssignments(req: AuthRequest, res: NextApiResponse) {
       loaded.account.ok ? { userId: loaded.account.user.userId, role: loaded.account.user.role } : null,
       access.courseId
     );
-    const visible = assignmentsList.filter((assignment) => content.isOpen(assignment.lessonId ? String(assignment.lessonId) : null));
+    // Phase 12: draft assignments are staff-only.
+    const visible = assignmentsList.filter((assignment) => visibleToStudents(assignment) && content.isOpen(assignment.lessonId ? String(assignment.lessonId) : null));
     // Phase 9: the student's submissions for all listed assignments in one query (was one per assignment).
     const ownSubmissions = visible.length
       ? await loaded.db.collection('assignmentSubmissions').find({
@@ -133,8 +135,16 @@ async function createAssignment(req: AuthRequest, res: NextApiResponse) {
     if (!decision.ok) {
       return res.status(decision.status).json({ error: decision.error });
     }
+    // Phase 12: status (draft | published | closed; default published, as before) and a valid due date.
+    const requestedStatus = typeof body.status === 'string' ? body.status : 'published';
+    if (!(ASSIGNMENT_STATUSES as readonly string[]).includes(requestedStatus)) {
+      return res.status(400).json({ error: 'Status must be draft, published or closed.', code: 'invalid_status' });
+    }
+    const due = readDueDate(decision.document.dueDate ?? null);
+    if (!due.ok) return res.status(due.status).json({ error: due.error, code: due.code });
     const result = await loaded.db.collection('assignments').insertOne({
       ...decision.document,
+      status: requestedStatus,
       dueDate: decision.document.dueDate ? new Date(decision.document.dueDate) : null,
       createdAt: new Date(),
       updatedAt: new Date(),

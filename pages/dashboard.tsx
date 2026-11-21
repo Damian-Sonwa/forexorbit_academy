@@ -217,7 +217,7 @@ export default function Dashboard() {
         <div role="tabpanel" id="panel-overview" aria-labelledby="tab-overview" className="space-y-8 animate-fade-in-fast">
           <KeyFigures overview={data.overview} weekMinutes={data.learning.recentMinutes} />
 
-          <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_20rem]">
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_20rem]">
             <div className="min-w-0 space-y-8">
               <Section title="Up next">
                 {/* The hero already offers Continue, so it is not repeated here. */}

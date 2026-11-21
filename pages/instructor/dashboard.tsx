@@ -16,6 +16,7 @@ import Link from 'next/link';
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
 import PageHeader, { ReadoutStrip } from '@/components/ui/PageHeader';
+import { PortalNav } from '@/components/instructor/portal/PortalShell';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import RichTextEditor from '@/components/RichTextEditor';
 import { useAuth } from '@/hooks/useAuth';
@@ -700,6 +701,8 @@ export default function InstructorDashboard() {
           lede="Manage your courses, lessons, and track student progress"
           className="!mb-6"
         />
+        {/* Phase 12: the teaching portal's areas (overview, students, grading, activity, profile). */}
+        <div className="mb-6"><PortalNav pathname={router.pathname} /></div>
 
         <ReadoutStrip
           className="mb-6"

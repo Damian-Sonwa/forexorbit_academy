@@ -257,7 +257,7 @@ test('F5 idempotent: two overlapping full sweeps fill each of 230 triggered orde
 // F4 and step 6: index definitions
 // ---------------------------------------------------------------------------
 
-test('F4: T17 and T18 serve the sweep and recovery reads; T1-T20, L8/L9 and A1-A6 are all defined', () => {
+test('F4: T17 and T18 serve the sweep and recovery reads; T1-T20, L8/L9 and A1-A7 are all defined', () => {
   assert.deepEqual(TRADING_INDEXES.map((i) => i.id), Array.from({ length: 20 }, (_, i) => `T${i + 1}`));
   const byId = Object.fromEntries(TRADING_INDEXES.map((i) => [i.id, i]));
   assert.deepEqual([byId.T17.collection, byId.T17.key, byId.T17.options], ['tradingPositions', { status: 1, accountId: 1 }, { name: 'trading_position_status_account' }]);
@@ -267,7 +267,7 @@ test('F4: T17 and T18 serve the sweep and recovery reads; T1-T20, L8/L9 and A1-A
   // counts duplicates and --apply refuses, rather than failing part-way with E11000.
   for (const index of TRADING_INDEXES.filter((i) => i.options.unique)) assert.deepEqual(index.duplicateKey, Object.keys(index.key), index.id);
   for (const index of ASSESSMENT_INDEXES.filter((i) => i.options.unique)) assert.deepEqual(index.duplicateKey, Object.keys(index.key), index.id);
-  assert.deepEqual(ASSESSMENT_INDEXES.map((i) => i.id), ['A1', 'A2', 'A3', 'A4', 'A5', 'A6']);
+  assert.deepEqual(ASSESSMENT_INDEXES.map((i) => i.id), ['A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7']);
   assert.deepEqual(LEARNING_INDEXES.filter((i) => ['L8', 'L9'].includes(i.id)).map((i) => [i.collection, i.key]), [['learningDays', { userId: 1, day: -1 }], ['learningMinutes', { at: 1 }]]);
   assert.ok(LEARNING_INDEXES.every((i) => !i.options.unique), 'learning indexes are non-unique');
 
