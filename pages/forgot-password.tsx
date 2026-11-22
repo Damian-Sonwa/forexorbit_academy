@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useRef, useEffect } from 'react';
+import { useHydrated } from '@/hooks/useHydrated';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
@@ -32,6 +33,8 @@ export default function ForgotPassword() {
   const [error, setError] = useState('');
   const [sentMessage, setSentMessage] = useState('');
   const [loading, setLoading] = useState(false);
+  // Field-dependent disabled state only after hydration (hooks/useHydrated.ts).
+  const hydrated = useHydrated();
   const [retryAfterSeconds, setRetryAfterSeconds] = useState(0);
   const waitTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -82,8 +85,8 @@ export default function ForgotPassword() {
       <main className="flex-1 flex items-center justify-center bg-neutral-50 py-8 sm:py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-48 h-48 sm:w-64 sm:h-64 opacity-10">
           <svg viewBox="0 0 200 200" className="w-full h-full">
-            <path d="M50,50 Q100,0 150,50 T250,50" stroke="#E5E5E5" strokeWidth="2" fill="none" />
-            <path d="M30,100 Q100,50 170,100 T310,100" stroke="#E5E5E5" strokeWidth="2" fill="none" />
+            <path d="M10,150 L50,118 L72,132 L112,86 L134,100 L176,52 L200,44" stroke="#FF7012" strokeWidth="2" strokeLinejoin="miter" fill="none" />
+            <path d="M10,170 L50,138 L72,152 L112,106 L134,120 L176,72 L200,64" stroke="#FF7012" strokeWidth="1" strokeDasharray="2 6" fill="none" />
           </svg>
         </div>
 
@@ -150,7 +153,7 @@ export default function ForgotPassword() {
                 </div>
                 <button
                   type="submit"
-                  disabled={loading || !email.trim() || retryAfterSeconds > 0}
+                  disabled={loading || retryAfterSeconds > 0 || (hydrated && !email.trim())}
                   className="bg-primary-600 hover:bg-primary-700 text-white w-full rounded-xl py-3 font-semibold transition-colors disabled:bg-primary-900/50 disabled:cursor-not-allowed min-h-[48px]"
                 >
                   {loading ? <ButtonLoadingState loading loadingLabel="Sending link" /> : 'Send reset link'}

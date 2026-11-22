@@ -4,6 +4,7 @@
  */
 
 import { useState } from 'react';
+import { useHydrated } from '@/hooks/useHydrated';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { AuthFrame, authButtonClass, authFieldClass, authLabelClass } from '@/components/auth/AuthFrame';
@@ -28,6 +29,8 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  // Field-dependent disabled state only after hydration (hooks/useHydrated.ts).
+  const hydrated = useHydrated();
   const { login } = useAuth();
   const router = useRouter();
   const nextPath = safeNextPath(router.query.next);
@@ -126,7 +129,7 @@ export default function Login() {
         </div>
         <button
           type="submit"
-          disabled={loading || !email.trim() || !password.trim()}
+          disabled={loading || (hydrated && (!email.trim() || !password.trim()))}
           className={authButtonClass}
         >
           {loading ? <ButtonLoadingState loading loadingLabel="Signing in" /> : 'Sign in'}

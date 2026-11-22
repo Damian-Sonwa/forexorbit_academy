@@ -99,8 +99,8 @@ export default function ResetPassword() {
       <main className="flex-1 flex items-center justify-center bg-neutral-50 py-8 sm:py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-48 h-48 sm:w-64 sm:h-64 opacity-10">
           <svg viewBox="0 0 200 200" className="w-full h-full">
-            <path d="M50,50 Q100,0 150,50 T250,50" stroke="#E5E5E5" strokeWidth="2" fill="none" />
-            <path d="M30,100 Q100,50 170,100 T310,100" stroke="#E5E5E5" strokeWidth="2" fill="none" />
+            <path d="M10,150 L50,118 L72,132 L112,86 L134,100 L176,52 L200,44" stroke="#FF7012" strokeWidth="2" strokeLinejoin="miter" fill="none" />
+            <path d="M10,170 L50,138 L72,152 L112,106 L134,120 L176,72 L200,64" stroke="#FF7012" strokeWidth="1" strokeDasharray="2 6" fill="none" />
           </svg>
         </div>
 
