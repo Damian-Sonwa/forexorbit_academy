@@ -8,6 +8,7 @@ import { unexpectedBody } from '@/lib/public-error';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
+import { allowRequest, chatLimiter } from '@/lib/content-rate-limit';
 import { ObjectId } from 'mongodb';
 
 async function getMessages(req: AuthRequest, res: NextApiResponse) {
@@ -69,6 +70,8 @@ async function getMessages(req: AuthRequest, res: NextApiResponse) {
 }
 
 async function sendMessage(req: AuthRequest, res: NextApiResponse) {
+  // Phase 15: posting is rate limited per account (shared limiter, lib/content-rate-limit.js).
+  if (!(await allowRequest(chatLimiter, { userId: req.user!.userId, res, getDb }))) return undefined;
   try {
     const { sessionId, type, content } = req.body;
 

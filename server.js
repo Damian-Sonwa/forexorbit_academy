@@ -53,6 +53,9 @@ if (process.env.AI_API_KEY) {
   console.warn('AI API key is not configured. AI features will be disabled.');
 }
 
+// Phase 15: which optional integrations are configured (names only, never values).
+console.log(require('./lib/config-report').configReportLine(process.env));
+
 // Cookie sessions need the one canonical HTTPS origin (lib/request-guard.js). Refuse to start in
 // production without it, rather than accept or refuse requests from unknown origins.
 const appOrigin = appOriginConfig(process.env);

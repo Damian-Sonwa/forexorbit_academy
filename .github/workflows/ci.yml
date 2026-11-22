@@ -1,0 +1,82 @@
+# Continuous integration (Phase 15). Runs on every pull request and every push to master.
+# It never deploys and needs no secrets: unit and route tests use in-memory stand-ins, and the
+# real-MongoDB suites run against a throwaway MongoDB service container. Render still deploys
+# from master on its own; this check tells you before merging whether master would be broken.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Type-check, lint, tests and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      NODE_ENV: test
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: TypeScript
+        run: npx tsc --noEmit -p .
+      - name: Lint
+        run: npm run lint
+      - name: Unit and route tests
+        run: npm test
+      - name: Dependency audit (production, high and critical fail the build)
+        run: npm audit --omit=dev --audit-level=high
+      - name: Production build
+        run: npm run build
+
+  mongo:
+    name: Real-MongoDB integration tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      NODE_ENV: test
+      MONGODB_URI_TEST: mongodb://127.0.0.1:27017/?replicaSet=rs0
+      MONGODB_DB_NAME_TEST: Forex_elearning_ci_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      # A single-node replica set: the trading and payment code uses transactions.
+      - name: Start MongoDB (replica set)
+        run: |
+          docker run -d --name mongo -p 27017:27017 mongo:8.0 --replSet rs0 --bind_ip_all
+          for i in $(seq 1 30); do docker exec mongo mongosh --quiet --eval 'db.runCommand({ ping: 1 })' && break; sleep 2; done
+          docker exec mongo mongosh --quiet --eval "rs.initiate({ _id: 'rs0', members: [{ _id: 0, host: '127.0.0.1:27017' }] })"
+          for i in $(seq 1 30); do docker exec mongo mongosh --quiet --eval 'db.hello().isWritablePrimary' | grep -q true && break; sleep 2; done
+      - name: Integration suites
+        run: |
+          npm run test:mongo
+          npm run test:mongo:payments
+          npm run test:mongo:enrollment
+          npm run test:mongo:progress
+          npm run test:mongo:assessments
+          npm run test:mongo:trading
+          npm run test:mongo:market
+          npm run test:mongo:sweep
+          npm run test:mongo:hardkill
+          npm run test:mongo:indexes
+      - name: Backup and restore drill
+        env:
+          DRILL_MONGO_URI: mongodb://127.0.0.1:27017/?replicaSet=rs0
+        run: node scripts/restore-drill.js

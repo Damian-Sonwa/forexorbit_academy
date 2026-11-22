@@ -126,11 +126,11 @@ function Workspace({ detail, attempt, reload }: { detail: StudentTaskDetail; att
   let n = 0;
 
   return (
-    <section className="card p-5 sm:p-6" aria-labelledby="workspace-title" data-testid="workspace">
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+    <section id="workspace" className="scroll-mt-24" aria-labelledby="workspace-title" data-testid="workspace">
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="page-kicker">Attempt {attempt.attempt}{attempt.resubmission ? ' · resubmission' : ''}</p>
-          <h2 id="workspace-title" className="section-title mt-2">Your workspace</h2>
+          <h2 id="workspace-title" className="section-title mt-2">Your work</h2>
         </div>
         <span className="text-xs text-ink-subtle" aria-live="polite">{saved ? `Saved ${formatDate(saved, true)}` : 'Your work saves as you go'}</span>
       </div>
@@ -220,7 +220,7 @@ function AttemptHistory({ attempts }: { attempts: AttemptView[] }) {
   if (!done.length) return null;
   return (
     <section aria-labelledby="history-title" className="space-y-3">
-      <h2 id="history-title" className="section-title">Submissions</h2>
+      <h2 id="history-title" className="section-title">Past submissions</h2>
       {done.map((a, i) => (
         <Disclosure key={a.id} defaultOpen={i === 0 && !a.result} title={`Attempt ${a.attempt}`} hint={`${ATTEMPT_STATUS[a.status]?.label || a.status} · ${formatDate(a.submittedAt, true)}${a.result && a.result.score !== null ? ` · ${a.result.score}/${a.result.maxScore}` : ''}`}>
           <div className="space-y-4">
@@ -285,91 +285,101 @@ export default function PracticalTaskPage() {
           {loading && !data && <LessonSkeleton />}
           {error && <ErrorState text={error.startsWith('Not found') ? 'This task is not assigned to you, or it no longer exists.' : error} onRetry={() => void reload()} />}
           {t && st && (
-            <div className="space-y-6">
-              <header className="panel-hero p-5 sm:p-7">
+            <>
+              {/* 1. What the task is, and the one thing to do next. */}
+              <header className="border-b border-line pb-6">
                 <div className="flex flex-wrap items-center gap-2">
                   <Chip map={STUDENT_STATE} value={st.state} />
-                  <span className="chip">{t.categoryLabel}</span>
+                  <span className="text-xs font-medium text-ink-muted">{t.categoryLabel}</span>
                   {t.requirements.simulator && <SimulatedNote />}
                 </div>
-                <h1 className="page-title mt-4 [overflow-wrap:anywhere]">{t.title}</h1>
+                <h1 className="page-title mt-3 [overflow-wrap:anywhere]">{t.title}</h1>
                 {t.summary && <p className="page-lede">{t.summary}</p>}
-                <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-ink-muted">
+                <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-ink-muted">
                   <span>{t.instructor}{t.course ? ` · ${t.course}` : ''}</span>
                   <DifficultyDots value={t.difficulty} />
                   <ModeBadge mode={t.gradingMode} long />
-                  <span>{t.instruments.map(pair).join(' · ')}</span>
                   <Deadline iso={st.deadline} />
                   <span className="num">{t.rubric.maxScore} points · {st.attemptsLeft} of {t.maxAttempts} attempt{t.maxAttempts === 1 ? '' : 's'} left</span>
                 </div>
+                <div className="mt-5 flex flex-wrap items-center gap-3">
+                  {current && <a href="#workspace" className="btn btn-primary" data-testid="continue-task">Continue to your work</a>}
+                  {st.canStart && !current && (
+                    <button type="button" className="btn btn-primary" onClick={() => void start()} disabled={starting} data-testid="start-task">
+                      {starting ? 'Starting…' : st.state === 'returned' ? 'Start revision' : data.attempts.length ? 'Try again' : 'Start task'}
+                    </button>
+                  )}
+                  {latestResult && latestResult.result && !current && <a href="#result" className="btn btn-ghost">See your result</a>}
+                  {!current && st.canStart && <span className="text-xs text-ink-subtle">Read the brief first. Starting opens your work area below it.</span>}
+                </div>
+                {data.attempts.length > 0 && st.state === 'graded' && st.canStart && <p className="mt-2 text-xs text-ink-subtle">Another attempt replaces this result when it is graded. Earlier attempts are kept.</p>}
+                {startError && <p className="notice notice-caution mt-3 text-sm" role="alert">{startError}</p>}
+                {!current && st.state === 'awaiting_grading' && (
+                  <p className="notice notice-brand mt-4 text-sm" data-testid="awaiting">Submitted. {data.attempts[0]?.status === 'awaiting_review' ? 'The system has assessed what it can; your instructor reviews it and publishes the result.' : 'Your instructor grades it and you are notified when the result is published.'}</p>
+                )}
               </header>
 
-              <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
-                <div className="min-w-0 space-y-6">
+              <div className="grid gap-x-12 lg:grid-cols-[minmax(0,1fr)_16rem]">
+                <div className="min-w-0 divide-y divide-[var(--fo-line)]">
+                  {/* 2. The brief always comes first. */}
+                  <section id="brief" className="scroll-mt-24 space-y-8 py-8" aria-labelledby="brief-title" data-testid="task-brief">
+                    <h2 id="brief-title" className="section-title">Task brief</h2>
+                    <div>
+                      <h3 className="readout-label">Learning objectives</h3>
+                      <ul className="mt-3 space-y-2 text-sm text-ink">{t.objectives.map((o) => <li key={o} className="flex gap-2.5"><span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary-500" aria-hidden />{o}</li>)}</ul>
+                    </div>
+                    <div>
+                      <h3 className="readout-label mb-3">Instructions</h3>
+                      <Instructions blocks={t.blocks} />
+                    </div>
+                    <div>
+                      <h3 className="readout-label mb-3">How it is graded</h3>
+                      <RubricList criteria={t.rubric.criteria} maxScore={t.rubric.maxScore} />
+                    </div>
+                    {t.resources.length > 0 && (
+                      <div>
+                        <h3 className="readout-label mb-3">Resources</h3>
+                        <ul className="space-y-1.5">{t.resources.map((r) => <li key={r.url}><a href={r.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-sm font-medium text-primary-600 hover:underline dark:text-primary-400"><ExternalLink className="h-3.5 w-3.5" aria-hidden />{r.label}</a></li>)}</ul>
+                      </div>
+                    )}
+                  </section>
+
+                  {/* 3. The work, once started. */}
+                  {current && <div className="py-8"><Workspace key={current.id} detail={data} attempt={current} reload={reload} /></div>}
+
+                  {/* 4. The latest result. */}
                   {latestResult && latestResult.result && !current && (
-                    <section className="card p-5 sm:p-6" aria-labelledby="result-title">
+                    <section id="result" className="scroll-mt-24 py-8" aria-labelledby="result-title">
                       <p className="page-kicker">Attempt {latestResult.attempt}</p>
-                      <h2 id="result-title" className="section-title mb-5 mt-2">Your result</h2>
+                      <h2 id="result-title" className="section-title mb-6 mt-2">Your result</h2>
                       <ResultReport result={latestResult.result} mode={latestResult.gradingMode} />
                     </section>
                   )}
-                  {current && <Workspace key={current.id} detail={data} attempt={current} reload={reload} />}
-                  {!current && st.state === 'awaiting_grading' && (
-                    <div className="notice notice-brand text-sm" data-testid="awaiting">Submitted. {data.attempts[0]?.status === 'awaiting_review' ? 'The system has assessed what it can; your instructor reviews it and publishes the result.' : 'Your instructor grades it and you are notified when the result is published.'}</div>
-                  )}
-                  <Disclosure title="Task brief" hint={current ? 'instructions, objectives, rubric' : undefined} defaultOpen={!current}>
-                    <div className="space-y-6">
-                      <div>
-                        <p className="readout-label">Learning objectives</p>
-                        <ul className="mt-2 space-y-1.5 text-sm text-ink">{t.objectives.map((o) => <li key={o} className="flex gap-2"><span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary-500" aria-hidden />{o}</li>)}</ul>
-                      </div>
-                      <div>
-                        <p className="readout-label mb-2">Instructions</p>
-                        <Instructions blocks={t.blocks} />
-                      </div>
-                      <div>
-                        <p className="readout-label mb-2">How it is graded</p>
-                        <RubricList criteria={t.rubric.criteria} maxScore={t.rubric.maxScore} />
-                      </div>
-                      {t.resources.length > 0 && (
-                        <div>
-                          <p className="readout-label mb-2">Resources</p>
-                          <ul className="space-y-1.5">{t.resources.map((r) => <li key={r.url}><a href={r.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-sm font-medium text-primary-600 hover:underline dark:text-primary-400"><ExternalLink className="h-3.5 w-3.5" aria-hidden />{r.label}</a></li>)}</ul>
-                        </div>
-                      )}
-                    </div>
-                  </Disclosure>
-                  <AttemptHistory attempts={data.attempts} />
+
+                  {data.attempts.some((a) => a.status !== 'in_progress') && <div className="py-8"><AttemptHistory attempts={data.attempts} /></div>}
                 </div>
 
-                <aside className="space-y-4 lg:sticky lg:top-6">
-                  <div className="card p-5">
-                    <p className="readout-label">Task rules</p>
-                    <dl className="mt-3 space-y-2.5 text-sm">
-                      {t.requirements.simulator && <div className="flex justify-between gap-3"><dt className="text-ink-muted">Trades</dt><dd className="num text-ink">{t.requirements.minTrades === t.requirements.maxTrades ? t.requirements.minTrades : `${t.requirements.minTrades}-${t.requirements.maxTrades}`}</dd></div>}
-                      <div className="flex justify-between gap-3"><dt className="text-ink-muted">Max risk per trade</dt><dd className="num text-ink">{t.requirements.maxRiskPercent}%</dd></div>
-                      <div className="flex justify-between gap-3"><dt className="text-ink-muted">Min reward : risk</dt><dd className="num text-ink">{t.requirements.minRewardRisk} : 1</dd></div>
-                      {t.requirements.side && <div className="flex justify-between gap-3"><dt className="text-ink-muted">Direction</dt><dd className="capitalize text-ink">{t.requirements.side}</dd></div>}
-                      <div className="flex justify-between gap-3"><dt className="text-ink-muted">Order types</dt><dd className="text-right capitalize text-ink">{t.requirements.orderTypes.join(', ')}</dd></div>
-                      <div className="flex justify-between gap-3"><dt className="text-ink-muted">External evidence</dt><dd className="capitalize text-ink">{t.requirements.external === 'none' ? 'Not used' : t.requirements.external}</dd></div>
-                      <div className="flex justify-between gap-3"><dt className="text-ink-muted">Deadline</dt><dd className="text-right text-ink">{st.deadline ? formatDate(st.deadline, true) : 'None'}</dd></div>
-                    </dl>
-                    {st.canStart && !current && (
-                      <>
-                        <button type="button" className="btn btn-primary mt-5 w-full" onClick={() => void start()} disabled={starting} data-testid="start-task">{starting ? 'Starting…' : st.state === 'returned' ? 'Start revision' : data.attempts.length ? 'Try again' : 'Start task'}</button>
-                        {data.attempts.length > 0 && st.state === 'graded' && <p className="mt-2 text-xs text-ink-subtle">Another attempt replaces this result when it is graded. Earlier attempts are kept.</p>}
-                      </>
-                    )}
-                    {startError && <p className="notice notice-caution mt-3 text-sm" role="alert">{startError}</p>}
-                  </div>
-                  <div className="rounded-panel border border-line bg-surface-2 p-4 text-xs text-ink-muted">
-                    <p className="font-semibold text-ink">{MODE[t.gradingMode].label}</p>
-                    <p className="mt-1">{MODE[t.gradingMode].help}</p>
-                    <p className="mt-2">The outcome of a trade does not decide the grade: the quality of your decisions and your risk management does.</p>
-                  </div>
+                {/* Rules at a glance: a quiet side column, not a card. */}
+                <aside className="border-t border-line py-8 text-sm lg:sticky lg:top-24 lg:self-start lg:border-l lg:border-t-0 lg:py-8 lg:pl-8" aria-labelledby="rules-title">
+                  <h2 id="rules-title" className="readout-label">Task rules</h2>
+                  <dl className="mt-3 divide-y divide-[var(--fo-line)]">
+                    {[
+                      ...(t.requirements.simulator ? [['Trades', t.requirements.minTrades === t.requirements.maxTrades ? String(t.requirements.minTrades) : `${t.requirements.minTrades}-${t.requirements.maxTrades}`]] : []),
+                      ['Instruments', t.instruments.map(pair).join(', ')],
+                      ['Max risk per trade', `${t.requirements.maxRiskPercent}%`],
+                      ['Min reward : risk', `${t.requirements.minRewardRisk} : 1`],
+                      ...(t.requirements.side ? [['Direction', t.requirements.side]] : []),
+                      ['Order types', t.requirements.orderTypes.join(', ')],
+                      ['External evidence', t.requirements.external === 'none' ? 'Not used' : t.requirements.external],
+                      ['Deadline', st.deadline ? formatDate(st.deadline, true) : 'None'],
+                    ].map(([k, v]) => (
+                      <div key={k} className="flex justify-between gap-3 py-2"><dt className="text-ink-muted">{k}</dt><dd className="text-right capitalize text-ink num">{v}</dd></div>
+                    ))}
+                  </dl>
+                  <p className="mt-5 text-xs leading-relaxed text-ink-muted"><span className="font-semibold text-ink">{MODE[t.gradingMode].label}.</span> {MODE[t.gradingMode].help} The outcome of a trade does not decide the grade: your decisions and risk management do.</p>
                 </aside>
               </div>
-            </div>
+            </>
           )}
         </main>
       </div>

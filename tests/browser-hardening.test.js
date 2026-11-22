@@ -125,8 +125,11 @@ test('both chat upload routes refuse active content before storing it and use ra
     const source = read(route);
     const check = source.indexOf('isActiveContent({ originalFilename: file.originalFilename, mimetype: file.mimetype })');
     assert.ok(check > 0, route);
-    assert.ok(check < source.indexOf('fs.renameSync(file.filepath, newPath)'), `${route}: checked before the file is moved into place`);
-    assert.match(source, /const uniqueFilename = storedFileName\(file\.originalFilename\);/);
+    // Phase 15: files are stored privately (lib/chat-attachments.ts) instead of moved under public/.
+    const store = source.indexOf('storeChatAttachment(file.filepath');
+    assert.ok(store > 0 && check < store, `${route}: checked before the file is stored`);
     assert.doesNotMatch(source, /Math\.random/);
   }
+  // Stored names are random and unguessable (never derived from the upload or the user).
+  assert.match(read('lib/chat-attachments.ts'), /public_id: randomPublicId\(\)/);
 });

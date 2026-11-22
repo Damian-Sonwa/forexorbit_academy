@@ -10,8 +10,10 @@ import { getDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 import formidable from 'formidable';
 import fs from 'fs';
-import path from 'path';
-import { isActiveContent, storedFileName } from '@/lib/upload-safety';
+import os from 'os';
+import { isActiveContent } from '@/lib/upload-safety';
+import { allowRequest, uploadLimiter } from '@/lib/content-rate-limit';
+import { ATTACHMENT_MAX_BYTES, attachmentPath, attachmentsAvailable, storeChatAttachment } from '@/lib/chat-attachments';
 
 export const config = {
   api: {
@@ -20,24 +22,25 @@ export const config = {
 };
 
 async function uploadMessageFile(req: AuthRequest, res: NextApiResponse) {
+  // Phase 15: rate limited; temporary storage only; access checked before anything is kept;
+  // stored privately (lib/chat-attachments.ts), never under public/.
+  if (!(await allowRequest(uploadLimiter, { userId: req.user!.userId, res, getDb }))) return undefined;
+  if (!attachmentsAvailable()) return res.status(503).json({ error: 'File sharing is not available right now. You can still send text messages.' });
+  let tempPath: string | null = null;
   try {
     const form = formidable({
-      uploadDir: path.join(process.cwd(), 'public', 'uploads', 'consultations'),
-      keepExtensions: true,
-      maxFileSize: 50 * 1024 * 1024, // 50MB limit
+      uploadDir: os.tmpdir(),
+      keepExtensions: false,
+      maxFiles: 1,
+      maxFileSize: ATTACHMENT_MAX_BYTES,
     });
-
-    // Ensure upload directory exists
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'consultations');
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
 
     const [fields, files] = await form.parse(req);
 
     const file = Array.isArray(files.file) ? files.file[0] : files.file;
     const sessionId = Array.isArray(fields.sessionId) ? fields.sessionId[0] : fields.sessionId;
     const type = Array.isArray(fields.type) ? fields.type[0] : fields.type;
+    if (file) tempPath = file.filepath;
 
     if (!file || !sessionId || !type) {
       return res.status(400).json({ error: 'File, sessionId, and type are required' });
@@ -45,21 +48,13 @@ async function uploadMessageFile(req: AuthRequest, res: NextApiResponse) {
 
     // Pages, SVG and scripts would run from this site's origin; they are refused (lib/upload-safety.js).
     if (isActiveContent({ originalFilename: file.originalFilename, mimetype: file.mimetype })) {
-      if (fs.existsSync(file.filepath)) fs.unlinkSync(file.filepath);
       return res.status(400).json({ error: 'This file type cannot be shared. Send an image, video, audio or document file.', code: 'file_type_not_allowed' });
     }
+    if (typeof sessionId !== 'string' || !ObjectId.isValid(sessionId) || sessionId.length !== 24) {
+      return res.status(400).json({ error: 'Invalid session' });
+    }
 
-    // Random, unguessable stored name
-    const uniqueFilename = storedFileName(file.originalFilename);
-    const newPath = path.join(uploadDir, uniqueFilename);
-
-    // Move file to final location
-    fs.renameSync(file.filepath, newPath);
-
-    // Generate URL
-    const fileUrl = `/uploads/consultations/${uniqueFilename}`;
-
-    // Verify session access
+    // Verify session access (before the file is stored)
     const db = await getDb();
     const sessions = db.collection('consultationSessions');
     const messages = db.collection('consultationMessages');
@@ -84,6 +79,11 @@ async function uploadMessageFile(req: AuthRequest, res: NextApiResponse) {
       return res.status(400).json({ error: 'Session is not active' });
     }
 
+    // Store privately; the message links to the authorized reader route.
+    const messageId = new ObjectId();
+    const attachment = await storeChatAttachment(file.filepath, 'consultation-chat');
+    const fileUrl = attachmentPath('consultation', messageId.toString());
+
     // Get sender info
     const sender = await users.findOne(
       { _id: new ObjectId(req.user!.userId) },
@@ -91,8 +91,10 @@ async function uploadMessageFile(req: AuthRequest, res: NextApiResponse) {
     );
 
     const message = {
+      _id: messageId,
       sessionId,
       senderId: req.user!.userId,
+      attachment,
       type,
       content: file.originalFilename || 'File',
       fileUrl,
@@ -135,8 +137,10 @@ async function uploadMessageFile(req: AuthRequest, res: NextApiResponse) {
       },
     });
   } catch (error: any) {
-    const failure = publicUploadFailure(error, { limitMessage: 'File size exceeds 50MB limit' });
+    const failure = publicUploadFailure(error, { limitMessage: 'File size exceeds 25MB limit' });
     return res.status(failure.status).json(failure.body);
+  } finally {
+    if (tempPath) fs.promises.unlink(tempPath).catch(() => undefined);
   }
 }
 

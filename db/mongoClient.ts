@@ -5,6 +5,7 @@
  */
 
 import { MongoClient } from 'mongodb';
+import { connectShared } from '@/lib/mongo-options';
 import { assertDevelopmentDatabase } from '@/lib/dev-database-guard';
 
 const uri = (process.env.MONGO_URI || process.env.MONGODB_URI)?.trim();
@@ -22,7 +23,6 @@ if (!uri.startsWith('mongodb')) {
 // Outside production, an explicit non-production MONGODB_DB_NAME is required (lib/dev-database-guard.js).
 assertDevelopmentDatabase();
 
-let client: MongoClient;
 let clientPromise: Promise<MongoClient>;
 
 // In development, use a global variable to preserve the connection across hot reloads
@@ -33,12 +33,14 @@ declare global {
 // One client per process, in every environment. server.js (lib/mongodb.js) and the Next API
 // routes share it through this global, so the process keeps one connection pool and pays the
 // connection set-up once instead of once per client. In development it also survives HMR.
-if (!(global as any)._mongoClientPromise) {
-  client = new MongoClient(uri);
-  (global as any)._mongoClientPromise = client.connect();
-  console.log(`✓ MongoDB client connected (${process.env.NODE_ENV || 'development'})`);
+// Phase 15: bounded timeouts and pool, and a failed connection is retried on the next request
+// instead of failing every request until a restart (lib/mongo-options.js).
+clientPromise = connectShared(MongoClient, uri as string);
+
+/** The shared client, reconnecting if an earlier attempt failed. */
+export function getClientPromise(): Promise<MongoClient> {
+  return connectShared(MongoClient, uri as string);
 }
-clientPromise = (global as any)._mongoClientPromise;
 
 // Export the client promise for use in API routes and services
 export default clientPromise;

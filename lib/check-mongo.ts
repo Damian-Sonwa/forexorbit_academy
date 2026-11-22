@@ -17,15 +17,22 @@ export async function checkMongo(existingDb: Db | null | undefined): Promise<boo
   }
 }
 
-/** Hard cap so a stuck command cannot block the handler past `ms`. */
+/**
+ * Hard cap so a stuck command cannot block the handler past `ms`. Phase 15: the timer is cleared
+ * when the ping answers; before, it always fired and logged "deadline exceeded" 10 s after every
+ * deep health check, even a successful one (a false alarm in the logs).
+ */
 export async function checkMongoWithDeadline(ms: number, db: Db): Promise<boolean> {
-  return Promise.race([
-    checkMongo(db),
-    new Promise<boolean>((resolve) => {
-      setTimeout(() => {
-        console.error('[checkMongo] deadline exceeded', ms, 'ms');
-        resolve(false);
-      }, ms);
-    }),
-  ]);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<boolean>((resolve) => {
+    timer = setTimeout(() => {
+      console.error('[checkMongo] deadline exceeded', ms, 'ms');
+      resolve(false);
+    }, ms);
+  });
+  try {
+    return await Promise.race([checkMongo(db), deadline]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }

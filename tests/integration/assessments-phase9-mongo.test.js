@@ -441,7 +441,7 @@ test('real MongoDB: 25 concurrent reconciles of one interrupted attempt write on
 // Indexes
 // ---------------------------------------------------------------------------
 
-test('real MongoDB: the index script is read-only without --apply, builds A1-A6 with it, and is idempotent', { skip }, async () => {
+test('real MongoDB: the index script is read-only without --apply, builds A1-A7 with it, and is idempotent', { skip }, async () => {
   const conn = await fresh({ indexes: false });
   await closing(conn, async () => {
     await conn.db.collection('quizScores').insertMany([
@@ -457,7 +457,8 @@ test('real MongoDB: the index script is read-only without --apply, builds A1-A6 
     assert.ok(log.some((l) => /A5 quizScores quiz_score_attempt: missing/.test(l)));
 
     const applied = await runIndexScript(conn.db, { apply: true, log: () => {} });
-    assert.deepEqual([applied.ok, applied.built], [true, ['A1', 'A2', 'A3', 'A4', 'A5', 'A6']], 'rows from before Phase 9 do not block A5');
+    // A7 (Phase 12: submissions by assignment and status, for the grading queue) joined the plan.
+    assert.deepEqual([applied.ok, applied.built], [true, ['A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7']], 'rows from before Phase 9 do not block A5');
     const again = await runIndexScript(conn.db, { apply: true, log: () => {} });
     assert.deepEqual([again.ok, again.built], [true, []]);
     assert.ok((await assessmentIndexReport(conn.db)).every((r) => r.state === 'present'));
@@ -698,7 +699,8 @@ async function assignmentWorld(db) {
   const T = { student: await sessionFor(db, userId), instructor: await sessionFor(db, w.instructor) };
   const points = async () => (await db.collection('users').findOne({ _id: new ObjectId(userId) })).points;
   const submit = (text = 'work') => callRoute(r.submit, { method: 'POST', token: T.student, body: { submissionText: text }, query: { id: assignmentId } });
-  const grade = (submissionId, value) => callRoute(r.grade, { method: 'POST', token: T.instructor, body: { submissionId, grade: value, feedback: 'f' }, query: { id: assignmentId } });
+  // Phase 12: changing an existing grade needs a reason (5-500 characters), kept in the history.
+  const grade = (submissionId, value, reason) => callRoute(r.grade, { method: 'POST', token: T.instructor, body: { submissionId, grade: value, feedback: 'f', ...(reason ? { reason } : {}) }, query: { id: assignmentId } });
   const row = () => db.collection('assignmentSubmissions').findOne({ userId });
   return { w, userId, points, submit, grade, row };
 }
@@ -723,7 +725,7 @@ test('real MongoDB: concurrent grading: the stored points always equal what hist
       const x = await assignmentWorld(conn.db);
       await x.submit();
       const id = String((await x.row())._id);
-      const statuses = (await Promise.all([20, 40, 60, 80, 100, 90, 70, 50].map((g) => x.grade(id, g)))).map((r) => r.statusCode);
+      const statuses = (await Promise.all([20, 40, 60, 80, 100, 90, 70, 50].map((g) => x.grade(id, g, 'Concurrent grading check')))).map((r) => r.statusCode);
       assert.ok(statuses.every((s) => s === 200 || s === 409), statuses.join());
       assert.ok(statuses.includes(200));
       const row = await x.row();
@@ -746,9 +748,9 @@ test('real MongoDB: regrade and resubmission move only the difference; the recor
       assert.equal(await x.points(), 90);
       await x.submit('v2');
       assert.equal(await x.points(), 90);
-      await x.grade(id, 100);
+      await x.grade(id, 100, 'Resubmission graded again');
       assert.equal(await x.points(), 100);
-      await x.grade(id, 40);
+      await x.grade(id, 40, 'Lowered after review');
       assert.equal(await x.points(), 70);
       const row = await x.row();
       assert.deepEqual(row.gradeHistory.map((h) => h.grade), [80, 100, 40]);
@@ -783,5 +785,5 @@ test('real MongoDB: an interrupted award applies exactly once across 20 concurre
 });
 
 test('definitions: every index in the plan has a name and the unique ones a duplicate check', { skip }, () => {
-  assert.equal(ASSESSMENT_INDEXES.length, 6);
+  assert.equal(ASSESSMENT_INDEXES.length, 7); // A7 added in Phase 12
 });

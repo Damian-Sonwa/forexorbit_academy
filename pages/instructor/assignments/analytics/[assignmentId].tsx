@@ -9,22 +9,10 @@ import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
-import { chartPalette, chartTooltipStyle } from '@/lib/chart-theme';
+import { chartPalette } from '@/lib/chart-theme';
 import { apiClient } from '@/lib/api-client';
 import SubmissionGradeForm, { type GradeHistoryEntry } from '@/components/instructor/SubmissionGradeForm';
-import {
-  BarChart,
-  Bar,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  Cell,
-} from 'recharts';
+import dynamic from 'next/dynamic';
 import { format } from 'date-fns';
 
 interface AnalyticsData {
@@ -74,6 +62,8 @@ interface AnalyticsData {
     gradeHistory?: GradeHistoryEntry[];
   }>;
 }
+
+const AssignmentAnalyticsCharts = dynamic(() => import('@/components/instructor/AssignmentAnalyticsCharts'), { ssr: false, loading: () => <div className="mb-8 h-[300px] rounded-xl border border-line bg-surface-2" aria-hidden /> });
 
 const COLORS = ['#15803D', '#B85C0E', '#A16207', '#DC2626', '#171717'];
 
@@ -284,71 +274,8 @@ export default function AssignmentAnalytics() {
               </div>
             </div>
 
-            {/* Charts Row */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-              {/* Submission Timeline Chart */}
-              <div className="card rounded-xl p-6">
-                <h2 className="text-xl font-bold mb-4 text-ink">Submission Timeline</h2>
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={analytics.submissionTimeline}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} />
-                    <XAxis
-                      dataKey="date"
-                      tickFormatter={(value) => format(new Date(value), 'MMM dd')}
-                      stroke={chart.axis}
-                    />
-                    <YAxis stroke={chart.axis} />
-                    <Tooltip
-                      labelFormatter={(value) => format(new Date(value), 'MMM dd, yyyy')}
-                      contentStyle={chartTooltipStyle(chart)}
-                    />
-                    <Legend />
-                    <Line type="monotone" dataKey="count" stroke={chart.accent} strokeWidth={2} name="Submissions" />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-
-              {/* Score Distribution Chart */}
-              <div className="card rounded-xl p-6">
-                <h2 className="text-xl font-bold mb-4 text-ink">Score Distribution</h2>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={scoreDistributionData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} />
-                    <XAxis dataKey="range" stroke={chart.axis} />
-                    <YAxis stroke={chart.axis} />
-                    <Tooltip
-                      contentStyle={chartTooltipStyle(chart)}
-                    />
-                    <Legend />
-                    <Bar dataKey="count" name="Students" fill={chart.accent}>
-                      {scoreDistributionData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-            {/* Student Scores Bar Chart */}
-            {studentScoresData.length > 0 && (
-              <div className="card rounded-xl p-6 mb-8">
-                <h2 className="text-xl font-bold mb-4 text-ink">Top Student Scores</h2>
-                <ResponsiveContainer width="100%" height={400}>
-                  <BarChart data={studentScoresData} layout="vertical">
-                    <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} />
-                    <XAxis type="number" domain={[0, 100]} stroke={chart.axis} />
-                    <YAxis dataKey="name" type="category" stroke={chart.axis} width={120} />
-                    <Tooltip
-                      contentStyle={chartTooltipStyle(chart)}
-                      formatter={(value: number) => `${value}%`}
-                    />
-                    <Legend />
-                    <Bar dataKey="score" name="Score (%)" fill="#10b981" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            )}
+            {/* Charts (recharts loads on demand: components/instructor/AssignmentAnalyticsCharts.tsx) */}
+            <AssignmentAnalyticsCharts timeline={analytics.submissionTimeline} scoreDistribution={scoreDistributionData} studentScores={studentScoresData} colors={COLORS} chart={chart} />
 
             {/* Student Submissions Table */}
             <div className="card rounded-xl overflow-hidden">

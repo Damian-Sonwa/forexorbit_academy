@@ -9,10 +9,12 @@ import { getDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 import formidable from 'formidable';
 import fs from 'fs';
-import path from 'path';
 import { communityMember, decideCommunityMessageAccess, isStoredId } from '@/lib/account-access';
 import { publicUploadFailure } from '@/lib/public-error';
-import { isActiveContent, storedFileName } from '@/lib/upload-safety';
+import os from 'os';
+import { isActiveContent } from '@/lib/upload-safety';
+import { allowRequest, uploadLimiter } from '@/lib/content-rate-limit';
+import { ATTACHMENT_MAX_BYTES, attachmentPath, attachmentsAvailable, storeChatAttachment } from '@/lib/chat-attachments';
 
 export const config = {
   api: {
@@ -21,24 +23,25 @@ export const config = {
 };
 
 async function uploadMessageFile(req: AuthRequest, res: NextApiResponse) {
+  // Phase 15: rate limited; temporary storage only; access checked before anything is kept;
+  // stored privately (lib/chat-attachments.ts), never under public/.
+  if (!(await allowRequest(uploadLimiter, { userId: req.user!.userId, res, getDb }))) return undefined;
+  if (!attachmentsAvailable()) return res.status(503).json({ error: 'File sharing is not available right now. You can still send text messages.' });
+  let tempPath: string | null = null;
   try {
     const form = formidable({
-      uploadDir: path.join(process.cwd(), 'public', 'uploads', 'community'),
-      keepExtensions: true,
-      maxFileSize: 50 * 1024 * 1024, // 50MB
+      uploadDir: os.tmpdir(),
+      keepExtensions: false,
+      maxFiles: 1,
+      maxFileSize: ATTACHMENT_MAX_BYTES,
     });
-
-    // Ensure upload directory exists
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'community');
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
 
     const [fields, files] = await form.parse(req);
 
     const file = Array.isArray(files.file) ? files.file[0] : files.file;
     const roomId = Array.isArray(fields.roomId) ? fields.roomId[0] : fields.roomId;
     const type = Array.isArray(fields.type) ? fields.type[0] : fields.type;
+    if (file) tempPath = file.filepath;
 
     if (!file || !roomId || !type) {
       return res.status(400).json({ error: 'File, roomId, and type are required' });
@@ -50,15 +53,6 @@ async function uploadMessageFile(req: AuthRequest, res: NextApiResponse) {
       return res.status(400).json({ error: 'This file type cannot be shared. Send an image, video, audio or document file.', code: 'file_type_not_allowed' });
     }
 
-    // Random, unguessable stored name
-    const uniqueFilename = storedFileName(file.originalFilename);
-    const newPath = path.join(uploadDir, uniqueFilename);
-
-    // Move file to final location
-    fs.renameSync(file.filepath, newPath);
-
-    // Generate URL
-    const fileUrl = `/uploads/community/${uniqueFilename}`;
 
     // Save message to database
     const db = await getDb();
@@ -68,12 +62,10 @@ async function uploadMessageFile(req: AuthRequest, res: NextApiResponse) {
 
     // Verify room access
     if (!isStoredId(roomId)) {
-      fs.unlinkSync(newPath);
       return res.status(400).json({ error: 'Invalid room ID format' });
     }
     const room = await rooms.findOne({ _id: new ObjectId(roomId) });
     if (!room) {
-      fs.unlinkSync(newPath);
       return res.status(404).json({ error: 'Room not found' });
     }
 
@@ -86,12 +78,18 @@ async function uploadMessageFile(req: AuthRequest, res: NextApiResponse) {
       room,
     });
     if (!access.ok) {
-      fs.unlinkSync(newPath);
       return res.status(access.status).json({ error: access.error });
     }
 
+    // Store privately; the message links to the authorized reader route.
+    const messageId = new ObjectId();
+    const attachment = await storeChatAttachment(file.filepath, 'community-chat');
+    const fileUrl = attachmentPath('community', messageId.toString());
+
     // Get sender info
     const message = {
+      _id: messageId,
+      attachment,
       roomId: access.roomId,
       senderId: access.senderId,
       type,
@@ -144,8 +142,10 @@ async function uploadMessageFile(req: AuthRequest, res: NextApiResponse) {
       },
     });
   } catch (error: any) {
-    const failure = publicUploadFailure(error, { limitMessage: 'File size exceeds 50MB limit' });
+    const failure = publicUploadFailure(error, { limitMessage: 'File size exceeds 25MB limit' });
     return res.status(failure.status).json(failure.body);
+  } finally {
+    if (tempPath) fs.promises.unlink(tempPath).catch(() => undefined);
   }
 }
 

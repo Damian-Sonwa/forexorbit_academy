@@ -8,6 +8,7 @@ import { publicUploadFailure } from '@/lib/public-error';
 import type { NextApiResponse } from 'next';
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
+import { allowRequest, uploadLimiter } from '@/lib/content-rate-limit';
 import formidable from 'formidable';
 import fs from 'fs';
 import { uploadImageFromPath, isCloudinaryConfigured } from '@/lib/cloudinary';
@@ -19,6 +20,8 @@ export const config = {
 };
 
 async function uploadCertificate(req: AuthRequest, res: NextApiResponse) {
+  // Phase 15: uploads are rate limited per account.
+  if (!(await allowRequest(uploadLimiter, { userId: req.user!.userId, res, getDb }))) return undefined;
   try {
     if (req.user!.role !== 'admin' && req.user!.role !== 'superadmin') {
       return res.status(403).json({ error: 'Admin only' });

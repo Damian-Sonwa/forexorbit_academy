@@ -4,7 +4,7 @@
  * Uses the centralized MongoDB client from db/mongoClient.ts
  */
 
-import clientPromise from '@/db/mongoClient';
+import { getClientPromise } from '@/db/mongoClient';
 import { Db, MongoClient } from 'mongodb';
 
 /**
@@ -13,7 +13,7 @@ import { Db, MongoClient } from 'mongodb';
  *   MONGODB_DB_NAME to isolate local or test data from the shared database.
  */
 export async function getDb(dbName: string = process.env.MONGODB_DB_NAME?.trim() || 'Forex_elearning'): Promise<Db> {
-  const client = await clientPromise;
+  const client = await getClientPromise();
   return client.db(dbName);
 }
 
@@ -21,8 +21,8 @@ export async function getDb(dbName: string = process.env.MONGODB_DB_NAME?.trim()
  * Get MongoDB client (for advanced operations)
  */
 export async function getClient(): Promise<MongoClient> {
-  return clientPromise;
+  return getClientPromise();
 }
 
-export default clientPromise;
+export default getClientPromise();
 

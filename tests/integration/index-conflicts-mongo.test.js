@@ -21,7 +21,8 @@ const config = testDatabaseConfig();
 const skip = config.ok ? false : config.reason;
 const quiet = () => {};
 
-const MISSING_COLLECTIONS = ['assignmentSubmissions', 'learningDays', 'learningMinutes', 'marketCheckpoints', 'marketIncidents', 'marketQuotes', 'quizAttempts', 'tradingOperations', 'tradingOrders', 'tradingPositions'];
+// tradingReviews joined with the trade reviews (T19, T20).
+const MISSING_COLLECTIONS = ['assignmentSubmissions', 'learningDays', 'learningMinutes', 'marketCheckpoints', 'marketIncidents', 'marketQuotes', 'quizAttempts', 'tradingOperations', 'tradingOrders', 'tradingPositions', 'tradingReviews'];
 
 /** The production shape: the same collections, indexes and (approximate) document counts. */
 async function productionShape(db) {
@@ -96,7 +97,7 @@ test('real MongoDB, production shape: trading and learning apply build only the 
     const db = conn.db;
     const trading = await runTrading(db, { apply: true, log: quiet });
     assert.equal(trading.ok, true);
-    assert.equal(trading.built.length, 18);
+    assert.equal(trading.built.length, 20); // T19 and T20 (trade reviews) joined the plan
     const learning = await runLearning(db, { mode: 'apply', log: quiet });
     assert.deepEqual([learning.ok, learning.built], [true, ['L4', 'L5', 'L6', 'L7', 'L8', 'L9']]);
     assert.deepEqual(await indexNames(db, 'progress'), ['_id_', 'perf_progress_course_rank', 'progress_user_course'], 'no perf_progress_user next to the unique prefix');
@@ -205,7 +206,7 @@ test('real MongoDB, A4: prepare, interruption, abort, prepare, convert; the inde
       const a4 = (await assessmentIndexReport(rdb)).find((r) => r.id === 'A4');
       assert.deepEqual([a4.state, a4.satisfiedBy], ['present', 'quizzes_lesson']);
       const applied = await runAssessment(rdb, { apply: true, log: quiet });
-      assert.deepEqual([applied.ok, applied.built], [true, ['A1', 'A2', 'A3', 'A5', 'A6']]);
+      assert.deepEqual([applied.ok, applied.built], [true, ['A1', 'A2', 'A3', 'A5', 'A6', 'A7']]); // A7: Phase 12
       assert.deepEqual(await indexNames(rdb, 'quizzes'), ['_id_', 'quizzes_lesson'], 'no quiz_lesson next to it');
       assert.deepEqual((await runAssessment(rdb, { apply: true, log: quiet })).built, []);
     } finally {

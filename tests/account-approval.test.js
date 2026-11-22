@@ -327,7 +327,12 @@ test('the approvals route is Super Admin only and the admin page hides approvals
   const page = read('pages/admin/index.tsx');
   assert.match(page, /if \(user\.role === 'superadmin'\) loadPendingUsers\(\);/);
   assert.match(page, /\{isSuperAdmin && pendingUsers\.length > 0 && \(/);
-  assert.match(page, /\{isSuperAdmin && \(\s*<button\s*onClick=\{\(\) => \{\s*setActiveTab\('approvals'\);/);
+  // The approvals section is reached from the sidebar (the page has no second tab bar): only the
+  // Super Admin menu links to it; the ordinary admin menu does not.
+  const sidebar = read('components/Sidebar.tsx');
+  const menu = (name) => sidebar.slice(sidebar.indexOf(`const ${name} = [`), sidebar.indexOf('];', sidebar.indexOf(`const ${name} = [`)));
+  assert.match(menu('superAdminNavItems'), /tab: 'approvals'/);
+  assert.doesNotMatch(menu('adminNavItems'), /approvals/);
   assert.match(page, /\{activeTab === 'approvals' && isSuperAdmin && \(/);
   assert.match(page, /if \(activeTab === 'approvals' && user && user\.role !== 'superadmin'\) setActiveTab\('courses'\);/);
   assert.match(page, /disabled=\{userItem\.role === 'superadmin' \|\| !isSuperAdmin\}/);

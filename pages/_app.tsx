@@ -1,6 +1,7 @@
 // pages/_app.tsx
 import { useEffect } from 'react';
 import type { AppProps } from 'next/app';
+import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { RegisterPwa } from '@/components/RegisterPwa';
 import { PwaInstallModal } from '@/components/PwaInstallModal';
@@ -22,6 +23,11 @@ export default function App({ Component, pageProps }: AppProps) {
 
   return (
     <ThemeProvider>
+      {/* Phase 15: defaults; a page with its own <Head> title or description replaces them (same key). */}
+      <Head>
+        <title key="title">ForexOrbit Academy: learn forex trading with a simulated market</title>
+        <meta key="description" name="description" content="Structured forex courses, assessments and a simulated trading desk with instructor feedback. Practise with virtual funds before risking real money." />
+      </Head>
       <PwaInstallProvider>
         <AuthProvider>
           <SocketProvider>

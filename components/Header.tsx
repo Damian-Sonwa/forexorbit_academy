@@ -241,8 +241,10 @@ export default function Header() {
                 )}
               </button>
 
+              {/* Solid surface (not glass) so the page never shows through; full width under the header on phones, anchored to the bell from sm up. */}
+
               {notificationsOpen && (
-                <div className="absolute right-0 z-50 mt-2 flex max-h-[calc(100vh-6rem)] w-[calc(100vw-2rem)] max-w-[24rem] origin-top-right animate-fade-in-fast flex-col overflow-hidden rounded-panel glass-panel sm:w-96">
+                <div className="fixed inset-x-2 top-16 z-50 mt-1 flex max-h-[calc(100dvh-5rem)] origin-top animate-fade-in-fast flex-col overflow-hidden rounded-panel border border-line bg-surface-1 shadow-[var(--fo-shadow-lift)] sm:absolute sm:inset-x-auto sm:right-0 sm:top-auto sm:mt-2 sm:w-96 sm:max-h-[calc(100vh-6rem)] sm:origin-top-right">
                   <div className="flex flex-shrink-0 items-center justify-between border-b border-line px-4 py-3">
                     <div>
                       <h3 className="text-sm font-semibold text-ink">Notifications</h3>
@@ -333,7 +335,7 @@ export default function Header() {
               </button>
 
               {menuOpen && (
-                <div className="absolute right-0 z-50 mt-2 w-60 origin-top-right animate-fade-in-fast overflow-hidden rounded-panel glass-panel py-1.5">
+                <div className="absolute right-0 z-50 mt-2 w-60 origin-top-right animate-fade-in-fast overflow-hidden rounded-panel border border-line bg-surface-1 py-1.5 shadow-[var(--fo-shadow-lift)]">
                   <div className="border-b border-line px-4 pb-3 pt-2">
                     <p className="truncate text-sm font-semibold text-ink">{user?.name}</p>
                     <p className="mt-0.5 truncate text-xs text-ink-subtle">{user?.email}</p>

@@ -7,6 +7,7 @@ import { publicUploadFailure, unexpectedBody } from '@/lib/public-error';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
+import { allowRequest, uploadLimiter } from '@/lib/content-rate-limit';
 import { currentPhotoId, removeProfilePhoto, replaceProfilePhoto } from '@/lib/profile-photo';
 import formidable from 'formidable';
 import fs from 'fs';
@@ -19,6 +20,8 @@ export const config = {
 };
 
 async function uploadProfilePhoto(req: AuthRequest, res: NextApiResponse) {
+  // Phase 15: uploads are rate limited per account.
+  if (!(await allowRequest(uploadLimiter, { userId: req.user!.userId, res, getDb }))) return undefined;
   try {
     // Use /tmp for temporary file storage (works in both serverless and regular environments)
     const form = formidable({
