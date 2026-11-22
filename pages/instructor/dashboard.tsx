@@ -1105,13 +1105,13 @@ export default function InstructorDashboard() {
                           href={`/builder/${course._id || course.id}`}
                           className="w-full text-left p-3 block hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded transition-colors"
                         >
-                          <p className="font-semibold text-sm text-ink">{course.title}</p>
-                          <p className="text-xs mt-1 line-clamp-2 text-ink-muted">{course.description}</p>
+                          <p className="font-semibold text-sm text-ink">{previewText(course.title)}</p>
+                          <p className="text-xs mt-1 line-clamp-2 text-ink-muted">{previewText(course.description)}</p>
                         </Link>
                         ) : (
                         <div className="w-full text-left p-3 block rounded">
-                          <p className="font-semibold text-sm text-ink">{course.title}</p>
-                          <p className="text-xs mt-1 line-clamp-2 text-ink-muted">{course.description}</p>
+                          <p className="font-semibold text-sm text-ink">{previewText(course.title)}</p>
+                          <p className="text-xs mt-1 line-clamp-2 text-ink-muted">{previewText(course.description)}</p>
                         </div>
                         )}
                         <div className="px-3 pb-2 flex gap-1">
@@ -1152,13 +1152,13 @@ export default function InstructorDashboard() {
                           href={`/builder/${course._id || course.id}`}
                           className="w-full text-left p-3 block hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded transition-colors"
                         >
-                          <p className="font-semibold text-sm text-ink">{course.title}</p>
-                          <p className="text-xs mt-1 line-clamp-2 text-ink-muted">{course.description}</p>
+                          <p className="font-semibold text-sm text-ink">{previewText(course.title)}</p>
+                          <p className="text-xs mt-1 line-clamp-2 text-ink-muted">{previewText(course.description)}</p>
                         </Link>
                         ) : (
                         <div className="w-full text-left p-3 block rounded">
-                          <p className="font-semibold text-sm text-ink">{course.title}</p>
-                          <p className="text-xs mt-1 line-clamp-2 text-ink-muted">{course.description}</p>
+                          <p className="font-semibold text-sm text-ink">{previewText(course.title)}</p>
+                          <p className="text-xs mt-1 line-clamp-2 text-ink-muted">{previewText(course.description)}</p>
                         </div>
                         )}
                         <div className="px-3 pb-2 flex gap-1">
@@ -1199,13 +1199,13 @@ export default function InstructorDashboard() {
                           href={`/builder/${course._id || course.id}`}
                           className="w-full text-left p-3 block hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded transition-colors"
                         >
-                          <p className="font-semibold text-sm text-ink">{course.title}</p>
-                          <p className="text-xs mt-1 line-clamp-2 text-ink-muted">{course.description}</p>
+                          <p className="font-semibold text-sm text-ink">{previewText(course.title)}</p>
+                          <p className="text-xs mt-1 line-clamp-2 text-ink-muted">{previewText(course.description)}</p>
                         </Link>
                         ) : (
                         <div className="w-full text-left p-3 block rounded">
-                          <p className="font-semibold text-sm text-ink">{course.title}</p>
-                          <p className="text-xs mt-1 line-clamp-2 text-ink-muted">{course.description}</p>
+                          <p className="font-semibold text-sm text-ink">{previewText(course.title)}</p>
+                          <p className="text-xs mt-1 line-clamp-2 text-ink-muted">{previewText(course.description)}</p>
                         </div>
                         )}
                         <div className="px-3 pb-2 flex gap-1">
@@ -1254,7 +1254,7 @@ export default function InstructorDashboard() {
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0">
                     <p className="page-kicker">{(selectedCourseData as { status?: string }).status ? String((selectedCourseData as { status?: string }).status).replace('_', ' ') : 'course'}</p>
-                    <h2 className="mt-1 break-words font-display text-xl font-semibold text-ink sm:text-2xl">{selectedCourseData.title}</h2>
+                    <h2 className="mt-1 break-words font-display text-xl font-semibold text-ink sm:text-2xl">{previewText(selectedCourseData.title)}</h2>
                     <p className="mt-1 text-xs capitalize text-ink-muted">{[selectedCourseData.difficulty, selectedCourseData.category, `${courseLessons.length} lesson${courseLessons.length === 1 ? '' : 's'}`].filter(Boolean).join(' · ')}</p>
                   </div>
                   <div className="flex flex-col gap-2 sm:flex-row">

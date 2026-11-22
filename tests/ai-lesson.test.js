@@ -235,3 +235,14 @@ test('the builder exposes the assistant to owners only and keeps manual editing 
   const { LESSON_TEXT_FIELDS } = require('../lib/media-cleanup');
   assert.ok(LESSON_TEXT_FIELDS.includes('history.blocks.url'), 'images in kept versions are never cleaned up');
 });
+
+test('a missing model names the provider and model; a wrong address is reported as such; keys never reach the log', async () => {
+  assert.equal(P.classify(404, { error: { message: 'The model `gpt-4o-mini` does not exist or you do not have access to it.', code: 'model_not_found' } }).code, 'model');
+  assert.equal(P.classify(404, { error: { message: 'Not Found' } }).code, 'endpoint', 'a 404 without a model reason is the address');
+  assert.equal(P.providerReason({ error: { message: 'Incorrect API key provided: sk-proj-abcdef123456. Find it here' } }), 'Incorrect API key provided: <key>. Find it here');
+  let reply = { status: 404, body: { error: { message: 'The model `gpt-4o-mini` does not exist or you do not have access to it.', code: 'model_not_found' } } };
+  const fetchImpl = async () => ({ ok: false, status: reply.status, json: async () => reply.body });
+  await assert.rejects(P.chatJson({ system: 's', user: 'u', env: { AI_API_KEY: 'sk-test' }, fetchImpl, retries: 0 }), (e) => e.code === 'model' && /OpenAI says the model "gpt-4o-mini" is not available/.test(e.message) && /GROQ_API_KEY/.test(e.message) && e.providerMessage.includes('does not exist'));
+  reply = { status: 404, body: { error: { message: 'Not Found' } } };
+  await assert.rejects(P.chatJson({ system: 's', user: 'u', env: { AI_LESSON_PROVIDER: 'compatible', AI_LESSON_BASE_URL: 'https://example.invalid/wrong', AI_LESSON_MODEL: 'm' }, fetchImpl, retries: 0 }), (e) => e.code === 'endpoint');
+});

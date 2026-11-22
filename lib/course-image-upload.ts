@@ -6,6 +6,12 @@
  * (audit L2: it used to stay in /tmp when the upload to Cloudinary failed). Uploads are rate
  * limited per account (lib/content-rate-limit.js). Logs carry no email addresses.
  *
+ * Storage (course builder): Cloudflare R2 when R2_IMAGES_BUCKET and R2_PUBLIC_BASE_URL are set
+ * (lib/r2-storage.js), otherwise Cloudinary as before. For R2 the image's real type is read from its
+ * first bytes and the stored content type comes from that, never from the browser, so only JPEG,
+ * PNG, GIF and WebP images are ever served from the public bucket. If neither is set up, the builder
+ * still accepts an image link.
+ *
  * An image uploaded here is only referenced once the lesson or course that uses it is saved. If
  * that save never happens the image stays unreferenced in storage; see
  * docs/audits/phase-4-implementation.md (no upload registry exists, and adding one needs a new
@@ -19,6 +25,9 @@ import { getDb } from '@/lib/mongodb';
 import { publicUploadFailure } from '@/lib/public-error';
 import { uploadImageFromPath, validateImageFile, isCloudinaryConfigured } from '@/lib/cloudinary';
 import { allowRequest, uploadLimiter } from '@/lib/content-rate-limit';
+import { publicUrl, putObject, r2ImagesConfig } from '@/lib/r2-storage';
+import { detectImage } from '@/lib/course-asset-files';
+import { randomPublicId } from '@/lib/cloudinary';
 
 const MAX_BYTES = 10 * 1024 * 1024;
 
@@ -60,9 +69,10 @@ export async function handleCourseImageUpload(
     if (!file) {
       return res.status(400).json({ error: 'No image file provided' });
     }
-    if (!isCloudinaryConfigured()) {
+    const r2 = r2ImagesConfig();
+    if (!r2 && !isCloudinaryConfigured()) {
       console.error(JSON.stringify({ event: 'courseImageUpload', result: 'storage_not_configured' }));
-      return res.status(500).json({ error: 'Image upload service is not configured. Please contact support.' });
+      return res.status(503).json({ error: 'Image uploads are not set up on this server. Paste a link to the image instead.', code: 'storage_unavailable' });
     }
     const validation = validateImageFile({
       mimetype: file.mimetype || undefined,
@@ -71,6 +81,17 @@ export async function handleCourseImageUpload(
     });
     if (!validation.valid) {
       return res.status(400).json({ error: validation.error });
+    }
+    if (r2) {
+      const head = Buffer.alloc(16);
+      const handle = await fs.promises.open(file.filepath, 'r');
+      try { await handle.read(head, 0, 16, 0); } finally { await handle.close(); }
+      const kind = detectImage(head);
+      if (!kind) return res.status(400).json({ error: 'This file is not a valid JPEG, PNG, GIF or WebP image.' });
+      const key = `course-images/${folder}/${randomPublicId()}.${kind.ext}`;
+      await putObject(r2, key, file.filepath, { contentType: kind.mime, cacheControl: 'public, max-age=31536000, immutable' });
+      const url = publicUrl(r2, key);
+      return res.status(200).json({ success: true, url, imageUrl: url, publicId: key, filename: key.split('/').pop(), storage: 'r2' });
     }
     const uploadResult = await uploadImageFromPath(file.filepath, folder);
     return res.status(200).json({

@@ -78,6 +78,7 @@ jobs:
           npm run test:mongo:indexes
           npm run test:mongo:builder
           npm run test:mongo:ai
+          npm run test:mongo:r2
       - name: Backup and restore drill
         env:
           DRILL_MONGO_URI: mongodb://127.0.0.1:27017/?replicaSet=rs0

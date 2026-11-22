@@ -8,3 +8,4 @@ export function checkCourseFile(input: { name: unknown; size: number; head: Uint
   | { ok: true; ext: string; kind: string; mime: string; name: string }
   | { ok: false; status: number; code: string; error: string };
 export function acceptAttribute(kind?: 'file' | 'video'): string;
+export function detectImage(head: Uint8Array | Buffer | null | undefined): { ext: string; mime: string } | null;

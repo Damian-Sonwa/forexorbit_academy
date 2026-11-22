@@ -152,6 +152,9 @@ export function DetailsPanel({ course, editable, issues, onSaved, onConflict }: 
               {form.thumbnail && <button type="button" className="btn btn-ghost btn-sm" onClick={() => change({ thumbnail: '' })}>Remove</button>}
               {cover && <p className={`text-xs ${cover.error ? 'text-red-600' : 'text-ink-subtle'}`} role={cover.error ? 'alert' : 'status'}>{cover.error || `Uploading… ${Math.round(cover.fraction * 100)}%`}</p>}
               <p className="text-xs text-ink-subtle">16:9, at least 1280×720. JPEG, PNG or WebP, up to 10 MB.</p>
+              <label className="block text-xs text-ink-muted">Or paste an image link
+                <input className="input mt-1 w-full min-w-[16rem]" type="url" inputMode="url" placeholder="https://" value={form.thumbnail} onChange={(e) => change({ thumbnail: e.target.value.trim() })} data-testid="cover-link" />
+              </label>
             </div>
           )}
         </div>

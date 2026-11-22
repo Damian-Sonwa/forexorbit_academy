@@ -389,3 +389,18 @@ test('the student lesson page and the previews share one renderer', () => {
   assert.doesNotMatch(preview, /apiClient\.(post|put|delete)/);
   assert.doesNotMatch(read('components/course/LessonActivities.tsx').split("export default function LessonActivities")[1].split("if (props.mode === 'student')")[0] || '', /apiClient/);
 });
+
+test('course management shows titles and descriptions as text, never as HTML tags', () => {
+  // Older lessons and courses can hold HTML in their titles and descriptions (rich-text editor).
+  assert.equal(C.plainText('<p>Understanding <strong>Pips</strong> &amp; Lots</p>'), 'Understanding Pips & Lots');
+  assert.equal(C.plainText('<h2>Risk &#8211; basics</h2>'), 'Risk – basics');
+  assert.equal(C.plainText('<script>alert(1)</script>Title'), 'Title');
+  const curriculum = read('lib/course-curriculum.js');
+  assert.match(curriculum, /title: C\.plainText\(course\.title\)/);
+  assert.match(curriculum, /title: C\.plainText\(l\.title\)/);
+  for (const file of ['pages/instructor/dashboard.tsx', 'pages/instructor/quizzes.tsx']) {
+    const source = read(file);
+    assert.doesNotMatch(source, /\{course\.description\}/, `${file} renders a raw description`);
+    assert.doesNotMatch(source, />\{course\.title\}</, `${file} renders a raw title`);
+  }
+});

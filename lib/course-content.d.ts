@@ -62,3 +62,4 @@ export function checkCurriculum(input: unknown, currentLessonIds: string[]):
 export function checkCourseDetails(body: unknown): { ok: true; fields: Record<string, unknown> } | Refusal;
 export function courseReadiness(input: { course: unknown; lessons: unknown[]; quizzes?: Map<string, { questions: number; status?: string }>; assetIds?: Set<string> }): Readiness;
 export function newId(length?: number): string;
+export function plainText(value: unknown): string;

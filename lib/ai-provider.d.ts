@@ -2,7 +2,8 @@ export type ResolvedProvider =
   | { ok: true; id: string; label: string; model: string; baseUrl: string; key: string; json: boolean }
   | { ok: false; id: string | null; reason: string };
 export class ProviderError extends Error {
-  code: 'not_configured' | 'auth' | 'quota' | 'rate_limited' | 'model' | 'timeout' | 'unavailable' | 'bad_response' | 'truncated';
+  code: 'not_configured' | 'auth' | 'quota' | 'rate_limited' | 'model' | 'endpoint' | 'timeout' | 'unavailable' | 'bad_response' | 'truncated';
+  providerMessage?: string | null;
   status: number | null;
   retryable: boolean;
   constructor(code: string, message: string, options?: { status?: number | null; retryable?: boolean });
@@ -22,3 +23,4 @@ export function chatJson(input: {
   timeoutMs?: number;
   retries?: number;
 }): Promise<{ content: string; finishReason: string | null; usage: { promptTokens: number; completionTokens: number }; model: string; provider: string }>;
+export function providerReason(body: unknown): string | null;

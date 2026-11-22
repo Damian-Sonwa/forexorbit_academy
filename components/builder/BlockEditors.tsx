@@ -213,6 +213,8 @@ function MediaSource({ block, courseId, assets, readOnly, kind, onChange, onAsse
 
 function ImageEditor({ block, readOnly, onChange }: EditorProps & { block: Extract<Block, { type: 'image' }> }) {
   const [state, setState] = useState<UploadState>(null);
+  // Upload (R2 or Cloudinary, whichever the server has) or a link to an image hosted anywhere.
+  const [mode, setMode] = useState<'upload' | 'link'>('upload');
   const start = (file: File) => {
     if (!file.type.startsWith('image/')) { setState({ name: file.name, fraction: 0, error: 'Choose an image file (JPEG, PNG, WebP or GIF).', file }); return; }
     const handle = uploadWithProgress('/api/upload/instructor', 'image', file, (fraction) => setState((s) => (s ? { ...s, fraction } : s)));
@@ -223,6 +225,12 @@ function ImageEditor({ block, readOnly, onChange }: EditorProps & { block: Extra
   };
   return (
     <div className="space-y-3">
+      {!readOnly && <SourceTabs mode={mode} setMode={setMode} />}
+      {mode === 'link' && (
+        <Field label="Image link" hint="A direct link to a JPEG, PNG, GIF or WebP image, starting with https://. The image stays on that site, so it disappears if the site removes it.">
+          <input className="input mt-1.5 w-full" type="url" inputMode="url" placeholder="https://" value={block.url} readOnly={readOnly} onChange={(e) => onChange({ ...block, url: e.target.value.trim() })} data-testid="image-link" />
+        </Field>
+      )}
       {state ? <UploadBar state={state} onRetry={() => state.file && start(state.file)} onCancel={() => { state.handle?.abort(); setState(null); }} />
         : block.url ? (
           <div className="flex flex-wrap items-center gap-3">
@@ -231,7 +239,7 @@ function ImageEditor({ block, readOnly, onChange }: EditorProps & { block: Extra
             {!readOnly && <><label className="btn btn-secondary btn-sm cursor-pointer">Replace<input type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) start(f); }} /></label>
               <button type="button" className="btn btn-ghost btn-sm" onClick={() => onChange({ ...block, url: '' })}>Remove</button></>}
           </div>
-        ) : !readOnly && <DropZone accept="image/jpeg,image/png,image/webp,image/gif" label="Choose an image" hint="JPEG, PNG, WebP or GIF, up to 10 MB." onFile={start} />}
+        ) : !readOnly && mode === 'upload' && <DropZone accept="image/jpeg,image/png,image/webp,image/gif" label="Choose an image" hint="JPEG, PNG, WebP or GIF, up to 10 MB. If uploads are not available, use Link." onFile={start} />}
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Description for screen readers" hint="What the image shows, in one sentence.">
           <input className="input mt-1.5 w-full" maxLength={300} value={block.alt} readOnly={readOnly} onChange={(e) => onChange({ ...block, alt: e.target.value })} />

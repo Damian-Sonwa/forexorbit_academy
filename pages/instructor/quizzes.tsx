@@ -6,6 +6,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
+import { previewText } from '@/lib/plain-text';
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
 import LoadingSpinner from '@/components/LoadingSpinner';
@@ -246,8 +247,8 @@ export default function InstructorQuizzes() {
                             onClick={() => handleSelectCourse(course._id || course.id || '')}
                             className="w-full text-left p-3"
                           >
-                            <p className="font-semibold text-sm text-ink">{course.title}</p>
-                            <p className="text-xs mt-1 line-clamp-2 text-ink-muted">{course.description}</p>
+                            <p className="font-semibold text-sm text-ink">{previewText(course.title)}</p>
+                            <p className="text-xs mt-1 line-clamp-2 text-ink-muted">{previewText(course.description)}</p>
                           </button>
                         </div>
                       ))}
@@ -275,8 +276,8 @@ export default function InstructorQuizzes() {
                             onClick={() => handleSelectCourse(course._id || course.id || '')}
                             className="w-full text-left p-3"
                           >
-                            <p className="font-semibold text-sm text-ink">{course.title}</p>
-                            <p className="text-xs mt-1 line-clamp-2 text-ink-muted">{course.description}</p>
+                            <p className="font-semibold text-sm text-ink">{previewText(course.title)}</p>
+                            <p className="text-xs mt-1 line-clamp-2 text-ink-muted">{previewText(course.description)}</p>
                           </button>
                         </div>
                       ))}
@@ -304,8 +305,8 @@ export default function InstructorQuizzes() {
                             onClick={() => handleSelectCourse(course._id || course.id || '')}
                             className="w-full text-left p-3"
                           >
-                            <p className="font-semibold text-sm text-ink">{course.title}</p>
-                            <p className="text-xs mt-1 line-clamp-2 text-ink-muted">{course.description}</p>
+                            <p className="font-semibold text-sm text-ink">{previewText(course.title)}</p>
+                            <p className="text-xs mt-1 line-clamp-2 text-ink-muted">{previewText(course.description)}</p>
                           </button>
                         </div>
                       ))}

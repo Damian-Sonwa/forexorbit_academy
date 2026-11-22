@@ -183,8 +183,17 @@ async function main() {
     await send('DOM.setFileInputFiles', { files: [pdf], nodeId: inputs.nodeIds[inputs.nodeIds.length - 1] });
     record('instructor', 'uploads a PDF learning resource with progress and private storage', await waitFor('document.body.innerText.includes("stored privately")', 60000));
     await fill('[data-block-type=file] input[maxlength="200"]', 'Trading plan template');
+    // An image by link (no upload provider needed).
+    await addBlock('image');
+    await evaluate(`[...document.querySelectorAll('[data-block-type=image] [role=tab]')].find((t) => t.textContent.trim() === 'Link').click()`);
+    await waitFor('!!document.querySelector("[data-testid=image-link]")', 10000);
+    await fill('[data-testid=image-link]', `${BASE}/favicon.ico`);
+    await fill('[data-block-type=image] input[maxlength="300"]', 'Site icon');
+    record('instructor', 'adds an image by link without any upload provider', await waitFor('!!document.querySelector("[data-block-type=image] img")', 10000));
     record('instructor', 'autosaves the lesson', await saved());
-    record('instructor', 'block types in the editor', (await evaluate('[...document.querySelectorAll("[data-testid=block-editor]")].map((b) => b.dataset.blockType).join(",")')) === 'heading,text,callout,video,file');
+    const typesNow = await evaluate('[...document.querySelectorAll("[data-testid=block-editor]")].map((b) => b.dataset.blockType).join(",")');
+    const saveNow = await evaluate('[...document.querySelectorAll("[data-testid=save-status]")].map((x) => x.dataset.status + ":" + x.textContent).join(" ") + " | " + ([...document.querySelectorAll("[role=alert]")].map((x) => x.textContent).join(" / "))');
+    record('instructor', 'block types in the editor', typesNow === 'heading,text,callout,video,file,image', `${typesNow} || ${saveNow}`);
 
     // Other lessons need content before review.
     for (const [i, title, body] of [[1, 'Placing the stop', 'Put the stop beyond the level that proves the idea wrong.'], [2, 'Fixed fractional sizing', 'Position size = account risk / stop distance.']]) {
@@ -201,7 +210,7 @@ async function main() {
     await goto(`/builder/${courseId}`);
     await waitFor('!!document.querySelector("[data-testid=lesson-editor]")', 60000);
     const persisted = await evaluate('({ title: document.querySelector("[data-testid=lesson-title]").value, blocks: document.querySelectorAll("[data-testid=block-editor]").length })');
-    record('instructor', 'reopened draft keeps the title and every block', persisted.title === 'Why risk matters' && persisted.blocks === 5, JSON.stringify(persisted));
+    record('instructor', 'reopened draft keeps the title and every block', persisted.title === 'Why risk matters' && persisted.blocks === 6, JSON.stringify(persisted));
 
     // Reorder: move the first lesson down; the database order follows.
     const titles = () => evaluate('[...document.querySelectorAll("[data-testid=curriculum-lesson]")].map((l) => l.innerText.split("\\n").find((x) => x.length > 3)).join(" / ")');
@@ -255,6 +264,18 @@ async function main() {
     await goto(`/builder/${courseId}`);
     await waitFor('!!document.querySelector("[data-testid=lesson-title]")', 30000);
     record('instructor', 'content is read-only while in review', await evaluate('document.querySelector("[data-testid=lesson-title]").readOnly === true'));
+    // Older content can hold HTML in descriptions and titles; course management shows text only.
+    const extraLesson = await db.collection('lessons').insertOne({ courseId, title: '<p>Legacy <strong>HTML</strong> title</p>', order: 99, revision: 0, description: '<p>Old body</p>' });
+    await db.collection('courses').updateOne({ _id: new ObjectId(courseId) }, { $set: { description: '<p>A <strong>rich</strong> description</p>' } });
+    await goto('/instructor/dashboard');
+    await waitFor('document.body.innerText.includes("Risk management essentials")', 60000);
+    const dashText = await evaluate('document.body.innerText');
+    record('instructor', 'dashboard shows course descriptions without HTML tags', dashText.includes('A rich description') && !/<\/?(p|strong)>/.test(dashText));
+    await goto(`/builder/${courseId}`);
+    await waitFor('!!document.querySelector("[data-testid=curriculum]")', 60000);
+    const builderText = await evaluate('document.querySelector("[data-testid=curriculum]").innerText');
+    record('instructor', 'builder shows older HTML titles as plain text', builderText.includes('Legacy HTML title') && !/<\/?(p|strong)>/.test(builderText));
+    await db.collection('lessons').deleteOne({ _id: extraLesson.insertedId });
     await logout();
 
     // ------------------------------------------------------------------ admin
@@ -293,7 +314,8 @@ async function main() {
     await shot('student-lesson-1280');
     await width(390);
     await sleep(500);
-    record('student', 'lesson page fits a phone (390 px)', await noOverflow());
+    const wide = await evaluate('(() => { const vw = document.documentElement.clientWidth; return [...document.querySelectorAll("body *")].filter((e) => e.getBoundingClientRect().right > vw + 1).slice(-4).map((e) => e.tagName + "." + String(e.className).slice(0, 60) + " r=" + Math.round(e.getBoundingClientRect().right)).join(" | "); })()');
+    record('student', 'lesson page fits a phone (390 px)', await noOverflow(), wide);
     await shot('student-lesson-390');
     await width(1280);
     await waitFor(`[...document.querySelectorAll('[data-testid=lesson-completion] button')].some((b) => /complete/i.test(b.textContent) && !b.disabled)`, 30000);

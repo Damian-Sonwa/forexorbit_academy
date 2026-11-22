@@ -14,6 +14,10 @@
  * only reference files uploaded to its own course, and the builder's file library can reuse or
  * remove them. No new collection is needed.
  *
+ * Cloudflare R2 (lib/r2-storage.js): when R2_FILES_BUCKET is set, files go to that private bucket
+ * instead of Cloudinary, and readers get a presigned link that expires after five minutes (video
+ * included, so R2 video links also expire). Files already stored keep their own storage.
+ *
  * Development only: COURSE_ASSETS_LOCAL_DIR stores files on the local disk instead (never in
  * production), so the builder can be exercised without touching the production storage account.
  */
@@ -23,10 +27,11 @@ import path from 'path';
 import crypto from 'crypto';
 import { v2 as cloudinary } from 'cloudinary';
 import { isCloudinaryConfigured, randomPublicId } from '@/lib/cloudinary';
+import { deleteObject, putObject, r2FilesConfig, signedGetUrl } from '@/lib/r2-storage';
 
 export type CourseAsset = {
   id: string;
-  driver: 'cloudinary' | 'local';
+  driver: 'cloudinary' | 'local' | 'r2';
   publicId: string;
   resourceType: 'raw' | 'video';
   format: string;
@@ -46,8 +51,9 @@ function localDir(): string | null {
   return dir ? path.resolve(dir) : null;
 }
 
-export function courseAssetStorage(): 'cloudinary' | 'local' | null {
+export function courseAssetStorage(): 'cloudinary' | 'local' | 'r2' | null {
   if (localDir()) return 'local';
+  if (r2FilesConfig()) return 'r2';
   return isCloudinaryConfigured() ? 'cloudinary' : null;
 }
 
@@ -69,6 +75,12 @@ export async function storeCourseAsset(
     const publicId = `${id}.${meta.ext}`;
     await fs.promises.copyFile(filePath, path.join(dir, publicId));
     return { ...base, driver: 'local', publicId };
+  }
+  const r2 = r2FilesConfig();
+  if (r2) {
+    const publicId = `course-files/${randomPublicId()}.${meta.ext}`;
+    await putObject(r2, publicId, filePath, { contentType: meta.mime });
+    return { ...base, driver: 'r2', publicId };
   }
   if (!isCloudinaryConfigured()) throw new Error('Course file storage is not configured');
   const result = await new Promise<{ public_id: string }>((resolve, reject) => {
@@ -112,6 +124,12 @@ export function signedCourseAssetUrl(asset: CourseAsset, courseId: string): stri
   if (asset.driver === 'local') {
     return `/api/courses/${courseId}/asset-file?a=${asset.id}&e=${expires}&t=${localToken(asset.id, expires)}`;
   }
+  if (asset.driver === 'r2') {
+    const r2 = r2FilesConfig();
+    if (!r2) throw new Error('R2 file storage is no longer configured');
+    // Videos and PDFs open in the browser; other files download under their own name.
+    return signedGetUrl(r2, asset.publicId, { expires: SIGNED_SECONDS, filename: asset.name, inline: asset.kind === 'video' || asset.kind === 'pdf' });
+  }
   if (asset.resourceType === 'video') {
     return cloudinary.url(asset.publicId, { resource_type: 'video', type: 'authenticated', sign_url: true, secure: true, format: asset.format });
   }
@@ -123,6 +141,11 @@ export async function removeCourseAsset(asset: CourseAsset): Promise<void> {
   if (asset.driver === 'local') {
     const file = localAssetPath(asset.publicId);
     if (file) await fs.promises.rm(file, { force: true });
+    return;
+  }
+  if (asset.driver === 'r2') {
+    const r2 = r2FilesConfig();
+    if (r2) await deleteObject(r2, asset.publicId);
     return;
   }
   await cloudinary.uploader.destroy(asset.publicId, { resource_type: asset.resourceType, type: asset.resourceType === 'video' ? 'authenticated' : 'private', invalidate: true });
