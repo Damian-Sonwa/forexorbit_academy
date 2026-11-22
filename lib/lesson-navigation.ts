@@ -17,6 +17,7 @@ export type OutlineLesson = {
   isFreePreview?: boolean;
   isFirstLesson?: boolean;
   isDemo?: boolean;
+  moduleId?: string | null;
 };
 
 export type NavigationTarget = { id: string; title: string; locked: boolean; position: number };

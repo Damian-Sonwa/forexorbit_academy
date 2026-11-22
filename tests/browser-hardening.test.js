@@ -60,10 +60,17 @@ test('every HTML sink renders through the sanitizer (or is a fixed script)', () 
   }
   // A floor, so the scan cannot silently match nothing. Phase 11: the student dashboard shows titles
   // as plain text (lib/plain-text.ts previewText) instead of sanitized HTML, removing two sinks.
-  assert.ok(sinks >= 13, `found ${sinks} sinks`);
+  // Course builder: the duplicate course/lesson editors (instructor course page, lessons page and
+  // the dashboard's lesson panel) were replaced by the builder, removing their sinks; builder text
+  // renders without HTML.
+  assert.ok(sinks >= 8, `found ${sinks} sinks`);
+  // Course builder: the lesson page renders its body through the shared renderer, where lessons
+  // written before the builder (stored HTML) pass through the student sanitizer; builder text is a
+  // Delta rendered as React text (components/course/RichText.tsx), never HTML.
   const lesson = read('pages/courses/[id]/lessons/[lessonId].tsx');
-  assert.match(lesson, /const lessonDescStudent = sanitizeForStudentView\(/);
-  assert.match(lesson, /const lessonBodyStudent = sanitizeForStudentView\(/);
+  assert.match(lesson, /<LessonBlocks\b/);
+  assert.match(read('components/course/LessonBlocks.tsx'), /__html: sanitizeForStudentView\(html\)/);
+  assert.doesNotMatch(read('components/course/RichText.tsx'), /dangerouslySetInnerHTML/);
 });
 
 // ---------------------------------------------------------------------------

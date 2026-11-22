@@ -12,6 +12,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
+import { previewText } from '@/lib/plain-text';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
@@ -1075,11 +1076,7 @@ export default function InstructorDashboard() {
             <div className="p-3 sm:p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between sticky top-0 bg-white dark:bg-gray-800 z-10">
               <h2 className="text-lg sm:text-xl font-bold text-ink">All Courses</h2>
               <button
-                onClick={() => {
-                  setEditingCourse(null);
-                  setCourseForm({ difficulty: 'beginner' });
-                  setShowCourseForm(true);
-                }}
+                onClick={() => void router.push('/builder/new')}
                 className="px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-semibold transition-colors"
                 title="Create New Course"
               >
@@ -1105,7 +1102,7 @@ export default function InstructorDashboard() {
                       >
                         {canReadCourseLessons(user?.role, user?.id, course.instructorId) ? (
                         <Link
-                          href={`/instructor/courses/${course._id || course.id}`}
+                          href={`/builder/${course._id || course.id}`}
                           className="w-full text-left p-3 block hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded transition-colors"
                         >
                           <p className="font-semibold text-sm text-ink">{course.title}</p>
@@ -1152,7 +1149,7 @@ export default function InstructorDashboard() {
                       >
                         {canReadCourseLessons(user?.role, user?.id, course.instructorId) ? (
                         <Link
-                          href={`/instructor/courses/${course._id || course.id}`}
+                          href={`/builder/${course._id || course.id}`}
                           className="w-full text-left p-3 block hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded transition-colors"
                         >
                           <p className="font-semibold text-sm text-ink">{course.title}</p>
@@ -1199,7 +1196,7 @@ export default function InstructorDashboard() {
                       >
                         {canReadCourseLessons(user?.role, user?.id, course.instructorId) ? (
                         <Link
-                          href={`/instructor/courses/${course._id || course.id}`}
+                          href={`/builder/${course._id || course.id}`}
                           className="w-full text-left p-3 block hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded transition-colors"
                         >
                           <p className="font-semibold text-sm text-ink">{course.title}</p>
@@ -1232,11 +1229,7 @@ export default function InstructorDashboard() {
                 <div className="text-center py-8">
                   <p className="text-sm mb-3 text-ink-muted">No courses yet.</p>
                   <button
-                    onClick={() => {
-                      setEditingCourse(null);
-                      setCourseForm({ difficulty: 'beginner' });
-                      setShowCourseForm(true);
-                    }}
+                    onClick={() => void router.push('/builder/new')}
                     className="btn btn-primary px-4 py-2 text-sm"
                   >
                     Create First Course
@@ -1246,490 +1239,44 @@ export default function InstructorDashboard() {
             </div>
           </div>
 
-          {/* Right Panel: Lessons Management */}
-          <div className="card lg:col-span-2 rounded-xl">
-            {!selectedCourse ? (
-              <div className="flex items-center justify-center p-6 sm:p-12 min-h-[300px] sm:min-h-[400px]">
-                <div className="text-center px-4">
-                  <svg className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-4 text-ink-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                  </svg>
-                  <p className="text-sm sm:text-base text-ink-muted">Select a course from the left to manage its lessons</p>
+          {/* Right Panel: the selected course. Content is built in the shared course builder
+              (/builder/:courseId), the same workspace administrators use. */}
+          <div className="card lg:col-span-2 rounded-xl" data-testid="dashboard-course-panel">
+            {!selectedCourse || !selectedCourseData ? (
+              <div className="flex min-h-[300px] items-center justify-center p-6 sm:min-h-[400px] sm:p-12">
+                <div className="px-4 text-center">
+                  <p className="text-sm text-ink-muted sm:text-base">Select a course on the left, or start a new one.</p>
+                  <Link href="/builder/new" className="btn btn-primary mt-4">Start a new course</Link>
                 </div>
-              </div>
-            ) : showCourseForm ? (
-              <div className="p-4 sm:p-6">
-                <form onSubmit={editingCourse ? handleSaveCourse : handleCreateCourse} className="space-y-4">
-                  <h3 className="text-lg sm:text-xl font-bold mb-4 text-ink">
-                    {editingCourse ? 'Edit Course' : 'Create New Course'}
-                  </h3>
-                  
-                  <div>
-                    <label className="block text-sm font-semibold mb-2 text-ink-muted">Course Title *</label>
-                    <input
-                      type="text"
-                      value={courseForm.title || ''}
-                      onChange={(e) => setCourseForm({ ...courseForm, title: e.target.value })}
-                      required
-                      className="input w-full"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-semibold mb-2 text-ink-muted">Description *</label>
-                    <textarea
-                      value={courseForm.description || ''}
-                      onChange={(e) => setCourseForm({ ...courseForm, description: e.target.value })}
-                      required
-                      rows={4}
-                      className="input w-full"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-semibold mb-2 text-ink-muted">Category *</label>
-                      <select
-                        value={courseForm.category || ''}
-                        onChange={(e) => setCourseForm({ ...courseForm, category: e.target.value })}
-                        required
-                        className="input w-full"
-                      >
-                        <option value="">Select category</option>
-                        <option value="basics">Basics</option>
-                        <option value="technical">Technical Analysis</option>
-                        <option value="trading">Trading Strategies</option>
-                        <option value="fundamental">Fundamental Analysis</option>
-                        <option value="risk">Risk Management</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-semibold mb-2 text-ink-muted">Difficulty Level *</label>
-                      <select
-                        value={courseForm.difficulty || 'beginner'}
-                        onChange={(e) => setCourseForm({ ...courseForm, difficulty: e.target.value as any })}
-                        required
-                        className="input w-full"
-                      >
-                        <option value="beginner">Beginner</option>
-                        <option value="intermediate">Intermediate</option>
-                        <option value="advanced">Advanced</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-semibold mb-2 text-ink-muted">Thumbnail URL</label>
-                    <input
-                      type="url"
-                      value={courseForm.thumbnail || ''}
-                      onChange={(e) => setCourseForm({ ...courseForm, thumbnail: e.target.value })}
-                      placeholder="https://example.com/image.jpg"
-                      className="input w-full"
-                    />
-                  </div>
-
-                  <div className="flex gap-2">
-                    <button
-                      type="submit"
-                      disabled={loading}
-                      className="btn btn-primary flex-1 px-4 py-2"
-                    >
-                      {loading ? 'Saving...' : editingCourse ? 'Save Changes' : 'Create Course'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowCourseForm(false);
-                        setEditingCourse(null);
-                        setCourseForm({});
-                      }}
-                      className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </form>
               </div>
             ) : (
-              <>
-                <div className="p-3 sm:p-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                  <div className="flex-1">
-                    <h2 className="text-lg sm:text-xl font-bold break-words text-ink">
-                      {selectedCourseData?.title || 'Lessons'}
-                    </h2>
-                    {selectedCourseData && (
-                      <div className="mt-1 flex items-center gap-2 text-xs text-ink-muted">
-                        <span className="capitalize">{selectedCourseData.difficulty}</span>
-                        <span>•</span>
-                        <span>{selectedCourseData.category}</span>
-                        <span>•</span>
-                        <span>{courseLessons.length} lessons</span>
-                      </div>
-                    )}
+              <div className="p-4 sm:p-6">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0">
+                    <p className="page-kicker">{(selectedCourseData as { status?: string }).status ? String((selectedCourseData as { status?: string }).status).replace('_', ' ') : 'course'}</p>
+                    <h2 className="mt-1 break-words font-display text-xl font-semibold text-ink sm:text-2xl">{selectedCourseData.title}</h2>
+                    <p className="mt-1 text-xs capitalize text-ink-muted">{[selectedCourseData.difficulty, selectedCourseData.category, `${courseLessons.length} lesson${courseLessons.length === 1 ? '' : 's'}`].filter(Boolean).join(' · ')}</p>
                   </div>
-                  <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                    <button
-                      onClick={() => handleEditCourse(selectedCourseData!)}
-                      className="w-full sm:w-auto px-3 py-2 bg-gray-200 dark:bg-gray-700 rounded-lg text-sm font-semibold hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors text-ink-muted"
-                    >
-                      Edit Course
-                    </button>
-                    <button
-                      onClick={() => {
-                        setEditingLesson(null);
-                        setLessonForm({ order: courseLessons.length + 1, type: 'video', resources: [] });
-                        setShowLessonForm(true);
-                      }}
-                      className="btn btn-primary w-full sm:w-auto px-4 py-2 text-sm"
-                    >
-                      + Add Lesson
-                    </button>
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <Link href={`/builder/${selectedCourseData._id || selectedCourseData.id}`} className="btn btn-primary" data-testid="open-builder">Open in course builder</Link>
+                    <Link href={`/builder/${selectedCourseData._id || selectedCourseData.id}/preview`} className="btn btn-secondary">Preview</Link>
                   </div>
                 </div>
-
-                {showLessonForm ? (
-                  <div className="flex-1 overflow-y-auto p-3 sm:p-4">
-                    <form onSubmit={editingLesson ? handleSaveLesson : handleCreateLesson} className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-semibold mb-2 text-ink-muted">Lesson Title *</label>
-                        <input
-                          type="text"
-                          value={lessonForm.title || ''}
-                          onChange={(e) => setLessonForm({ ...lessonForm, title: e.target.value })}
-                          required
-                          className="input w-full"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-semibold mb-2 text-ink-muted">Description *</label>
-                        <RichTextEditor
-                          key={`instructor-dash-desc-${editingLesson || 'new'}`}
-                          value={lessonForm.description || ''}
-                          onChange={(html) => setLessonForm({ ...lessonForm, description: html })}
-                          height={220}
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-semibold mb-2 text-ink-muted">
-                          Lesson summary / body
-                        </label>
-                        <RichTextEditor
-                          key={`instructor-dash-content-${editingLesson || 'new'}`}
-                          value={lessonForm.content || ''}
-                          onChange={(html) => setLessonForm({ ...lessonForm, content: html })}
-                          height={360}
-                        />
-                        <p className="text-xs mt-1 text-ink-muted">
-                          Stored in the lesson content field and kept in sync with older lesson summary views.
-                        </p>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-semibold mb-2 text-ink-muted">Video URL (YouTube/MP4/WebM)</label>
-                          <input
-                            type="url"
-                            value={lessonForm.videoUrl || ''}
-                            onChange={(e) => setLessonForm({ ...lessonForm, videoUrl: e.target.value })}
-                            placeholder="https://www.youtube.com/watch?v=... or https://example.com/video.mp4"
-                            className="input w-full"
-                          />
-                          <p className="text-xs mt-1 text-ink-muted">Supports YouTube, Vimeo, or direct video file URLs</p>
-                        </div>
-                        <div>
-                          <p className="block text-sm font-semibold mb-2 text-ink-muted">Position</p>
-                          <p className="text-xs text-ink-muted">New lessons are added at the end. Reorder lessons with the arrows on the course page.</p>
-                        </div>
-                      </div>
-
-                      {/* Resources Section */}
-                      <div>
-                        <div className="flex items-center justify-between mb-2">
-                          <label className="block text-sm font-semibold text-ink-muted">Resources</label>
-                          <button
-                            type="button"
-                            onClick={addResource}
-                            className="text-sm text-primary-600 dark:text-primary-400 hover:underline"
-                          >
-                            + Add Resource
-                          </button>
-                        </div>
-                        {(lessonForm.resources || []).map((resource, index) => (
-                          <div key={index} className="flex gap-2 mb-2">
-                            <select
-                              value={resource.type}
-                              onChange={(e) => updateResource(index, 'type', e.target.value)}
-                              className="input text-sm"
-                            >
-                              <option value="pdf">PDF</option>
-                              <option value="link">Link</option>
-                              <option value="slide">Slide</option>
-                            </select>
-                            <input
-                              type="text"
-                              value={resource.title}
-                              onChange={(e) => updateResource(index, 'title', e.target.value)}
-                              placeholder="Resource title"
-                              className="input flex-1 text-sm"
-                            />
-                            <input
-                              type="url"
-                              value={resource.url}
-                              onChange={(e) => updateResource(index, 'url', e.target.value)}
-                              placeholder="URL"
-                              className="input flex-1 text-sm"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => removeResource(index)}
-                              className="px-3 py-2 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-lg text-sm hover:bg-red-200 dark:hover:bg-red-900/50"
-                            >
-                              Remove
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-
-                      <div className="flex gap-2">
-                        <button
-                          type="submit"
-                          disabled={loading}
-                          className="btn btn-primary flex-1 px-4 py-2"
-                        >
-                          {loading ? 'Saving...' : editingLesson ? 'Save Changes' : 'Create Lesson'}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setShowLessonForm(false);
-                            setEditingLesson(null);
-                            setLessonForm({});
-                          }}
-                          className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </form>
-                  </div>
-                ) : showQuizForm ? (
-                  <div className="p-6">
-                    <form onSubmit={handleSaveQuiz} className="space-y-4">
-                      <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-lg font-bold text-ink">Edit Quiz</h3>
-                        <button
-                          type="button"
-                          onClick={addQuizQuestion}
-                          className="text-sm text-primary-600 dark:text-primary-400 hover:underline"
-                        >
-                          + Add Question
-                        </button>
-                      </div>
-
-                      {(quizForm.questions || []).map((question, qIndex) => (
-                        <div key={qIndex} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-3">
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm font-semibold text-ink-muted">Question {qIndex + 1}</span>
-                            <button
-                              type="button"
-                              onClick={() => removeQuizQuestion(qIndex)}
-                              className="text-sm text-red-600 dark:text-red-400 hover:underline"
-                            >
-                              Remove
-                            </button>
-                          </div>
-                          <input
-                            type="text"
-                            value={question.question}
-                            onChange={(e) => {
-                              const questions = [...(quizForm.questions || [])];
-                              questions[qIndex].question = e.target.value;
-                              setQuizForm({ ...quizForm, questions });
-                            }}
-                            placeholder="Question text"
-                            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg"
-                          />
-                          {question.options.map((option, oIndex) => (
-                            <div key={oIndex} className="flex items-center gap-2">
-                              <input
-                                type="radio"
-                                name={`correct-${qIndex}`}
-                                checked={question.correctAnswer === oIndex}
-                                onChange={() => {
-                                  const questions = [...(quizForm.questions || [])];
-                                  questions[qIndex].correctAnswer = oIndex;
-                                  setQuizForm({ ...quizForm, questions });
-                                }}
-                                className="w-4 h-4"
-                              />
-                              <input
-                                type="text"
-                                value={option}
-                                onChange={(e) => {
-                                  const questions = [...(quizForm.questions || [])];
-                                  questions[qIndex].options[oIndex] = e.target.value;
-                                  setQuizForm({ ...quizForm, questions });
-                                }}
-                                placeholder={`Option ${oIndex + 1}`}
-                                className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg"
-                              />
-                            </div>
-                          ))}
-                        </div>
-                      ))}
-
-                      {(!quizForm.questions || quizForm.questions.length === 0) && (
-                        <p className="text-center py-4 text-ink-muted">No questions yet. Click "+ Add Question" to start.</p>
-                      )}
-
-                      <div className="flex gap-2">
-                        <button
-                          type="submit"
-                          disabled={loading}
-                          className="btn btn-primary flex-1 px-4 py-2"
-                        >
-                          {loading ? 'Saving...' : 'Save Quiz'}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setShowQuizForm(false);
-                            setEditingQuiz(null);
-                            setQuizForm({});
-                          }}
-                          className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </form>
-                  </div>
+                <p className="mt-4 text-sm text-ink-muted">Edit details, modules, lessons, files, quizzes and activities in the course builder, preview the course as students see it, and submit it for review there.</p>
+                {courseLessons.length > 0 ? (
+                  <ol className="mt-5 divide-y divide-[var(--fo-line)] rounded-xl border border-line">
+                    {courseLessons.map((lesson, index) => (
+                      <li key={lesson._id} className="flex items-center gap-3 px-4 py-3 text-sm">
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-[var(--fo-line-strong)] text-[11px] font-semibold text-ink-subtle num">{index + 1}</span>
+                        <span className="min-w-0 flex-1 truncate text-ink">{previewText(lesson.title || '') || 'Untitled lesson'}</span>
+                        <Link href={`/builder/${selectedCourseData._id || selectedCourseData.id}?lesson=${lesson._id}`} className="text-xs font-semibold text-primary-600 hover:underline dark:text-primary-400">Edit</Link>
+                      </li>
+                    ))}
+                  </ol>
                 ) : (
-                  <div className="p-6">
-                    {loading ? (
-                      <div className="flex items-center justify-center py-8">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
-                      </div>
-                    ) : courseLessons.length === 0 ? (
-                      <div className="text-center py-8">
-                        <p className="mb-4 text-ink-muted">No lessons yet. Click "+ Add Lesson" to create one.</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        {courseLessons.map((lesson) => (
-                          <div
-                            key={lesson._id}
-                            className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:shadow-md transition-shadow"
-                          >
-                            <div className="flex items-start justify-between mb-2">
-                              <div className="flex-1">
-                                <h3 className="font-bold mb-1 text-ink" dangerouslySetInnerHTML={{ __html: sanitizeHtml(lesson.title) }} />
-                                {((lesson as any).content || (lesson as any).lessonSummary?.overview || lesson.summary) && (
-                                  <div
-                                    className="text-sm mb-2 prose prose-sm max-w-none text-ink-muted"
-                                    dangerouslySetInnerHTML={{
-                                      __html: sanitizeHtml(
-                                        (lesson as any).content || (lesson as any).lessonSummary?.overview || lesson.summary || ''
-                                      ),
-                                    }}
-                                  />
-                                )}
-                                {hasVisibleHtml(getLessonDescriptionHtml(lesson)) && (
-                                  <div
-                                    className="rich-html-readable text-xs leading-snug line-clamp-2 mt-1"
-                                    dangerouslySetInnerHTML={{
-                                      __html: sanitizeHtml(getLessonDescriptionHtml(lesson)),
-                                    }}
-                                  />
-                                )}
-                              </div>
-                              <div className="flex gap-2 ml-4">
-                                <button
-                                  onClick={() => handleEditLesson(lesson)}
-                                  className="px-3 py-1 bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-400 rounded text-sm font-semibold hover:bg-primary-200 dark:hover:bg-primary-900/50"
-                                >
-                                  Edit
-                                </button>
-                                <button
-                                  onClick={() => handleEditQuiz(lesson._id)}
-                                  className="px-3 py-1 bg-neutral-100 dark:bg-neutral-900/30 text-primary-700 dark:text-primary-400 rounded text-sm font-semibold hover:bg-neutral-200 dark:hover:bg-neutral-900/50"
-                                >
-                                  Quiz
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteLesson(lesson._id)}
-                                  className="px-3 py-1 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded text-sm font-semibold hover:bg-red-200 dark:hover:bg-red-900/50"
-                                >
-                                  Delete
-                                </button>
-                              </div>
-                            </div>
-                            <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700 space-y-2">
-                              {/* Lesson Type and Media */}
-                              <div className="flex items-center gap-3 text-xs">
-                                {lesson.videoUrl && (
-                                  <span className="flex items-center gap-1 text-primary-600 dark:text-primary-400">
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                                    </svg>
-                                    Video
-                                  </span>
-                                )}
-                                {lesson.pdfUrl && (
-                                  <span className="flex items-center gap-1 text-red-600 dark:text-red-400">
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                                    </svg>
-                                    PDF
-                                  </span>
-                                )}
-                                <span className="capitalize text-ink-muted">Type: {lesson.type}</span>
-                                <span className="text-ink-muted">Order: {lesson.order}</span>
-                              </div>
-                              
-                              {/* Resources */}
-                              {lesson.resources && lesson.resources.length > 0 && (
-                                <div>
-                                  <p className="text-xs font-semibold mb-1 text-ink-muted">Resources:</p>
-                                  <div className="flex flex-wrap gap-2">
-                                    {lesson.resources.map((resource, idx) => (
-                                      <SafeExternalLink
-                                        key={idx}
-                                        href={resource.url}
-                                        className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded hover:bg-gray-200 dark:hover:bg-gray-600 flex items-center gap-1 text-ink-muted"
-                                      >
-                                        {resource.type === 'pdf' && (
-                                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                                          </svg>
-                                        )}
-                                        {resource.type === 'link' && (
-                                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                                          </svg>
-                                        )}
-                                        {resource.type === 'slide' && (
-                                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                          </svg>
-                                        )}
-                                        {resource.title || resource.type}
-                                      </SafeExternalLink>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                  <p className="mt-5 rounded-xl border border-dashed border-line px-4 py-6 text-center text-sm text-ink-subtle">No lessons yet. Open the builder to add modules and lessons.</p>
                 )}
-              </>
+              </div>
             )}
           </div>
         </div>

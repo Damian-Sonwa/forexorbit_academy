@@ -15,6 +15,12 @@ export interface Course {
   difficulty: 'beginner' | 'intermediate' | 'advanced';
   thumbnail?: string;
   instructorId?: string;
+  /** Course builder details (optional). */
+  summary?: string;
+  objectives?: string[];
+  prerequisites?: string;
+  estimatedHours?: number;
+  modules?: Array<{ id: string; title: string }>;
   /** Lifecycle state (lib/course-lifecycle.js). */
   status?: 'draft' | 'in_review' | 'published' | 'archived';
   /** Changes this member may make; staff only. */

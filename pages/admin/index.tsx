@@ -820,10 +820,10 @@ export default function AdminPanel() {
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-bold text-ink">Manage Courses</h2>
               <button
-                onClick={() => setShowCourseForm(!showCourseForm)}
+                onClick={() => void router.push('/builder/new')}
                 className="btn btn-primary px-6 py-3"
               >
-                {showCourseForm ? 'Cancel' : '+ Create Course'}
+                + Create Course
               </button>
             </div>
 
@@ -933,7 +933,7 @@ export default function AdminPanel() {
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <Link
-                      href={`/instructor/courses/${course._id || course.id}`}
+                      href={`/builder/${course._id || course.id}`}
                       className="btn btn-primary"
                     >
                       Manage

@@ -6,7 +6,7 @@
  */
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { lessonHref, lessonKey, type OutlineLesson } from '@/lib/lesson-navigation';
 import { previewText } from '@/lib/plain-text';
 
@@ -17,13 +17,31 @@ type Props = {
   loading?: boolean;
   error?: string | null;
   onRetry?: () => void;
+  /** Course builder modules, in order. Lessons are grouped under their module's title. */
+  modules?: Array<{ id: string; title: string }>;
+  /** Builder preview: where each lesson link goes (defaults to the student lesson page). */
+  linkFor?: (lessonId: string) => string;
 };
 
 function plainTitle(title: string | undefined): string {
   return previewText(title || '') || 'Lesson';
 }
 
-export default function LessonOutline({ courseId, lessons, currentLessonId, loading, error, onRetry }: Props) {
+/** The module heading to show before each lesson (only where the module changes), or null. */
+export function moduleHeadings(lessons: OutlineLesson[], modules: Array<{ id: string; title: string }> = []): Array<string | null> {
+  const titled = modules.filter((m) => m.title);
+  if (!titled.length) return lessons.map(() => null);
+  const ids = new Set(modules.map((m) => m.id));
+  let last: string | undefined;
+  return lessons.map((lesson) => {
+    const id = lesson.moduleId && ids.has(lesson.moduleId) ? lesson.moduleId : modules[0].id;
+    if (id === last) return null;
+    last = id;
+    return modules.find((m) => m.id === id)?.title || 'Module';
+  });
+}
+
+export default function LessonOutline({ courseId, lessons, currentLessonId, loading, error, onRetry, modules, linkFor }: Props) {
   const [open, setOpen] = useState(false);
   // Close the mobile outline after moving to another lesson.
   useEffect(() => {
@@ -32,6 +50,7 @@ export default function LessonOutline({ courseId, lessons, currentLessonId, load
 
   const completed = lessons.filter((lesson) => lesson.completed === true).length;
   const position = lessons.findIndex((lesson) => lessonKey(lesson) === currentLessonId) + 1;
+  const headings = moduleHeadings(lessons, modules);
 
   return (
     <nav aria-label="Course outline" className="overflow-hidden rounded-panel border border-line bg-surface-1 shadow-panel" data-testid="lesson-outline">
@@ -109,14 +128,18 @@ export default function LessonOutline({ courseId, lessons, currentLessonId, load
               );
               const base = 'flex items-center gap-3 px-4 py-2.5 text-sm min-h-[44px]';
               return (
-                <li key={id || index}>
+                <Fragment key={id || index}>
+                {headings[index] && (
+                  <li className="relative z-[1] bg-surface-1 px-4 pb-1.5 pt-3.5 text-2xs font-semibold uppercase tracking-[0.12em] text-ink-subtle first:pt-2" data-testid="outline-module">{headings[index]}</li>
+                )}
+                <li>
                   {current ? (
                     <span aria-current="page" className={`${base} bg-tint font-semibold text-ink`}>
                       {body}
                     </span>
                   ) : (
                     <Link
-                      href={locked ? `/courses/${encodeURIComponent(courseId)}` : lessonHref(courseId, id)}
+                      href={linkFor ? linkFor(id) : locked ? `/courses/${encodeURIComponent(courseId)}` : lessonHref(courseId, id)}
                       className={`${base} text-ink-muted transition-colors hover:bg-[color-mix(in_srgb,var(--fo-text)_5%,transparent)] hover:text-ink ${locked ? 'opacity-70' : ''}`}
                       title={locked ? 'Unlock the full course to open this lesson' : undefined}
                     >
@@ -124,6 +147,7 @@ export default function LessonOutline({ courseId, lessons, currentLessonId, load
                     </Link>
                   )}
                 </li>
+                </Fragment>
               );
             })}
           </ol>

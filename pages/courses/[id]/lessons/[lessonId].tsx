@@ -2,6 +2,11 @@
  * Lesson Page
  * Displays lesson content with video, description, documents, quiz, and chat
  *
+ * Course builder: the lesson body is rendered by components/course/LessonBlocks and the quiz,
+ * assignments and practical tasks by components/course/LessonActivities, the same components the
+ * builder preview uses, so students see exactly what was previewed. Lessons are grouped under
+ * their modules in the outline. Editing happens in the course builder (/builder/:courseId).
+ *
  * Phase 7: course outline and previous/next from the outline view (no lesson bodies), explicit
  * completion separate from video playback, video resume, protected document links, and a state
  * the student can act on for every outcome (loading, locked, enroll first, not found, retryable
@@ -16,10 +21,9 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import Sidebar from '@/components/Sidebar';
 import BackButton from '@/components/BackButton';
-import VideoPlayer from '@/components/VideoPlayer';
-import Quiz from '@/components/Quiz';
+import LessonBlocks from '@/components/course/LessonBlocks';
+import LessonActivities from '@/components/course/LessonActivities';
 import LessonOutline from '@/components/student/LessonOutline';
-import LessonDocuments from '@/components/student/LessonDocuments';
 import LessonCompletion from '@/components/student/LessonCompletion';
 import { useLesson, useLessons } from '@/hooks/useLesson';
 import { useSocket } from '@/hooks/useSocket';
@@ -27,10 +31,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { useLearningActivity } from '@/hooks/useLearningActivity';
 import { useProgressSync } from '@/hooks/useProgressSync';
-import InstructorLessonEditor from '@/components/InstructorLessonEditor';
-import { sanitizeForStudentView } from '@/lib/html-sanitizer';
-import { safeLinkUrl } from '@/lib/safe-url';
-import { getLessonDescriptionHtml, hasVisibleHtml } from '@/lib/lesson-html';
+import { apiClient } from '@/lib/api-client';
+import LessonHeader from '@/components/course/LessonHeader';
+import { moduleHeadings } from '@/components/student/LessonOutline';
 import { lessonHref, markCompleted, resolveLessonNavigation } from '@/lib/lesson-navigation';
 import { playbackKey } from '@/lib/playback-position';
 import { LessonSkeleton } from '@/components/loading';
@@ -41,7 +44,6 @@ import type { LessonAccessDeniedPayload, LessonMonetization } from '@/hooks/useL
 import { COURSE_PRICE_LABEL } from '@/lib/course-price';
 import { loginHref } from '@/lib/login-redirect';
 import dynamic from 'next/dynamic';
-import LessonAssignments from '@/components/LessonAssignments';
 
 // The market signal chart pulls in recharts; load it after the page instead of in the page bundle.
 const MarketSignal = dynamic(() => import('@/components/MarketSignal'), {
@@ -89,16 +91,23 @@ export default function LessonPage() {
     }
   }, [router, authLoading, isAuthenticated]);
   const { joinLesson, leaveLesson, socket, connected } = useSocket();
-  const [showQuiz, setShowQuiz] = useState(false);
-  const [showContentEditor, setShowContentEditor] = useState(false);
   const [videoFinished, setVideoFinished] = useState(false);
+  const [modules, setModules] = useState<Array<{ id: string; title: string }>>([]);
 
-  // A different lesson starts with its panels closed.
+  // A different lesson starts with its video prompt cleared.
   useEffect(() => {
-    setShowQuiz(false);
-    setShowContentEditor(false);
     setVideoFinished(false);
   }, [lessonId]);
+
+  // Module titles for the outline (the course record; lesson membership is on each lesson).
+  useEffect(() => {
+    if (!canFetch || !courseId) return;
+    let alive = true;
+    apiClient.get<{ modules?: Array<{ id: string; title: string }> }>(`/courses/${courseId}?lessons=none`)
+      .then((course) => { if (alive) setModules(Array.isArray(course.modules) ? course.modules : []); })
+      .catch(() => { if (alive) setModules([]); });
+    return () => { alive = false; };
+  }, [canFetch, courseId]);
 
   // useLesson returns state only for the lesson this URL names, never the previous lesson during
   // a route change.
@@ -180,6 +189,11 @@ export default function LessonPage() {
   }, [isLockedAccessDenied, payBlocked, courseId, router]);
 
   const navigation = resolveLessonNavigation(lessons, lessonId);
+  // The module this lesson belongs to (the closest module heading at or before it).
+  const headings = moduleHeadings(lessons, modules);
+  const lessonIndex = navigation.position - 1;
+  let moduleTitle: string | null = null;
+  for (let i = lessonIndex; i >= 0; i -= 1) { if (headings[i]) { moduleTitle = headings[i]; break; } }
   const outline = (
     <LessonOutline
       courseId={courseId}
@@ -188,6 +202,7 @@ export default function LessonPage() {
       loading={lessonsLoading}
       error={lessonsError}
       onRetry={() => void refetchLessons()}
+      modules={modules}
     />
   );
 
@@ -265,41 +280,17 @@ export default function LessonPage() {
   /** Free tier + demo: ads only when full lesson payload is loaded and backend marks showAds. */
   const freeContentAds = Boolean(displayLesson && monetization?.unlocked && monetization?.showAds === true);
 
-  const lessonDescriptionHtml = displayLesson ? getLessonDescriptionHtml(displayLesson as any) : '';
-  const lessonDescStudent = sanitizeForStudentView(lessonDescriptionHtml);
-
-  const lessonBodyRaw = displayLesson
-    ? String(
-        (displayLesson as any).content ||
-          (displayLesson as any).lessonSummary?.overview ||
-          (displayLesson as any).summary ||
-          ''
-      ) || ''
-    : '';
-  const lessonBodyStudent = sanitizeForStudentView(lessonBodyRaw);
-
   const displayTitleHtml = displayLesson
     ? displayLesson.title
     : lockedPayload?.lessonMeta?.title || 'Lesson';
-  const videoUrl = displayLesson ? safeLinkUrl(displayLesson.videoUrl) : null;
   const isStudent = user?.role === 'student';
 
   const navButton = 'btn btn-lg min-h-[48px]';
 
   return shell(
     <>
-      {/* Lesson Header */}
-      <div className="mb-6">
-        {navigation.position > 0 && (
-          <p className="page-kicker mb-3" data-testid="lesson-position">
-            Lesson {navigation.position} of {navigation.total}
-          </p>
-        )}
-        <h1
-          className="font-display text-[1.75rem] font-semibold leading-tight tracking-[-0.02em] text-ink break-words sm:text-[2.25rem]"
-          dangerouslySetInnerHTML={{ __html: sanitizeForStudentView(displayTitleHtml) }}
-        />
-      </div>
+      {/* Lesson header (shared with the builder preview) */}
+      <LessonHeader title={displayTitleHtml} position={navigation.position} total={navigation.total} moduleTitle={moduleTitle} />
 
       <ContentAdInterstitial
         storageKey={`fo-ad-int-lesson-${String(lessonId)}`}
@@ -329,116 +320,40 @@ export default function LessonPage() {
         </div>
       )}
 
-      {/* Video Player - Display YouTube videos and other video URLs */}
-      {!payBlocked && displayLesson && videoUrl && (
-        <div className="panel-instrument mb-6 overflow-hidden rounded-[1.375rem] border border-line p-2 shadow-lift">
-          <VideoPlayer
-            url={videoUrl}
-            resumeKey={user?.id ? playbackKey(user.id, lessonId) : null}
-            onEnded={handleVideoEnd}
-            onProgress={markActive}
-          />
+      {/* Staff open the course builder to change a lesson; the page itself is what students see. */}
+      {displayLesson && user && user.role !== 'student' && (
+        <div className="notice notice-brand mb-6 flex flex-wrap items-center justify-between gap-3 text-sm" data-testid="staff-lesson-note">
+          <span>You are viewing this lesson as students see it.</span>
+          <Link href={`/builder/${courseId}?lesson=${lessonId}`} className="btn btn-secondary btn-sm">Edit in course builder</Link>
         </div>
       )}
 
-      {/* Lesson Description (description field; legacy fallback: summary) */}
       {!payBlocked && freeContentAds && (
         <div className="mb-4">
           <ContentAdBanner format="horizontal" propellerPlacement="freeLessonInline" />
         </div>
       )}
 
-      {!payBlocked && hasVisibleHtml(lessonDescStudent) && (
-        <div className="lesson-reading mb-8 pt-2">
-          <h2 className="sr-only">Lesson</h2>
-          <div className="rich-html-readable text-[1.0625rem] leading-relaxed">
-            <div dangerouslySetInnerHTML={{ __html: lessonDescStudent }} />
-          </div>
-        </div>
-      )}
-
-      {/* Instructor/Admin Lesson Content Editor - ONLY visible to instructors/admins */}
-      {user?.role === 'instructor' && displayLesson && (
-        <div className="mb-4">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="section-title">Lesson Content Editor</h2>
-            <button
-              onClick={() => setShowContentEditor(!showContentEditor)}
-              className="btn btn-outline btn-sm"
-            >
-              {showContentEditor ? 'Hide Editor' : 'Edit Content'}
-            </button>
-          </div>
-          {showContentEditor && (
-            <InstructorLessonEditor
-              lessonId={lessonId}
-              courseId={courseId}
-              initialContent={
-                (displayLesson as any).content ||
-                (displayLesson as any).lessonSummary?.overview ||
-                (displayLesson as any).lessonSummary?.summary ||
-                (displayLesson as any).summary ||
-                ''
-              }
-              onSave={() => {
-                setShowContentEditor(false);
-                // Show the saved content without leaving or blanking the page.
-                void refetchLesson({ silent: true });
-              }}
-            />
-          )}
-        </div>
-      )}
-
-      {/* Lesson Content - Summary (stored in `content`; legacy: lessonSummary.overview / summary) */}
-      {!payBlocked && hasVisibleHtml(lessonBodyStudent) && (
-        <div className="card mb-6">
-          <h2 className="section-title mb-3">Lesson Content</h2>
-          <div className="rich-html-readable text-base leading-relaxed break-words">
-            <div dangerouslySetInnerHTML={{ __html: lessonBodyStudent }} />
-          </div>
-        </div>
-      )}
-
-      {/* Lesson PDF and resources (protected links for students) */}
+      {/* Lesson body: the shared renderer (components/course/LessonBlocks). */}
       {!payBlocked && displayLesson && (
-        <LessonDocuments
-          pdfUrl={displayLesson.pdfUrl}
-          pdfAvailable={displayLesson.pdfAvailable}
-          resources={displayLesson.resources}
-        />
-      )}
-
-      {/* Quiz */}
-      {!payBlocked && displayLesson && displayLesson.quiz && (
-        <div className="card panel-instrument mb-6">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-            <div className="flex-1">
-              <p className="page-kicker">Check your understanding</p>
-              <h2 className="section-title mt-2">Lesson Quiz</h2>
-              <p className="mt-1 text-sm text-ink-muted">Test your understanding</p>
-            </div>
-            <button
-              onClick={() => setShowQuiz(!showQuiz)}
-              className="btn btn-primary btn-lg w-full sm:w-auto"
-            >
-              {showQuiz ? 'Hide Quiz' : 'Take Quiz'}
-            </button>
-          </div>
-          {showQuiz && (
-            <div className="mt-5 border-t border-line pt-5">
-              <Quiz
-                lessonId={lessonId}
-                courseId={courseId}
-                quiz={displayLesson.quiz}
-              />
-            </div>
-          )}
+        <div className="lesson-reading mb-10">
+          <LessonBlocks
+            lesson={displayLesson as never}
+            mode="student"
+            resolveAsset={isStudent ? undefined : (assetId) => `/api/courses/${courseId}/assets?assetId=${assetId}`}
+            videoResumeKey={user?.id ? playbackKey(user.id, lessonId) : null}
+            onVideoEnded={handleVideoEnd}
+            onVideoProgress={markActive}
+          />
         </div>
       )}
 
-      {/* Assignments: students, on a lesson they may open */}
-      {!payBlocked && displayLesson && isStudent && <LessonAssignments lessonId={lessonId} />}
+      {/* Quiz, assignments and practical tasks (components/course/LessonActivities). */}
+      {!payBlocked && displayLesson && (isStudent || displayLesson.quiz) && (
+        <div className="mb-8">
+          <LessonActivities mode="student" lessonId={lessonId} courseId={courseId} quiz={displayLesson.quiz || null} />
+        </div>
+      )}
 
       {/* Explicit completion: students, on a lesson they may open */}
       {!payBlocked && displayLesson && isStudent && (

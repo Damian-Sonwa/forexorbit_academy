@@ -81,7 +81,7 @@ export function CourseTable({ courses }: { courses: CourseRow[] }) {
             const st = COURSE_STATUS[c.status] || { label: c.status, tone: '' };
             return (
               <tr key={c.courseId}>
-                <td className="max-w-[16rem] font-medium text-ink"><Link href={`/instructor/courses/${c.courseId}`} className="line-clamp-2 hover:underline">{txt(c.title)}</Link><span className={`chip mt-1 sm:hidden ${st.tone}`}>{st.label}</span></td>
+                <td className="max-w-[16rem] font-medium text-ink"><Link href={`/builder/${c.courseId}`} className="line-clamp-2 hover:underline">{txt(c.title)}</Link><span className={`chip mt-1 sm:hidden ${st.tone}`}>{st.label}</span></td>
                 <td className="hidden sm:table-cell"><span className={`chip ${st.tone}`}>{st.label}</span></td>
                 <td className="hidden text-right num sm:table-cell">{c.lessons}</td>
                 <td className="text-right num">{c.enrollments}</td>
@@ -89,7 +89,7 @@ export function CourseTable({ courses }: { courses: CourseRow[] }) {
                 <td className="hidden text-right num sm:table-cell">{pct(c.completionRate)}</td>
                 <td className={`text-right num ${c.pendingSubmissions ? 'font-semibold text-caution' : ''}`}>{c.pendingSubmissions}</td>
                 <td className="hidden whitespace-nowrap text-right sm:table-cell">
-                  <Link href={`/instructor/courses/${c.courseId}`} className="btn btn-ghost btn-sm">Manage</Link>
+                  <Link href={`/builder/${c.courseId}`} className="btn btn-ghost btn-sm">Manage</Link>
                   <Link href={`/instructor/students?courseId=${c.courseId}`} className="btn btn-ghost btn-sm">Students</Link>
                 </td>
               </tr>

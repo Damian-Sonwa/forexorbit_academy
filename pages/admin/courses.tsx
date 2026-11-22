@@ -70,7 +70,7 @@ export default function AdminCoursesPage() {
   };
 
   return (
-    <AdminShell title="Courses" lede="Review, publish and archive courses, and keep every course with an active instructor." actions={<ExportButton href={new URLSearchParams({ type: 'courses', ...(status ? { status } : {}), ...(attention ? { attention } : {}), ...(q ? { q } : {}) }).toString()} />}>
+    <AdminShell title="Courses" lede="Review, publish and archive courses, and keep every course with an active instructor." actions={<><Link href="/builder/new" className="btn btn-primary btn-sm" data-testid="admin-new-course">New course</Link><ExportButton href={new URLSearchParams({ type: 'courses', ...(status ? { status } : {}), ...(attention ? { attention } : {}), ...(q ? { q } : {}) }).toString()} /></>}>
       <FilterBar onSubmit={() => setQuery({ q: search.trim() })}>
         <Field label="Search title" grow><input className="input w-full" value={search} maxLength={80} onChange={(e) => setSearch(e.target.value)} /></Field>
         <Field label="Status">
@@ -98,7 +98,7 @@ export default function AdminCoursesPage() {
             {data.rows.map((c) => (
               <tr key={c.courseId}>
                 <td className="max-w-[16rem]">
-                  <Link href={`/instructor/courses/${c.courseId}`} className="line-clamp-2 font-medium text-ink hover:underline">{txt(c.title)}</Link>
+                  <Link href={`/builder/${c.courseId}`} className="line-clamp-2 font-medium text-ink hover:underline">{txt(c.title)}</Link>
                   <span className="text-2xs text-ink-subtle">{c.lessons} lesson{c.lessons === 1 ? '' : 's'}{c.reassignments ? ` · ${c.reassignments} handover${c.reassignments === 1 ? '' : 's'}` : ''}</span>
                   <span className="block text-2xs md:hidden">{c.instructor ? c.instructor.name : 'No instructor'}{c.instructorNeedsAttention && <span className="text-down"> · needs an instructor</span>}</span>
                 </td>

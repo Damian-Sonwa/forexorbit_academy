@@ -73,7 +73,7 @@ export default function AdminUserPage() {
             <Section title="Courses taught">
               <DataTable head={<tr><th>Course</th><th>Status</th><th className="hidden sm:table-cell">Updated</th></tr>}>
                 {data.courses.map((c) => (
-                  <tr key={c.courseId}><td><Link href={`/instructor/courses/${c.courseId}`} className="text-ink hover:underline">{txt(c.title)}</Link></td><td className="capitalize">{c.status.replace('_', ' ')}</td><td className="hidden text-xs text-ink-subtle sm:table-cell">{formatDate(c.updatedAt)}</td></tr>
+                  <tr key={c.courseId}><td><Link href={`/builder/${c.courseId}`} className="text-ink hover:underline">{txt(c.title)}</Link></td><td className="capitalize">{c.status.replace('_', ' ')}</td><td className="hidden text-xs text-ink-subtle sm:table-cell">{formatDate(c.updatedAt)}</td></tr>
                 ))}
               </DataTable>
             </Section>

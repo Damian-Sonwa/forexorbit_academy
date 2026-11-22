@@ -9,6 +9,8 @@ import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
 import Footer from '@/components/Footer';
 import CourseCover from '@/components/CourseCover';
+import CourseIntro from '@/components/course/CourseIntro';
+import { moduleHeadings } from '@/components/student/LessonOutline';
 import OrbitProgress from '@/components/ui/OrbitProgress';
 import { difficultyChip } from '@/lib/difficulty-style';
 import { decodeHtmlEntities } from '@/lib/plain-text';
@@ -93,10 +95,10 @@ export default function CourseDetailPage() {
     }
   }, [fixRef, id, isAuthenticated, goToLogin, handleCourseUnlocked]);
 
-  // Redirect instructors to instructor course management page
+  // Staff manage courses in the course builder (its Preview shows the student view)
   useEffect(() => {
     if (user && id && (user.role === 'instructor' || user.role === 'admin' || user.role === 'superadmin')) {
-      router.replace(`/instructor/courses/${id}`);
+      router.replace(`/builder/${id}`);
     }
   }, [user, id, router]);
 
@@ -215,6 +217,11 @@ export default function CourseDetailPage() {
               </div>
               <div className="p-5 pt-2 sm:p-7 sm:pt-3">
 
+              {/* Builder details: summary, objectives, prerequisites, time (shared with the preview). */}
+              <div className="mb-5">
+                <CourseIntro summary={course.summary} objectives={course.objectives} prerequisites={course.prerequisites} estimatedHours={course.estimatedHours} lessons={lessons.length} />
+              </div>
+
               {course.description && hasVisibleHtml(sanitizeForStudentView(course.description)) && (
                 <div className="rich-html-readable text-base leading-relaxed mb-4">
                   <div dangerouslySetInnerHTML={{ __html: sanitizeForStudentView(course.description) }} />
@@ -265,6 +272,7 @@ export default function CourseDetailPage() {
                       previews and demo lessons open wherever they sit (Phase 7). Locked lessons
                       show their title only and lead to the unlock offer below. */}
                   {lessons.map((lesson, index) => {
+                    const heading = moduleHeadings(lessons, course.modules || [])[index];
                     const lessonId = String(lesson._id || lesson.id || '');
                     const key = lessonId || String(index);
                     const locked = lesson.locked === true;
@@ -322,6 +330,7 @@ export default function CourseDetailPage() {
                     );
                     return (
                       <div key={key}>
+                        {heading && <h3 className="pb-1 pt-4 text-xs font-semibold uppercase tracking-[0.14em] text-ink-subtle first:pt-0" data-testid="course-module">{heading}</h3>}
                         {locked ? (
                           <div className="flex w-full items-center justify-between gap-3 rounded-xl border border-dashed border-line-strong p-4 opacity-80 sm:p-5" data-testid="course-lesson-locked">
                             {inner}

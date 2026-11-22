@@ -12,6 +12,8 @@ import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
 import { isStoredId } from '@/lib/account-access';
 import { decideCourseTransition } from '@/lib/course-lifecycle';
+import { courseReadiness } from '@/lib/course-content';
+import { quizSummaries } from '@/lib/course-curriculum';
 import { AUDIT_COLLECTION } from '@/lib/course-payment';
 import { allowRequest, authoringLimiter } from '@/lib/content-rate-limit';
 import { unexpectedBody } from '@/lib/public-error';
@@ -29,13 +31,32 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
     if (!(await allowRequest(authoringLimiter, { userId: req.user!.userId, res, getDb }))) return;
     const course = await db.collection('courses').findOne(
       { _id: new ObjectId(courseId) },
-      { projection: { instructorId: 1, status: 1, title: 1 } }
+      { projection: { instructorId: 1, status: 1, title: 1, description: 1, category: 1, difficulty: 1, summary: 1, thumbnail: 1, objectives: 1, modules: 1, assets: 1 } }
     );
     const member = { userId: req.user!.userId, role: req.user!.role };
     const to = req.body && typeof req.body === 'object' ? req.body.status : undefined;
     const decision = decideCourseTransition({ member, course, to });
     if (!decision.ok) {
       return res.status(decision.status).json({ error: decision.error, code: decision.code });
+    }
+    // Course builder: a course goes to review or is published only when it is complete enough to
+    // teach from (title, description, category, difficulty, at least one lesson, every lesson with a
+    // title and content, no empty media blocks). Archiving and restoring are not checked.
+    if ((decision.to === 'in_review' || decision.to === 'published') && decision.from !== 'archived') {
+      const lessons = await db.collection('lessons')
+        .find({ courseId: decision.courseId }, { projection: { title: 1, order: 1, moduleId: 1, blocks: 1, description: 1, content: 1, videoUrl: 1, pdfUrl: 1, resources: 1 } })
+        .limit(500)
+        .toArray();
+      const quizzes = await quizSummaries(db, lessons.map((l) => String(l._id)));
+      const assetIds = new Set(((course!.assets as Array<{ id: string }>) || []).map((a) => a.id));
+      const readiness = courseReadiness({ course, lessons, quizzes, assetIds });
+      if (!readiness.ready) {
+        return res.status(409).json({
+          error: `The course is not ready yet: ${readiness.issues.find((i) => i.level === 'error')!.message}`,
+          code: 'course_not_ready',
+          issues: readiness.issues.filter((i) => i.level === 'error'),
+        });
+      }
     }
     const now = new Date();
     const written = await db.collection('courses').updateOne(

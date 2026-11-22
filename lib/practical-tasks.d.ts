@@ -64,7 +64,7 @@ export type StaffTaskView = StudentTaskView & {
 
 export type StateSummary = { state: StudentState; attemptsUsed: number; attemptsLeft: number; canStart: boolean; latestStatus: AttemptStatus | null; result: { score: number; maxScore: number; percent: string; attempt: number } | null; deadline: string | null };
 export type StudentTaskCard = StateSummary & {
-  id: string; title: string; summary: string; instructor: string; course: string | null; category: string; competency: string; difficulty: Difficulty; instruments: string[];
+  id: string; title: string; summary: string; instructor: string; course: string | null; courseId: string | null; lessonId: string | null; category: string; competency: string; difficulty: Difficulty; instruments: string[];
   dueAt: string | null; gradingMode: GradingMode; maxScore: number; maxAttempts: number; publishedAt: string | null;
 };
 export type StudentSummary = {

@@ -34,3 +34,7 @@ export function allowRequest(
     now?: number;
   }
 ): Promise<boolean>;
+export const AI_LESSON_RULES: readonly AuthRule[];
+export const AI_LESSON_DAILY_RULES: readonly AuthRule[];
+export const aiLessonLimiter: Limiter;
+export const aiLessonDailyLimiter: Limiter;

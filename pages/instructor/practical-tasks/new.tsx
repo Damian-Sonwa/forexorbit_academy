@@ -40,13 +40,17 @@ export default function NewPracticalTask() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => { if (!courseId && courses.length === 1) setCourseId(courses[0].id); }, [courses, courseId]);
+  // Course builder: ?courseId=&lessonId= opens the creator for that lesson (the server checks both).
+  const presetCourse = typeof router.query.courseId === 'string' && /^[a-f0-9]{24}$/.test(router.query.courseId) ? router.query.courseId : '';
+  const presetLesson = typeof router.query.lessonId === 'string' && /^[a-f0-9]{24}$/.test(router.query.lessonId) ? router.query.lessonId : '';
+  useEffect(() => { if (presetCourse && courses.some((c) => c.id === presetCourse)) setCourseId(presetCourse); }, [presetCourse, courses]);
   useEffect(() => { if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' }); }, [step]);
 
   const generate = async (seed = gen.seed) => {
     setBusy(true); setProblem(null);
     try {
       const res = await apiClient.post<{ draft: TaskDefinitionInput; notice: string | null; generator: Record<string, unknown> }>('/practical-tasks/generate', { ...gen, seed, side: gen.side || null });
-      setDraft({ definition: { ...res.draft, rubric: res.draft.rubric as RubricRow[] }, courseId, lessonId: '', resources: [] });
+      setDraft({ definition: { ...res.draft, rubric: res.draft.rubric as RubricRow[] }, courseId, lessonId: courseId === presetCourse ? presetLesson : '', resources: [] });
       setNotice(res.notice);
       setGen({ ...gen, seed });
       setStep(3);
@@ -83,7 +87,7 @@ export default function NewPracticalTask() {
     if (step === 1) {
       if (!courseId) { setProblem({ field: 'courseId', error: 'Choose the course this task belongs to.' }); return; }
       setProblem(null);
-      if (method === 'manual') { setDraft(blankDraft(courseId)); setNotice(null); setStep(3); } else setStep(2);
+      if (method === 'manual') { setDraft({ ...blankDraft(courseId), lessonId: courseId === presetCourse ? presetLesson : '' }); setNotice(null); setStep(3); } else setStep(2);
     } else if (step === 2) void generate();
     else if (step === 3) void toPreview();
     else void save();

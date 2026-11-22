@@ -122,15 +122,17 @@ test('H3: a stored unsafe link renders as plain content, never as a live link', 
   assert.ok(good.includes('rel="noopener noreferrer"'));
   const page = read('pages/courses/[id]/lessons/[lessonId].tsx');
   assert.equal(page.includes('href={resource.url}\n                    target'), false);
-  // Phase 7: lesson documents render through components/student/LessonDocuments.tsx.
-  assert.ok(page.includes('<LessonDocuments'));
+  // Course builder: lesson documents, videos and links render through the shared renderer, which
+  // checks every stored link (lib/safe-url.js) before it becomes an href or a player source.
+  assert.ok(page.includes('<LessonBlocks'));
+  const blocks = read('components/course/LessonBlocks.tsx');
+  assert.match(blocks, /return safeLinkUrl\(block\.url\) \|\| null;/);
+  assert.match(blocks, /const src = safeLinkUrl\(block\.url\);/);
+  assert.match(blocks, /const href = safeLinkUrl\(block\.url, \{ allowRelative: false \}\);/);
+  assert.match(read('components/course/RichText.tsx'), /const href = seg\.link \? safeLinkUrl\(seg\.link\) : null;/);
   const documents = read('components/student/LessonDocuments.tsx');
   assert.ok(documents.includes('<SafeExternalLink'));
   assert.equal(/<a\s/.test(documents), false, 'documents never render a raw link');
-  assert.ok(page.includes('safeLinkUrl(displayLesson.videoUrl)'));
-  for (const file of ['pages/instructor/dashboard.tsx', 'pages/instructor/lessons.tsx']) {
-    assert.ok(read(file).includes('<SafeExternalLink'), file);
-  }
 });
 
 // ---------------------------------------------------------------------------
@@ -678,12 +680,19 @@ test('Decision 2: the deletion claim stops a second delete or a status change ru
 });
 
 test('Decision 2: the UI describes archive and permanent deletion accurately', () => {
-  for (const file of ['pages/admin/index.tsx', 'pages/instructor/courses/[courseId].tsx']) {
+  for (const file of ['pages/admin/index.tsx']) {
     const source = read(file);
     assert.equal(source.includes('This will also delete all associated lessons'), false, file);
     assert.ok(source.includes("user?.role === 'superadmin'"), `${file}: delete offered to the Super Admin only`);
     assert.ok(source.includes('archive it instead'), file);
   }
+  // Course builder (replaces the instructor course page): delete is offered when the server says the
+  // member may delete, which is the Super Admin only.
+  const panels = read('components/builder/CoursePanels.tsx');
+  assert.equal(panels.includes('This will also delete all associated lessons'), false);
+  assert.ok(panels.includes('data.permissions.delete &&'));
+  assert.ok(panels.includes('archive it instead'));
+  assert.match(read('lib/course-curriculum.js'), /delete: member\.role === 'superadmin'/);
   const route = read('pages/api/courses/[id].ts');
   assert.ok(route.includes('decideCourseDeletion({'));
   assert.ok(route.includes('deleteCoursePermanently(db, {'));
@@ -1074,7 +1083,8 @@ test('routes pass the course lifecycle state to every access decision (found by 
   }
   assert.deepEqual(missing, []);
   const create = fs.readFileSync(path.join(__dirname, '..', 'pages', 'api', 'lessons', 'index.ts'), 'utf8');
-  assert.ok(create.includes('course: course ? { _id: course._id, instructorId: course.instructorId, status: course.status } : null,\n      body: req.body') || create.includes('course: course ? { _id: course._id, instructorId: course.instructorId, status: course.status } : null,\r\n      body: req.body'));
+  // Course builder: the create decision also receives the course's modules and uploaded files.
+  assert.match(create, /course: course \? \{ _id: course\._id, instructorId: course\.instructorId, status: course\.status(, modules: course\.modules, assets: course\.assets)? \} : null,\r?\n      body: req\.body/);
 });
 
 test('lib has no JavaScript module that shadows a TypeScript module with fewer exports (found by the acceptance run)', () => {

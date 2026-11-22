@@ -755,6 +755,38 @@
   .instructor-lesson-quill .ql-editor {
     min-height: var(--instructor-lesson-editor-h, 500px);
   }
+
+  /* Course builder text blocks: themed with the design tokens (light and dark). */
+  .builder-quill .ql-toolbar.ql-snow {
+    border: 1px solid var(--fo-line);
+    border-bottom: 0;
+    border-radius: 0.75rem 0.75rem 0 0;
+    background: var(--fo-surface-2);
+  }
+  .builder-quill .ql-container.ql-snow {
+    border: 1px solid var(--fo-line);
+    border-radius: 0 0 0.75rem 0.75rem;
+    background: var(--fo-surface-1);
+    font-family: inherit;
+    font-size: 1rem;
+  }
+  .builder-quill .ql-editor {
+    min-height: 7.5rem;
+    color: var(--fo-text);
+    line-height: 1.65;
+  }
+  .builder-quill .ql-editor.ql-blank::before {
+    color: var(--fo-text-subtle);
+    font-style: normal;
+  }
+  .builder-quill .ql-snow .ql-stroke { stroke: var(--fo-text-muted); }
+  .builder-quill .ql-snow .ql-fill { fill: var(--fo-text-muted); }
+  .builder-quill .ql-snow button:hover .ql-stroke,
+  .builder-quill .ql-snow button.ql-active .ql-stroke { stroke: var(--fo-brand); }
+  .builder-quill .ql-snow button:hover .ql-fill,
+  .builder-quill .ql-snow button.ql-active .ql-fill { fill: var(--fo-brand); }
+  .builder-quill:focus-within .ql-toolbar.ql-snow,
+  .builder-quill:focus-within .ql-container.ql-snow { border-color: color-mix(in srgb, var(--fo-brand) 55%, var(--fo-line)); }
 }
 
 @keyframes orbit-dash-spin {

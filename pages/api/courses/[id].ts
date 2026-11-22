@@ -128,6 +128,7 @@ async function getCourse(req: AuthRequest, res: NextApiResponse) {
             view.summary = null;
             view.lessonSummary = null;
             view.videoUrl = null;
+            view.blocks = null;
             view.pdfUrl = null;
             view.resources = [];
           }
@@ -173,7 +174,7 @@ async function updateCourse(req: AuthRequest, res: NextApiResponse) {
     const account = decideAccountAccess({ userId: req.user!.userId, record });
     const course = await db.collection('courses').findOne(
       { _id: new ObjectId(courseId) },
-      { projection: { instructorId: 1, status: 1, title: 1, description: 1, category: 1, difficulty: 1, thumbnail: 1 } }
+      { projection: { instructorId: 1, status: 1, title: 1, description: 1, category: 1, difficulty: 1, thumbnail: 1, updatedAt: 1 } }
     );
     const body = req.body && typeof req.body === 'object' ? req.body : {};
     const requestedInstructor = typeof body.instructorId === 'string' ? body.instructorId.trim() : '';
@@ -193,6 +194,14 @@ async function updateCourse(req: AuthRequest, res: NextApiResponse) {
     });
     if (!decision.ok) {
       return refusal(res, decision);
+    }
+    // Course builder: an editor that sends the `updatedAt` it loaded is refused (409) when someone
+    // else saved the course details in between, instead of silently overwriting their change.
+    if (typeof body.baseUpdatedAt === 'string' && course!.updatedAt) {
+      const stored = new Date(course!.updatedAt as Date).toISOString();
+      if (stored !== body.baseUpdatedAt) {
+        return res.status(409).json({ error: 'Someone else saved the course details. Reload to see their changes.', code: 'stale_course', updatedAt: stored });
+      }
     }
 
     // Phase 12: an admin's change of instructor in the course editor goes through the same audited,
@@ -228,9 +237,11 @@ async function updateCourse(req: AuthRequest, res: NextApiResponse) {
     // The course must still be in the state that was checked (it may have been submitted for
     // review or archived meanwhile), so an instructor's edit cannot land on a live course.
     const sameState = course!.status === undefined ? { status: { $exists: false } } : { status: course!.status };
+    const sameVersion = typeof body.baseUpdatedAt === 'string' && course!.updatedAt ? { updatedAt: course!.updatedAt } : {};
+    const savedAt = new Date();
     const updated = await db.collection('courses').updateOne(
-      { _id: new ObjectId(decision.courseId), ...sameState },
-      { $set: { ...decision.patch, updatedAt: new Date() } }
+      { _id: new ObjectId(decision.courseId), ...sameState, ...sameVersion },
+      { $set: { ...decision.patch, updatedAt: savedAt } }
     );
     if (!updated.matchedCount) {
       return res.status(409).json({ error: 'The course changed while you were editing it. Reload and try again.', code: 'course_changed' });
@@ -239,7 +250,7 @@ async function updateCourse(req: AuthRequest, res: NextApiResponse) {
     if (dropped.length) {
       await cleanupUnreferencedAssets(db, dropped, { destroy: deleteImage, context: { courseId: decision.courseId, reason: 'course_update' } });
     }
-    res.json({ success: true });
+    res.json({ success: true, updatedAt: savedAt.toISOString() });
   } catch {
     console.error(JSON.stringify({ event: 'courseUpdate', result: 'failed' }));
     res.status(500).json(unexpectedBody('api'));

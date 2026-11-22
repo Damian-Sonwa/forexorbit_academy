@@ -41,7 +41,7 @@ export default function InstructorProfilePage() {
                     <span className="min-w-0 truncate text-sm font-medium text-ink">{previewText(c.title)}</span>
                     <span className="flex shrink-0 items-center gap-2">
                       <span className="chip">{STATUS_LABEL[c.status] || c.status}</span>
-                      <Link href={`/instructor/courses/${c.courseId}`} className="btn btn-ghost btn-sm">Manage</Link>
+                      <Link href={`/builder/${c.courseId}`} className="btn btn-ghost btn-sm">Manage</Link>
                     </span>
                   </li>
                 ))}

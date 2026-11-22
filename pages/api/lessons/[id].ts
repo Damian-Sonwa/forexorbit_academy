@@ -28,9 +28,10 @@ import { assetsInDocuments, cleanupUnreferencedAssets, removedAssets } from '@/l
 import { allowRequest, authoringLimiter } from '@/lib/content-rate-limit';
 import { deleteImage } from '@/lib/cloudinary';
 import { presentStudentDocuments, setPrivateNoStore } from '@/lib/lesson-documents';
+import { normalizeCurriculumOrder } from '@/lib/course-curriculum';
 
 /** Lesson fields that can hold uploaded course images (lib/media-cleanup.js). */
-const LESSON_MEDIA_PROJECTION = { content: 1, description: 1, summary: 1, title: 1, lessonSummary: 1, videoUrl: 1, pdfUrl: 1, resources: 1 };
+const LESSON_MEDIA_PROJECTION = { content: 1, description: 1, summary: 1, title: 1, lessonSummary: 1, videoUrl: 1, pdfUrl: 1, resources: 1, blocks: 1 };
 
 function refused(res: NextApiResponse, decision: { status: number; error: string; code?: string; field?: string }) {
   return res.status(decision.status).json({ error: decision.error, code: decision.code, field: decision.field });
@@ -71,19 +72,20 @@ async function updateLesson(req: AuthRequest, res: NextApiResponse) {
     const account = decideAccountAccess({ userId: req.user!.userId, record });
     const lesson = await db.collection('lessons').findOne(
       { _id: new ObjectId(lessonId) },
-      { projection: { courseId: 1, ...LESSON_MEDIA_PROJECTION } }
+      { projection: { courseId: 1, moduleId: 1, revision: 1, ...LESSON_MEDIA_PROJECTION } }
     );
     let course = null;
     if (lesson && lesson.courseId != null && isStoredId(String(lesson.courseId))) {
+      // modules and assets: a lesson may only join this course's modules and use its uploaded files.
       course = await db.collection('courses').findOne(
         { _id: new ObjectId(String(lesson.courseId)) },
-        { projection: { instructorId: 1, status: 1 } }
+        { projection: { instructorId: 1, status: 1, modules: 1, 'assets.id': 1 } }
       );
     }
     const decision = decideLessonUpdate({
       member: account.ok ? { userId: account.user.userId, role: account.user.role } : null,
       lesson: lesson ? { _id: lesson._id, courseId: lesson.courseId } : null,
-      course: course ? { _id: course._id, instructorId: course.instructorId, status: course.status } : null,
+      course: course ? { _id: course._id, instructorId: course.instructorId, status: course.status, modules: course.modules, assets: course.assets } : null,
       patch: req.body,
     });
     if (!decision.ok) {
@@ -114,15 +116,37 @@ async function updateLesson(req: AuthRequest, res: NextApiResponse) {
         return res.status(409).json({ error: 'The course is no longer a draft. Reload the page.', code: 'course_not_editable' });
       }
     }
-    await db.collection('lessons').updateOne(
-      { _id: new ObjectId(decision.lessonId) },
-      { $set: patch }
+    // Course builder: an editor sends the revision it loaded (`baseRevision`). The save applies only
+    // if nobody saved the lesson since; otherwise 409, and the editor keeps its copy for the author
+    // to compare. Older callers that send no revision keep their previous behaviour.
+    const baseRevision = req.body && Number.isInteger(req.body.baseRevision) ? req.body.baseRevision as number : null;
+    const revisionFilter = baseRevision === null
+      ? {}
+      : baseRevision === 0
+        ? { $or: [{ revision: 0 }, { revision: { $exists: false } }] }
+        : { revision: baseRevision };
+    const written = await db.collection('lessons').findOneAndUpdate(
+      { _id: new ObjectId(decision.lessonId), ...revisionFilter },
+      { $set: { ...patch, updatedBy: String(req.user!.userId) }, $inc: { revision: 1 } },
+      { returnDocument: 'after', includeResultMetadata: false, projection: { revision: 1 } }
     );
+    if (!written) {
+      const current = await db.collection('lessons').findOne({ _id: new ObjectId(decision.lessonId) }, { projection: { revision: 1, updatedAt: 1 } });
+      return res.status(409).json({
+        error: 'This lesson was saved from another window or by another editor. Your changes are kept here; reload to see the latest version.',
+        code: 'stale_revision',
+        revision: current && Number.isInteger(current.revision) ? current.revision : 0,
+        updatedAt: current ? current.updatedAt : null,
+      });
+    }
+    if (patch.moduleId !== undefined && patch.moduleId !== (lesson && lesson.moduleId)) {
+      await normalizeCurriculumOrder(db, decision.courseId);
+    }
     const dropped = removedAssets(lesson, { ...lesson, ...patch });
     if (dropped.length) {
       await cleanupUnreferencedAssets(db, dropped, { destroy: deleteImage, context: { lessonId: decision.lessonId, reason: 'lesson_update' } });
     }
-    res.json({ success: true });
+    res.json({ success: true, revision: written.revision, updatedAt: patch.updatedAt });
   } catch {
     console.error(JSON.stringify({ event: 'lessonUpdate', result: 'failed' }));
     res.status(500).json(unexpectedBody('api'));

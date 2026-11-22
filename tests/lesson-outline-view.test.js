@@ -111,7 +111,10 @@ test('the routes offer the lighter views and the pages request them', () => {
 
   assert.match(read('hooks/useLesson.ts'), /`\/courses\/\$\{courseId\}\/lessons\?view=outline`/);
   assert.equal((read('hooks/useCourses.ts').match(/`\/courses\/\$\{courseId\}\?lessons=none`/g) || []).length, 2);
-  assert.match(read('pages/instructor/courses/[courseId].tsx'), /`\/courses\/\$\{id\}\?lessons=none`/);
+  // Course builder: the former instructor course page forwards to the builder, which loads one
+  // owner-only view (GET /api/courses/:id/builder) instead of the course plus its lessons.
+  assert.match(read('pages/instructor/courses/[courseId].tsx'), /router\.replace\(`\/builder\/\$\{encodeURIComponent\(courseId\)\}`\)/);
+  assert.match(read('pages/builder/[courseId].tsx'), /`\/courses\/\$\{courseId\}\/builder`/);
 });
 
 test('opening one lesson prices it without loading the sibling lesson bodies', async () => {

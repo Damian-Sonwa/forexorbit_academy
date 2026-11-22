@@ -24,6 +24,7 @@ import { LESSON_LIST_COURSE_PROJECTION, loadCourseEntitlement, presentCourseLess
 import { nextLessonPosition } from '@/lib/lesson-order';
 import { recomputeCourseProgress } from '@/lib/course-progress';
 import { allowRequest, authoringLimiter } from '@/lib/content-rate-limit';
+import { normalizeCurriculumOrder } from '@/lib/course-curriculum';
 
 async function getLessons(req: AuthRequest, res: NextApiResponse) {
   const requestedId = Array.isArray(req.query.courseId) ? req.query.courseId[0] : req.query.courseId;
@@ -61,7 +62,7 @@ async function getLessons(req: AuthRequest, res: NextApiResponse) {
 
     const lessonCursor = db.collection('lessons').find({ courseId: catalog.courseId });
     if (outline) {
-      lessonCursor.project({ title: 1, type: 1, order: 1, courseId: 1, requiredLevel: 1, isFreePreview: 1 });
+      lessonCursor.project({ title: 1, type: 1, order: 1, courseId: 1, requiredLevel: 1, isFreePreview: 1, moduleId: 1 });
     }
     const lessonsList = await lessonCursor.sort({ order: 1 }).toArray();
     const courseRecord = {
@@ -121,11 +122,11 @@ async function createLesson(req: AuthRequest, res: NextApiResponse) {
     const account = decideAccountAccess({ userId: req.user!.userId, record });
     const course = await db.collection('courses').findOne(
       { _id: new ObjectId(courseId) },
-      { projection: { instructorId: 1, status: 1 } }
+      { projection: { instructorId: 1, status: 1, modules: 1, 'assets.id': 1 } }
     );
     const decision = decideLessonCreate({
       member: account.ok ? { userId: account.user.userId, role: account.user.role } : null,
-      course: course ? { _id: course._id, instructorId: course.instructorId, status: course.status } : null,
+      course: course ? { _id: course._id, instructorId: course.instructorId, status: course.status, modules: course.modules, assets: course.assets } : null,
       body: req.body,
     });
     if (!decision.ok) {
@@ -142,6 +143,8 @@ async function createLesson(req: AuthRequest, res: NextApiResponse) {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
+    // A lesson added to a module takes its place at the end of that module (lib/course-curriculum.js).
+    if (decision.document.moduleId) await normalizeCurriculumOrder(db, decision.courseId);
     // Enrolled students now have one more lesson to cover; completions already earned are kept.
     await recomputeCourseProgress(db, decision.courseId);
 
@@ -149,6 +152,7 @@ async function createLesson(req: AuthRequest, res: NextApiResponse) {
       id: result.insertedId.toString(),
       courseId: decision.courseId,
       title: decision.document.title,
+      revision: 1,
     });
   } catch {
     console.error(JSON.stringify({ event: 'lessonCreate', result: 'failed' }));

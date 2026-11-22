@@ -26,6 +26,8 @@ const OUTLINE_KEYS = [
   // outline marks finished lessons with it (Phase 7).
   'completed',
   'monetization',
+  // Course builder: the module the lesson belongs to, for grouping the outline.
+  'moduleId',
 ] as const;
 
 export function toLessonOutline(view: Record<string, unknown>): Record<string, unknown> {

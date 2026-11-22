@@ -79,7 +79,8 @@ test('course table: titles as text, status, workload, links to manage and studen
   const out = html(h(V.CourseTable, { courses: [{ courseId: 'c1', title: 'Price <i>Action</i>', status: 'published', difficulty: 'beginner', lessons: 4, enrollments: 2, completionRate: 50, averageProgress: 75, pendingSubmissions: 3, updatedAt: null }] }));
   assert.ok(!out.includes('<i>'));
   assert.match(out, /Price Action/);
-  assert.match(out, /href="\/instructor\/courses\/c1"/);
+  // Course builder: "Manage" opens the shared builder.
+  assert.match(out, /href="\/builder\/c1"/);
   assert.match(out, /href="\/instructor\/students\?courseId=c1"/);
   assert.match(html(h(V.CourseTable, { courses: [] })), /data-testid="courses-none"/);
 });
@@ -226,6 +227,6 @@ test('mobile: due-soon items stack; the course table hides its action column and
   assert.match(panels, /className="flex flex-col gap-2\.5 px-4 py-3\.5 sm:flex-row sm:items-center sm:gap-4"/);
   assert.match(panels, /className="card flex flex-col gap-3 !p-4 sm:flex-row sm:items-start"/);
   const out = html(h(V.CourseTable, { courses: [{ courseId: 'c1', title: 'Price Action', status: 'published', difficulty: 'beginner', lessons: 4, enrollments: 2, completionRate: 50, averageProgress: 75, pendingSubmissions: 3, updatedAt: null }] }));
-  assert.match(out, /<a href="\/instructor\/courses\/c1" class="line-clamp-2 hover:underline">Price Action<\/a>/);
+  assert.match(out, /<a href="\/builder\/c1" class="line-clamp-2 hover:underline">Price Action<\/a>/);
   assert.match(out, /<td class="hidden whitespace-nowrap text-right sm:table-cell">/);
 });

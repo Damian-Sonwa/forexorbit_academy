@@ -1,0 +1,10 @@
+export type BuilderModule = { id: string; title: string; implicit?: boolean; lessonIds: string[] };
+export function materialize(modules: BuilderModule[]): BuilderModule[];
+export function addModule(modules: BuilderModule[], title?: string): BuilderModule[];
+export function renameModule(modules: BuilderModule[], moduleId: string, title: string): BuilderModule[];
+export function moveModule(modules: BuilderModule[], moduleId: string, delta: number): BuilderModule[] | null;
+export function placeModule(modules: BuilderModule[], moduleId: string, toIndex: number): BuilderModule[] | null;
+export function deleteModule(modules: BuilderModule[], moduleId: string): BuilderModule[] | null;
+export function placeLesson(modules: BuilderModule[], lessonId: string, toModuleId: string, toIndex?: number): BuilderModule[] | null;
+export function stepLesson(modules: BuilderModule[], lessonId: string, delta: number): BuilderModule[] | null;
+export function curriculumPayload(modules: BuilderModule[]): Array<{ id: string; title: string; lessonIds: string[] }>;

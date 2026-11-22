@@ -6,9 +6,11 @@
  */
 
 import OpenAI from 'openai';
+import { classify, resolveProvider } from '@/lib/ai-provider';
 
 interface AIConfig {
   apiKey: string;
+  baseURL?: string;
   model?: string;
   maxTokens?: number;
   temperature?: number;
@@ -62,22 +64,18 @@ function getAIConfig(): AIConfig | null {
     console.warn('AI service called from frontend - this should never happen');
     return null;
   }
-
-  const apiKey = process.env.AI_API_KEY;
-  if (!apiKey) {
-    console.warn('[AI] AI_API_KEY not configured. AI features will be disabled.');
+  // The provider (Groq, Cloudflare Workers AI, OpenAI, Ollama or another compatible server) comes
+  // from the same settings as AI lesson development (lib/ai-provider.js). Before, any key starting
+  // with "sk-" counted as configured and requests always went to OpenAI with gpt-3.5-turbo.
+  const provider = resolveProvider();
+  if (!provider.ok) {
+    console.warn('[AI] No AI provider configured. AI features will be disabled.');
     return null;
   }
-
-  // Verify API key format (should start with sk-)
-  if (!apiKey.startsWith('sk-')) {
-    console.warn('[AI] AI_API_KEY format appears invalid (should start with sk-)');
-    return null;
-  }
-
   return {
-    apiKey,
-    model: process.env.AI_MODEL || 'gpt-3.5-turbo',
+    apiKey: provider.key,
+    baseURL: provider.baseUrl,
+    model: process.env.AI_MODEL || provider.model,
     maxTokens: parseInt(process.env.AI_MAX_TOKENS || '500', 10),
     temperature: parseFloat(process.env.AI_TEMPERATURE || '0.7'),
   };
@@ -105,6 +103,7 @@ function getOpenAIClient(): OpenAI | null {
   try {
     openaiClient = new OpenAI({
       apiKey: config.apiKey,
+      ...(config.baseURL ? { baseURL: config.baseURL } : {}),
     });
     console.log('[AI] OpenAI client initialized successfully');
     return openaiClient;
@@ -122,13 +121,7 @@ export function isAIConfigured(): boolean {
   if (!isBackend()) {
     return false;
   }
-  
-  const apiKey = process.env.AI_API_KEY;
-  if (!apiKey || !apiKey.startsWith('sk-')) {
-    return false;
-  }
-  
-  return true;
+  return resolveProvider().ok;
 }
 
 /**
@@ -229,7 +222,7 @@ async function callOpenAI(
 
   try {
     const completion = await client.chat.completions.create({
-      model: config.model || 'gpt-3.5-turbo',
+      model: config.model as string,
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
@@ -252,9 +245,12 @@ async function callOpenAI(
       } : undefined,
     };
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown OpenAI API error';
-    console.error('[AI] OpenAI API error:', errorMessage);
-    throw new Error(`OpenAI API error: ${errorMessage}`);
+    // Classified reason (key rejected, quota, rate limit, model, unavailable) without secrets, so the
+    // logs say why the assistant failed instead of a generic error.
+    const status = (error as { status?: number })?.status ?? 0;
+    const failure = classify(status, (error as { error?: unknown })?.error ?? { message: error instanceof Error ? error.message : '' });
+    console.error(JSON.stringify({ event: 'aiAssistant', result: 'failed', code: failure.code, status: status || null, model: config.model }));
+    throw new Error(failure.message);
   }
 }
 
