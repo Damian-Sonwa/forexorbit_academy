@@ -6,7 +6,7 @@ import { unexpectedBody } from '@/lib/public-error';
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
-import { analyzeTrade, isAIConfigured } from '@/lib/ai';
+import { analyzeTrade, isAIConfigured, aiFailure } from '@/lib/ai';
 import { getDb } from '@/lib/mongodb';
 import { allowRequest, tradingLimiter } from '@/lib/content-rate-limit';
 
@@ -44,6 +44,8 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 
     res.json({ analysis });
   } catch (error: unknown) {
+    const aiError = aiFailure(error);
+    if (aiError) return res.status(aiError.status).json(aiError.body);
     console.error('AI analyze trade error:');
     res.status(500).json(unexpectedBody('api', error));
   }

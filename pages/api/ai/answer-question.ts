@@ -9,7 +9,7 @@ import { unexpectedBody } from '@/lib/public-error';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { CSRF_HEADER, corsOrigin } from '@/lib/request-guard';
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
-import { answerQuestion, isAIConfigured } from '@/lib/ai';
+import { answerQuestion, isAIConfigured, aiFailure } from '@/lib/ai';
 
 // CORS: only the exact trusted origin (lib/request-guard.js). Pages and API share one origin,
 // so the browser normally sends no cross-origin request here at all.
@@ -48,6 +48,8 @@ async function handler(req: AuthRequest, res: NextApiResponse): Promise<void> {
 
     res.json({ answer });
   } catch (error: unknown) {
+    const aiError = aiFailure(error);
+    if (aiError) return res.status(aiError.status).json(aiError.body);
     console.error('AI answer question error:');
     res.status(500).json(unexpectedBody('api', error));
   }

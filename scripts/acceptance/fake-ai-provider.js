@@ -46,14 +46,26 @@ function lessonJson(prompt, { wrongMath = false, sectionOnly = false } = {}) {
 function startFakeProvider(port = 0) {
   const queue = [];
   const requests = [];
+  // Models this account may use (GET /v1/models) and models the provider refuses (retired).
+  const models = new Set(['openai/gpt-oss-120b', 'openai/gpt-oss-20b', 'whisper-large-v3']);
+  const refused = new Set();
   const server = http.createServer((req, res) => {
     let body = '';
     req.on('data', (c) => { body += c; });
     req.on('end', () => {
+      if (req.method === 'GET' && /\/models$/.test(req.url)) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ object: 'list', data: [...models].map((id) => ({ id, object: 'model', active: true })) }));
+      }
       let parsed = {};
       try { parsed = JSON.parse(body || '{}'); } catch { parsed = {}; }
       const prompt = ((parsed.messages || []).find((m) => m.role === 'user') || {}).content || '';
-      requests.push({ url: req.url, auth: req.headers.authorization || '', model: parsed.model, prompt, system: ((parsed.messages || []).find((m) => m.role === 'system') || {}).content || '' });
+      if (refused.has(parsed.model)) {
+        requests.push({ url: req.url, model: parsed.model, refused: true, reasoning: parsed.reasoning_effort || null });
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ error: { message: `The model "${parsed.model}" has been decommissioned and is no longer supported.`, type: 'invalid_request_error', code: 'model_decommissioned' } }));
+      }
+      requests.push({ reasoning: parsed.reasoning_effort || null, url: req.url, auth: req.headers.authorization || '', model: parsed.model, prompt, system: ((parsed.messages || []).find((m) => m.role === 'system') || {}).content || '' });
       const kind = queue.shift() || (/Section to write:|Task: Write practical forex examples/.test(prompt) ? 'section' : /knowledge-check questions that test/.test(prompt) ? 'checks' : 'lesson');
       const send = (status, payload) => { res.writeHead(status, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(payload)); };
       const answer = (content, finish = 'stop') => send(200, { id: 'fake', model: parsed.model || 'fake-model', choices: [{ index: 0, finish_reason: finish, message: { role: 'assistant', content } }], usage: { prompt_tokens: Math.ceil(prompt.length / 4), completion_tokens: Math.ceil(content.length / 4) } });
@@ -76,7 +88,7 @@ function startFakeProvider(port = 0) {
   return new Promise((resolve) => {
     server.listen(port, '127.0.0.1', () => {
       const { port: actual } = server.address();
-      resolve({ url: `http://127.0.0.1:${actual}/v1`, requests, next: (kind) => queue.push(kind), close: () => new Promise((r) => server.close(r)) });
+      resolve({ url: `http://127.0.0.1:${actual}/v1`, requests, models, refuse: (id) => refused.add(id), next: (kind) => queue.push(kind), close: () => new Promise((r) => server.close(r)) });
     });
   });
 }

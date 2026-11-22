@@ -6,7 +6,7 @@ import { unexpectedBody } from '@/lib/public-error';
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
-import { analyzeStudentPerformance, isAIConfigured } from '@/lib/ai';
+import { analyzeStudentPerformance, isAIConfigured, aiFailure } from '@/lib/ai';
 import { practiceSummary } from '@/lib/trading/reviews';
 import { getDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
@@ -121,6 +121,8 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 
     res.json({ analysis, studentData });
   } catch (error: unknown) {
+    const aiError = aiFailure(error);
+    if (aiError) return res.status(aiError.status).json(aiError.body);
     console.error('AI analyze student error:');
     res.status(500).json(unexpectedBody('api', error));
   }

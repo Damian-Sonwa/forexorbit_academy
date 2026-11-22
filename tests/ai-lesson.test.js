@@ -26,7 +26,7 @@ const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 test('the provider comes from server settings; keys never appear in the public status', () => {
   assert.equal(P.resolveProvider({}).ok, false);
   const groq = P.resolveProvider({ GROQ_API_KEY: 'gsk_test' });
-  assert.deepEqual([groq.ok, groq.id, groq.baseUrl, groq.model], [true, 'groq', 'https://api.groq.com/openai/v1', 'llama-3.3-70b-versatile']);
+  assert.deepEqual([groq.ok, groq.id, groq.baseUrl, groq.model], [true, 'groq', 'https://api.groq.com/openai/v1', 'openai/gpt-oss-120b']);
   assert.equal(P.resolveProvider({ AI_API_KEY: 'sk-x' }).id, 'openai', 'the existing assistant key still works');
   assert.equal(P.resolveProvider({ AI_LESSON_PROVIDER: 'cloudflare', CLOUDFLARE_API_TOKEN: 't' }).ok, false, 'needs the account id');
   assert.match(P.resolveProvider({ AI_LESSON_PROVIDER: 'cloudflare', CLOUDFLARE_API_TOKEN: 't', CLOUDFLARE_ACCOUNT_ID: 'acc' }).baseUrl, /accounts\/acc\/ai\/v1$/);
@@ -245,4 +245,55 @@ test('a missing model names the provider and model; a wrong address is reported 
   await assert.rejects(P.chatJson({ system: 's', user: 'u', env: { AI_API_KEY: 'sk-test' }, fetchImpl, retries: 0 }), (e) => e.code === 'model' && /OpenAI says the model "gpt-4o-mini" is not available/.test(e.message) && /GROQ_API_KEY/.test(e.message) && e.providerMessage.includes('does not exist'));
   reply = { status: 404, body: { error: { message: 'Not Found' } } };
   await assert.rejects(P.chatJson({ system: 's', user: 'u', env: { AI_LESSON_PROVIDER: 'compatible', AI_LESSON_BASE_URL: 'https://example.invalid/wrong', AI_LESSON_MODEL: 'm' }, fetchImpl, retries: 0 }), (e) => e.code === 'endpoint');
+});
+
+test('a retired default model is replaced from the provider list; a pinned model is not', async () => {
+  const fake = await startFakeProvider();
+  const base = { AI_LESSON_PROVIDER: 'compatible', AI_LESSON_BASE_URL: fake.url, AI_LESSON_API_KEY: 'k' };
+  try {
+    P.resetModelChoices();
+    // Groq retired llama-3.3-70b-versatile (2026-08-16): the default moved to openai/gpt-oss-120b.
+    assert.equal(P.resolveProvider({ GROQ_API_KEY: 'gsk' }).model, 'openai/gpt-oss-120b');
+    // An unpinned default that is refused is replaced by the best available chat model, once.
+    const groqLike = { ...base, AI_LESSON_MODEL: undefined };
+    fake.refuse('fake-default');
+    const p = P.resolveProvider({ ...groqLike, AI_LESSON_MODEL: 'fake-default' });
+    assert.equal(p.pinned, true);
+    const models = await P.availableModels({ baseUrl: fake.url, key: 'k' }, fetch);
+    assert.deepEqual(models, ['openai/gpt-oss-120b', 'openai/gpt-oss-20b'], 'speech models are skipped; preference order');
+    // Pinned: no automatic replacement, and the message lists what is available.
+    await assert.rejects(P.chatJson({ system: 's', user: 'Topic (lesson 1 of 1): Pips', env: { ...base, AI_LESSON_MODEL: 'fake-default' }, retries: 0 }),
+      (e) => e.code === 'model' && e.message.includes('Available: openai/gpt-oss-120b') && /Change AI_LESSON_MODEL/.test(e.message));
+    // Not pinned (the provider's built-in default was refused): replaced, retried, remembered.
+    const original = P.PROVIDERS.compatible.model;
+    P.PROVIDERS.compatible.model = 'fake-default';
+    try {
+      const before = fake.requests.length;
+      const ok = await P.chatJson({ system: 's', user: 'Topic (lesson 1 of 1): Pips', env: base, retries: 0 });
+      assert.equal(ok.finishReason, 'stop');
+      const tried = fake.requests.slice(before).map((r) => r.model);
+      assert.deepEqual(tried, ['fake-default', 'openai/gpt-oss-120b']);
+      assert.equal(fake.requests[fake.requests.length - 1].reasoning, 'low', 'reasoning models get low effort');
+      assert.equal(P.resolveProvider(base).model, 'openai/gpt-oss-120b', 'the replacement is remembered');
+    } finally {
+      P.PROVIDERS.compatible.model = original;
+      P.resetModelChoices();
+    }
+    // Plain-text answers for the assistant use the same connector.
+    const text = await P.chatText({ system: 's', user: 'Explain pips', env: { ...base, AI_LESSON_MODEL: 'openai/gpt-oss-20b' } });
+    assert.ok(text.content.length > 0);
+  } finally {
+    await fake.close();
+  }
+});
+
+test('the assistant routes return the real reason for AI problems instead of a generic error', () => {
+  const ai = read('lib/ai.ts');
+  assert.ok(ai.includes('const answer = await chatText('));
+  assert.ok(ai.includes('export function aiFailure(error: unknown)'));
+  for (const route of ['pages/api/ai/answer-question.ts', 'pages/api/ai/analyze-trade.ts', 'pages/api/ai/task-hint.ts', 'pages/api/ai/explain-lesson.ts', 'pages/api/ai/community/answer.ts', 'pages/api/ai/instructor/analyze-student.ts', 'pages/api/ai/instructor/draft-feedback.ts']) {
+    const source = read(route);
+    assert.ok(/const aiError = aiFailure\((error|err|e)\);/.test(source), route);
+    assert.ok(source.includes('if (aiError) return res.status(aiError.status).json(aiError.body);'), route);
+  }
 });

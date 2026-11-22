@@ -6,7 +6,7 @@ import { unexpectedBody } from '@/lib/public-error';
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
-import { explainLesson, isAIConfigured } from '@/lib/ai';
+import { explainLesson, isAIConfigured, aiFailure } from '@/lib/ai';
 
 async function handler(req: AuthRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
@@ -33,6 +33,8 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 
     res.json({ explanation });
   } catch (error: unknown) {
+    const aiError = aiFailure(error);
+    if (aiError) return res.status(aiError.status).json(aiError.body);
     console.error('AI explain lesson error:');
     res.status(500).json(unexpectedBody('api', error));
   }

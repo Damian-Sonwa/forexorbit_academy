@@ -6,7 +6,7 @@ import { unexpectedBody } from '@/lib/public-error';
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
-import { draftFeedback, isAIConfigured } from '@/lib/ai';
+import { draftFeedback, isAIConfigured, aiFailure } from '@/lib/ai';
 import { getDb } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 
@@ -73,6 +73,8 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 
     res.json({ feedback });
   } catch (error: unknown) {
+    const aiError = aiFailure(error);
+    if (aiError) return res.status(aiError.status).json(aiError.body);
     console.error('AI draft feedback error:');
     res.status(500).json(unexpectedBody('api', error));
   }

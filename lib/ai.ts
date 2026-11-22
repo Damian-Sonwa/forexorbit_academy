@@ -6,7 +6,7 @@
  */
 
 import OpenAI from 'openai';
-import { classify, resolveProvider } from '@/lib/ai-provider';
+import { ProviderError, chatText, resolveProvider } from '@/lib/ai-provider';
 
 interface AIConfig {
   apiKey: string;
@@ -215,43 +215,46 @@ async function callOpenAI(
     throw new Error('AI service can only be called from server-side (backend)');
   }
 
-  const client = getOpenAIClient();
-  if (!client) {
-    throw new Error('OpenAI client not initialized. Check AI_API_KEY configuration.');
-  }
-
+  // The same connector as lesson development (lib/ai-provider.js): Groq, Cloudflare, OpenAI, Ollama
+  // or another compatible server, with automatic replacement of a retired model and low reasoning
+  // effort for reasoning models. AI_MODEL still chooses the model when the provider is OpenAI.
+  const provider = resolveProvider();
+  const env = provider.ok && provider.id === 'openai' && process.env.AI_MODEL && !process.env.AI_LESSON_MODEL
+    ? { ...process.env, AI_LESSON_MODEL: process.env.AI_MODEL }
+    : process.env;
   try {
-    const completion = await client.chat.completions.create({
-      model: config.model as string,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      max_tokens: maxTokens || config.maxTokens,
-      temperature: temperature || config.temperature,
+    const answer = await chatText({
+      system: systemPrompt,
+      user: userPrompt,
+      // Reasoning models spend part of the budget thinking; leave room for the answer itself.
+      maxTokens: Math.max(1200, (maxTokens || config.maxTokens || 500) * 2),
+      temperature: temperature ?? config.temperature,
+      env,
     });
-
-    const message = completion.choices[0]?.message?.content;
-    if (!message) {
-      throw new Error('No response generated from OpenAI');
-    }
-
     return {
-      content: message,
-      usage: completion.usage ? {
-        promptTokens: completion.usage.prompt_tokens,
-        completionTokens: completion.usage.completion_tokens,
-        totalTokens: completion.usage.total_tokens,
-      } : undefined,
+      content: answer.content,
+      usage: { promptTokens: answer.usage.promptTokens, completionTokens: answer.usage.completionTokens, totalTokens: answer.usage.promptTokens + answer.usage.completionTokens },
     };
   } catch (error: unknown) {
-    // Classified reason (key rejected, quota, rate limit, model, unavailable) without secrets, so the
-    // logs say why the assistant failed instead of a generic error.
-    const status = (error as { status?: number })?.status ?? 0;
-    const failure = classify(status, (error as { error?: unknown })?.error ?? { message: error instanceof Error ? error.message : '' });
-    console.error(JSON.stringify({ event: 'aiAssistant', result: 'failed', code: failure.code, status: status || null, model: config.model }));
-    throw new Error(failure.message);
+    const failure = error instanceof ProviderError ? error : new ProviderError('unavailable', 'The AI assistant is not available right now. Try again later.');
+    console.error(JSON.stringify({ event: 'aiAssistant', result: 'failed', code: failure.code, status: failure.status }));
+    throw failure;
   }
+}
+
+/**
+ * The HTTP answer for an AI failure: provider problems (configuration, quota, model, timeout) get a
+ * 503 with a message people can act on; anything else stays a generic 500 with a request id.
+ */
+export function aiFailure(error: unknown): { status: number; body: { error: string; code: string } } | null {
+  if (error instanceof ProviderError) {
+    const status = error.code === 'rate_limited' ? 429 : 503;
+    return { status, body: { error: error.message, code: `ai_${error.code}` } };
+  }
+  if (error instanceof Error && /Rate limit exceeded/.test(error.message)) {
+    return { status: 429, body: { error: 'Too many AI requests. Try again in a minute.', code: 'ai_rate_limited' } };
+  }
+  return null;
 }
 
 /**
