@@ -139,10 +139,9 @@ export async function uploadImageFromPath(
       },
       (error, result) => {
         if (error) {
-          console.error('Cloudinary upload error:');
-          reject(new Error(`Failed to upload image: ${error.message}`));
+          reject(storageError('cloudinary', error));
         } else if (!result) {
-          reject(new Error('Cloudinary upload returned no result'));
+          reject(storageError('cloudinary', { message: 'no result' }));
         } else {
           resolve({
             url: result.secure_url || result.url,
@@ -177,6 +176,20 @@ export async function deleteImage(publicId: string): Promise<void> {
 }
 
 /**
+ * A storage failure the upload routes can explain (lib/public-error.js publicUploadFailure). The
+ * log line carries the provider's status and a short reason with long tokens (keys, ids) removed.
+ */
+export function storageError(provider: string, cause: { message?: string; http_code?: number; status?: number }) {
+  const status = Number(cause?.http_code || cause?.status) || 0;
+  const reason = String(cause?.message || '').replace(/[A-Za-z0-9_-]{12,}/g, '[redacted]').replace(/\d{6,}/g, '[redacted]').replace(/[\r\n]/g, ' ').slice(0, 160);
+  console.error(JSON.stringify({ event: 'storageUpload', provider, result: 'failed', status, reason }));
+  const err = new Error(`Failed to upload image (${provider} ${status || 'error'})`) as Error & { storageFailure: true; storageStatus: number };
+  err.storageFailure = true;
+  err.storageStatus = status;
+  return err;
+}
+
+/**
  * Validate image file
  */
 export function validateImageFile(file: {
@@ -186,6 +199,9 @@ export function validateImageFile(file: {
 }): { valid: boolean; error?: string } {
   // Check file type
   const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+  if (file.mimetype && /heic|heif/i.test(file.mimetype)) {
+    return { valid: false, error: 'HEIC photos (the iPhone default) cannot be used. Export the photo as JPEG or PNG and upload that.' };
+  }
   if (!file.mimetype || !allowedTypes.includes(file.mimetype.toLowerCase())) {
     return {
       valid: false,

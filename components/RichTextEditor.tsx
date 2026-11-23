@@ -3,6 +3,8 @@
 import * as React from 'react';
 import dynamic from 'next/dynamic';
 import { apiFetch } from '@/lib/api-fetch';
+import { imageProblem } from '@/components/builder/upload';
+import { prepareImage } from '@/components/builder/image-prepare';
 import 'react-quill/dist/quill.snow.css';
 
 const ReactQuill = dynamic(
@@ -70,8 +72,11 @@ export default function RichTextEditor({
             input.setAttribute('accept', 'image/*');
             input.click();
             input.onchange = async () => {
-              const file = input.files?.[0];
-              if (!file) return;
+              const picked = input.files?.[0];
+              if (!picked) return;
+              const file = await prepareImage(picked);
+              const problem = imageProblem(file);
+              if (problem) { alert(problem); return; }
               try {
                 const formData = new FormData();
                 formData.append('image', file, file.name);

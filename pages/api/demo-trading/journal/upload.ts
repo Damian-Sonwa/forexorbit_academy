@@ -8,6 +8,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
 import formidable from 'formidable';
+import os from 'os';
 import fs from 'fs';
 import { setPrivateNoStore } from '@/lib/lesson-documents';
 import { allowRequest, tradingLimiter } from '@/lib/content-rate-limit';
@@ -34,7 +35,7 @@ async function uploadJournalScreenshot(req: AuthRequest, res: NextApiResponse) {
   try {
     // Use /tmp for temporary file storage (works in both serverless and regular environments)
     const form = formidable({
-      uploadDir: '/tmp',
+      uploadDir: os.tmpdir(),
       keepExtensions: true,
       maxFileSize: 10 * 1024 * 1024, // 10MB
       filter: ({ name, originalFilename, mimetype }) => {

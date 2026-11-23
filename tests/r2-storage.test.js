@@ -77,19 +77,61 @@ test('only real images are accepted for the public bucket', () => {
   assert.equal(detectImage(Buffer.from('<svg xmlns=')), null, 'SVG (can carry script) is never accepted');
 });
 
-test('the builder accepts image links and uses R2 before Cloudinary', () => {
+test('the builder accepts image links and uses R2, then Cloudinary, then the database', () => {
   const editors = read('components/builder/BlockEditors.tsx');
   assert.match(editors, /data-testid="image-link"/);
   assert.match(read('components/builder/CoursePanels.tsx'), /data-testid="cover-link"/);
   const upload = read('lib/course-image-upload.ts');
-  assert.ok(upload.indexOf('if (r2) {') < upload.indexOf('uploadImageFromPath(file.filepath, folder)'), 'R2 is tried first');
+  assert.ok(upload.indexOf('if (r2 || !cloudinary) {') < upload.indexOf('uploadImageFromPath(file.filepath, folder)'), 'R2 (and the database without Cloudinary) before Cloudinary');
+  assert.ok(upload.indexOf('if (!r2) {') > upload.indexOf('const kind = detectImage(head);'), 'the database store also checks the bytes');
   assert.match(upload, /const kind = detectImage\(head\);/);
   assert.match(upload, /contentType: kind\.mime/, 'the stored type comes from the bytes, not the browser');
-  assert.match(upload, /Paste a link to the image instead\./);
+  assert.match(read('lib/course-image-store.js'), /Paste a link to the image instead for now\./);
   const assets = read('lib/course-assets.ts');
   assert.match(assets, /if \(r2FilesConfig\(\)\) return 'r2';/);
   // Image links are validated on the server like every other link.
   const C = require('../lib/course-content');
   assert.equal(C.checkBlocks([{ id: 'img00001', type: 'image', url: 'javascript:alert(1)', alt: '' }]).ok, false);
   assert.equal(C.checkBlocks([{ id: 'img00001', type: 'image', url: 'https://images.example.com/chart.png', alt: 'Chart' }]).ok, true);
+});
+
+test('image uploads: R2 addresses without https://, missing-setting names, and clear failure messages', async () => {
+  const env = { R2_ACCOUNT_ID: 'acct', R2_ACCESS_KEY_ID: 'k', R2_SECRET_ACCESS_KEY: 's', R2_IMAGES_BUCKET: 'img', R2_PUBLIC_BASE_URL: 'pub-abc.r2.dev/' };
+  assert.equal(R.r2ImagesConfig(env).publicBaseUrl, 'https://pub-abc.r2.dev');
+  assert.equal(R.r2ImagesConfig({ ...env, R2_ENDPOINT: 'example.test' }).endpoint, 'https://example.test');
+  assert.deepEqual(R.r2ImagesMissing(env), []);
+  assert.deepEqual(R.r2ImagesMissing({ R2_ACCESS_KEY_ID: 'k' }), ['R2_SECRET_ACCESS_KEY', 'R2_ACCOUNT_ID', 'R2_IMAGES_BUCKET', 'R2_PUBLIC_BASE_URL']);
+
+  const { publicUploadFailure } = require('../lib/public-error');
+  // formidable v3's own size error (code 1009, httpCode 413) used to become a generic 500.
+  const big = publicUploadFailure({ code: 1009, httpCode: 413, message: 'maxFileSize exceeded' }, { limitMessage: 'File size exceeds 10MB limit' });
+  assert.equal(big.status, 413);
+  assert.equal(big.body.error, 'File size exceeds 10MB limit');
+  const rejected = publicUploadFailure(new R.R2Error('R2 upload failed (403)', 403));
+  assert.equal(rejected.status, 502);
+  assert.equal(rejected.body.code, 'STORAGE_REJECTED');
+  assert.match(rejected.body.error, /link/);
+  const down = publicUploadFailure(new R.R2Error('R2 upload failed (unreachable)', 0));
+  assert.equal(down.body.code, 'STORAGE_FAILED');
+
+  // An unreachable store is a storage failure, not an unexpected error.
+  const tmp = path.join(os.tmpdir(), `fo-r2-unreach-${Date.now()}.png`);
+  fs.writeFileSync(tmp, Buffer.from([0x89, 0x50, 0x4e, 0x47]));
+  try {
+    await assert.rejects(R.putObject(R.r2ImagesConfig(env), 'k.png', tmp, { fetchImpl: async () => { throw new TypeError('fetch failed'); } }), (e) => e.storageFailure === true && e.storageStatus === 0);
+  } finally { fs.unlinkSync(tmp); }
+});
+
+test('upload routes use the system temp folder, and the browser checks images before sending them', () => {
+  const read = (f) => fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
+  for (const f of ['lib/course-image-upload.ts', 'pages/api/upload/profile.ts', 'pages/api/certificates/upload.ts', 'pages/api/demo-trading/journal/upload.ts']) {
+    assert.ok(!read(f).includes("uploadDir: '/tmp'"), `${f}: /tmp does not exist on Windows`);
+    assert.ok(read(f).includes('uploadDir: os.tmpdir()'), f);
+  }
+  const upload = read('components/builder/upload.ts');
+  assert.ok(upload.includes('export function imageProblem'));
+  assert.ok(upload.includes('HEIC'));
+  for (const f of ['components/builder/BlockEditors.tsx', 'components/builder/CoursePanels.tsx', 'components/RichTextEditor.tsx']) assert.ok(read(f).includes('imageProblem(file)'), f);
+  const cfg = read('pages/api/upload/check-config-public.ts');
+  assert.ok(cfg.includes('r2ImagesConfig') && !cfg.includes('process.env'));
 });

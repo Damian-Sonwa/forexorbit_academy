@@ -1,5 +1,6 @@
 export type R2Config = { endpoint: string; accessKeyId: string; secretAccessKey: string; bucket: string; publicBaseUrl?: string };
 export class R2Error extends Error { status: number; constructor(message: string, status: number); }
+export function r2ImagesMissing(env?: Record<string, string | undefined>): string[];
 export function r2ImagesConfig(env?: Record<string, string | undefined>): (R2Config & { publicBaseUrl: string }) | null;
 export function r2FilesConfig(env?: Record<string, string | undefined>): R2Config | null;
 export function encode(value: string, path?: boolean): string;

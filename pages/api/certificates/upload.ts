@@ -10,6 +10,7 @@ import { withAuth, AuthRequest } from '@/lib/auth-middleware';
 import { getDb } from '@/lib/mongodb';
 import { allowRequest, uploadLimiter } from '@/lib/content-rate-limit';
 import formidable from 'formidable';
+import os from 'os';
 import fs from 'fs';
 import { uploadImageFromPath, isCloudinaryConfigured } from '@/lib/cloudinary';
 
@@ -29,7 +30,7 @@ async function uploadCertificate(req: AuthRequest, res: NextApiResponse) {
 
     // Use /tmp for temporary file storage (works in both serverless and regular environments)
     const form = formidable({
-      uploadDir: '/tmp',
+      uploadDir: os.tmpdir(),
       keepExtensions: true,
       maxFileSize: 10 * 1024 * 1024, // 10MB limit
       filter: ({ name, mimetype }) => {

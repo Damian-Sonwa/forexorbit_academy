@@ -9,7 +9,8 @@ import { AlertTriangle, CheckCircle2, CircleDashed, ImagePlus, Plus, Trash2, X }
 import RichTextEditor from '@/components/RichTextEditor';
 import { SaveIndicator } from '@/components/builder/LessonEditor';
 import type { SaveStatus } from '@/components/builder/useLessonAutosave';
-import { uploadWithProgress } from '@/components/builder/upload';
+import { uploadWithProgress, imageProblem } from '@/components/builder/upload';
+import { prepareImage } from '@/components/builder/image-prepare';
 import { formatBytes } from '@/components/course/LessonBlocks';
 import { apiClient } from '@/lib/api-client';
 import type { BuilderAsset, BuilderCourse } from '@/lib/course-curriculum';
@@ -81,8 +82,11 @@ export function DetailsPanel({ course, editable, issues, onSaved, onConflict }: 
     timer.current = setTimeout(() => void save(), 1500);
   };
 
-  const uploadCover = (file: File) => {
-    if (!file.type.startsWith('image/')) { setCover({ fraction: 0, error: 'Choose an image file.' }); return; }
+  const uploadCover = async (original: File) => {
+    setCover({ fraction: 0 });
+    const file = await prepareImage(original);
+    const problem = imageProblem(file);
+    if (problem) { setCover({ fraction: 0, error: problem }); return; }
     setCover({ fraction: 0 });
     uploadWithProgress('/api/upload/instructor', 'image', file, (fraction) => setCover({ fraction }))
       .promise.then((body) => { setCover(null); change({ thumbnail: String(body.url || body.imageUrl || body.secureUrl || '') }); })

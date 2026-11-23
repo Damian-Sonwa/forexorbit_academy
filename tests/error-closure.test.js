@@ -67,7 +67,7 @@ test('upload and config failures do not return provider secrets or paths', () =>
   assert.equal(encoded.includes('Users'), false);
   assert.equal(encoded.includes('payload'), false);
   const limited = publicUploadFailure({ code: 'LIMIT_FILE_SIZE', message: filePath }, { limitMessage: 'File size exceeds 10MB limit' });
-  assert.equal(limited.status, 400);
+  assert.equal(limited.status, 413);
   assert.equal(limited.body.error, 'File size exceeds 10MB limit');
   assert.equal(JSON.stringify(limited.body).includes('Users'), false);
   const config = read('pages/api/upload/check-config-public.ts');

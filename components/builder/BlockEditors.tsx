@@ -5,13 +5,14 @@
  * images to the existing lesson image route (/api/upload/instructor).
  */
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AlertTriangle, ArrowDown, ArrowUp, Code2, Copy, FileText, Heading, Image as ImageIcon, Info, Link2, Minus, Paperclip, Plus, RefreshCw, Trash2, Type, UploadCloud, Video, X } from 'lucide-react';
 import TextBlockEditor from '@/components/builder/TextBlockEditor';
-import { uploadWithProgress, type UploadHandle } from '@/components/builder/upload';
+import { imageProblem, uploadWithProgress, type UploadHandle } from '@/components/builder/upload';
+import { prepareImage } from '@/components/builder/image-prepare';
 import { formatBytes } from '@/components/course/LessonBlocks';
 import { acceptAttribute } from '@/lib/course-asset-files';
-import { fileKindOf, newId, type Block, type BlockType, type CalloutTone } from '@/lib/course-content';
+import { fileKindOf, newId, type Block, type BlockType, type CalloutTone, type DeltaOp } from '@/lib/course-content';
 import { sanitizeForStudentView } from '@/lib/html-sanitizer';
 import type { BuilderAsset } from '@/lib/course-curriculum';
 
@@ -26,6 +27,12 @@ export const BLOCK_MENU: Array<{ type: BlockType; label: string; hint: string; I
   { type: 'code', label: 'Example', hint: 'A worked example in fixed-width text', Icon: Code2 },
   { type: 'divider', label: 'Divider', hint: 'A visual break', Icon: Minus },
 ];
+
+/**
+ * Images waiting to be uploaded into a newly created image block (pasted or dropped into a text
+ * block). The image block's editor takes its file from here when it appears and uploads it.
+ */
+export const pendingImages = new Map<string, File>();
 
 export function emptyBlock(type: BlockType): Block {
   const id = newId();
@@ -132,6 +139,8 @@ type EditorProps = {
   readOnly: boolean;
   onChange: (block: Block) => void;
   onAssetAdded: (asset: BuilderAsset) => void;
+  /** A text block received an image: split it at the cursor and put the image there. */
+  onTextImage?: (file: File, split: { before: DeltaOp[]; after: DeltaOp[] }) => void;
 };
 
 function Field({ label, children, hint }: { label: string; children: React.ReactNode; hint?: string }) {
@@ -213,16 +222,34 @@ function MediaSource({ block, courseId, assets, readOnly, kind, onChange, onAsse
 
 function ImageEditor({ block, readOnly, onChange }: EditorProps & { block: Extract<Block, { type: 'image' }> }) {
   const [state, setState] = useState<UploadState>(null);
-  // Upload (R2 or Cloudinary, whichever the server has) or a link to an image hosted anywhere.
+  // Upload (to R2, Cloudinary or the app's own database, whichever the server has) or a link to an
+  // image hosted anywhere.
   const [mode, setMode] = useState<'upload' | 'link'>('upload');
-  const start = (file: File) => {
-    if (!file.type.startsWith('image/')) { setState({ name: file.name, fraction: 0, error: 'Choose an image file (JPEG, PNG, WebP or GIF).', file }); return; }
+  // The latest block and onChange, so an upload that finishes later never writes stale data.
+  const latest = useRef({ block, onChange });
+  latest.current = { block, onChange };
+  const start = async (original: File) => {
+    if (/heic|heif/i.test(original.type) || /\.(heic|heif)$/i.test(original.name)) { setState({ name: original.name, fraction: 0, error: imageProblem(original) || '' }); return; }
+    setState({ name: original.name, fraction: 0 });
+    const file = await prepareImage(original);
+    const problem = imageProblem(file);
+    if (problem) { setState({ name: original.name, fraction: 0, error: problem }); return; }
     const handle = uploadWithProgress('/api/upload/instructor', 'image', file, (fraction) => setState((s) => (s ? { ...s, fraction } : s)));
-    setState({ name: file.name, fraction: 0, file, handle });
+    setState({ name: original.name, fraction: 0, file: original, handle });
     handle.promise
-      .then((body) => { setState(null); const url = String(body.url || body.imageUrl || body.secureUrl || ''); onChange({ ...block, url, alt: block.alt || file.name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ') }); })
-      .catch((err: Error & { status?: number }) => setState(err.status === -1 ? null : { name: file.name, fraction: 0, error: err.message, file }));
+      .then((body) => {
+        setState(null);
+        const url = String(body.url || body.imageUrl || body.secureUrl || '');
+        const current = latest.current.block;
+        latest.current.onChange({ ...current, url, alt: current.alt || original.name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ') });
+      })
+      .catch((err: Error & { status?: number }) => setState(err.status === -1 ? null : { name: original.name, fraction: 0, error: err.message, file: original }));
   };
+  // An image pasted or dropped into a text block arrives here as a new image block to upload.
+  useEffect(() => {
+    const pending = pendingImages.get(block.id);
+    if (pending) { pendingImages.delete(block.id); void start(pending); }
+  }, [block.id]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <div className="space-y-3">
       {!readOnly && <SourceTabs mode={mode} setMode={setMode} />}
@@ -268,7 +295,7 @@ export function BlockEditor(props: EditorProps) {
         </div>
       );
     case 'text':
-      return <TextBlockEditor ops={block.ops} readOnly={readOnly} label="Text" onChange={(ops) => { if (JSON.stringify(ops) !== JSON.stringify(block.ops)) onChange({ ...block, ops }); }} />;
+      return <TextBlockEditor ops={block.ops} readOnly={readOnly} label="Text" onImage={props.onTextImage} onChange={(ops) => { if (JSON.stringify(ops) !== JSON.stringify(block.ops)) onChange({ ...block, ops }); }} />;
     case 'callout':
       return (
         <div className="space-y-3">

@@ -130,16 +130,56 @@ test('real MongoDB: images and course files upload to R2 without Cloudinary and 
       assert.equal(r2.objects.has(extraKey), false);
     });
 
-    // 7. With neither R2 nor Cloudinary, image upload says so and points to the link option.
+    // 7. With neither R2 nor Cloudinary, images are kept in the app's own database and served from
+    //    this site; non-images are refused; a database user without access gets a clear message.
     await withEnv({ NODE_ENV: 'test', R2_ENDPOINT: undefined, R2_ACCESS_KEY_ID: undefined, R2_SECRET_ACCESS_KEY: undefined, R2_IMAGES_BUCKET: undefined, R2_PUBLIC_BASE_URL: undefined, R2_FILES_BUCKET: undefined, CLOUDINARY_CLOUD_NAME: undefined, CLOUDINARY_API_KEY: undefined, CLOUDINARY_API_SECRET: undefined, SHARED_RATE_LIMIT: undefined }, async () => {
       const queue = [];
       const stubs = { 'lib/mongodb': { getDb: async () => db, getClient: async () => null }, formidable: () => ({ parse: async () => [{}, { image: [queue.shift()] }] }) };
       const imageRoute = loadModule('pages/api/upload/instructor.ts', stubs).default;
+      const serve = loadModule('pages/api/course-images/[file].ts', stubs).default;
       const inst = await user(db, 'instructor');
-      queue.push(temp('a.png', Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), 'image/png'));
-      const none = await call(imageRoute, { method: 'POST', token: inst.token });
-      assert.equal(none.statusCode, 503);
-      assert.match(none.body.error, /Paste a link to the image instead/);
+      const png = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(200, 7)]);
+      queue.push(temp('a.png', png, 'image/png'));
+      const stored = await call(imageRoute, { method: 'POST', token: inst.token });
+      assert.equal(stored.statusCode, 200, JSON.stringify(stored.body));
+      assert.equal(stored.body.storage, 'database');
+      assert.match(stored.body.url, /^\/api\/course-images\/[a-f0-9]{32}\.png$/);
+      const file = stored.body.url.split('/').pop();
+      const doc = await db.collection('courseImages').findOne({ _id: file.replace('.png', '') });
+      assert.equal(doc.mime, 'image/png');
+      assert.equal(doc.size, png.length);
+      assert.equal(doc.ownerId, inst.id);
+
+      const got = Object.assign(mockResponse(), { end(b) { this.body = b; return this; } });
+      await serve({ method: 'GET', query: { file }, headers: {} }, got);
+      assert.equal(got.statusCode, 200);
+      assert.equal(got.headers['Content-Type'] || got.headers['content-type'], 'image/png');
+      assert.match(String(got.headers['Cache-Control'] || got.headers['cache-control']), /immutable/);
+      const missing = Object.assign(mockResponse(), { end(b) { this.body = b; return this; } });
+      await serve({ method: 'GET', query: { file: 'f'.repeat(32) + '.png' }, headers: {} }, missing);
+      assert.equal(missing.statusCode, 404);
+      const bad = Object.assign(mockResponse(), { end(b) { this.body = b; return this; } });
+      await serve({ method: 'GET', query: { file: '../../etc' }, headers: {} }, bad);
+      assert.equal(bad.statusCode, 404);
+
+      // A file that claims to be an image but is not one is refused.
+      queue.push(temp('fake.png', Buffer.from('<svg onload=alert(1)>'), 'image/png'));
+      const fake = await call(imageRoute, { method: 'POST', token: inst.token });
+      assert.equal(fake.statusCode, 400);
+
+      // Students cannot upload.
+      const stu = await user(db, 'student');
+      queue.push(temp('a.png', png, 'image/png'));
+      assert.equal((await call(imageRoute, { method: 'POST', token: stu.token })).statusCode, 403);
+
+      // Without permission on the collection the message says what to do.
+      const denied = { collection: (name) => (name === 'courseImages' ? { insertOne: async () => { const e = new Error('not authorized on test to execute command { insert: "courseImages" }'); e.code = 13; e.codeName = 'Unauthorized'; throw e; } } : db.collection(name)) };
+      const deniedRoute = loadModule('pages/api/upload/instructor.ts', { ...stubs, 'lib/mongodb': { getDb: async () => denied, getClient: async () => null } }).default;
+      queue.push(temp('a.png', png, 'image/png'));
+      const refused = await call(deniedRoute, { method: 'POST', token: inst.token });
+      assert.equal(refused.statusCode, 503);
+      assert.equal(refused.body.code, 'STORE_NOT_PERMITTED');
+      assert.match(refused.body.error, /courseImages/);
     });
   } finally {
     await conn.reset();

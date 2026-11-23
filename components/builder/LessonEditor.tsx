@@ -6,14 +6,14 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, CheckCircle2, CloudOff, Eye, History, Loader2, PenLine } from 'lucide-react';
-import { AddBlockMenu, BlockEditor, BlockFrame, copyBlocks, emptyBlock } from '@/components/builder/BlockEditors';
+import { AddBlockMenu, BlockEditor, BlockFrame, copyBlocks, emptyBlock, pendingImages } from '@/components/builder/BlockEditors';
 import ActivitiesPanel from '@/components/builder/ActivitiesPanel';
 import AiAssistantPanel from '@/components/builder/AiAssistantPanel';
 import { lessonAsText, wordCount } from '@/lib/lesson-generation';
 import LessonPreview, { PreviewBanner, type PreviewQuiz } from '@/components/course/LessonPreview';
 import { useLessonAutosave, type LessonDraft, type SaveStatus } from '@/components/builder/useLessonAutosave';
 import { apiClient } from '@/lib/api-client';
-import type { Block, BlockType, ReadinessIssue } from '@/lib/course-content';
+import { newId, type Block, type BlockType, type DeltaOp, type ReadinessIssue } from '@/lib/course-content';
 import type { BuilderAsset, BuilderLesson } from '@/lib/course-curriculum';
 
 export function SaveIndicator({ status, savedAt, onSave }: { status: SaveStatus; savedAt: Date | null; onSave?: () => void }) {
@@ -89,6 +89,20 @@ export default function LessonEditor(props: Props) {
   const insertAt = (index: number, type: BlockType) => {
     const blocks = [...draft.blocks];
     blocks.splice(index, 0, emptyBlock(type));
+    setBlocks(blocks);
+  };
+  // An image added inside a text block: the text before the cursor, the image, then the rest.
+  // New ids for the text parts so their editors open with the split text.
+  const textImage = (index: number, file: File, split: { before: DeltaOp[]; after: DeltaOp[] }) => {
+    const hasText = (ops: DeltaOp[]) => ops.some((o) => typeof o.insert === 'string' && o.insert.trim() !== '');
+    const image = emptyBlock('image');
+    pendingImages.set(image.id, file);
+    const parts: Block[] = [];
+    if (hasText(split.before)) parts.push({ id: newId(), type: 'text', ops: split.before });
+    parts.push(image);
+    if (hasText(split.after)) parts.push({ id: newId(), type: 'text', ops: split.after });
+    const blocks = [...draft.blocks];
+    blocks.splice(index, 1, ...parts);
     setBlocks(blocks);
   };
   const assetNames = useMemo(() => Object.fromEntries(props.assets.map((a) => [a.id, { name: a.name, bytes: a.bytes }])), [props.assets]);
@@ -224,6 +238,7 @@ export default function LessonEditor(props: Props) {
                   readOnly={!editable}
                   onChange={(next) => setBlocks(draft.blocks.map((b) => (b.id === block.id ? next : b)))}
                   onAssetAdded={props.onAssetAdded}
+                  onTextImage={editable ? (file, split) => textImage(index, file, split) : undefined}
                 />
               </BlockFrame>
             ))}

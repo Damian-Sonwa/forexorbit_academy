@@ -10,6 +10,7 @@ import { getDb } from '@/lib/mongodb';
 import { allowRequest, uploadLimiter } from '@/lib/content-rate-limit';
 import { currentPhotoId, removeProfilePhoto, replaceProfilePhoto } from '@/lib/profile-photo';
 import formidable from 'formidable';
+import os from 'os';
 import fs from 'fs';
 import { uploadImageFromPath, validateImageFile, deleteImage, isCloudinaryConfigured } from '@/lib/cloudinary';
 
@@ -25,7 +26,7 @@ async function uploadProfilePhoto(req: AuthRequest, res: NextApiResponse) {
   try {
     // Use /tmp for temporary file storage (works in both serverless and regular environments)
     const form = formidable({
-      uploadDir: '/tmp',
+      uploadDir: os.tmpdir(),
       keepExtensions: true,
       maxFileSize: 10 * 1024 * 1024, // 10MB
       filter: ({ name, originalFilename, mimetype }) => {
