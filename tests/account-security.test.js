@@ -700,14 +700,16 @@ test('signing out in one tab signs out the others', () => {
 
 test('profile controls send what the routes expect', () => {
   const security = read('components/AccountSecurity.tsx');
-  assert.match(security, /apiClient\.post<\{ message: string \}>\('\/auth\/change-password', \{ currentPassword, newPassword \}\)/);
+  assert.match(security, /duringSessionChange\(\(\) => apiClient\.post<\{ message: string \}>\('\/auth\/change-password', \{ currentPassword, newPassword \}\)\)/);
   assert.doesNotMatch(security, /localStorage/, 'the server sets the new session cookie; nothing is stored by script');
   assert.match(security, /checkNewPassword\(newPassword\)/, 'same rule as the server before sending');
   assert.match(security, /await apiClient\.post\('\/auth\/logout-all'\);\s*await logout\(\);\s*router\.push\('\/login'\);/);
   const profile = read('pages/profile.tsx');
   assert.match(profile, /<AccountSecurity \/>/);
-  assert.match(profile, /await apiClient\.delete\('\/upload\/profile'\);/);
-  assert.match(profile, /\{formData\.profilePhoto && !selectedPhoto && isEditing && \(/);
+  assert.match(profile, /<PhotoField /);
+  const photo = read('components/profile/PhotoField.tsx');
+  assert.match(photo, /await apiClient\.delete\('\/upload\/profile'\);/);
+  assert.match(photo, /\{photo && !busy && <button [^\n]*setConfirming\(true\)/, 'removal is offered only with a photo, and is confirmed');
 });
 
 test('sign in, change password, sign out everywhere, sign in again, remove photo: the full journey', async () => {

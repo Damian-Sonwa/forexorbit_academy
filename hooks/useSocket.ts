@@ -67,6 +67,9 @@ function useSocketConnection() {
       newSocket.on('disconnect', (reason) => {
         console.log('Socket disconnected:', reason);
         setConnected(false);
+        // The server ended the old session's socket. If this tab has a new session (password changed
+        // here) it reconnects with it; otherwise the server refuses, or signing out closed the socket.
+        if (reason === 'io server disconnect') setTimeout(() => newSocket?.connect(), 1500);
       });
 
       newSocket.on('connect_error', (error) => {

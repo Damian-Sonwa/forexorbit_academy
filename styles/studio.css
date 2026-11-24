@@ -1,0 +1,239 @@
+/*
+ * "Studio": the onboarding flow and Settings. Warm paper with navy ink and a frosted light-blue
+ * second surface in the light theme; the same structure on the night tokens in the dark theme. The
+ * one signature is the orange and white candle, used as progress, as the active marker and as the
+ * level illustration. Everything here is scoped to .studio or a studio- class.
+ */
+
+html:not(.dark) .studio {
+  --fo-text: #172b45;
+  --fo-text-muted: #4a5a70;
+  --fo-text-subtle: #5f6c80;
+  --fo-line: rgba(23, 43, 69, 0.11);
+  --fo-line-strong: rgba(23, 43, 69, 0.22);
+  --st-paper: #f7f4ef;
+  --st-sheet: #fffdfa;
+  --st-frost: rgba(220, 235, 250, 0.62);
+  --st-frost-line: rgba(90, 135, 180, 0.22);
+  --st-accent: #b04e10;
+  --st-danger: #a82a33;
+  --st-hollow: #a9b6c6;
+  --st-pick: #fff3e8;
+}
+
+.dark .studio {
+  --fo-text-subtle: #948d84;
+  --st-paper: transparent;
+  --st-sheet: #101318;
+  --st-frost: rgba(150, 190, 232, 0.07);
+  --st-frost-line: rgba(160, 196, 236, 0.13);
+  --st-accent: #ff9a4d;
+  --st-danger: #f78a92;
+  --st-hollow: #566071;
+  --st-pick: rgba(255, 112, 18, 0.11);
+}
+
+.studio {
+  color: var(--fo-text);
+  background-color: var(--st-paper);
+}
+
+/* Navy panel: same in both themes. Horizontal rules are the price gridlines of a chart. */
+.studio-night {
+  --night-muted: #b4c3d6;
+  --night-line: rgba(220, 235, 250, 0.14);
+  color: #f6f1e9;
+  background-color: #14263e;
+  background-image: repeating-linear-gradient(180deg, transparent 0 55px, rgba(220, 235, 250, 0.05) 55px 56px), linear-gradient(168deg, #1a3150 0%, #11213a 62%, #0f1c31 100%);
+}
+.dark .studio-night {
+  background-color: #0e1a2b;
+  background-image: repeating-linear-gradient(180deg, transparent 0 55px, rgba(220, 235, 250, 0.04) 55px 56px), linear-gradient(168deg, #13243b 0%, #0c1728 70%);
+}
+.studio-night .night-muted { color: var(--night-muted); }
+.studio-night :where(a, button):focus-visible { outline-color: #ffab6b; }
+
+/* Fields. 16px text so phones do not zoom on focus. */
+.studio-label { display: block; font-size: 0.875rem; font-weight: 600; color: var(--fo-text); }
+.studio-hint { font-size: 0.8125rem; line-height: 1.45; color: var(--fo-text-muted); }
+.studio-error { font-size: 0.8125rem; font-weight: 500; color: var(--st-danger); }
+
+.studio-input {
+  width: 100%;
+  min-height: 3rem;
+  padding: 0.65rem 0.95rem;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--fo-text);
+  background-color: var(--st-sheet);
+  border: 1px solid var(--fo-line-strong);
+  border-radius: 0.625rem;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.studio-input::placeholder { color: var(--fo-text-subtle); opacity: 0.85; }
+.studio-input:hover { border-color: color-mix(in srgb, var(--fo-text) 45%, transparent); }
+.studio-input:focus { outline: none; border-color: #e0620f; box-shadow: 0 0 0 3px rgba(255, 112, 18, 0.2); }
+.studio-input[aria-invalid='true'] { border-color: var(--st-danger); }
+.studio-input[aria-invalid='true']:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--st-danger) 22%, transparent); }
+select.studio-input {
+  appearance: none;
+  padding-right: 2.5rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%238291a5' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.9rem center;
+}
+select.studio-input option { color: #172b45; background: #ffffff; }
+input[type='date'].studio-input { min-width: 0; -webkit-appearance: none; appearance: none; }
+
+/* Choices: a real radio or checkbox inside a label; the label is the target. */
+.studio-choice {
+  position: relative;
+  display: flex;
+  cursor: pointer;
+  border: 1px solid var(--fo-line-strong);
+  background-color: var(--st-sheet);
+  color: var(--fo-text);
+  transition: border-color 0.15s, background-color 0.15s;
+}
+.studio-choice:hover { border-color: color-mix(in srgb, var(--fo-text) 45%, transparent); }
+.studio-choice:has(input:checked) { border-color: #e0620f; background-color: var(--st-pick); box-shadow: inset 0 0 0 1px #e0620f; }
+.studio-choice:has(input:focus-visible), .studio-row:has(input:focus-visible) { outline: 2px solid #e0620f; outline-offset: 2px; }
+.studio-choice > input, .studio-row > input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+
+/* Ruled rows (education, topics). */
+.studio-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  min-height: 3rem;
+  padding: 0.55rem 0.5rem;
+  border-bottom: 1px solid var(--fo-line);
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+.studio-row:hover { background-color: var(--st-frost); }
+.studio-row:has(input:checked) { background-color: var(--st-pick); font-weight: 600; }
+
+/* The candle marker: hollow when off, a lit body when on. */
+.studio-candle { position: relative; flex: none; width: 10px; height: 24px; }
+.studio-candle::before { content: ''; position: absolute; left: 4.25px; top: 0; bottom: 0; width: 1.5px; border-radius: 1px; background: var(--st-hollow); transition: background-color 0.2s; }
+.studio-candle::after { content: ''; position: absolute; inset: 8px 0; border-radius: 2px; border: 1.5px solid var(--st-hollow); background: var(--st-sheet); transition: inset 0.25s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.2s, border-color 0.2s; }
+input:checked ~ .studio-candle::before, [aria-current='page'] > .studio-candle::before { background: #e0620f; }
+input:checked ~ .studio-candle::after, [aria-current='page'] > .studio-candle::after { inset: 4px 0; background: #ff7417; border-color: #e0620f; }
+
+/* Switch: the thumb carries a tick when on, so state does not rest on colour alone. */
+.studio-switch {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  width: 2.75rem;
+  height: 1.625rem;
+  border-radius: 999px;
+  border: 1px solid var(--fo-line-strong);
+  background-color: color-mix(in srgb, var(--fo-text) 20%, transparent);
+  transition: background-color 0.18s, border-color 0.18s;
+}
+.studio-switch::before { content: ''; position: absolute; inset: -0.6rem -0.4rem; }
+.studio-switch > span { position: absolute; top: 1px; left: 2px; display: flex; align-items: center; justify-content: center; width: 1.375rem; height: 1.375rem; border-radius: 999px; background: #ffffff; color: #b04e10; box-shadow: 0 1px 3px rgba(10, 20, 35, 0.35); transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1); }
+.studio-switch > span > svg { opacity: 0; transition: opacity 0.15s; }
+.studio-switch[aria-checked='true'] { background-color: #f06a12; border-color: #d55a0b; }
+.studio-switch[aria-checked='true'] > span { transform: translateX(1rem); }
+.studio-switch[aria-checked='true'] > span > svg { opacity: 1; }
+.studio-switch:disabled { opacity: 0.55; cursor: not-allowed; }
+
+/* Frosted note and rail. */
+.studio-frost { background-color: var(--st-frost); border: 1px solid var(--st-frost-line); }
+
+/* Settings sheet: one surface, a frosted rail and the content, not a stack of cards. */
+.studio-sheet { background-color: var(--st-sheet); border: 1px solid var(--fo-line); box-shadow: var(--fo-shadow-panel); }
+.studio-nav { position: relative; display: flex; align-items: center; color: var(--fo-text-muted); font-weight: 500; }
+.studio-nav:hover { color: var(--fo-text); }
+.studio-nav[aria-current='page'] { color: var(--fo-text); font-weight: 600; }
+
+/* Motion. Backwards fill only, so nothing keeps a transform (fixed dialogs inside stay fixed). */
+@keyframes studio-step { from { opacity: 0; transform: translateX(14px); } }
+@keyframes studio-step-back { from { opacity: 0; transform: translateX(-14px); } }
+@keyframes studio-fade { from { opacity: 0; transform: translateY(4px); } }
+.studio-step { animation: studio-step 0.32s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+.studio-step-back { animation: studio-step-back 0.32s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+.studio-fade { animation: studio-fade 0.24s ease-out backwards; }
+
+@media (prefers-reduced-motion: reduce) {
+  .studio-step, .studio-step-back, .studio-fade{ animation: none; }
+  .studio-row, .studio-choice, .studio-candle::after, .studio-switch > span { transition: none; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  html:not(.dark) .studio { --st-frost: #e6f0fa; }
+  .dark .studio { --st-frost: #171d26; }
+}
+
+/* The shared footer's light-theme grey is too heavy under warm paper. */
+html:not(.dark) .studio > footer { background-color: #efe9df; }
+
+/* Clears the sticky header and the mobile Menu button when a field is focused. */
+.studio :is(.studio-input, fieldset) { scroll-margin-top: 9.5rem; }
+
+/*
+ * Onboarding (pages/onboarding.tsx): always on the brand palette (warm paper, burnt orange, navy,
+ * gold), whatever the app theme, because it is one welcome seen once. The orange field carries the
+ * question; a white sheet overlaps it with the answers; the student pass fills in as they go.
+ */
+html:not(.dark) .studio.onb, .dark .studio.onb {
+  color-scheme: light;
+  --fo-text: #172b45;
+  --fo-text-muted: #4a5a70;
+  --fo-text-subtle: #5f6c80;
+  --fo-line: rgba(23, 43, 69, 0.11);
+  --fo-line-strong: rgba(23, 43, 69, 0.22);
+  --fo-brand-tint: rgba(255, 112, 18, 0.1);
+  --fo-surface-3: #f1ece4;
+  --color-focus: #b04e10;
+  --color-surface-muted: #f1ece4;
+  --color-border: #e4ddd2;
+  --st-sheet: #ffffff;
+  --st-frost: #e6f0fa;
+  --st-frost-line: rgba(90, 135, 180, 0.24);
+  --st-accent: #b04e10;
+  --st-danger: #a82a33;
+  --st-hollow: #a9b6c6;
+  --st-pick: #fff3e8;
+  background-color: #f7f4ef;
+}
+.onb-field {
+  position: relative;
+  overflow: hidden;
+  color: #ffffff;
+  background-color: #ad470c;
+  background-image: linear-gradient(112deg, #8f3707 0%, #ad470c 42%, #bd5210 100%);
+}
+.onb-field :where(a, button):focus-visible { outline-color: #ffffff; }
+/* Faded where the headline sits, so no candle is read through text. */
+.onb-skyline { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; -webkit-mask-image: linear-gradient(90deg, transparent 48%, #000 72%); mask-image: linear-gradient(90deg, transparent 48%, #000 72%); }
+@media (max-width: 639px) { .onb-skyline { opacity: 0.2; } }
+.onb-lit { transition: opacity 0.6s cubic-bezier(0.22, 1, 0.36, 1); }
+.onb-title { font-family: Poppins, Inter, system-ui, sans-serif; font-weight: 600; letter-spacing: -0.035em; line-height: 1.06; }
+.onb-title:focus { outline: none; }
+.onb-sheet { background: #ffffff; border-radius: 1.5rem; box-shadow: 0 2px 4px rgba(60, 28, 6, 0.05), 0 28px 60px -30px rgba(60, 28, 6, 0.4); }
+.onb-sheet .studio-input { background-color: #faf8f4; border-radius: 0.875rem; min-height: 3.25rem; }
+.onb-sheet .studio-input:focus { background-color: #ffffff; }
+.onb-sheet .btn-secondary { color: #172b45; border-color: rgba(23, 43, 69, 0.18); }
+
+/* The student pass: navy with a gold edge. */
+.onb-pass {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 1.586;
+  border-radius: 1.25rem;
+  color: #f6f1e9;
+  background: radial-gradient(130% 120% at 100% 0%, #24446d 0%, transparent 58%), linear-gradient(150deg, #172b45 0%, #0e1c30 100%);
+  box-shadow: inset 0 0 0 1.5px rgba(232, 173, 56, 0.65), 0 26px 50px -22px rgba(14, 22, 38, 0.75);
+}
+@keyframes onb-pass-in { from { opacity: 0; transform: translateY(26px) rotate(-7deg); } }
+.onb-pass-in { animation: onb-pass-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+@keyframes onb-grow { from { transform: scaleX(0); } }
+.onb-grow { transform-origin: left; animation: onb-grow 0.45s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+@media (prefers-reduced-motion: reduce) {
+  .onb-pass-in, .onb-grow { animation: none; }
+  .onb-lit { transition: none; }
+}

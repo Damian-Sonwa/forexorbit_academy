@@ -1,754 +1,393 @@
 /**
- * Student Onboarding Page
- * Multi-step onboarding flow for new students
+ * Student onboarding: five steps, each laid out for what it asks, saved once at the end
+ *   GET  /api/auth/me                      existing answers
+ *   POST /api/student/onboarding           the whole form
+ *   PUT  /api/student/onboarding/complete  first time only
+ * Optional: a student can skip it. A student who already finished uses the same steps to edit.
  */
 
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import Head from 'next/head';
+import Link from 'next/link';
 import { useRouter } from 'next/router';
-import Header from '@/components/Header';
+import { ArrowLeft, ArrowRight } from 'lucide-react';
+import BrandLogo from '@/components/BrandLogo';
 import LoadingSpinner from '@/components/LoadingSpinner';
+import PhotoField from '@/components/profile/PhotoField';
+import { CertificationsField, ChannelsField, EducationTiles, GenderField, LevelField, TextField, TopicsField, YearsField } from '@/components/profile/ProfileFields';
+import Skyline from '@/components/profile/Skyline';
+import StudentPass from '@/components/profile/StudentPass';
 import { useAuth } from '@/hooks/useAuth';
 import { apiClient } from '@/lib/api-client';
-import { Bell, Check, GraduationCap, Mail, MessageSquare, Settings, TrendingUp, User } from 'lucide-react';
+import {
+  EDUCATION_FIELDS, EMPTY_PROFILE, PERSONAL_FIELDS, REQUIRED_FIELDS, TOPIC_FIELDS, TRADING_FIELDS,
+  apiErrorText, dateLabel, educationLabel, genderLabel, profileErrors, profileFrom, yearsLabel,
+  type ProfileErrors, type ProfileField, type ProfileForm, type ProfileSource,
+} from '@/lib/student-profile';
 
-interface OnboardingData {
-  // Step 1: Personal Details
-  fullName: string;
-  dateOfBirth: string;
-  gender: string;
-  contactNumber: string;
-  profilePhoto?: string;
-  
-  // Step 2: Educational Background
-  educationLevel: string;
-  certifications: string;
-  
-  // Step 3: Trading Experience
-  tradingLevel: 'beginner' | 'intermediate' | 'advanced';
-  yearsOfExperience: string;
-  
-  // Step 4: Preferences
-  preferredTopics: string[];
-  notificationPreferences: {
-    email: boolean;
-    sms: boolean;
-    push: boolean;
-  };
-}
+const STEPS: Array<{ name: string; fields: ProfileField[] }> = [
+  { name: 'Personal details', fields: PERSONAL_FIELDS },
+  { name: 'Education', fields: EDUCATION_FIELDS },
+  { name: 'Trading experience', fields: TRADING_FIELDS },
+  { name: 'Preferences', fields: TOPIC_FIELDS },
+  { name: 'Confirmation', fields: [] },
+];
+const LAST = STEPS.length;
+
+const capital = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
+const list = (items: string[]) => (items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`);
+const channelsOn = (form: ProfileForm) => ([['email', 'email'], ['sms', 'SMS'], ['push', 'push']] as const).filter(([k]) => form.notificationPreferences[k]).map(([, label]) => label);
+
+const COPY = [
+  { title: 'Introduce yourself', lede: 'This goes on your profile. You can change it whenever you like.', editing: 'These details stay on your profile. Lessons stay open either way.' },
+  { title: 'What have you studied?', lede: 'Any background is a fine place to start. Choose the highest level you have finished.', editing: 'Choose the highest level you have finished.' },
+  { title: 'How well do you know the market?', lede: 'Your answer sets your starting level, so be honest rather than ambitious.', editing: 'This describes your experience. Your course level changes only as you complete courses.' },
+  { title: 'What do you want to learn?', lede: 'Choose at least one topic, as many as you like.', editing: 'Choose at least one topic, as many as you like.' },
+  { title: 'Does this look right?', lede: 'Check the details, then finish. You can change them later in Settings.', editing: 'Check the details, then save your changes.' },
+];
+const NOTES = [
+  'Your pass fills in as you answer. Setup is optional: skip it and open a course whenever you are ready.',
+  'Certifications are optional.',
+  'Not sure? Choose the lower one. Your level rises as you complete courses.',
+  'Notification choices can be changed later in Settings.',
+  'Your answers are saved when you finish this step.',
+];
 
 export default function Onboarding() {
-  const { user, isAuthenticated, loading: authLoading, refreshUser } = useAuth();
+  const { user, isAuthenticated, loading: authLoading, refreshUser, logout } = useAuth();
   const router = useRouter();
-  const [currentStep, setCurrentStep] = useState(1);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [uploadingPhoto, setUploadingPhoto] = useState(false);
-  const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null);
-  const [photoPreview, setPhotoPreview] = useState<string>('');
-  const [formData, setFormData] = useState<OnboardingData>({
-    fullName: '',
-    dateOfBirth: '',
-    gender: '',
-    contactNumber: '',
-    profilePhoto: '',
-    educationLevel: '',
-    certifications: '',
-    tradingLevel: 'beginner',
-    yearsOfExperience: '0',
-    preferredTopics: [],
-    notificationPreferences: {
-      email: true,
-      sms: false,
-      push: true,
-    },
-  });
+  const [step, setStep] = useState(1);
+  const [started, setStarted] = useState(false);
+  const [reached, setReached] = useState(1);
+  const [back, setBack] = useState(false);
+  const [form, setForm] = useState<ProfileForm>(EMPTY_PROFILE);
+  const [errors, setErrors] = useState<ProfileErrors>({});
+  const [saveError, setSaveError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [loadState, setLoadState] = useState<'loading' | 'ready' | 'failed'>('loading');
+  const [finished, setFinished] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  const heading = useRef<HTMLHeadingElement>(null);
+  const focusHeading = useRef(false);
+
+  const userId = user?.id;
+  const isStudent = user?.role === 'student';
+  const editing = Boolean(user?.onboardingCompleted) && !finished;
 
   // Redirect if not authenticated or not a student
   useEffect(() => {
-    if (!authLoading) {
-      if (!isAuthenticated) {
-        router.push('/login');
-      } else if (user && user.role !== 'student') {
-        router.push('/dashboard');
-      }
-    }
+    if (authLoading) return;
+    if (!isAuthenticated) router.push('/login');
+    else if (user && user.role !== 'student') router.push('/dashboard');
   }, [isAuthenticated, authLoading, user, router]);
 
-  // Load existing onboarding data if available
+  // Existing answers, once per account: a later profile refresh (tab focus, photo upload) must not
+  // replace what is being typed.
+  const load = useCallback(async () => {
+    setLoadState('loading');
+    try {
+      setForm(profileFrom(await apiClient.get<ProfileSource>('/auth/me')));
+      setLoadState('ready');
+    } catch {
+      setLoadState('failed');
+    }
+  }, []);
   useEffect(() => {
-    if (user && user.id) {
-      loadOnboardingData();
-    }
-  }, [user]);
+    if (userId && isStudent) void load();
+  }, [userId, isStudent, load]);
 
-  const loadOnboardingData = async () => {
+  // Answers are sent at the end, so leaving the site part-way asks first.
+  useEffect(() => {
+    if (!dirty) return undefined;
+    const warn = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [dirty]);
+
+  // After a step change, the page starts at the top and the new heading is announced.
+  useEffect(() => {
+    if (!focusHeading.current) return;
+    focusHeading.current = false;
+    window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+    heading.current?.focus({ preventScroll: true });
+  }, [step, finished, started]);
+
+  const set = <K extends ProfileField>(field: K, value: ProfileForm[K]) => {
+    setForm((prev) => ({ ...prev, [field]: value }));
+    setErrors((prev) => ({ ...prev, [field]: undefined }));
+    setDirty(true);
+  };
+  const setPhoto = (photo: string) => setForm((prev) => ({ ...prev, profilePhoto: photo }));
+
+  const goTo = (next: number) => {
+    if (next === step) return;
+    focusHeading.current = true;
+    setBack(next < step);
+    setErrors({});
+    setSaveError('');
+    setStep(next);
+    setReached((r) => Math.max(r, next));
+  };
+
+  /** True when these fields are complete; otherwise shows what is missing, on the step that asks it. */
+  const check = (fields: ProfileField[]) => {
+    const found = profileErrors(form, fields);
+    const first = fields.find((f) => found[f]);
+    if (!first) return true;
+    const owner = STEPS.findIndex((s) => s.fields.includes(first)) + 1;
+    if (owner !== step) goTo(owner);
+    setErrors(found);
+    setTimeout(() => document.getElementById(`ob-${first}`)?.focus(), 0);
+    return false;
+  };
+
+  const submit = async () => {
+    if (!check(REQUIRED_FIELDS)) return;
+    setSaving(true);
+    setSaveError('');
+    const firstTime = !user?.onboardingCompleted;
     try {
-      const data = await apiClient.get('/auth/me') as any;
-      if (data.studentDetails || data.profilePhoto) {
-        setFormData({
-          fullName: data.studentDetails?.fullName || data.name || '',
-          dateOfBirth: data.studentDetails?.dateOfBirth || '',
-          gender: data.studentDetails?.gender || '',
-          contactNumber: data.studentDetails?.contactNumber || '',
-          profilePhoto: data.profilePhoto || '',
-          educationLevel: data.studentDetails?.educationLevel || '',
-          certifications: data.studentDetails?.certifications || '',
-          tradingLevel: data.studentDetails?.tradingLevel || 'beginner',
-          yearsOfExperience: data.studentDetails?.yearsOfExperience || '0',
-          preferredTopics: data.studentDetails?.preferredTopics || [],
-          notificationPreferences: data.studentDetails?.notificationPreferences || {
-            email: true,
-            sms: false,
-            push: true,
-          },
-        });
-        if (data.profilePhoto) {
-          setPhotoPreview(data.profilePhoto);
-        }
-      }
-    } catch (error) {
-      console.error('Failed to load onboarding data:');
-    }
-  };
-
-  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      if (file.size > 5 * 1024 * 1024) {
-        setError('Image size must be less than 5MB');
-        return;
-      }
-      setSelectedPhoto(file);
-      setPhotoPreview(URL.createObjectURL(file));
-    }
-  };
-
-  const handlePhotoUpload = async () => {
-    if (!selectedPhoto) return;
-
-    setUploadingPhoto(true);
-    setError('');
-
-    try {
-      const uploadFormData = new FormData();
-      uploadFormData.append('profilePhoto', selectedPhoto);
-
-      const response = await apiClient.post('/upload/profile', uploadFormData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-
-      setFormData((prev) => ({ ...prev, profilePhoto: (response as any).imageUrl }));
-      setSelectedPhoto(null);
-    } catch (error: any) {
-      setError(error.response?.data?.message || error.response?.data?.error || error.message || 'Failed to upload photo');
-    } finally {
-      setUploadingPhoto(false);
-    }
-  };
-
-  const handleInputChange = (field: keyof OnboardingData, value: any) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
-  };
-
-  const handleNestedChange = (field: string, subField: string, value: any) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: {
-        ...(prev[field as keyof OnboardingData] as any),
-        [subField]: value,
-      },
-    }));
-  };
-
-  const handleTopicToggle = (topic: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      preferredTopics: prev.preferredTopics.includes(topic)
-        ? prev.preferredTopics.filter((t) => t !== topic)
-        : [...prev.preferredTopics, topic],
-    }));
-  };
-
-  const validateStep = (step: number): boolean => {
-    switch (step) {
-      case 1:
-        if (!formData.fullName.trim() || !formData.dateOfBirth || !formData.contactNumber.trim()) {
-          setError('Please fill in all required fields (Full Name, Date of Birth, Contact Number)');
-          return false;
-        }
-        break;
-      case 2:
-        if (!formData.educationLevel) {
-          setError('Please select your highest education level');
-          return false;
-        }
-        break;
-      case 3:
-        if (!formData.tradingLevel || !formData.yearsOfExperience) {
-          setError('Please complete all trading experience fields');
-          return false;
-        }
-        break;
-      case 4:
-        if (formData.preferredTopics.length === 0) {
-          setError('Please select at least one preferred learning topic');
-          return false;
-        }
-        break;
-    }
-    setError('');
-    return true;
-  };
-
-  const handleNext = () => {
-    if (validateStep(currentStep)) {
-      if (currentStep < 5) {
-        setCurrentStep(currentStep + 1);
-      }
-    }
-  };
-
-  const handleBack = () => {
-    if (currentStep > 1) {
-      setCurrentStep(currentStep - 1);
-    }
-  };
-
-  const handleSubmit = async () => {
-    if (!validateStep(5)) return;
-
-    setLoading(true);
-    setError('');
-
-    try {
-      await apiClient.post('/student/onboarding', formData);
+      await apiClient.post('/student/onboarding', form);
       // Mark onboarding as complete (only if not already completed)
-      if (!(user as any)?.onboardingCompleted) {
-        await apiClient.put('/student/onboarding/complete');
-      }
+      if (firstTime) await apiClient.put('/student/onboarding/complete');
+      setDirty(false);
       // Refresh the shared profile (onboarding status) before leaving.
       await refreshUser();
-      router.push('/dashboard');
-    } catch (error: any) {
-      setError(error.response?.data?.message || error.response?.data?.error || error.message || 'Failed to save onboarding data');
-      setLoading(false);
+      if (firstTime) {
+        focusHeading.current = true;
+        setFinished(true);
+      } else {
+        router.push('/dashboard');
+      }
+    } catch (error) {
+      setSaveError(apiErrorText(error, 'Failed to save onboarding data'));
+      setSaving(false);
     }
+  };
+
+  const onSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (saving) return;
+    if (step === LAST) void submit();
+    else if (check(STEPS[step - 1].fields)) goTo(step + 1);
+  };
+
+  const openStep = (next: number) => {
+    if (next < step || check(STEPS[step - 1].fields)) goTo(next);
+  };
+
+  const signOut = async () => {
+    await logout();
+    router.push('/login');
   };
 
   if (authLoading || !isAuthenticated || (user && user.role !== 'student')) {
     return <LoadingSpinner message="Loading onboarding..." fullScreen />;
   }
 
-  const steps = [
-    { number: 1, title: 'Personal Details' },
-    { number: 2, title: 'Education' },
-    { number: 3, title: 'Trading Experience' },
-    { number: 4, title: 'Preferences' },
-    { number: 5, title: 'Confirmation' },
-  ];
+  const firstName = (form.fullName.trim() || user?.name || '').split(/\s+/)[0] || '';
+  const problems = Object.values(errors).filter(Boolean);
+  const intro = loadState === 'ready' && !finished && !editing && !started;
+  const copy = COPY[step - 1];
+  const progress = finished ? 1 : intro ? 0.12 : 0.12 + ((step - 1) / LAST) * 0.88;
 
-  const learningTopics = [
-    'Technical Analysis',
-    'Fundamental Analysis',
-    'Risk Management',
-    'Algorithmic Trading',
-    'Forex Basics',
-    'Trading Psychology',
-    'Chart Patterns',
-    'Indicators & Oscillators',
-  ];
+  const head = <Head><title key="title">{editing ? 'Edit your profile | ForexOrbit Academy' : 'Get started | ForexOrbit Academy'}</title></Head>;
+  const topBar = (
+    <div className="relative z-10 mx-auto flex w-full max-w-[76rem] items-center justify-between gap-3 px-4 py-3 sm:px-8 sm:py-5">
+      <Link href="/" aria-label="FX Orbit Academy home" className="inline-flex shrink-0"><BrandLogo variant="light" priority className="h-7 brightness-0 invert sm:h-9" /></Link>
+      <div className="flex items-center text-sm font-medium sm:gap-1">
+        <button type="button" onClick={() => void signOut()} title={user?.email} className="min-h-[2.75rem] whitespace-nowrap rounded-full px-2.5 hover:bg-white/10">Sign out</button>
+        {!finished && <button type="button" onClick={() => router.push('/dashboard')} className="min-h-[2.75rem] whitespace-nowrap rounded-full border border-white/40 px-3.5 hover:bg-white/10">{editing ? 'Dashboard' : 'Skip for now'}</button>}
+      </div>
+    </div>
+  );
+
+  // Opening and closing: the orange field fills the screen.
+  if (intro || (loadState === 'ready' && finished)) {
+    return (
+      <div className="studio onb">
+        {head}
+        <div className="onb-field flex min-h-[100dvh] flex-col">
+          <Skyline progress={progress} />
+          {topBar}
+          <main className="relative z-10 mx-auto grid w-full max-w-[76rem] flex-1 content-center items-center gap-10 px-4 pb-14 pt-4 sm:px-8 lg:grid-cols-[minmax(0,1fr)_26rem] lg:gap-16" data-testid={finished ? 'onboarding-done' : 'onboarding-intro'}>
+            <div className="max-w-xl">
+              <h1 ref={heading} tabIndex={-1} className="onb-title text-[clamp(2.5rem,1.6rem+4.2vw,4.5rem)] [overflow-wrap:anywhere]">
+                {finished ? <>You&rsquo;re set{firstName ? `, ${firstName}` : ''}.</> : <>Welcome{firstName ? `, ${firstName}` : ''}.</>}
+              </h1>
+              <p className="mt-5 max-w-md text-lg leading-relaxed">
+                {finished
+                  ? <>{user?.learningLevel ? <>You start at <strong className="font-semibold">{user.learningLevel}</strong> level. It moves up as you complete courses.</> : 'Your level moves up as you complete courses.'} You can change your details in Settings.</>
+                  : 'Tell us where you are starting, and we set your level to match. Four short steps, then a quick check.'}
+              </p>
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                {finished ? (
+                  <>
+                    <Link href="/dashboard" className="btn btn-lg min-h-[3.25rem] !rounded-full bg-[#ffffff] !px-8 text-[#8f3707] hover:bg-[#fff3e8]">Open dashboard</Link>
+                    <Link href="/courses" className="btn btn-lg min-h-[3.25rem] !rounded-full border border-white/50 !px-8 hover:bg-white/10">Browse courses</Link>
+                  </>
+                ) : (
+                  <button type="button" onClick={() => { focusHeading.current = true; setStarted(true); }} className="btn btn-lg min-h-[3.25rem] !rounded-full bg-[#ffffff] !px-8 text-[#8f3707] hover:bg-[#fff3e8]">Get started<ArrowRight className="h-4 w-4" aria-hidden /></button>
+                )}
+              </div>
+            </div>
+            <div className="onb-pass-in w-full max-w-[26rem]"><StudentPass form={form} step={finished ? LAST + 1 : 1} total={LAST} className="lg:rotate-[4deg]" /></div>
+          </main>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <Header />
-
-      <main className="flex-1 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
-        <div className="mb-8">
-          <p className="page-kicker mb-2">Getting started</p>
-          <h1 className="page-title">
-            {(user as any)?.onboardingCompleted ? 'Edit your profile' : 'Tell us where you are starting'}
-          </h1>
-          <p className="mt-2 max-w-2xl text-sm text-neutral-600">
-            {(user as any)?.onboardingCompleted
-              ? 'These details stay on your profile. Lessons stay open either way.'
-              : 'This is optional. Skip it and open a course whenever you are ready.'}
-          </p>
-        </div>
-
-        {/* Progress Indicator */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            {steps.map((step, index) => (
-              <div key={step.number} className="flex items-center flex-1">
-                <div className="flex flex-col items-center flex-1">
-                  <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold transition-all ${
-                      currentStep >= step.number
-                        ? 'bg-primary-600 text-white'
-                        : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200'
-                    }`}
-                  >
-                    {currentStep > step.number ? <Check className="h-4 w-4" aria-hidden /> : step.number}
-                  </div>
-                  <span className="text-xs mt-2 text-center text-gray-600 dark:text-gray-400 hidden sm:block">
-                    {step.title}
-                  </span>
-                </div>
-                {index < steps.length - 1 && (
-                  <div
-                    className={`h-1 flex-1 mx-2 ${
-                      currentStep > step.number
-                        ? 'bg-primary-600'
-                        : 'bg-gray-200 dark:bg-gray-700'
-                    }`}
-                  />
-                )}
-              </div>
-            ))}
-          </div>
-          <div className="text-center text-sm text-gray-500 dark:text-gray-400">
-            Step {currentStep} of {steps.length}
-          </div>
-        </div>
-
-        {/* Onboarding Form Card */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 sm:p-8">
-          {error && (
-            <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-xl">
-              <p className="text-red-800 dark:text-red-200 text-sm">{error}</p>
+    <div className="studio onb min-h-[100dvh]">
+      {head}
+      <div className="onb-field">
+        <Skyline progress={progress} />
+        {topBar}
+        <div className="relative z-10 mx-auto min-h-[14rem] max-w-[76rem] px-4 pb-24 pt-2 sm:px-8 sm:pb-32 sm:pt-5">
+          {loadState === 'ready' && (
+            <div key={step} className={`max-w-2xl ${back ? 'studio-step-back' : 'studio-step'}`}>
+              <p className="num text-sm font-medium">Step {step} of {LAST}</p>
+              <h1 ref={heading} tabIndex={-1} className="onb-title mt-2 text-[clamp(1.875rem,1.4rem+2.2vw,3.125rem)]">{step === 1 && editing ? 'Edit your profile' : copy.title}</h1>
+              <p className="mt-3 max-w-lg text-[0.9375rem] leading-relaxed sm:text-base">{editing ? copy.editing : copy.lede}</p>
             </div>
           )}
+        </div>
+      </div>
 
-          {/* Step 1: Personal Details */}
-          {currentStep === 1 && (
-            <div className="space-y-6">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Personal Details</h2>
-              
-              {/* Profile Photo Upload */}
-              <div className="flex flex-col items-center mb-6 pb-6 border-b border-gray-200 dark:border-gray-700">
-                <div className="relative mb-4">
-                  <div className="w-24 h-24 rounded-full overflow-hidden bg-primary-600 flex items-center justify-center ring-4 ring-primary-100 dark:ring-primary-900">
-                    {photoPreview ? (
-                      <img
-                        src={photoPreview}
-                        alt="Profile"
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <span className="text-white text-3xl font-bold">
-                        {formData.fullName?.charAt(0)?.toUpperCase() || user?.name?.charAt(0)?.toUpperCase() || 'U'}
-                      </span>
+      <main className="relative z-10 mx-auto -mt-16 grid max-w-[76rem] gap-8 px-3 pb-10 sm:-mt-20 sm:px-8 lg:grid-cols-[minmax(0,1fr)_21rem]">
+        <div className="onb-sheet min-w-0">
+          {/* Progress along the top edge of the sheet; finished steps lead back. */}
+          <nav aria-label="Onboarding progress" className="border-b border-line px-4 sm:px-8">
+            <ol className="flex gap-1.5 sm:gap-3">
+              {STEPS.map(({ name }, i) => {
+                const n = i + 1;
+                const here = n === step;
+                const open = loadState === 'ready' && !here && n <= reached;
+                const inner = (
+                  <>
+                    <span className="block h-1 overflow-hidden rounded-full bg-[#ece6dc]">{n <= step && <span className="onb-grow block h-full rounded-full bg-[#ff7417]" />}</span>
+                    <span aria-hidden className={`mt-2.5 hidden truncate text-[0.8125rem] md:block ${here ? 'font-semibold text-ink' : 'text-ink-muted'}`}>{name}</span>
+                    <span className="sr-only">{`${name}${n < step ? ', complete' : ''}`}</span>
+                  </>
+                );
+                return (
+                  <li key={name} aria-current={here ? 'step' : undefined} className="min-w-0 flex-1">
+                    {open ? <button type="button" onClick={() => openStep(n)} className="block w-full py-5 text-left hover:opacity-75 md:pb-3.5">{inner}</button> : <span className="block py-5 md:pb-3.5">{inner}</span>}
+                  </li>
+                );
+              })}
+            </ol>
+          </nav>
+
+          <div className="px-4 pt-7 sm:px-8 sm:pt-9">
+            {loadState === 'loading' && (
+              <div role="status" aria-label="Loading your answers" className="space-y-5 pb-10">
+                <div className="orbit-skeleton h-[4.5rem] w-2/3 rounded-xl" /><div className="orbit-skeleton h-14 w-full rounded-xl" /><div className="orbit-skeleton h-14 w-full rounded-xl" />
+              </div>
+            )}
+            {loadState === 'failed' && (
+              <div className="pb-10" role="alert">
+                <h1 className="font-display text-xl font-semibold">Your answers could not be loaded</h1>
+                <p className="studio-hint mt-1">Nothing has changed. Check your connection, then try again.</p>
+                <button type="button" className="btn btn-primary mt-4 min-h-[2.75rem]" onClick={() => void load()}>Try again</button>
+              </div>
+            )}
+            {loadState === 'ready' && (
+              <>
+                {/* Outside the form: its confirmation dialog has a form of its own. */}
+                {step === 1 && <div className="studio-step mb-8"><PhotoField photo={form.profilePhoto} name={form.fullName || user?.name || ''} onChange={setPhoto} /></div>}
+
+                <form onSubmit={onSubmit} noValidate>
+                  <div key={step} className={`min-h-[18rem] pb-9 ${back ? 'studio-step-back' : 'studio-step'}`}>
+                    {step === 1 && (
+                      <div className="space-y-6">
+                        <TextField id="ob-fullName" label="Full name" value={form.fullName} onChange={(v) => set('fullName', v)} error={errors.fullName} placeholder="Enter your full name" autoComplete="name" />
+                        <div className="grid gap-6 sm:grid-cols-2">
+                          <TextField id="ob-dateOfBirth" label="Date of birth" type="date" value={form.dateOfBirth} onChange={(v) => set('dateOfBirth', v)} error={errors.dateOfBirth} autoComplete="bday" max={new Date().toISOString().slice(0, 10)} />
+                          <TextField id="ob-contactNumber" label="Contact number" type="tel" inputMode="tel" value={form.contactNumber} onChange={(v) => set('contactNumber', v)} error={errors.contactNumber} placeholder="+1234567890" autoComplete="tel" hint="Include your country code." />
+                        </div>
+                        <GenderField id="ob-gender" value={form.gender} onChange={(v) => set('gender', v)} />
+                      </div>
                     )}
-                  </div>
-                  <label className="absolute bottom-0 right-0 bg-primary-600 text-white rounded-full p-2 cursor-pointer hover:bg-primary-700 transition-colors shadow-lg">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handlePhotoSelect}
-                      className="hidden"
-                    />
-                  </label>
-                </div>
-                {selectedPhoto && (
-                  <button
-                    type="button"
-                    onClick={handlePhotoUpload}
-                    disabled={uploadingPhoto}
-                    className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {uploadingPhoto ? 'Uploading...' : 'Upload Photo'}
-                  </button>
-                )}
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 text-center">
-                  Optional: Upload a profile photo (max 5MB)
-                </p>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Full Name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={formData.fullName}
-                  onChange={(e) => handleInputChange('fullName', e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
-                  placeholder="Enter your full name"
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                    Date of Birth <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="date"
-                    value={formData.dateOfBirth}
-                    onChange={(e) => handleInputChange('dateOfBirth', e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                    Gender
-                  </label>
-                  <select
-                    value={formData.gender}
-                    onChange={(e) => handleInputChange('gender', e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
-                  >
-                    <option value="">Prefer not to say</option>
-                    <option value="male">Male</option>
-                    <option value="female">Female</option>
-                    <option value="other">Other</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Contact Number <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="tel"
-                  value={formData.contactNumber}
-                  onChange={(e) => handleInputChange('contactNumber', e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
-                  placeholder="+1234567890"
-                  required
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Step 2: Educational Background */}
-          {currentStep === 2 && (
-            <div className="space-y-6">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Educational Background</h2>
-              
-              <div className="bg-neutral-50 dark:bg-neutral-900 rounded-xl p-6 border border-neutral-100 dark:border-neutral-800">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                    Highest Education Level <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    value={formData.educationLevel}
-                    onChange={(e) => handleInputChange('educationLevel', e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all shadow-sm"
-                    required
-                  >
-                    <option value="">Select education level</option>
-                    <option value="high-school">High School</option>
-                    <option value="diploma">Diploma</option>
-                    <option value="bachelor">Bachelor's Degree</option>
-                    <option value="master">Master's Degree</option>
-                    <option value="phd">PhD</option>
-                    <option value="other">Other</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="bg-neutral-50 dark:bg-neutral-900 rounded-xl p-6 border border-neutral-100 dark:border-neutral-800">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                    Relevant Certifications (Optional)
-                  </label>
-                  <textarea
-                    value={formData.certifications}
-                    onChange={(e) => handleInputChange('certifications', e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all shadow-sm resize-none"
-                    rows={4}
-                    placeholder="List any relevant certifications (e.g., CFA, Series 7, etc.)"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Step 3: Trading Experience */}
-          {currentStep === 3 && (
-            <div className="space-y-6">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Trading Experience</h2>
-              
-              <div className="bg-neutral-50 dark:bg-neutral-900 rounded-xl p-6 border border-green-100 dark:border-green-800">
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">
-                  Trading Level <span className="text-red-500">*</span>
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  {(['beginner', 'intermediate', 'advanced'] as const).map((level) => (
-                    <button
-                      key={level}
-                      type="button"
-                      onClick={() => handleInputChange('tradingLevel', level)}
-                      className={`p-5 rounded-xl border-2 transition-all transform hover:scale-105 ${
-                        formData.tradingLevel === level
-                          ? 'border-primary-600 bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 shadow-lg scale-105'
-                          : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:border-primary-400 hover:shadow-md'
-                      }`}
-                    >
-                      <div className="font-bold text-lg capitalize mb-1">{level}</div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400">
-                        {level === 'beginner' && 'Just starting out'}
-                        {level === 'intermediate' && 'Some experience'}
-                        {level === 'advanced' && 'Expert trader'}
+                    {step === 2 && (
+                      <div className="space-y-8">
+                        <EducationTiles id="ob-educationLevel" value={form.educationLevel} onChange={(v) => set('educationLevel', v)} error={errors.educationLevel} />
+                        <CertificationsField id="ob-certifications" value={form.certifications} onChange={(v) => set('certifications', v)} />
                       </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="bg-neutral-50 dark:bg-neutral-900 rounded-xl p-6 border border-yellow-100 dark:border-yellow-800">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                    Years of Forex/Trading Experience <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    value={formData.yearsOfExperience}
-                    onChange={(e) => handleInputChange('yearsOfExperience', e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all shadow-sm"
-                    required
-                  >
-                    <option value="0">Less than 1 year</option>
-                    <option value="1-2">1-2 years</option>
-                    <option value="3-5">3-5 years</option>
-                    <option value="6-10">6-10 years</option>
-                    <option value="10+">More than 10 years</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Step 4: Preferences */}
-          {currentStep === 4 && (
-            <div className="space-y-6">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Learning Preferences</h2>
-              
-              <div className="bg-neutral-50 dark:bg-neutral-900 rounded-xl p-6 border border-neutral-100 dark:border-neutral-800">
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">
-                  Preferred Learning Topics <span className="text-red-500">*</span>
-                </label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  {learningTopics.map((topic) => (
-                    <button
-                      key={topic}
-                      type="button"
-                      onClick={() => handleTopicToggle(topic)}
-                      className={`p-3 rounded-xl border-2 transition-all text-sm font-medium transform hover:scale-105 ${
-                        formData.preferredTopics.includes(topic)
-                          ? 'border-primary-600 bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 shadow-md scale-105'
-                          : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:border-primary-400 hover:shadow-sm'
-                      }`}
-                    >
-                      {topic}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="bg-neutral-50 dark:bg-neutral-900 rounded-xl p-6 border border-neutral-100 dark:border-neutral-800">
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">
-                  Notification Preferences
-                </label>
-                <div className="space-y-3">
-                  {[
-                    { key: 'email', label: 'Email Notifications', icon: Mail },
-                    { key: 'sms', label: 'SMS Notifications', icon: MessageSquare },
-                    { key: 'push', label: 'Push Notifications', icon: Bell },
-                  ].map(({ key, label, icon: Icon }) => (
-                    <label key={key} className="flex items-center p-3 rounded-lg hover:bg-white/50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={formData.notificationPreferences[key as keyof typeof formData.notificationPreferences]}
-                        onChange={(e) => handleNestedChange('notificationPreferences', key, e.target.checked)}
-                        className="w-5 h-5 text-primary-600 rounded focus:ring-primary-500"
-                      />
-                      <span className="ml-3 mr-2 text-neutral-700 dark:text-neutral-300"><Icon className="h-4 w-4" aria-hidden /></span>
-                      <span className="text-gray-700 dark:text-gray-300 font-medium">{label}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Step 5: Confirmation */}
-          {currentStep === 5 && (
-            <div className="space-y-6">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Review Your Information</h2>
-              
-              <div className="space-y-4">
-                <div className="bg-neutral-50 dark:bg-neutral-800/40 rounded-xl p-5 border border-primary-200 dark:border-primary-800">
-                  <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-4 flex items-center">
-                    <User className="mr-2 h-4 w-4 shrink-0" aria-hidden /> Personal Details
-                  </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-                    <div>
-                      <span className="text-gray-600 dark:text-gray-400 font-medium">Name:</span>
-                      <p className="text-gray-900 dark:text-white font-semibold">{formData.fullName}</p>
-                    </div>
-                    <div>
-                      <span className="text-gray-600 dark:text-gray-400 font-medium">Date of Birth:</span>
-                      <p className="text-gray-900 dark:text-white font-semibold">{formData.dateOfBirth || 'Not provided'}</p>
-                    </div>
-                    <div>
-                      <span className="text-gray-600 dark:text-gray-400 font-medium">Gender:</span>
-                      <p className="text-gray-900 dark:text-white font-semibold capitalize">{formData.gender || 'Not provided'}</p>
-                    </div>
-                    <div>
-                      <span className="text-gray-600 dark:text-gray-400 font-medium">Contact:</span>
-                      <p className="text-gray-900 dark:text-white font-semibold">{formData.contactNumber}</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-neutral-50 dark:bg-neutral-900 rounded-xl p-5 border border-neutral-200 dark:border-neutral-800">
-                  <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-4 flex items-center">
-                    <GraduationCap className="mr-2 h-4 w-4 shrink-0" aria-hidden /> Education
-                  </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-                    <div>
-                      <span className="text-gray-600 dark:text-gray-400 font-medium">Education Level:</span>
-                      <p className="text-gray-900 dark:text-white font-semibold capitalize">{formData.educationLevel || 'Not provided'}</p>
-                    </div>
-                    <div>
-                      <span className="text-gray-600 dark:text-gray-400 font-medium">Certifications:</span>
-                      <p className="text-gray-900 dark:text-white font-semibold">{formData.certifications || 'None'}</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-neutral-50 dark:bg-neutral-900 rounded-xl p-5 border border-green-200 dark:border-green-800">
-                  <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-4 flex items-center">
-                    <TrendingUp className="mr-2 h-4 w-4 shrink-0" aria-hidden /> Trading Experience
-                  </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-                    <div>
-                      <span className="text-gray-600 dark:text-gray-400 font-medium">Level:</span>
-                      <p className="text-gray-900 dark:text-white font-semibold capitalize">{formData.tradingLevel}</p>
-                    </div>
-                    <div>
-                      <span className="text-gray-600 dark:text-gray-400 font-medium">Experience:</span>
-                      <p className="text-gray-900 dark:text-white font-semibold">{formData.yearsOfExperience} years</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-neutral-50 dark:bg-neutral-900 rounded-xl p-5 border border-neutral-200 dark:border-neutral-800">
-                  <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-4 flex items-center">
-                    <Settings className="mr-2 h-4 w-4 shrink-0" aria-hidden /> Preferences
-                  </h3>
-                  <div className="space-y-3 text-sm">
-                    <div>
-                      <span className="text-gray-600 dark:text-gray-400 font-medium">Preferred Topics:</span>
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {formData.preferredTopics.length > 0 ? (
-                          formData.preferredTopics.map((topic) => (
-                            <span
-                              key={topic}
-                              className="px-3 py-1 bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 rounded-full text-xs font-medium"
-                            >
-                              {topic}
-                            </span>
-                          ))
-                        ) : (
-                          <span className="text-gray-500 dark:text-gray-400">None selected</span>
-                        )}
+                    )}
+                    {step === 3 && (
+                      <div className="space-y-9">
+                        <LevelField id="ob-tradingLevel" value={form.tradingLevel} onChange={(v) => set('tradingLevel', v)} error={errors.tradingLevel} />
+                        <YearsField id="ob-yearsOfExperience" value={form.yearsOfExperience} onChange={(v) => set('yearsOfExperience', v)} error={errors.yearsOfExperience} />
                       </div>
-                    </div>
-                    <div>
-                      <span className="text-gray-600 dark:text-gray-400 font-medium">Notifications:</span>
-                      <div className="flex flex-wrap gap-4 mt-2">
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                          formData.notificationPreferences.email
-                            ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
-                            : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
-                        }`}>
-                          <Mail className="mr-2 inline h-4 w-4 shrink-0 text-neutral-600" aria-hidden />Email: {formData.notificationPreferences.email ? 'On' : 'Off'}
-                        </span>
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                          formData.notificationPreferences.sms
-                            ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
-                            : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
-                        }`}>
-                          <MessageSquare className="mr-2 inline h-4 w-4 shrink-0 text-neutral-600" aria-hidden />SMS: {formData.notificationPreferences.sms ? 'On' : 'Off'}
-                        </span>
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                          formData.notificationPreferences.push
-                            ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
-                            : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
-                        }`}>
-                          <Bell className="mr-2 inline h-4 w-4 shrink-0 text-neutral-600" aria-hidden />Push: {formData.notificationPreferences.push ? 'On' : 'Off'}
-                        </span>
+                    )}
+                    {step === 4 && (
+                      <div className="space-y-8">
+                        <TopicsField chips id="ob-preferredTopics" value={form.preferredTopics} onChange={(v) => set('preferredTopics', v)} error={errors.preferredTopics} />
+                        <div className="studio-frost rounded-2xl px-4 py-4 sm:px-6">
+                          <ChannelsField id="ob-notificationPreferences" value={form.notificationPreferences} onChange={(v) => set('notificationPreferences', v)} />
+                        </div>
                       </div>
+                    )}
+                    {step === LAST && <Review form={form} onEdit={goTo} />}
+                  </div>
+
+                  <div className="sticky bottom-0 z-10 -mx-4 rounded-b-3xl border-t border-line bg-[#ffffff] px-4 pb-[max(0.875rem,env(safe-area-inset-bottom))] pt-3.5 sm:-mx-8 sm:px-8 sm:pb-5 sm:pt-5">
+                    {saveError && <p className="studio-error mb-2.5" role="alert">{saveError}</p>}
+                    {problems.length > 0 && <p className="sr-only" role="alert">{problems.join(' ')}</p>}
+                    <div className="flex items-center justify-between gap-3">
+                      {step > 1 ? <button type="button" onClick={() => goTo(step - 1)} disabled={saving} className="btn btn-ghost btn-lg !rounded-full !px-4"><ArrowLeft className="h-4 w-4" aria-hidden />Back</button> : <span className="hidden sm:block" />}
+                      <button type="submit" disabled={saving} className="btn btn-primary btn-lg min-h-[3.25rem] min-w-[11rem] !rounded-full max-sm:flex-1">
+                        {step < LAST ? <>Continue<ArrowRight className="h-4 w-4" aria-hidden /></> : saving ? 'Saving…' : editing ? 'Save changes' : 'Complete onboarding'}
+                      </button>
                     </div>
                   </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Navigation Buttons */}
-          <div className="flex justify-between mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={handleBack}
-                disabled={currentStep === 1}
-                className="px-6 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-semibold hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Back
-              </button>
-              {currentStep === 1 && !(user as any)?.onboardingCompleted && (
-                <button
-                  type="button"
-                  onClick={() => router.push('/dashboard')}
-                  className="px-6 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-semibold hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                >
-                  Skip for Now
-                </button>
-              )}
-            </div>
-
-            {currentStep < 5 ? (
-              <button
-                type="button"
-                onClick={handleNext}
-                className="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-semibold transition-colors"
-              >
-                Next
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={handleSubmit}
-                disabled={loading}
-                className="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {loading 
-                  ? 'Saving...' 
-                  : (user as any)?.onboardingCompleted 
-                    ? 'Save Changes' 
-                    : 'Complete Onboarding'}
-              </button>
+                </form>
+              </>
             )}
           </div>
         </div>
+
+        {loadState === 'ready' && (
+          <aside className="hidden lg:block" aria-label="About this step">
+            <div className="sticky top-8 -mt-24">
+              <div className="onb-pass-in"><StudentPass form={form} step={step} total={LAST} /></div>
+              <p className="studio-hint mt-5 px-1">{NOTES[step - 1]}</p>
+              <p className="studio-hint mt-4 truncate px-1">Signed in as {user?.email}</p>
+            </div>
+          </aside>
+        )}
       </main>
     </div>
   );
 }
 
+/** The answers as a record, each part leading back to its step. */
+function Review({ form, onEdit }: { form: ProfileForm; onEdit: (step: number) => void }) {
+  const channels = channelsOn(form);
+  const rows: Array<[number, string, Array<[string, string]>]> = [
+    [1, 'Personal details', [['Name', form.fullName], ['Date of birth', dateLabel(form.dateOfBirth)], ['Contact', form.contactNumber], ['Gender', genderLabel(form.gender)]]],
+    [2, 'Education', [['Highest level', educationLabel(form.educationLevel)], ['Certifications', form.certifications || 'None']]],
+    [3, 'Trading experience', [['Level', capital(form.tradingLevel)], ['Experience', yearsLabel(form.yearsOfExperience)]]],
+    [4, 'Preferences', [['Topics', list(form.preferredTopics)], ['Notifications', channels.length ? capital(list(channels)) : 'None']]],
+  ];
+  return (
+    <div className="border-t-2 border-[var(--fo-text)]">
+      {rows.map(([n, title, items]) => (
+        <section key={title} aria-label={title} className="relative grid gap-x-6 gap-y-2 border-b border-line py-5 sm:grid-cols-[9.5rem_minmax(0,1fr)]">
+          <h2 className="font-display text-[0.9375rem] font-semibold leading-6">{title}</h2>
+          <dl className="space-y-1.5 text-[0.9375rem] sm:pr-14">
+            {items.map(([label, value]) => (
+              <div key={label} className="grid grid-cols-[7.25rem_minmax(0,1fr)] gap-3">
+                <dt className="text-ink-muted">{label}</dt>
+                <dd className="font-medium [overflow-wrap:anywhere]">{value}</dd>
+              </div>
+            ))}
+          </dl>
+          <button type="button" onClick={() => onEdit(n)} className="absolute right-0 top-2 min-h-[2.75rem] rounded-lg px-2 text-sm font-semibold text-[var(--st-accent)] underline-offset-4 hover:underline" aria-label={`Edit ${title.toLowerCase()}`}>Edit</button>
+        </section>
+      ))}
+    </div>
+  );
+}

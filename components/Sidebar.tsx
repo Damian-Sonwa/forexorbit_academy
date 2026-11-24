@@ -54,9 +54,9 @@ const PaymentsIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-const ProfileIcon = ({ className }: { className?: string }) => (
+const SettingsIcon = ({ className }: { className?: string }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M4 7h9m4 0h3M4 17h3m4 0h9M15 5v4M9 15v4" />
   </svg>
 );
 
@@ -143,8 +143,7 @@ export default function Sidebar({ }: SidebarProps) {
     { href: '/announcements', label: 'Announcements', icon: CommunityIcon, group: 'Community' },
     { href: '/consultations', label: 'Expert Consultation', icon: ConsultationIcon, group: 'Community' },
     { href: '/payments', label: 'Payments', icon: PaymentsIcon, group: 'Account' },
-    { href: '/profile', label: 'Profile', icon: ProfileIcon, group: 'Account' },
-    { href: '/settings/communication', label: 'Notification settings', icon: ProfileIcon, group: 'Account' },
+    { href: '/profile', label: 'Settings', icon: SettingsIcon, group: 'Account' },
   ];
 
   // Instructor navigation
@@ -167,7 +166,7 @@ export default function Sidebar({ }: SidebarProps) {
     { href: '/certificates', label: 'Certificates', icon: CertificatesIcon },
     { href: '/community', label: 'Community', icon: CommunityIcon },
     { href: '/consultations/expert', label: 'Consultation availability', icon: ConsultationIcon },
-    { href: '/profile', label: 'Profile', icon: ProfileIcon },
+    { href: '/profile', label: 'Settings', icon: SettingsIcon },
   ];
 
   // Admin navigation
@@ -187,7 +186,7 @@ export default function Sidebar({ }: SidebarProps) {
     { href: '/community/moderation', label: 'Moderation', icon: ApprovalsIcon },
     { href: '/admin/communication', label: 'Communication ops', icon: AnalyticsIcon },
     { href: '/consultations/expert', label: 'Consultation availability', icon: ConsultationIcon },
-    { href: '/profile', label: 'Profile', icon: ProfileIcon },
+    { href: '/profile', label: 'Settings', icon: SettingsIcon },
   ];
 
   // Super Admin navigation (includes approvals)
@@ -210,7 +209,7 @@ export default function Sidebar({ }: SidebarProps) {
     { href: '/admin/communication', label: 'Communication ops', icon: AnalyticsIcon },
     { href: '/consultations/expert', label: 'Consultation availability', icon: ConsultationIcon },
     { href: '/consultations/admin', label: 'Consultation Admin', icon: ConsultationIcon },
-    { href: '/profile', label: 'Profile', icon: ProfileIcon },
+    { href: '/profile', label: 'Settings', icon: SettingsIcon },
   ];
 
   // Get navigation items based on user role
@@ -392,6 +391,8 @@ export default function Sidebar({ }: SidebarProps) {
                 }
               } else {
                 isActive = isActiveRoute(baseHref, (item as any).tab);
+                // Settings is /profile and the pages under /settings.
+                if (baseHref === '/profile' && router.pathname.startsWith('/settings')) isActive = true;
               }
 
               const href = (item as any).tab ? `${baseHref}?tab=${(item as any).tab}` : item.href;

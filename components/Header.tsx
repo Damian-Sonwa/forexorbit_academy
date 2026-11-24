@@ -351,6 +351,16 @@ export default function Header() {
                     </svg>
                     Dashboard
                   </Link>
+                  <Link
+                    href="/profile"
+                    className="mx-1.5 flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-ink-muted transition-colors hover:bg-tint hover:text-ink"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    <svg className="h-[18px] w-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M4 7h9m4 0h3M4 17h3m4 0h9M15 5v4M9 15v4" />
+                    </svg>
+                    Settings
+                  </Link>
                   <button
                     onClick={handleLogout}
                     className="mx-1.5 mb-0.5 flex w-[calc(100%-0.75rem)] items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm text-red-600 transition-colors hover:bg-red-500/10 dark:text-red-300"

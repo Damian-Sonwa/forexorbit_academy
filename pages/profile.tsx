@@ -1,623 +1,253 @@
 /**
- * User Profile Page
- * Display and edit user profile information
+ * Settings: profile, learning, security and appearance (?section=…). Notifications is
+ * /settings/communication, inside the same frame.
+ *
+ * A student's profile and learning details are one record (POST /api/student/onboarding needs all of
+ * it), so both sections edit one form and share one save bar; moving between them keeps the changes.
+ * Other roles see their account here and can change their photo; that API is for students only.
  */
 
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
+import Link from 'next/link';
 import { useRouter } from 'next/router';
-import Header from '@/components/Header';
-import Sidebar from '@/components/Sidebar';
-import BackButton from '@/components/BackButton';
-import LoadingSpinner from '@/components/LoadingSpinner';
+import { Check } from 'lucide-react';
 import AccountSecurity from '@/components/AccountSecurity';
+import ConfirmDialog from '@/components/admin/portal/ConfirmDialog';
+import PhotoField from '@/components/profile/PhotoField';
+import { CertificationsField, ChannelsField, EducationSelect, GenderField, LevelField, TextField, TopicsField, YearsField } from '@/components/profile/ProfileFields';
+import AppearanceSettings from '@/components/settings/AppearanceSettings';
+import { ReadOnlyValue, SettingGroup, SettingsSection } from '@/components/settings/SettingsParts';
+import SettingsShell, { sectionFrom, type SectionId } from '@/components/settings/SettingsShell';
 import { useAuth } from '@/hooks/useAuth';
 import { apiClient } from '@/lib/api-client';
+import {
+  EMPTY_PROFILE, LEARNING_FIELDS, REQUIRED_FIELDS, apiErrorText, completeness, profileErrors, profileFrom,
+  type ProfileErrors, type ProfileField, type ProfileForm, type ProfileSource,
+} from '@/lib/student-profile';
 
-interface ProfileData {
-  fullName: string;
-  dateOfBirth: string;
-  gender: string;
-  contactNumber: string;
-  educationLevel: string;
-  certifications: string;
-  tradingLevel: 'beginner' | 'intermediate' | 'advanced';
-  yearsOfExperience: string;
-  preferredTopics: string[];
-  notificationPreferences: {
-    email: boolean;
-    sms: boolean;
-    push: boolean;
-  };
-  profilePhoto?: string;
-}
+/** Where each field is edited; the photo saves by itself. */
+const IN_LEARNING: ProfileField[] = [...LEARNING_FIELDS, 'certifications'];
+const EDITABLE = (Object.keys(EMPTY_PROFILE) as ProfileField[]).filter((f) => f !== 'profilePhoto');
+const sectionOf = (field: ProfileField): SectionId => (IN_LEARNING.includes(field) ? 'learning' : 'profile');
+const hrefOf = (section: SectionId) => (section === 'profile' ? '/profile' : `/profile?section=${section}`);
 
 export default function Profile() {
-  const { user, isAuthenticated, loading: authLoading, refreshUser } = useAuth();
+  const { user, refreshUser } = useAuth();
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
-  const [uploadingPhoto, setUploadingPhoto] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-  const [isEditing, setIsEditing] = useState(false);
-  const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null);
-  const [photoPreview, setPhotoPreview] = useState<string>('');
-  const [formData, setFormData] = useState<ProfileData>({
-    fullName: '',
-    dateOfBirth: '',
-    gender: '',
-    contactNumber: '',
-    educationLevel: '',
-    certifications: '',
-    tradingLevel: 'beginner',
-    yearsOfExperience: '0',
-    preferredTopics: [],
-    notificationPreferences: {
-      email: true,
-      sms: false,
-      push: true,
-    },
-    profilePhoto: '',
-  });
+  const [saved, setSaved] = useState<ProfileForm>(EMPTY_PROFILE);
+  const [form, setForm] = useState<ProfileForm>(EMPTY_PROFILE);
+  const [errors, setErrors] = useState<ProfileErrors>({});
+  const [loadState, setLoadState] = useState<'loading' | 'ready' | 'failed'>('loading');
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
+  const [justSaved, setJustSaved] = useState(false);
+  const [leaveTo, setLeaveTo] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
-      router.push('/login');
-    }
-  }, [isAuthenticated, authLoading, router]);
+  const userId = user?.id;
+  const isStudent = user?.role === 'student';
+  const section = sectionFrom(router.query.section, isStudent);
 
-  useEffect(() => {
-    if (user) {
-      loadProfileData();
-    }
-  }, [user]);
+  const changed = useMemo(() => EDITABLE.filter((f) => JSON.stringify(form[f]) !== JSON.stringify(saved[f])), [form, saved]);
+  const dirty = changed.length > 0;
+  const flagged = useMemo(() => [...new Set(changed.map(sectionOf))], [changed]);
 
-  const loadProfileData = async () => {
+  // Once per account: a later profile refresh must not replace what is being edited.
+  const load = useCallback(async () => {
+    setLoadState('loading');
     try {
-      const data = await apiClient.get('/auth/me') as any;
-      if (data.studentDetails || data.profilePhoto) {
-        setFormData({
-          fullName: data.studentDetails?.fullName || data.name || '',
-          dateOfBirth: data.studentDetails?.dateOfBirth || '',
-          gender: data.studentDetails?.gender || '',
-          contactNumber: data.studentDetails?.contactNumber || '',
-          educationLevel: data.studentDetails?.educationLevel || '',
-          certifications: data.studentDetails?.certifications || '',
-          tradingLevel: data.studentDetails?.tradingLevel || 'beginner',
-          yearsOfExperience: data.studentDetails?.yearsOfExperience || '0',
-          preferredTopics: data.studentDetails?.preferredTopics || [],
-          notificationPreferences: data.studentDetails?.notificationPreferences || {
-            email: true,
-            sms: false,
-            push: true,
-          },
-          profilePhoto: data.profilePhoto || '',
-        });
-        if (data.profilePhoto) {
-          setPhotoPreview(data.profilePhoto);
-        }
-      } else {
-        // If no student details, use basic user info
-        setFormData((prev) => ({
-          ...prev,
-          fullName: data.name || '',
-        }));
-      }
+      const next = profileFrom(await apiClient.get<ProfileSource>('/auth/me'));
+      setSaved(next);
+      setForm(next);
+      setLoadState('ready');
+    } catch {
+      setLoadState('failed');
+    }
+  }, []);
+  useEffect(() => {
+    if (userId) void load();
+  }, [userId, load]);
+
+  useEffect(() => {
+    if (!dirty) return undefined;
+    const warn = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [dirty]);
+
+  useEffect(() => {
+    if (!justSaved) return undefined;
+    const timer = setTimeout(() => setJustSaved(false), 4000);
+    return () => clearTimeout(timer);
+  }, [justSaved]);
+
+  const set = <K extends ProfileField>(field: K, value: ProfileForm[K]) => {
+    setForm((prev) => ({ ...prev, [field]: value }));
+    setErrors((prev) => ({ ...prev, [field]: undefined }));
+    setSaveError('');
+    setJustSaved(false);
+  };
+  const setPhoto = (photo: string) => {
+    setForm((prev) => ({ ...prev, profilePhoto: photo }));
+    setSaved((prev) => ({ ...prev, profilePhoto: photo }));
+    void refreshUser();
+  };
+
+  const discard = () => {
+    setForm(saved);
+    setErrors({});
+    setSaveError('');
+  };
+
+  const save = async () => {
+    setSaveError('');
+    const found = profileErrors(form);
+    const first = REQUIRED_FIELDS.find((f) => found[f]);
+    if (first) {
+      setErrors(found);
+      const owner = sectionOf(first);
+      setSaveError(owner === section ? 'Complete the marked details to save.' : `To save, complete the marked details in ${owner === 'learning' ? 'Learning' : 'Profile'} too.`);
+      if (owner !== section) await router.push(hrefOf(owner), undefined, { shallow: true, scroll: false });
+      setTimeout(() => document.getElementById(`st-${first}`)?.focus(), 60);
+      return;
+    }
+    setSaving(true);
+    try {
+      await apiClient.post('/student/onboarding', form);
+      if (!user?.onboardingCompleted) await apiClient.put('/student/onboarding/complete');
+      setSaved(form);
+      setJustSaved(true);
+      void refreshUser();
     } catch (error) {
-      console.error('Failed to load profile data:');
-    }
-  };
-
-  const handleInputChange = (field: keyof ProfileData, value: any) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
-  };
-
-  const handleNestedChange = (field: string, subField: string, value: any) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: {
-        ...(prev[field as keyof ProfileData] as any),
-        [subField]: value,
-      },
-    }));
-  };
-
-  const handleTopicToggle = (topic: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      preferredTopics: prev.preferredTopics.includes(topic)
-        ? prev.preferredTopics.filter((t) => t !== topic)
-        : [...prev.preferredTopics, topic],
-    }));
-  };
-
-  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      if (file.size > 5 * 1024 * 1024) {
-        setError('Image size must be less than 5MB');
-        return;
-      }
-      setSelectedPhoto(file);
-      setPhotoPreview(URL.createObjectURL(file));
-    }
-  };
-
-  const handlePhotoUpload = async () => {
-    if (!selectedPhoto) return;
-
-    setUploadingPhoto(true);
-    setError('');
-
-    try {
-      const uploadFormData = new FormData();
-      uploadFormData.append('profilePhoto', selectedPhoto);
-
-      const response = await apiClient.post('/upload/profile', uploadFormData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-
-      setFormData((prev) => ({ ...prev, profilePhoto: (response as any).imageUrl }));
-      setSelectedPhoto(null);
-      setSuccess('Profile photo uploaded successfully!');
-      void refreshUser();
-      setTimeout(() => setSuccess(''), 3000);
-    } catch (error: any) {
-      setError(error.response?.data?.message || error.response?.data?.error || error.message || 'Failed to upload photo');
+      setSaveError(apiErrorText(error, 'Failed to save profile'));
     } finally {
-      setUploadingPhoto(false);
+      setSaving(false);
     }
   };
 
-  const handlePhotoRemove = async () => {
-    if (!confirm('Remove your profile photo?')) return;
-    setUploadingPhoto(true);
-    setError('');
-    try {
-      await apiClient.delete('/upload/profile');
-      setFormData((prev) => ({ ...prev, profilePhoto: '' }));
-      setPhotoPreview('');
-      setSelectedPhoto(null);
-      setSuccess('Profile photo removed.');
-      void refreshUser();
-      setTimeout(() => setSuccess(''), 3000);
-    } catch (error: unknown) {
-      const e = error as { response?: { data?: { error?: string } }; message?: string };
-      setError(e.response?.data?.error || e.message || 'Failed to remove photo');
-    } finally {
-      setUploadingPhoto(false);
-    }
+  const onLeave = (href: string) => {
+    if (!dirty || href.startsWith('/profile')) return true;
+    setLeaveTo(href);
+    return false;
   };
 
-  const handleSave = async () => {
-    setLoading(true);
-    setError('');
-    setSuccess('');
-
-    try {
-      await apiClient.post('/student/onboarding', formData);
-      if (!(user as any)?.onboardingCompleted) {
-        await apiClient.put('/student/onboarding/complete');
-      }
-      setIsEditing(false);
-      setSuccess('Profile updated successfully!');
-      void refreshUser();
-      setTimeout(() => setSuccess(''), 3000);
-    } catch (error: any) {
-      setError(error.response?.data?.message || error.response?.data?.error || error.message || 'Failed to save profile');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (authLoading) {
-    return <LoadingSpinner message="Loading profile..." fullScreen />;
-  }
-
-  const learningTopics = [
-    'Technical Analysis',
-    'Fundamental Analysis',
-    'Risk Management',
-    'Algorithmic Trading',
-    'Forex Basics',
-    'Trading Psychology',
-    'Chart Patterns',
-    'Indicators & Oscillators',
-  ];
+  const stored = completeness(user);
+  const missing = stored.total - stored.filled;
+  const editsProfile = section === 'profile' || section === 'learning';
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <Header />
-      <div className="flex flex-1 lg:items-start">
-        <Sidebar />
-        <main className="flex-1 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pt-16 lg:pt-8 w-full">
-        {/* Back Button */}
-        <div className="mb-6">
-          <BackButton href="/dashboard" />
+    <SettingsShell section={section} onLeave={onLeave} flagged={flagged}>
+      {editsProfile && loadState === 'loading' && (
+        <div role="status" aria-label="Loading your profile" className="space-y-5 pb-6">
+          <div className="orbit-skeleton h-7 w-40 rounded-lg" /><div className="orbit-skeleton h-4 w-2/3 rounded" />
+          <div className="orbit-skeleton h-[4.5rem] w-full rounded-lg" /><div className="orbit-skeleton h-12 w-full rounded-lg" /><div className="orbit-skeleton h-12 w-full rounded-lg" />
         </div>
-
-        <div className="mb-8">
-          <p className="page-kicker mb-2">Account</p>
-          <h1 className="page-title">Profile</h1>
-          <p className="mt-2 text-sm text-neutral-600">
-            Your details, learning level, and preferences.
-          </p>
+      )}
+      {editsProfile && loadState === 'failed' && (
+        <div className="studio-frost mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl p-4" role="alert">
+          <p className="text-sm font-medium">Your profile could not be loaded.</p>
+          <button type="button" className="btn btn-secondary" onClick={() => void load()}>Try again</button>
         </div>
+      )}
 
-        {/* Success/Error Messages */}
-        {success && (
-          <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-xl">
-            <p className="text-green-800 dark:text-primary-400 text-sm">{success}</p>
-          </div>
-        )}
-        {error && (
-          <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-xl">
-            <p className="text-red-800 dark:text-red-200 text-sm">{error}</p>
-          </div>
-        )}
+      {editsProfile && loadState === 'ready' && isStudent && missing > 0 && (
+        <p className="studio-frost mb-7 rounded-xl px-4 py-3 text-sm">
+          {missing === 1 ? 'One detail is' : `${missing} details are`} still missing from your profile. Fill them in here, or <Link href="/onboarding" className="font-semibold text-[var(--st-accent)] underline underline-offset-2">use the guided setup</Link>.
+        </p>
+      )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Profile Photo Section */}
-          <div className="lg:col-span-1">
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Profile Photo</h2>
-              
-              <div className="flex flex-col items-center">
-                <div className="relative mb-4">
-                  <div className="w-32 h-32 rounded-full overflow-hidden bg-primary-600 flex items-center justify-center">
-                    {photoPreview ? (
-                      <img
-                        src={photoPreview}
-                        alt="Profile"
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <span className="text-white text-4xl font-bold">
-                        {formData.fullName?.charAt(0)?.toUpperCase() || user?.name?.charAt(0)?.toUpperCase() || 'U'}
-                      </span>
-                    )}
-                  </div>
-                  {isEditing && (
-                    <label className="absolute bottom-0 right-0 bg-primary-600 text-white rounded-full p-2 cursor-pointer hover:bg-primary-700 transition-colors">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                      </svg>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handlePhotoSelect}
-                        className="hidden"
-                      />
-                    </label>
-                  )}
+      {section === 'profile' && loadState === 'ready' && (
+        <SettingsSection title="Profile" lede={isStudent ? 'Who you are and how to reach you.' : 'Your account details.'}>
+          <SettingGroup title="Photo" help="Saved as soon as you choose it.">
+            <PhotoField photo={form.profilePhoto} name={form.fullName || user?.name || ''} onChange={setPhoto} />
+          </SettingGroup>
+          {isStudent ? (
+            <>
+              <SettingGroup title="Identity">
+                <div className="grid gap-5 sm:grid-cols-2">
+                  <div className="sm:col-span-2"><TextField id="st-fullName" label="Full name" value={form.fullName} onChange={(v) => set('fullName', v)} error={errors.fullName} placeholder="Enter your full name" autoComplete="name" /></div>
+                  <TextField id="st-dateOfBirth" label="Date of birth" type="date" value={form.dateOfBirth} onChange={(v) => set('dateOfBirth', v)} error={errors.dateOfBirth} autoComplete="bday" max={new Date().toISOString().slice(0, 10)} />
+                  <div className="sm:col-span-2"><GenderField id="st-gender" value={form.gender} onChange={(v) => set('gender', v)} /></div>
                 </div>
-
-                {selectedPhoto && isEditing && (
-                  <button
-                    onClick={handlePhotoUpload}
-                    disabled={uploadingPhoto}
-                    className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed mb-2"
-                  >
-                    {uploadingPhoto ? 'Uploading...' : 'Upload Photo'}
-                  </button>
-                )}
-
-                {formData.profilePhoto && !selectedPhoto && isEditing && (
-                  <button
-                    type="button"
-                    onClick={handlePhotoRemove}
-                    disabled={uploadingPhoto}
-                    className="btn btn-danger-quiet px-4 py-2 text-sm mb-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Remove photo
-                  </button>
-                )}
-
-                <p className="text-sm text-gray-500 dark:text-gray-400 text-center mt-2">
-                  {formData.fullName || user?.name || 'User'}
-                </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
-                  {user?.email}
-                </p>
+              </SettingGroup>
+              <SettingGroup title="Contact">
+                <div className="grid gap-5 sm:grid-cols-2">
+                  <TextField id="st-contactNumber" label="Contact number" type="tel" inputMode="tel" value={form.contactNumber} onChange={(v) => set('contactNumber', v)} error={errors.contactNumber} placeholder="+1234567890" autoComplete="tel" />
+                  <ReadOnlyValue label="Email" value={user?.email || ''} note="Used to sign in. It cannot be changed here." />
+                </div>
+              </SettingGroup>
+              <SettingGroup title="Contact channels" help="Your general preference, kept on your profile. To choose what you receive, message by message, open Notifications.">
+                <ChannelsField hideLegend id="st-notificationPreferences" value={form.notificationPreferences} onChange={(v) => set('notificationPreferences', v)} />
+              </SettingGroup>
+            </>
+          ) : (
+            <SettingGroup title="Account" help="Your name, email and role are managed by an administrator.">
+              <div className="grid gap-5 sm:grid-cols-2">
+                <ReadOnlyValue label="Full name" value={user?.name || ''} />
+                <ReadOnlyValue label="Email" value={user?.email || ''} />
               </div>
-            </div>
-          </div>
+              {user?.role === 'instructor' && <Link href="/instructor/profile" className="mt-5 inline-block text-sm font-semibold text-[var(--st-accent)] underline-offset-4 hover:underline">See your assigned courses</Link>}
+            </SettingGroup>
+          )}
+        </SettingsSection>
+      )}
 
-          {/* Profile Information Section */}
-          <div className="lg:col-span-2">
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 sm:p-8">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Profile Information</h2>
-                {!isEditing ? (
-                  <button
-                    onClick={() => setIsEditing(true)}
-                    className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-semibold transition-colors text-sm"
-                  >
-                    Edit Profile
-                  </button>
-                ) : (
-                  <div className="flex gap-3">
-                    <button
-                      onClick={() => {
-                        setIsEditing(false);
-                        loadProfileData();
-                      }}
-                      className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-semibold hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-sm"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={handleSave}
-                      disabled={loading}
-                      className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                    >
-                      {loading ? 'Saving...' : 'Save Changes'}
-                    </button>
-                  </div>
-                )}
+      {section === 'learning' && loadState === 'ready' && (
+        <SettingsSection title="Learning" lede="Your background and what you want to study.">
+          <SettingGroup title="Education">
+            <div className="space-y-5">
+              <EducationSelect id="st-educationLevel" value={form.educationLevel} onChange={(v) => set('educationLevel', v)} error={errors.educationLevel} />
+              <CertificationsField id="st-certifications" value={form.certifications} onChange={(v) => set('certifications', v)} />
+            </div>
+          </SettingGroup>
+          <SettingGroup wide title="Trading experience" help="How you describe yourself. Your course level is separate and changes only as you complete courses.">
+            <div className="max-w-2xl space-y-8">
+              <LevelField id="st-tradingLevel" value={form.tradingLevel} onChange={(v) => set('tradingLevel', v)} error={errors.tradingLevel} />
+              <YearsField id="st-yearsOfExperience" value={form.yearsOfExperience} onChange={(v) => set('yearsOfExperience', v)} error={errors.yearsOfExperience} />
+            </div>
+          </SettingGroup>
+          <SettingGroup wide title="Topics" help="Keep at least one.">
+            <div className="max-w-2xl"><TopicsField id="st-preferredTopics" value={form.preferredTopics} onChange={(v) => set('preferredTopics', v)} error={errors.preferredTopics} /></div>
+          </SettingGroup>
+        </SettingsSection>
+      )}
+
+      {section === 'security' && (
+        <SettingsSection title="Security" lede="Your password and the devices you are signed in on.">
+          <AccountSecurity />
+        </SettingsSection>
+      )}
+
+      {section === 'appearance' && <AppearanceSettings />}
+
+      {/* One bar for the student record, shown wherever its changes are pending. */}
+      {isStudent && (dirty || justSaved || saveError) && (
+        <div className="studio-night studio-fade sticky bottom-3 z-20 -mx-1 mt-2 rounded-xl px-4 py-3 shadow-lift sm:-mx-3" data-testid="save-bar">
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2.5">
+            <p className="flex min-w-0 items-center gap-2 text-sm font-medium" role={saveError ? 'alert' : 'status'}>
+              {saveError ? <span className="text-[#ffb9a3]">{saveError}</span> : dirty ? 'You have unsaved changes.' : <><Check className="h-4 w-4 shrink-0 text-[#e8ad38]" strokeWidth={2.75} aria-hidden />Changes saved.</>}
+            </p>
+            {dirty && (
+              <div className="flex gap-2 max-sm:w-full">
+                <button type="button" onClick={discard} disabled={saving} className="btn min-h-[2.75rem] border border-[var(--night-line)] hover:bg-white/10 max-sm:flex-1">Discard</button>
+                <button type="button" onClick={() => void save()} disabled={saving} className="btn btn-primary min-h-[2.75rem] max-sm:flex-1">{saving ? 'Saving…' : 'Save changes'}</button>
               </div>
-
-              {isEditing ? (
-                <div className="space-y-6">
-                  {/* Personal Details */}
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Personal Details</h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                          Full Name <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          value={formData.fullName}
-                          onChange={(e) => handleInputChange('fullName', e.target.value)}
-                          className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                          placeholder="Enter your full name"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                          Date of Birth
-                        </label>
-                        <input
-                          type="date"
-                          value={formData.dateOfBirth}
-                          onChange={(e) => handleInputChange('dateOfBirth', e.target.value)}
-                          className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                          Gender
-                        </label>
-                        <select
-                          value={formData.gender}
-                          onChange={(e) => handleInputChange('gender', e.target.value)}
-                          className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                        >
-                          <option value="">Prefer not to say</option>
-                          <option value="male">Male</option>
-                          <option value="female">Female</option>
-                          <option value="other">Other</option>
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                          Contact Number
-                        </label>
-                        <input
-                          type="tel"
-                          value={formData.contactNumber}
-                          onChange={(e) => handleInputChange('contactNumber', e.target.value)}
-                          className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                          placeholder="+1234567890"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Educational Background */}
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Educational Background</h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                          Education Level
-                        </label>
-                        <select
-                          value={formData.educationLevel}
-                          onChange={(e) => handleInputChange('educationLevel', e.target.value)}
-                          className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                        >
-                          <option value="">Select education level</option>
-                          <option value="high-school">High School</option>
-                          <option value="diploma">Diploma</option>
-                          <option value="bachelor">Bachelor's Degree</option>
-                          <option value="master">Master's Degree</option>
-                          <option value="phd">PhD</option>
-                          <option value="other">Other</option>
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                          Certifications
-                        </label>
-                        <input
-                          type="text"
-                          value={formData.certifications}
-                          onChange={(e) => handleInputChange('certifications', e.target.value)}
-                          className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                          placeholder="CFA, Series 7, etc."
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Trading Experience */}
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Trading Experience</h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                          Trading Level
-                        </label>
-                        <div className="grid grid-cols-3 gap-2">
-                          {(['beginner', 'intermediate', 'advanced'] as const).map((level) => (
-                            <button
-                              key={level}
-                              type="button"
-                              onClick={() => handleInputChange('tradingLevel', level)}
-                              className={`p-3 rounded-xl border-2 transition-all text-sm font-medium ${
-                                formData.tradingLevel === level
-                                  ? 'border-primary-600 bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300'
-                                  : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:border-primary-400'
-                              }`}
-                            >
-                              {level.charAt(0).toUpperCase() + level.slice(1)}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                          Years of Experience
-                        </label>
-                        <select
-                          value={formData.yearsOfExperience}
-                          onChange={(e) => handleInputChange('yearsOfExperience', e.target.value)}
-                          className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                        >
-                          <option value="0">Less than 1 year</option>
-                          <option value="1-2">1-2 years</option>
-                          <option value="3-5">3-5 years</option>
-                          <option value="6-10">6-10 years</option>
-                          <option value="10+">More than 10 years</option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Preferences */}
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Learning Preferences</h3>
-                    <div className="mb-4">
-                      <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-                        Preferred Learning Topics
-                      </label>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                        {learningTopics.map((topic) => (
-                          <button
-                            key={topic}
-                            type="button"
-                            onClick={() => handleTopicToggle(topic)}
-                            className={`p-2 rounded-xl border-2 transition-all text-xs font-medium ${
-                              formData.preferredTopics.includes(topic)
-                                ? 'border-primary-600 bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300'
-                                : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:border-primary-400'
-                            }`}
-                          >
-                            {topic}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-                        Notification Preferences
-                      </label>
-                      <div className="space-y-2">
-                        {[
-                          { key: 'email', label: 'Email Notifications' },
-                          { key: 'sms', label: 'SMS Notifications' },
-                          { key: 'push', label: 'Push Notifications' },
-                        ].map(({ key, label }) => (
-                          <label key={key} className="flex items-center">
-                            <input
-                              type="checkbox"
-                              checked={formData.notificationPreferences[key as keyof typeof formData.notificationPreferences]}
-                              onChange={(e) => handleNestedChange('notificationPreferences', key, e.target.checked)}
-                              className="w-5 h-5 text-primary-600 rounded focus:ring-primary-500"
-                            />
-                            <span className="ml-3 text-gray-700 dark:text-gray-300">{label}</span>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  {/* Display Mode */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <div className="bg-neutral-50 dark:bg-neutral-800/40 rounded-xl p-4">
-                      <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-2">Full Name</h3>
-                      <p className="text-lg font-bold text-gray-900 dark:text-white">{formData.fullName || user?.name || 'Not set'}</p>
-                    </div>
-
-                    <div className="bg-neutral-50 dark:bg-neutral-900 rounded-xl p-4">
-                      <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-2">Date of Birth</h3>
-                      <p className="text-lg font-bold text-gray-900 dark:text-white">{formData.dateOfBirth || 'Not set'}</p>
-                    </div>
-
-                    <div className="bg-neutral-50 dark:bg-neutral-900 rounded-xl p-4">
-                      <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-2">Contact Number</h3>
-                      <p className="text-lg font-bold text-gray-900 dark:text-white">{formData.contactNumber || 'Not set'}</p>
-                    </div>
-
-                    <div className="bg-neutral-50 dark:bg-neutral-900 rounded-xl p-4">
-                      <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-2">Education Level</h3>
-                      <p className="text-lg font-bold text-gray-900 dark:text-white capitalize">{formData.educationLevel || 'Not set'}</p>
-                    </div>
-
-                    <div className="bg-neutral-50 dark:bg-neutral-900 rounded-xl p-4">
-                      <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-2">Trading Level</h3>
-                      <p className="text-lg font-bold text-gray-900 dark:text-white capitalize">{formData.tradingLevel || 'Not set'}</p>
-                    </div>
-
-                    <div className="bg-neutral-50 dark:bg-neutral-900 rounded-xl p-4">
-                      <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-2">Experience</h3>
-                      <p className="text-lg font-bold text-gray-900 dark:text-white">{formData.yearsOfExperience || '0'} years</p>
-                    </div>
-                  </div>
-
-                  {formData.preferredTopics.length > 0 && (
-                    <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
-                      <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-3">Preferred Topics</h3>
-                      <div className="flex flex-wrap gap-2">
-                        {formData.preferredTopics.map((topic) => (
-                          <span
-                            key={topic}
-                            className="px-3 py-1 bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 rounded-full text-sm font-medium"
-                          >
-                            {topic}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+            )}
           </div>
         </div>
+      )}
 
-        <AccountSecurity />
-      </main>
-      </div>
-    </div>
+      {leaveTo && createPortal(
+        <ConfirmDialog
+          title="Leave without saving?"
+          consequence="The changes to your profile have not been saved and will be lost."
+          confirmLabel="Discard and leave"
+          danger
+          onConfirm={async () => { discard(); await router.push(leaveTo); return null; }}
+          onClose={() => setLeaveTo(null)}
+        />,
+        document.body,
+      )}
+    </SettingsShell>
   );
 }
-
-
-

@@ -4,7 +4,7 @@
  * this dialog only collects intent.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 export default function ConfirmDialog({ title, consequence, confirmLabel, requireReason = false, danger = false, onConfirm, onClose }: {
   title: string;
@@ -25,6 +25,23 @@ export default function ConfirmDialog({ title, consequence, confirmLabel, requir
     return () => window.removeEventListener('keydown', onKey);
   }, [busy, onClose]);
 
+  // Keyboard: focus moves into the dialog, stays there, and goes back to where it was on close.
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const before = document.activeElement as HTMLElement | null;
+    box.current?.querySelector<HTMLElement>('input, button')?.focus();
+    return () => before?.focus?.();
+  }, []);
+  const trap = (e: React.KeyboardEvent) => {
+    if (e.key !== 'Tab') return;
+    const items = [...(box.current?.querySelectorAll<HTMLElement>('input:not(:disabled), button:not(:disabled)') || [])];
+    if (!items.length) return;
+    const edge = e.shiftKey ? items[0] : items[items.length - 1];
+    if (document.activeElement !== edge) return;
+    e.preventDefault();
+    (e.shiftKey ? items[items.length - 1] : items[0]).focus();
+  };
+
   const ok = !requireReason || (reason.trim().length >= 5 && reason.trim().length <= 500);
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,7 +55,7 @@ export default function ConfirmDialog({ title, consequence, confirmLabel, requir
 
   return (
     <div className="glass-scrim fixed inset-0 z-50 flex items-center justify-center p-4" role="presentation" onClick={() => !busy && onClose()}>
-      <div role="dialog" aria-modal="true" aria-labelledby="confirm-title" className="card w-full max-w-md !p-6" onClick={(e) => e.stopPropagation()} data-testid="confirm-dialog">
+      <div ref={box} onKeyDown={trap} role="dialog" aria-modal="true" aria-labelledby="confirm-title" className="card w-full max-w-md !p-6" onClick={(e) => e.stopPropagation()} data-testid="confirm-dialog">
         <h2 id="confirm-title" className="font-display text-lg font-semibold text-ink">{title}</h2>
         <p className="mt-2 text-sm text-ink-muted">{consequence}</p>
         <form onSubmit={submit} className="mt-4 space-y-4">

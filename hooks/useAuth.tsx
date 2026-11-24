@@ -11,6 +11,7 @@
 
 import { useState, useEffect, useCallback, useRef, createContext, useContext, ReactNode } from 'react';
 import { apiClient, isUnauthorizedError } from '@/lib/api-client';
+import { sessionChangeSettled } from '@/lib/session-change';
 
 interface User {
   id: string;
@@ -157,6 +158,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [announce]);
 
   const refreshUser = useCallback(async () => {
+    // While this tab replaces its own session, wait for the new cookie (lib/session-change.ts).
+    await sessionChangeSettled();
     lastProfileReadAt.current = Date.now();
     try {
       const userData = await apiClient.get<User>('/auth/me');

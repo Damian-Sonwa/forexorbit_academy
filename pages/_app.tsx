@@ -12,6 +12,7 @@ import { SocketProvider } from '@/hooks/useSocket';
 import { ThemeProvider } from '@/hooks/useTheme';
 import { surfaceFor } from '@/lib/design-surface';
 import '@/styles/globals.css';
+import '@/styles/studio.css';
 
 export default function App({ Component, pageProps }: AppProps) {
   const { pathname } = useRouter();

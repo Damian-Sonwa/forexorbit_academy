@@ -8,6 +8,7 @@
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
 import { messageFromUnknown } from '@/lib/public-error';
 import { loginHref } from '@/lib/login-redirect';
+import { sessionChangeInProgress } from '@/lib/session-change';
 import { CSRF_HEADER, CSRF_VALUE } from '@/lib/request-guard';
 
 /**
@@ -58,7 +59,7 @@ class ApiClient {
             const url = String(error.config?.url || '');
             const isSessionProbe = SESSION_PROBE_URLS.some((path) => url.includes(path));
 
-            if (!isLoginPage && !isSessionProbe) {
+            if (!isLoginPage && !isSessionProbe && !sessionChangeInProgress()) {
               window.location.href = loginHref(`${window.location.pathname}${window.location.search}`);
             }
           }

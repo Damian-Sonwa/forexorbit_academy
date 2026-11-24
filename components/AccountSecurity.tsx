@@ -1,14 +1,19 @@
 /**
- * Account security controls on the profile page: change password (current password required) and
- * sign out of every device. The password rule is the same one the server applies
- * (lib/password-policy.js). After a password change this tab keeps working with the new token the
- * server returns; every other device is signed out.
+ * Account security controls in Settings: change password (current password required) and sign out of
+ * every device. The password rule is the same one the server applies (lib/password-policy.js). After
+ * a password change this tab keeps working with the new session the server sets; every other device
+ * is signed out.
  */
 
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/router';
+import { Check, Eye, EyeOff } from 'lucide-react';
+import ConfirmDialog from '@/components/admin/portal/ConfirmDialog';
+import { SettingGroup } from '@/components/settings/SettingsParts';
 import { useAuth } from '@/hooks/useAuth';
 import { apiClient } from '@/lib/api-client';
+import { duringSessionChange } from '@/lib/session-change';
 import { PASSWORD_MIN_CHARS, checkNewPassword } from '@/lib/password-policy';
 
 type ApiError = { response?: { status?: number; data?: { error?: string; message?: string; retryAfterSec?: number } }; message?: string };
@@ -22,8 +27,30 @@ function errorText(err: unknown, fallback: string): string {
   return data?.error || data?.message || fallback;
 }
 
-const fieldClass =
-  'w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:text-white';
+function PasswordInput({ id, label, value, onChange, autoComplete, children }: { id: string; label: string; value: string; onChange: (v: string) => void; autoComplete: string; children?: React.ReactNode }) {
+  const [shown, setShown] = useState(false);
+  return (
+    <div>
+      <label htmlFor={id} className="studio-label">{label}</label>
+      <div className="relative mt-1.5">
+        <input id={id} type={shown ? 'text' : 'password'} autoComplete={autoComplete} autoCapitalize="none" spellCheck={false} value={value} onChange={(e) => onChange(e.target.value)} className="studio-input !pr-12" required aria-describedby={children ? `${id}-help` : undefined} />
+        <button type="button" onClick={() => setShown(!shown)} className="absolute inset-y-0 right-0 flex w-12 items-center justify-center text-ink-subtle hover:text-ink" aria-label={`${shown ? 'Hide' : 'Show'} ${label.toLowerCase()}`} aria-pressed={shown}>
+          {shown ? <EyeOff className="h-[18px] w-[18px]" aria-hidden /> : <Eye className="h-[18px] w-[18px]" aria-hidden />}
+        </button>
+      </div>
+      {children && <div id={`${id}-help`} className="studio-hint mt-1.5">{children}</div>}
+    </div>
+  );
+}
+
+function Rule({ met, children }: { met: boolean; children: React.ReactNode }) {
+  return (
+    <span className={`inline-flex items-center gap-1.5 ${met ? 'font-medium text-ink' : ''}`}>
+      <span aria-hidden className={`flex h-4 w-4 items-center justify-center rounded-full ${met ? 'bg-[#ff7417] text-[#191919]' : 'border border-[var(--fo-line-strong)]'}`}>{met && <Check className="h-2.5 w-2.5" strokeWidth={3.5} />}</span>
+      {children}
+    </span>
+  );
+}
 
 export default function AccountSecurity() {
   const { logout } = useAuth();
@@ -32,9 +59,17 @@ export default function AccountSecurity() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [saving, setSaving] = useState(false);
-  const [signingOut, setSigningOut] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+
+  const typed = Boolean(currentPassword || newPassword || confirmPassword);
+  const clear = () => {
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+    setError('');
+  };
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,10 +91,8 @@ export default function AccountSecurity() {
     setSaving(true);
     try {
       // Every other session has ended; the server set a new session cookie for this browser.
-      const res = await apiClient.post<{ message: string }>('/auth/change-password', { currentPassword, newPassword });
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
+      const res = await duringSessionChange(() => apiClient.post<{ message: string }>('/auth/change-password', { currentPassword, newPassword }));
+      clear();
       setMessage(res.message);
     } catch (err: unknown) {
       setError(errorText(err, 'Could not change your password. Try again.'));
@@ -69,84 +102,40 @@ export default function AccountSecurity() {
   };
 
   const handleSignOutEverywhere = async () => {
-    setError('');
-    setMessage('');
-    if (!confirm('Sign out on every device, including this one?')) return;
-    setSigningOut(true);
     try {
       await apiClient.post('/auth/logout-all');
       await logout();
       router.push('/login');
+      return null;
     } catch (err: unknown) {
-      setError(errorText(err, 'Could not sign out other devices. Try again.'));
-      setSigningOut(false);
+      return errorText(err, 'Could not sign out other devices. Try again.');
     }
   };
 
   return (
-    <section className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 sm:p-8 mt-6" aria-labelledby="account-security-heading">
-      <h2 id="account-security-heading" className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
-        Account security
-      </h2>
+    <>
+      <SettingGroup title="Password" help="Changing your password signs you out on every other device.">
+        <form onSubmit={handleChangePassword} noValidate className="max-w-md space-y-5" aria-label="Change password">
+          <PasswordInput id="current-password" label="Current password" autoComplete="current-password" value={currentPassword} onChange={(v) => { setCurrentPassword(v); setMessage(''); }} />
+          <PasswordInput id="new-password" label="New password" autoComplete="new-password" value={newPassword} onChange={setNewPassword}>
+            <Rule met={newPassword !== '' && checkNewPassword(newPassword).ok}>At least {PASSWORD_MIN_CHARS} characters</Rule>
+          </PasswordInput>
+          <PasswordInput id="confirm-new-password" label="Confirm new password" autoComplete="new-password" value={confirmPassword} onChange={setConfirmPassword}>
+            <Rule met={confirmPassword !== '' && confirmPassword === newPassword}>Matches the new password</Rule>
+          </PasswordInput>
+          {error && <p className="studio-error" role="alert">{error}</p>}
+          {message && <p className="studio-frost flex items-start gap-2 rounded-lg px-3.5 py-2.5 text-sm font-medium" role="status"><Check className="mt-0.5 h-4 w-4 shrink-0 text-[var(--st-accent)]" strokeWidth={2.5} aria-hidden />{message}</p>}
+          <div className="flex flex-wrap gap-2">
+            <button type="submit" disabled={saving} className="btn btn-primary min-h-[2.75rem]">{saving ? 'Saving…' : 'Change password'}</button>
+            {typed && !saving && <button type="button" onClick={clear} className="btn btn-ghost min-h-[2.75rem]">Cancel</button>}
+          </div>
+        </form>
+      </SettingGroup>
 
-      {message && (
-        <div className="mb-4 p-3 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-lg" role="status">
-          <p className="text-green-800 dark:text-green-300 text-sm">{message}</p>
-        </div>
-      )}
-      {error && (
-        <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg" role="alert">
-          <p className="text-red-800 dark:text-red-200 text-sm">{error}</p>
-        </div>
-      )}
-
-      <form onSubmit={handleChangePassword} className="space-y-4 max-w-md" aria-labelledby="change-password-heading">
-        <h3 id="change-password-heading" className="text-lg font-semibold text-gray-900 dark:text-white">
-          Change password
-        </h3>
-        <div>
-          <label htmlFor="current-password" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-            Current password
-          </label>
-          <input id="current-password" type="password" autoComplete="current-password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} className={fieldClass} required />
-        </div>
-        <div>
-          <label htmlFor="new-password" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-            New password
-          </label>
-          <input id="new-password" type="password" autoComplete="new-password" minLength={PASSWORD_MIN_CHARS} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className={fieldClass} required />
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">At least {PASSWORD_MIN_CHARS} characters.</p>
-        </div>
-        <div>
-          <label htmlFor="confirm-new-password" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-            Confirm new password
-          </label>
-          <input id="confirm-new-password" type="password" autoComplete="new-password" minLength={PASSWORD_MIN_CHARS} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className={fieldClass} required />
-        </div>
-        <p className="text-xs text-gray-500 dark:text-gray-400">Changing your password signs you out on every other device.</p>
-        <button
-          type="submit"
-          disabled={saving}
-          className="px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {saving ? 'Saving…' : 'Change password'}
-        </button>
-      </form>
-
-      <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Sign out everywhere</h3>
-        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-          Ends your session on every device and browser, including this one. Use it if you signed in on a device you no longer control.
-        </p>
-        <button
-          type="button"
-          onClick={handleSignOutEverywhere}
-          disabled={signingOut}
-          className="btn btn-danger-quiet px-4 py-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {signingOut ? 'Signing out…' : 'Sign out on all devices'}
-        </button>
-      </div>
-    </section>
+      <SettingGroup title="Sign out everywhere" tone="danger" help="Ends your session on every device and browser, including this one. Use it if you signed in on a device you no longer control.">
+        <button type="button" onClick={() => setConfirming(true)} className="btn btn-danger-quiet min-h-[2.75rem]">Sign out on all devices</button>
+      </SettingGroup>
+      {confirming && createPortal(<ConfirmDialog title="Sign out everywhere?" consequence="You will be signed out on every device and browser, including this one." confirmLabel="Sign out on all devices" danger onConfirm={handleSignOutEverywhere} onClose={() => setConfirming(false)} />, document.body)}
+    </>
   );
 }
