@@ -8,6 +8,7 @@ import { useHydrated } from '@/hooks/useHydrated';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { AuthFrame, authButtonClass, authFieldClass, authLabelClass } from '@/components/auth/AuthFrame';
+import { PasswordField } from '@/components/auth/PasswordField';
 import { ButtonLoadingState } from '@/components/loading';
 import { useAuth } from '@/hooks/useAuth';
 import { safeNextPath, signupHref } from '@/lib/login-redirect';
@@ -117,14 +118,14 @@ export default function Login() {
               Forgot password?
             </Link>
           </div>
-          <input
+          <PasswordField
             id="login-password"
-            type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
             autoComplete="current-password"
-            className={authFieldClass}
+            wrapperClassName="mt-1.5"
+            className="input !text-base"
           />
         </div>
         <button

@@ -10,6 +10,7 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import { PasswordField } from '@/components/auth/PasswordField';
 import { ButtonLoadingState } from '@/components/loading';
 import { apiClient } from '@/lib/api-client';
 import { PASSWORD_MIN_CHARS, checkNewPassword } from '@/lib/password-policy';
@@ -150,25 +151,25 @@ export default function ResetPassword() {
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div>
                     <label htmlFor="new-password" className="block text-sm font-semibold text-neutral-500 mb-2">New password</label>
-                    <input
+                    <PasswordField
                       id="new-password"
-                      type="password"
+                      fieldName="new password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
                       minLength={PASSWORD_MIN_CHARS}
                       autoComplete="new-password"
-                      className="bg-white border border-neutral-300 text-neutral-900 rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary-400/50 focus:border-transparent w-full mb-2 placeholder:text-neutral-400 text-base min-h-[48px]"
+                      className="bg-white border border-neutral-300 text-neutral-900 rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary-400/50 focus:border-transparent w-full placeholder:text-neutral-400 text-base min-h-[48px]"
                       placeholder="••••••••"
                     />
-                    <p className="text-xs text-neutral-500">At least {PASSWORD_MIN_CHARS} characters</p>
+                    <p className="mt-2 text-xs text-neutral-500">At least {PASSWORD_MIN_CHARS} characters</p>
                   </div>
 
                   <div>
                     <label htmlFor="confirm-password" className="block text-sm font-semibold text-neutral-500 mb-2">Confirm password</label>
-                    <input
+                    <PasswordField
                       id="confirm-password"
-                      type="password"
+                      fieldName="confirm password"
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       required

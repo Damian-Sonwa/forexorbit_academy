@@ -1225,3 +1225,6 @@ html:not(.dark) .landing-shell [class*='radial-gradient'] {
     backdrop-filter: none;
   }
 }
+
+/* Edge draws its own eye on password fields; ours replaces it. */
+input[type="password"]::-ms-reveal { display: none; }
