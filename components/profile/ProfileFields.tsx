@@ -57,38 +57,14 @@ export function GenderField({ id, value, onChange }: { id: string; value: string
   );
 }
 
-/** Education as tiles that climb: each step of the candle stair is one level higher. */
-export function EducationTiles({ id, value, onChange, error }: { id: string; value: string; onChange: (value: string) => void; error?: string }) {
-  const name = useId();
-  return (
-    <Group id={id} legend="Highest education level" error={error}>
-      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3">
-        {EDUCATION.map(([v, label], i) => (
-          <label key={v} className="studio-choice min-h-[6.25rem] flex-col justify-between rounded-2xl p-4 text-[0.9375rem] font-semibold leading-tight">
-            <input type="radio" name={name} checked={value === v} onChange={() => onChange(v)} />
-            <svg viewBox="0 0 64 30" className="h-8 w-[4.25rem]" aria-hidden focusable="false">
-              {[0, 1, 2, 3, 4].map((b) => {
-                const on = v === 'other' ? b % 2 === 0 : b <= i;
-                return <g key={b} opacity={on ? 1 : 0.35}><line x1={b * 13 + 5} x2={b * 13 + 5} y1={15 - b * 3.4} y2={29 - b * 3.4} stroke="#C65A16" strokeWidth="1.2" /><rect x={b * 13 + 1} y={18 - b * 3.4} width="8" height="7.5" rx="1.2" fill={on ? '#FF7417' : '#FFFFFF'} stroke="#C65A16" strokeWidth="1" /></g>;
-              })}
-            </svg>
-            <span>{label}</span>
-          </label>
-        ))}
-      </div>
-    </Group>
-  );
-}
-
-export function EducationSelect({ id, value, onChange, error }: { id: string; value: string; onChange: (value: string) => void; error?: string }) {
+export function EducationSelect({ id, value, onChange }: { id: string; value: string; onChange: (value: string) => void }) {
   return (
     <div>
-      <label htmlFor={id} className="studio-label">Highest education level</label>
-      <select id={id} value={value} onChange={(e) => onChange(e.target.value)} className="studio-input mt-1.5" required aria-invalid={error ? true : undefined} aria-describedby={error ? `${id}-error` : undefined}>
+      <label htmlFor={id} className="studio-label">Highest education level<OptionalMark /></label>
+      <select id={id} value={value} onChange={(e) => onChange(e.target.value)} className="studio-input mt-1.5">
         <option value="">Select education level</option>
         {EDUCATION.map(([v, label]) => <option key={v} value={v}>{label}</option>)}
       </select>
-      <FieldError id={`${id}-error`} text={error} />
     </div>
   );
 }

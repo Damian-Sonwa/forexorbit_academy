@@ -106,7 +106,7 @@ export default function RemindersPanel({ hideWhenEmpty = false }: { hideWhenEmpt
   if (loading) {
     if (hideWhenEmpty) return null;
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+      <div className="card !p-5">
         <div className="animate-pulse space-y-3">
           <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/3"></div>
           <div className="h-20 bg-gray-200 dark:bg-gray-700 rounded"></div>
@@ -119,9 +119,9 @@ export default function RemindersPanel({ hideWhenEmpty = false }: { hideWhenEmpt
   if (hideWhenEmpty && !loading && upcomingReminders.length === 0) return null;
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+    <div className="card !p-5">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Upcoming Reminders</h3>
+        <h3 className="section-title !text-base">Upcoming Reminders</h3>
         {upcomingReminders.length > 0 && (
           <span className="text-xs text-gray-500 dark:text-gray-400">
             {upcomingReminders.length} {upcomingReminders.length === 1 ? 'reminder' : 'reminders'}

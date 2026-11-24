@@ -1,20 +1,23 @@
 export type DeltaOp = { insert: string; attributes?: Record<string, unknown> };
-export type Segment = { text: string; bold?: boolean; italic?: boolean; underline?: boolean; strike?: boolean; code?: boolean; link?: string };
-export type Line = { kind: 'p' | 'h2' | 'h3' | 'quote' | 'li'; list?: 'ordered' | 'bullet'; indent?: number; segments: Segment[] };
+export type Segment = { text: string; bold?: boolean; italic?: boolean; underline?: boolean; strike?: boolean; code?: boolean; size?: string; color?: string; background?: string; script?: 'sub' | 'super'; link?: string };
+export type Line = { kind: 'p' | 'h2' | 'h3' | 'h4' | 'quote' | 'li'; list?: 'ordered' | 'bullet'; indent?: number; align?: string; segments: Segment[] };
 export type LineGroup = Line | { kind: 'list'; list: 'ordered' | 'bullet'; items: Line[] };
 
+export type ColumnAlign = 'left' | 'center' | 'right';
+export type ImageSize = 'small' | 'medium' | 'full';
 export type FileKind = 'pdf' | 'doc' | 'sheet' | 'slides' | 'text' | 'archive' | 'file';
 export type CalloutTone = 'info' | 'tip' | 'warning' | 'key';
 
 export type Block =
-  | { id: string; type: 'heading'; text: string; level: 2 | 3 }
+  | { id: string; type: 'heading'; text: string; level: 2 | 3; align?: 'center' | 'right' }
   | { id: string; type: 'text'; ops: DeltaOp[] }
   | { id: string; type: 'callout'; tone: CalloutTone; title: string; text: string }
-  | { id: string; type: 'image'; url: string; alt: string; caption: string }
+  | { id: string; type: 'image'; url: string; alt: string; caption: string; size?: ImageSize; align?: 'left' | 'right' }
   | { id: string; type: 'video'; url?: string | null; assetId?: string; caption: string; available?: boolean }
   | { id: string; type: 'file'; url?: string | null; assetId?: string; title: string; kind: FileKind; name?: string; bytes?: number; available?: boolean; legacyItem?: string }
   | { id: string; type: 'link'; url: string; title: string; description: string; legacyItem?: string }
   | { id: string; type: 'code'; text: string; label: string }
+  | { id: string; type: 'table'; rows: string[][]; align: ColumnAlign[]; header: boolean; caption: string }
   | { id: string; type: 'divider' }
   | { id: string; type: 'legacy'; field: 'description' | 'content' };
 
@@ -34,6 +37,10 @@ export const BLOCK_TYPES: readonly BlockType[];
 export const CALLOUT_TONES: readonly CalloutTone[];
 export const FILE_KINDS: readonly FileKind[];
 export const IMPLICIT_MODULE_ID: string;
+export const TEXT_ALIGNS: readonly string[];
+export const TEXT_COLORS: readonly string[];
+export const TEXT_HIGHLIGHTS: readonly string[];
+export const TEXT_SIZES: readonly string[];
 export const LIMITS: Readonly<Record<string, number>>;
 
 export function normalizeDelta(input: unknown): { ok: true; ops: DeltaOp[]; chars: number } | Refusal;

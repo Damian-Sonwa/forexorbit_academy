@@ -7,13 +7,9 @@ import { useState, useRef, useEffect } from 'react';
 import { apiClient } from '@/lib/api-client';
 import { apiFetch } from '@/lib/api-fetch';
 import { useAuth } from '@/hooks/useAuth';
-import { AlertTriangle, Bot } from 'lucide-react';
+import { AlertTriangle, Send } from 'lucide-react';
 
 // AI calls go to the page's own origin; the AI key stays on the server.
-
-interface AIConfigStatus {
-  configured: boolean;
-}
 
 interface Message {
   id: string;
@@ -22,13 +18,15 @@ interface Message {
   timestamp: Date;
 }
 
+const SUGGESTIONS = ['What is a pip?', 'Explain risk management', 'How do I read a candlestick?', 'What is a stop-loss?'];
+
 export default function AIAssistant() {
   const { user } = useAuth();
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
       role: 'assistant',
-      content: 'Hello! I\'m your AI learning assistant. I can help explain lessons, answer questions, and guide your learning. How can I help you today?',
+      content: 'Ask about a forex concept, a lesson or a practice question.',
       timestamp: new Date(),
     },
   ]);
@@ -36,16 +34,25 @@ export default function AIAssistant() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [aiConfigured, setAiConfigured] = useState<boolean | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const list = listRef.current;
+    if (list) list.scrollTo({ top: list.scrollHeight });
   };
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, loading]);
+
+  // The question box grows with its text, up to its max height.
+  useEffect(() => {
+    const box = inputRef.current;
+    if (!box) return;
+    box.style.height = 'auto';
+    box.style.height = `${box.scrollHeight + 2}px`;
+  }, [input]);
 
   useEffect(() => {
     // Ask this build's API whether AI is configured.
@@ -73,14 +80,13 @@ export default function AIAssistant() {
     checkAIConfig();
   }, []);
 
-  const handleSend = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim() || loading) return;
+  const ask = async (question: string) => {
+    if (!question.trim() || loading) return;
 
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
-      content: input.trim(),
+      content: question.trim(),
       timestamp: new Date(),
     };
 
@@ -129,106 +135,70 @@ export default function AIAssistant() {
       setMessages((prev) => [...prev, errorMsg]);
     } finally {
       setLoading(false);
-      inputRef.current?.focus();
+      setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 0);
     }
   };
 
-  return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 flex flex-col h-[500px] sm:h-[600px]">
-      {/* Header */}
-      <div className="px-4 py-3 border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900 text-neutral-900 dark:text-white rounded-t-xl">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-primary-50 text-primary-700 rounded-full flex items-center justify-center dark:bg-primary-400/10">
-              <Bot className="h-5 w-5 shrink-0" aria-hidden />
-            </div>
-            <div>
-              <h3 className="text-sm font-bold">AI Learning Assistant</h3>
-              <p className="text-xs text-neutral-500">Ask me anything about Forex trading</p>
-            </div>
-          </div>
-          {aiConfigured === false && (
-            <div className="px-2 py-1 bg-yellow-500/30 rounded text-xs">
-              AI Not Configured
-            </div>
-          )}
-        </div>
-      </div>
+  const handleSend = (e: React.FormEvent) => {
+    e.preventDefault();
+    void ask(input);
+  };
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+  const started = messages.some((m) => m.role === 'user');
+
+  return (
+    <section aria-label="AI learning assistant" className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-line bg-surface-1 shadow-panel">
+      {/* Messages: this list scrolls, the page does not. */}
+      <div ref={listRef} className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-3 py-4 sm:px-6 sm:py-6" role="log" aria-live="polite">
         {messages.map((message) => (
-          <div
-            key={message.id}
-            className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-          >
-            <div
-              className={`max-w-[80%] sm:max-w-[70%] rounded-lg px-4 py-2 ${
-                message.role === 'user'
-                  ? 'bg-primary-600 text-white'
-                  : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white'
-              }`}
-            >
-              <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
-              <p className={`text-xs mt-1 ${
-                message.role === 'user' ? 'text-neutral-500' : 'text-gray-500 dark:text-gray-400'
-              }`}>
-                {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-              </p>
+          <div key={message.id} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div className={`min-w-0 max-w-[88%] rounded-2xl px-4 py-2.5 sm:max-w-[75%] ${message.role === 'user' ? 'rounded-br-md bg-primary-500 text-neutral-950' : 'rounded-bl-md bg-surface-3 text-ink'}`}>
+              <p className="whitespace-pre-wrap text-[0.9375rem] leading-relaxed [overflow-wrap:anywhere]">{message.content}</p>
+              {message.id !== '1' && <p className={`mt-1 text-2xs ${message.role === 'user' ? 'text-neutral-950/70' : 'text-ink-subtle'}`}>{message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>}
             </div>
           </div>
         ))}
+        {!started && aiConfigured !== false && (
+          <div className="flex flex-col items-start gap-2 pt-1 sm:flex-row sm:flex-wrap">
+            {SUGGESTIONS.map((text) => (
+              <button key={text} type="button" onClick={() => void ask(text)} disabled={loading} className="min-h-[2.75rem] rounded-full border border-line px-4 py-2 text-left text-sm font-medium text-ink hover:border-primary-500 hover:bg-tint">{text}</button>
+            ))}
+          </div>
+        )}
         {loading && (
-          <div className="flex justify-start">
-            <div className="bg-gray-100 dark:bg-gray-700 rounded-lg px-4 py-2">
-              <div className="flex space-x-1">
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-              </div>
+          <div className="flex justify-start" role="status" aria-label="The assistant is answering">
+            <div className="flex gap-1 rounded-2xl rounded-bl-md bg-surface-3 px-4 py-3.5">
+              {[0, 1, 2].map((i) => <span key={i} className="h-2 w-2 rounded-full bg-[var(--fo-text-subtle)] motion-safe:animate-bounce" style={{ animationDelay: `${i * 0.1}s` }} />)}
             </div>
           </div>
         )}
-        {error && (
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg px-4 py-2">
-            <p className="text-xs text-red-600 dark:text-red-400">{error}</p>
-          </div>
-        )}
-        <div ref={messagesEndRef} />
+        {error && <p className="notice notice-caution text-sm" role="alert">{error}</p>}
       </div>
 
-      {/* Input */}
-      <form onSubmit={handleSend} className="border-t border-gray-200 dark:border-gray-700 p-4">
+      <form onSubmit={handleSend} className="shrink-0 border-t border-line px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 sm:px-6">
         {aiConfigured === false && (
-          <div className="mb-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-            <p className="text-xs text-amber-800 dark:text-amber-200">
-              <AlertTriangle className="mr-1 inline h-4 w-4 shrink-0 text-amber-700" aria-hidden />AI service is not configured. Please contact your administrator to enable AI features.
-            </p>
-          </div>
+          <p className="notice notice-caution mb-3 flex items-start gap-2 text-sm"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />AI service is not configured. Please contact your administrator to enable AI features.</p>
         )}
-        <div className="flex space-x-2">
-          <input
+        <div className="flex items-end gap-2">
+          <textarea
             ref={inputRef}
-            type="text"
+            rows={1}
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask a question..."
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); e.currentTarget.form?.requestSubmit(); }
+            }}
+            placeholder="Ask a question…"
+            aria-label="Your question"
             disabled={loading || aiConfigured === false}
-            className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50"
+            className="input max-h-36 min-h-[3rem] min-w-0 flex-1 resize-none !text-base"
           />
-          <button
-            type="submit"
-            disabled={loading || !input.trim() || aiConfigured === false}
-            className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Send
+          <button type="submit" disabled={loading || !input.trim() || aiConfigured === false} className="btn btn-primary h-12 w-12 shrink-0 !px-0 sm:w-auto sm:!px-5" aria-label="Send">
+            <Send className="h-5 w-5 sm:hidden" aria-hidden /><span className="hidden sm:inline">Send</span>
           </button>
         </div>
-        <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 text-center">
-          AI responses are for educational purposes only
-        </p>
+        <p className="mt-2 text-center text-2xs text-ink-subtle">AI answers can be wrong. For education only.</p>
       </form>
-    </div>
+    </section>
   );
 }
-

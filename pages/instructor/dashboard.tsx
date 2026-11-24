@@ -1269,7 +1269,8 @@ export default function InstructorDashboard() {
                       <li key={lesson._id} className="flex items-center gap-3 px-4 py-3 text-sm">
                         <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-[var(--fo-line-strong)] text-[11px] font-semibold text-ink-subtle num">{index + 1}</span>
                         <span className="min-w-0 flex-1 truncate text-ink">{previewText(lesson.title || '') || 'Untitled lesson'}</span>
-                        <Link href={`/builder/${selectedCourseData._id || selectedCourseData.id}?lesson=${lesson._id}`} className="text-xs font-semibold text-primary-600 hover:underline dark:text-primary-400">Edit</Link>
+                        <Link href={`/builder/${selectedCourseData._id || selectedCourseData.id}?lesson=${lesson._id}&rename=1`} className="shrink-0 py-2 text-xs font-semibold text-ink-muted hover:text-ink hover:underline" aria-label={`Rename ${previewText(lesson.title || '') || 'lesson'}`}>Rename</Link>
+                        <Link href={`/builder/${selectedCourseData._id || selectedCourseData.id}?lesson=${lesson._id}`} className="shrink-0 py-2 text-xs font-semibold text-primary-600 hover:underline dark:text-primary-400">Edit</Link>
                       </li>
                     ))}
                   </ol>

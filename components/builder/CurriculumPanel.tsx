@@ -35,6 +35,7 @@ type Props = {
   onPlaceModule: (moduleId: string, toIndex: number) => void;
   onPlaceLesson: (lessonId: string, moduleId: string, toIndex?: number) => void;
   onStepLesson: (lessonId: string, delta: number) => void;
+  onRenameLesson: (lessonId: string) => void;
   onDuplicateLesson: (lessonId: string) => void;
   onDeleteLesson: (lessonId: string) => void;
 };
@@ -187,7 +188,8 @@ export default function CurriculumPanel(props: Props) {
                               : lesson.issues > 0 ? <span className="shrink-0 rounded-full bg-amber-500/15 px-1.5 text-2xs font-semibold text-amber-700 dark:text-amber-300" title="Needs attention before publishing">{lesson.issues}</span> : null}
                           </button>
                           {editable && (
-                            <div className="relative flex items-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-within:opacity-100">
+                            <div className={`relative flex items-center ${selected ? '' : 'lg:opacity-0 lg:group-hover:opacity-100 lg:focus-within:opacity-100'}`}>
+                              <button type="button" className="rounded p-1 text-ink-subtle hover:text-ink" title="Rename lesson" aria-label={`Rename ${lesson.title || 'lesson'}`} onClick={() => props.onRenameLesson(lessonId)} data-testid="rename-lesson"><Pencil className="h-4 w-4" aria-hidden /></button>
                               <button type="button" className="rounded p-1 text-ink-subtle hover:text-ink disabled:opacity-30" aria-label={`Move ${lesson.title || 'lesson'} up`} disabled={firstOverall || busy} onClick={() => props.onStepLesson(lessonId, -1)}><ChevronUp className="h-4 w-4" aria-hidden /></button>
                               <button type="button" className="rounded p-1 text-ink-subtle hover:text-ink disabled:opacity-30" aria-label={`Move ${lesson.title || 'lesson'} down`} disabled={lastOverall || busy} onClick={() => props.onStepLesson(lessonId, 1)}><ChevronDown className="h-4 w-4" aria-hidden /></button>
                               <button type="button" className="rounded p-1 text-ink-subtle hover:text-ink" aria-label={`More actions for ${lesson.title || 'lesson'}`} aria-haspopup="menu" aria-expanded={menu === `l:${lessonId}`} onClick={() => setMenu(menu === `l:${lessonId}` ? null : `l:${lessonId}`)}><MoreHorizontal className="h-4 w-4" aria-hidden /></button>
@@ -202,6 +204,7 @@ export default function CurriculumPanel(props: Props) {
                                       <div className="my-1 border-t border-line" />
                                     </>
                                   )}
+                                  <MenuItem onClick={() => { setMenu(null); props.onRenameLesson(lessonId); }} Icon={Pencil}>Rename</MenuItem>
                                   <MenuItem onClick={() => { setMenu(null); props.onDuplicateLesson(lessonId); }} Icon={Copy} disabled={busy}>Duplicate</MenuItem>
                                   <MenuItem onClick={() => { setMenu(null); props.onDeleteLesson(lessonId); }} Icon={Trash2} danger disabled={busy}>Delete lesson</MenuItem>
                                 </div>

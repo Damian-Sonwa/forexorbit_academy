@@ -62,9 +62,8 @@ export default function StudentPracticalTasks() {
       <div className="panel-hero p-5 sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-xl">
-            <p className="page-kicker">Practical assessment</p>
-            <h2 className="section-title mt-2">Practical trading tasks</h2>
-            <p className="mt-1.5 text-sm text-ink-muted">Tasks from your instructors. Trade them on the simulated desk; you are assessed on your decisions and risk, not on whether the market moved your way.</p>
+            <h2 className="section-title">Practical trading tasks</h2>
+            <p className="mt-1 text-sm text-ink-muted">Assessed on your decisions and risk, not on the result.</p>
           </div>
           {s && (
             <dl className="grid grid-cols-3 gap-4 text-left sm:text-right">

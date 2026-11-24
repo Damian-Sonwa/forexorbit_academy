@@ -1,5 +1,5 @@
 /**
- * Student onboarding: five steps, each laid out for what it asks, saved once at the end
+ * Student onboarding: four steps, each laid out for what it asks, saved once at the end
  *   GET  /api/auth/me                      existing answers
  *   POST /api/student/onboarding           the whole form
  *   PUT  /api/student/onboarding/complete  first time only
@@ -14,20 +14,19 @@ import { ArrowLeft, ArrowRight } from 'lucide-react';
 import BrandLogo from '@/components/BrandLogo';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import PhotoField from '@/components/profile/PhotoField';
-import { CertificationsField, ChannelsField, EducationTiles, GenderField, LevelField, TextField, TopicsField, YearsField } from '@/components/profile/ProfileFields';
+import { ChannelsField, GenderField, LevelField, TextField, TopicsField, YearsField } from '@/components/profile/ProfileFields';
 import Skyline from '@/components/profile/Skyline';
 import StudentPass from '@/components/profile/StudentPass';
 import { useAuth } from '@/hooks/useAuth';
 import { apiClient } from '@/lib/api-client';
 import {
-  EDUCATION_FIELDS, EMPTY_PROFILE, PERSONAL_FIELDS, REQUIRED_FIELDS, TOPIC_FIELDS, TRADING_FIELDS,
-  apiErrorText, dateLabel, educationLabel, genderLabel, profileErrors, profileFrom, yearsLabel,
+  EMPTY_PROFILE, PERSONAL_FIELDS, REQUIRED_FIELDS, TOPIC_FIELDS, TRADING_FIELDS,
+  apiErrorText, dateLabel, genderLabel, profileErrors, profileFrom, yearsLabel,
   type ProfileErrors, type ProfileField, type ProfileForm, type ProfileSource,
 } from '@/lib/student-profile';
 
 const STEPS: Array<{ name: string; fields: ProfileField[] }> = [
   { name: 'Personal details', fields: PERSONAL_FIELDS },
-  { name: 'Education', fields: EDUCATION_FIELDS },
   { name: 'Trading experience', fields: TRADING_FIELDS },
   { name: 'Preferences', fields: TOPIC_FIELDS },
   { name: 'Confirmation', fields: [] },
@@ -40,14 +39,12 @@ const channelsOn = (form: ProfileForm) => ([['email', 'email'], ['sms', 'SMS'], 
 
 const COPY = [
   { title: 'Introduce yourself', lede: 'This goes on your profile. You can change it whenever you like.', editing: 'These details stay on your profile. Lessons stay open either way.' },
-  { title: 'What have you studied?', lede: 'Any background is a fine place to start. Choose the highest level you have finished.', editing: 'Choose the highest level you have finished.' },
   { title: 'How well do you know the market?', lede: 'Your answer sets your starting level, so be honest rather than ambitious.', editing: 'This describes your experience. Your course level changes only as you complete courses.' },
   { title: 'What do you want to learn?', lede: 'Choose at least one topic, as many as you like.', editing: 'Choose at least one topic, as many as you like.' },
   { title: 'Does this look right?', lede: 'Check the details, then finish. You can change them later in Settings.', editing: 'Check the details, then save your changes.' },
 ];
 const NOTES = [
   'Your pass fills in as you answer. Setup is optional: skip it and open a course whenever you are ready.',
-  'Certifications are optional.',
   'Not sure? Choose the lower one. Your level rises as you complete courses.',
   'Notification choices can be changed later in Settings.',
   'Your answers are saved when you finish this step.',
@@ -218,7 +215,7 @@ export default function Onboarding() {
               <p className="mt-5 max-w-md text-lg leading-relaxed">
                 {finished
                   ? <>{user?.learningLevel ? <>You start at <strong className="font-semibold">{user.learningLevel}</strong> level. It moves up as you complete courses.</> : 'Your level moves up as you complete courses.'} You can change your details in Settings.</>
-                  : 'Tell us where you are starting, and we set your level to match. Four short steps, then a quick check.'}
+                  : 'Tell us where you are starting, and we set your level to match. Three short steps, then a quick check.'}
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 {finished ? (
@@ -311,18 +308,12 @@ export default function Onboarding() {
                       </div>
                     )}
                     {step === 2 && (
-                      <div className="space-y-8">
-                        <EducationTiles id="ob-educationLevel" value={form.educationLevel} onChange={(v) => set('educationLevel', v)} error={errors.educationLevel} />
-                        <CertificationsField id="ob-certifications" value={form.certifications} onChange={(v) => set('certifications', v)} />
-                      </div>
-                    )}
-                    {step === 3 && (
                       <div className="space-y-9">
                         <LevelField id="ob-tradingLevel" value={form.tradingLevel} onChange={(v) => set('tradingLevel', v)} error={errors.tradingLevel} />
                         <YearsField id="ob-yearsOfExperience" value={form.yearsOfExperience} onChange={(v) => set('yearsOfExperience', v)} error={errors.yearsOfExperience} />
                       </div>
                     )}
-                    {step === 4 && (
+                    {step === 3 && (
                       <div className="space-y-8">
                         <TopicsField chips id="ob-preferredTopics" value={form.preferredTopics} onChange={(v) => set('preferredTopics', v)} error={errors.preferredTopics} />
                         <div className="studio-frost rounded-2xl px-4 py-4 sm:px-6">
@@ -368,9 +359,8 @@ function Review({ form, onEdit }: { form: ProfileForm; onEdit: (step: number) =>
   const channels = channelsOn(form);
   const rows: Array<[number, string, Array<[string, string]>]> = [
     [1, 'Personal details', [['Name', form.fullName], ['Date of birth', dateLabel(form.dateOfBirth)], ['Contact', form.contactNumber], ['Gender', genderLabel(form.gender)]]],
-    [2, 'Education', [['Highest level', educationLabel(form.educationLevel)], ['Certifications', form.certifications || 'None']]],
-    [3, 'Trading experience', [['Level', capital(form.tradingLevel)], ['Experience', yearsLabel(form.yearsOfExperience)]]],
-    [4, 'Preferences', [['Topics', list(form.preferredTopics)], ['Notifications', channels.length ? capital(list(channels)) : 'None']]],
+    [2, 'Trading experience', [['Level', capital(form.tradingLevel)], ['Experience', yearsLabel(form.yearsOfExperience)]]],
+    [3, 'Preferences', [['Topics', list(form.preferredTopics)], ['Notifications', channels.length ? capital(list(channels)) : 'None']]],
   ];
   return (
     <div className="border-t-2 border-[var(--fo-text)]">

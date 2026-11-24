@@ -5,15 +5,15 @@
 
 import BrandLogo from '@/components/BrandLogo';
 import CandleMeter from '@/components/profile/CandleMeter';
-import { YEARS, educationLabel, type ProfileForm } from '@/lib/student-profile';
+import { YEARS, type ProfileForm } from '@/lib/student-profile';
 
 export default function StudentPass({ form, step, total, className = '' }: { form: ProfileForm; step: number; total: number; className?: string }) {
   const name = form.fullName.trim() || 'Your name';
   // The trading values have defaults, so they appear only once their step is reached.
   const cells: Array<[string, string]> = [
-    ['Level', step >= 3 ? form.tradingLevel.charAt(0).toUpperCase() + form.tradingLevel.slice(1) : ''],
-    ['Experience', step >= 3 ? `${YEARS.find(([v]) => v === form.yearsOfExperience)?.[2] || ''} years` : ''],
-    ['Education', form.educationLevel ? educationLabel(form.educationLevel) : ''],
+    ['Level', step >= 2 ? form.tradingLevel.charAt(0).toUpperCase() + form.tradingLevel.slice(1) : ''],
+    ['Experience', step >= 2 ? `${YEARS.find(([v]) => v === form.yearsOfExperience)?.[2] || ''} years` : ''],
+    ['Topics', form.preferredTopics.length ? `${form.preferredTopics.length} chosen` : ''],
   ];
   return (
     <div className={`onb-pass ${className}`} aria-hidden>

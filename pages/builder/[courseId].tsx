@@ -60,6 +60,7 @@ export default function CourseBuilderPage() {
   const [dirty, setDirty] = useState<Record<string, boolean>>({});
   const [view, setView] = useState<'edit' | 'preview'>('edit');
   const [showOutline, setShowOutline] = useState(false);
+  const [rename, setRename] = useState<{ lessonId: string; request: number } | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const tab = (['content', 'details', 'files', 'publish'].includes(one(router.query.tab)) ? one(router.query.tab) : 'content') as Tab;
   const selected = one(router.query.lesson) || null;
@@ -90,6 +91,17 @@ export default function CourseBuilderPage() {
     if (merged.lesson) query.lesson = merged.lesson;
     void router.replace({ pathname: '/builder/[courseId]', query }, undefined, { shallow: true });
   }, [courseId, router, selected, tab]);
+
+  // Renaming a lesson opens it with its title selected (the editor autosaves it).
+  const renameLesson = useCallback((lessonId: string) => {
+    setView('edit');
+    setShowOutline(false);
+    setRename((r) => ({ lessonId, request: (r?.request || 0) + 1 }));
+    go({ lesson: lessonId, tab: 'content' });
+  }, [go]);
+  // A "Rename" link from the instructor's course list (?lesson=…&rename=1).
+  const renameLinked = one(router.query.rename) === '1' ? selected : null;
+  useEffect(() => { if (data && renameLinked) renameLesson(renameLinked); }, [data, renameLinked, renameLesson]);
 
   // Open the first lesson when none is chosen.
   useEffect(() => {
@@ -272,6 +284,7 @@ export default function CourseBuilderPage() {
                   onPlaceModule={(id, i) => void saveCurriculum(placeModule(data.modules, id, i))}
                   onPlaceLesson={(l, m, i) => void saveCurriculum(placeLesson(data.modules, l, m, i))}
                   onStepLesson={(l, d) => void saveCurriculum(stepLesson(data.modules, l, d))}
+                  onRenameLesson={renameLesson}
                   onDuplicateLesson={(l) => { const m = data.modules.find((x) => x.lessonIds.includes(l)); if (m) void addLesson(m.id, l); }}
                   onDeleteLesson={(l) => setDeleting(l)}
                 />
@@ -302,6 +315,7 @@ export default function CourseBuilderPage() {
                   prev={position > 1 ? { id: order[position - 2], title: '' } : null}
                   next={position < order.length ? { id: order[position], title: '' } : null}
                   onSelect={(id) => go({ lesson: id })}
+                  renameRequest={rename?.lessonId === lesson.id ? rename.request : undefined}
                 />
               ) : (
                 <div className="rounded-2xl border border-dashed border-line px-6 py-16 text-center" data-testid="empty-course">

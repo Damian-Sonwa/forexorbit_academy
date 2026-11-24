@@ -27,7 +27,7 @@ import {
 } from '@/lib/student-profile';
 
 /** Where each field is edited; the photo saves by itself. */
-const IN_LEARNING: ProfileField[] = [...LEARNING_FIELDS, 'certifications'];
+const IN_LEARNING: ProfileField[] = [...LEARNING_FIELDS, 'educationLevel', 'certifications'];
 const EDITABLE = (Object.keys(EMPTY_PROFILE) as ProfileField[]).filter((f) => f !== 'profilePhoto');
 const sectionOf = (field: ProfileField): SectionId => (IN_LEARNING.includes(field) ? 'learning' : 'profile');
 const hrefOf = (section: SectionId) => (section === 'profile' ? '/profile' : `/profile?section=${section}`);
@@ -196,7 +196,7 @@ export default function Profile() {
         <SettingsSection title="Learning" lede="Your background and what you want to study.">
           <SettingGroup title="Education">
             <div className="space-y-5">
-              <EducationSelect id="st-educationLevel" value={form.educationLevel} onChange={(v) => set('educationLevel', v)} error={errors.educationLevel} />
+              <EducationSelect id="st-educationLevel" value={form.educationLevel} onChange={(v) => set('educationLevel', v)} />
               <CertificationsField id="st-certifications" value={form.certifications} onChange={(v) => set('certifications', v)} />
             </div>
           </SettingGroup>

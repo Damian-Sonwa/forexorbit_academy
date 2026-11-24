@@ -125,7 +125,7 @@ function BlockView({ block, lesson, ...rest }: { block: Block; lesson: LessonLik
     case 'heading': {
       if (!block.text) return null;
       const H = block.level === 3 ? 'h3' : 'h2';
-      return <H className={`font-display font-semibold tracking-[-0.015em] text-ink ${block.level === 3 ? 'text-lg sm:text-xl' : 'text-xl sm:text-2xl'}`}>{block.text}</H>;
+      return <H className={`font-display font-semibold tracking-[-0.015em] text-ink ${block.level === 3 ? 'text-lg sm:text-xl' : 'text-xl sm:text-2xl'} ${block.align === 'center' ? 'text-center' : block.align === 'right' ? 'text-right' : ''}`}>{block.text}</H>;
     }
     case 'text':
       return <RichText ops={block.ops} />;
@@ -148,8 +148,8 @@ function BlockView({ block, lesson, ...rest }: { block: Block; lesson: LessonLik
       return (
         <figure>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={src} alt={block.alt || ''} loading="lazy" className="mx-auto h-auto max-h-[70vh] w-auto max-w-full rounded-2xl border border-line object-contain" />
-          {block.caption && <figcaption className="mt-2 text-center text-sm text-ink-muted">{block.caption}</figcaption>}
+          <img src={src} alt={block.alt || ''} loading="lazy" className={`h-auto max-h-[70vh] w-auto rounded-2xl border border-line object-contain ${block.align === 'left' ? 'mr-auto' : block.align === 'right' ? 'ml-auto' : 'mx-auto'} ${block.size === 'small' ? 'max-w-[min(100%,18rem)]' : block.size === 'medium' ? 'max-w-[min(100%,32rem)]' : 'max-w-full'}`} />
+          {block.caption && <figcaption className={`mt-2 text-sm text-ink-muted ${block.align === 'left' ? 'text-left' : block.align === 'right' ? 'text-right' : 'text-center'}`}>{block.caption}</figcaption>}
         </figure>
       );
     }
@@ -182,6 +182,24 @@ function BlockView({ block, lesson, ...rest }: { block: Block; lesson: LessonLik
           <pre className="overflow-x-auto px-4 py-3 font-mono text-sm leading-relaxed text-ink"><code>{block.text}</code></pre>
         </figure>
       );
+    case 'table': {
+      if (!block.rows.some((r) => r.some((cell) => cell.trim()))) return rest.mode === 'preview' ? <Unavailable what="This table is empty." /> : null;
+      const head = block.header ? block.rows[0] : null;
+      const cell = (i: number) => ({ textAlign: block.align[i] || ('left' as const) });
+      return (
+        <figure>
+          <div className="overflow-x-auto rounded-2xl border border-line" tabIndex={0} role="region" aria-label={block.caption || 'Table'}>
+            <table className="w-full border-collapse text-[0.975rem] text-ink">
+              {head && <thead><tr className="bg-surface-3">{head.map((text, i) => <th key={i} scope="col" style={cell(i)} className="min-w-[6rem] border-b border-line px-4 py-2.5 font-semibold [overflow-wrap:anywhere]">{text}</th>)}</tr></thead>}
+              <tbody className="divide-y divide-[var(--fo-line)]">
+                {block.rows.slice(head ? 1 : 0).map((row, r) => <tr key={r}>{row.map((text, i) => <td key={i} style={cell(i)} className="min-w-[6rem] px-4 py-2.5 align-top [overflow-wrap:anywhere]">{text}</td>)}</tr>)}
+              </tbody>
+            </table>
+          </div>
+          {block.caption && <figcaption className="mt-2 text-center text-sm text-ink-muted">{block.caption}</figcaption>}
+        </figure>
+      );
+    }
     case 'divider':
       return <hr className="border-line" />;
     case 'legacy': {

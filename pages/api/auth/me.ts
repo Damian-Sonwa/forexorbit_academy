@@ -20,7 +20,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 
     const user = await users.findOne(
       { _id: new ObjectId(req.user!.userId) },
-      { projection: { password: 0 } }
+      { projection: { password: 0, profilePhotoData: 0 } }
     );
 
     if (!user) {

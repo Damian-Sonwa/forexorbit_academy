@@ -220,11 +220,7 @@ export default function TradeReviews({ tasks, legacyEntries = [], onOpenDesk }: 
       <div className="card !p-5 sm:!p-7">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="page-kicker">Trade journal</p>
-            <h2 className="mt-3 font-display text-2xl font-semibold tracking-[-0.02em] text-ink">Review your trades</h2>
-            <p className="mt-2 max-w-2xl text-sm text-ink-muted">
-              Every closed practice trade appears here with the figures the simulator recorded. Add your reasoning: why you entered, whether you followed your plan and what you would change. Simulated trades, virtual funds.
-            </p>
+            <h2 className="section-title">Review your trades</h2>
           </div>
           {counts && (
             <dl className="flex gap-6">

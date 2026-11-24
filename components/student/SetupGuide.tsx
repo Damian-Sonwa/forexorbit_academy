@@ -77,7 +77,7 @@ export default function SetupGuide({ onNavigate }: SetupGuideProps) {
       summary: 'One click; the server opens it with USD 10,000.',
       content: (
         <div className="space-y-3">
-          <p>Open the <Term>Practice account</Term> tab and click <Term>Create practice account</Term>. Your account opens with USD 10,000.00 and the ledger records the opening funds. You then see six figures:</p>
+          <p>Open the <Term>Trade</Term> tab and click <Term>Create practice account</Term>. Your account opens with USD 10,000.00 and the ledger records the opening funds. You then see six figures:</p>
           <dl className="grid gap-px overflow-hidden rounded-xl border border-line bg-[var(--fo-line)] sm:grid-cols-2">
             {[
               ['Virtual balance', 'Your cash after closed trades.'],
@@ -179,7 +179,7 @@ export default function SetupGuide({ onNavigate }: SetupGuideProps) {
       summary: 'Results, history and the ledger keep a full record.',
       content: (
         <div className="space-y-3">
-          <p>After your first closed trade, <Term>Your simulated results</Term> shows closed trades, win rate, net result, return and largest drawdown. The history tabs keep everything:</p>
+          <p>After your first closed trade, the <Term>Results</Term> tab shows closed trades, win rate, net result, return and largest drawdown. The history tabs keep everything:</p>
           <ul className="space-y-1.5">
             <Point><Term>Closed trades</Term>: entry and exit, and why each trade closed (by you, stop-loss, take-profit or stop-out).</Point>
             <Point><Term>Orders</Term> and <Term>Executions</Term>: every order and every fill, at its simulated time.</Point>
@@ -212,11 +212,7 @@ export default function SetupGuide({ onNavigate }: SetupGuideProps) {
     <div className="card !p-5 sm:!p-7">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="page-kicker">Getting started</p>
-          <h2 className="mt-3 font-display text-2xl font-semibold tracking-[-0.02em] text-ink">Practice desk guide</h2>
-          <p className="mt-2 max-w-2xl text-sm text-ink-muted">
-            How to use ForexOrbit&apos;s built-in simulator: open your account, read the market, plan a trade, place it and review the result.
-          </p>
+          <h2 className="font-display text-2xl font-semibold tracking-[-0.02em] text-ink">Practice desk guide</h2>
         </div>
         {onNavigate && (
           <button type="button" onClick={() => onNavigate('live')} className="btn btn-primary self-start lg:self-auto">

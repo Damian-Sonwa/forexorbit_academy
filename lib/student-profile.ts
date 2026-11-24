@@ -120,7 +120,6 @@ const CHECKS: Partial<Record<ProfileField, (f: ProfileForm) => string | false>> 
   fullName: (f) => !f.fullName.trim() && 'Enter your full name.',
   dateOfBirth: (f) => (!f.dateOfBirth ? 'Enter your date of birth.' : f.dateOfBirth > new Date().toISOString().slice(0, 10) && 'Your date of birth cannot be in the future.'),
   contactNumber: (f) => !f.contactNumber.trim() && 'Enter a contact number.',
-  educationLevel: (f) => !f.educationLevel && 'Choose your highest education level.',
   tradingLevel: (f) => !f.tradingLevel && 'Choose the level that describes you.',
   yearsOfExperience: (f) => !f.yearsOfExperience && 'Choose how long you have been trading.',
   preferredTopics: (f) => f.preferredTopics.length === 0 && 'Choose at least one topic.',
@@ -128,10 +127,9 @@ const CHECKS: Partial<Record<ProfileField, (f: ProfileForm) => string | false>> 
 
 /** The fields POST /api/student/onboarding requires, by onboarding step and Settings section. */
 export const PERSONAL_FIELDS: ProfileField[] = ['fullName', 'dateOfBirth', 'contactNumber'];
-export const EDUCATION_FIELDS: ProfileField[] = ['educationLevel'];
 export const TRADING_FIELDS: ProfileField[] = ['tradingLevel', 'yearsOfExperience'];
 export const TOPIC_FIELDS: ProfileField[] = ['preferredTopics'];
-export const LEARNING_FIELDS: ProfileField[] = [...EDUCATION_FIELDS, ...TRADING_FIELDS, ...TOPIC_FIELDS];
+export const LEARNING_FIELDS: ProfileField[] = [...TRADING_FIELDS, ...TOPIC_FIELDS];
 export const REQUIRED_FIELDS: ProfileField[] = [...PERSONAL_FIELDS, ...LEARNING_FIELDS];
 
 export function profileErrors(form: ProfileForm, fields: ProfileField[] = REQUIRED_FIELDS): ProfileErrors {

@@ -35,7 +35,7 @@ test('rich text keeps allowed formats and drops everything else', () => {
     { insert: ' bad', attributes: { link: 'javascript:alert(1)' } },
     { insert: { image: 'https://x/y.png' } },
     { insert: '<script>alert(1)</script>' },
-    { insert: '\n', attributes: { header: 2, align: 'center' } },
+    { insert: '\n', attributes: { header: 2, align: 'sideways' } },
     { insert: 'item\n', attributes: { list: 'bullet' } },
   ]);
   assert.equal(r.ok, true);
@@ -45,6 +45,37 @@ test('rich text keeps allowed formats and drops everything else', () => {
   assert.ok(r.ops.every((op) => typeof op.insert === 'string'), 'embeds are dropped');
   assert.deepEqual(r.ops[3], { insert: '\n', attributes: { header: 2 } });
   assert.ok(r.ops[r.ops.length - 1].insert.endsWith('\n'));
+});
+
+test('sizes, colours, highlights, scripts and alignment: only the listed values are kept and rendered', () => {
+  const r = C.normalizeDelta([
+    { insert: 'Big', attributes: { size: 'huge', color: C.TEXT_COLORS[0], background: C.TEXT_HIGHLIGHTS[0], script: 'super' } },
+    { insert: 'x', attributes: { size: '99px', color: 'red;background:url(x)', background: '#123456', script: 'top' } },
+    { insert: ' 📈 ok' },
+    { insert: '\n', attributes: { align: 'justify', header: 4 } },
+    { insert: 'Word', attributes: { align: 'center' } },
+    { insert: '\n' },
+  ]);
+  assert.deepEqual(r.ops[0].attributes, { size: 'huge', color: C.TEXT_COLORS[0], background: C.TEXT_HIGHLIGHTS[0], script: 'super' });
+  assert.deepEqual(r.ops[1], { insert: 'x 📈 ok' }, 'other values are dropped, emoji stay text');
+  assert.deepEqual(r.ops[2].attributes, { header: 4, align: 'justify' });
+  assert.deepEqual(r.ops[3], { insert: 'Word' }, 'alignment belongs to lines');
+  const [line] = C.deltaToLines(r.ops);
+  assert.deepEqual([line.kind, line.align, line.segments[0].size, line.segments[0].script], ['h4', 'justify', 'huge', 'super']);
+});
+
+test('table blocks: plain-text cells, equal rows, limits; image size and position', () => {
+  const ok = C.checkBlock({ id: 'table123', type: 'table', rows: [['Pair', 'Pips'], ['EUR/USD'], [{ $gt: 1 }, '<b>x</b>']], align: ['right', 'evil'], caption: 'c', header: true }, 0);
+  assert.deepEqual(ok.block.rows, [['Pair', 'Pips'], ['EUR/USD', ''], ['', '<b>x</b>']]);
+  assert.deepEqual(ok.block.align, ['right', 'left']);
+  assert.equal(C.blockHasContent(ok.block), true);
+  assert.equal(C.blockHasContent(C.checkBlock({ id: 'table123', type: 'table', rows: [] }, 0).block), false);
+  assert.equal(C.checkBlock({ id: 'table123', type: 'table', rows: Array(61).fill(['a']) }, 0).ok, false);
+  assert.equal(C.checkBlock({ id: 'table123', type: 'table', rows: [Array(11).fill('a')] }, 0).ok, false);
+  assert.equal(C.checkBlock({ id: 'table123', type: 'table', rows: [['x'.repeat(501)]] }, 0).ok, false);
+  const img = (extra) => C.checkBlock({ id: 'image123', type: 'image', url: 'https://x.test/a.png', alt: '', caption: '', ...extra }, 0).block;
+  assert.deepEqual([img({ size: 'small', align: 'right' }).size, img({ size: 'small', align: 'right' }).align], ['small', 'right']);
+  assert.deepEqual(Object.keys(img({ size: 'x', align: 'y' })), Object.keys(img({})), 'defaults add nothing');
 });
 
 test('rich text has size limits and must be a list of runs', () => {

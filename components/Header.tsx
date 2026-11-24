@@ -325,7 +325,7 @@ export default function Header() {
               >
                 <span className="rounded-full bg-[conic-gradient(from_200deg,#ff7012,#ffab6b,#c24e00,#ff7012)] p-[1.5px]">
                   <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-500 text-sm font-bold text-neutral-950 ring-2 ring-[var(--fo-shell)]">
-                    {user?.name?.charAt(0).toUpperCase()}
+                    {user?.profilePhoto ? <img src={user.profilePhoto} alt="" className="h-full w-full rounded-full object-cover" /> : user?.name?.charAt(0).toUpperCase()}
                   </span>
                 </span>
                 <span className="hidden max-w-[10rem] truncate text-sm font-medium text-ink lg:block">{user?.name}</span>

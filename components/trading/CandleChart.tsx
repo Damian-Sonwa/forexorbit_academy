@@ -24,19 +24,19 @@ export default function CandleChart({ candles, label }: { candles: Candle[]; lab
   const last = candles[candles.length - 1];
   return (
     <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} className="h-auto w-full" role="img" aria-label={`${label}. Latest close ${last.close}. Range ${candles.map((c) => c.low).sort()[0]} to ${candles.map((c) => c.high).sort().slice(-1)[0]}.`} data-testid="candle-chart">
-      <text x={WIDTH - AXIS + 4} y={PAD + 8} className="fill-gray-500" fontSize="11">{max}</text>
-      <text x={WIDTH - AXIS + 4} y={HEIGHT - PAD} className="fill-gray-500" fontSize="11">{min}</text>
+      <text x={WIDTH - AXIS + 4} y={PAD + 8} fill="var(--fo-text-subtle)" fontSize="13">{max}</text>
+      <text x={WIDTH - AXIS + 4} y={HEIGHT - PAD} fill="var(--fo-text-subtle)" fontSize="13">{min}</text>
       {candles.map((c, i) => {
         const x = i * slot + slot / 2;
         const open = Number(c.open);
         const close = Number(c.close);
         const up = close >= open;
-        const colour = up ? '#15803d' : '#b91c1c';
+        const colour = up ? '#f06a12' : 'var(--fo-text-muted)';
         const top = y(Math.max(open, close));
         return (
           <g key={c.time}>
             <line x1={x} x2={x} y1={y(Number(c.high))} y2={y(Number(c.low))} stroke={colour} strokeWidth="1" />
-            <rect x={x - body / 2} y={top} width={body} height={Math.max(1, y(Math.min(open, close)) - top)} fill={colour} opacity={c.complete ? 1 : 0.6} />
+            <rect x={x - body / 2} y={top} width={body} height={Math.max(1, y(Math.min(open, close)) - top)} fill={up ? colour : 'var(--fo-surface-1)'} stroke={colour} strokeWidth="1" opacity={c.complete ? 1 : 0.6} />
           </g>
         );
       })}

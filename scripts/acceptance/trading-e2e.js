@@ -143,8 +143,8 @@ const { EDGE, launchBrowser, sleep } = require('./browser');
     await tab.evaluate(`fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-FO-CSRF': '1' }, body: JSON.stringify(${JSON.stringify({ email: alice.email, password })}) }).then((r) => r.status)`);
     const openDesk = async (t) => {
       await t.send('Page.navigate', { url: `${origin}/demo-trading` });
-      await t.waitFor(`[...document.querySelectorAll('button')].some((b) => /Practice account/.test(b.textContent))`, 90000);
-      await t.evaluate(`[...document.querySelectorAll('button')].find((b) => /Practice account/.test(b.textContent)).click(); true`);
+      await t.waitFor(`[...document.querySelectorAll('button')].some((b) => b.textContent.trim() === 'Trade')`, 90000);
+      await t.evaluate(`[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Trade').click(); true`);
       return t.waitFor(`Boolean(document.querySelector('[data-testid="practice-desk"]'))`, 30000);
     };
     const q = (id) => `(document.querySelector('[data-testid="${id}"]') || {})`;
@@ -157,6 +157,7 @@ const { EDGE, launchBrowser, sleep } = require('./browser');
       const form = document.querySelector('[data-testid="order-form"]');
       const missing = [];
       for (const [label, value] of Object.entries(${JSON.stringify(fields)})) {
+        if (label === "Side") { const b = form.querySelector("[data-side=" + value + "]"); if (b) b.click(); else missing.push(label); continue; }
         const host = [...form.querySelectorAll('label')].find((l) => l.textContent.trim().startsWith(label));
         const el = host && host.querySelector('input, select');
         if (!el) { missing.push(label); continue; }
@@ -182,11 +183,11 @@ const { EDGE, launchBrowser, sleep } = require('./browser');
     };
 
     record('no data', 'the page opens and says trading is paused', await openDesk(tab) && await tab.waitFor(`/no verified market data/.test(${q('market-closed')}.innerText || '')`, 20000));
-    record('disclosure', 'the page discloses virtual funds, no broker, spread-only cost and the model limits', /Virtual funds only/.test(await text('simulator-disclosure')) && /no commission, no overnight swap and no added slippage/.test(await text('simulator-disclosure')) && /results here do not predict real results/.test(await text('simulator-disclosure')));
+    record('disclosure', 'the page discloses virtual funds, no broker, spread-only cost and the model limits', /Virtual funds only/.test(await tab.evaluate(`${q('simulator-disclosure')}.textContent || ''`)) && /no commission, no overnight swap and no added slippage/.test(await tab.evaluate(`${q('simulator-disclosure')}.textContent || ''`)) && /results here do not predict real results/.test(await tab.evaluate(`${q('simulator-disclosure')}.textContent || ''`)));
     await tab.evaluate(`[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Create practice account').click(); true`);
     record('account', 'a student creates an account in the page', await noticeIs('/practice account is ready/', 'status'));
     await tab.waitFor(`/10000\\.00 USD/.test(${q('fig-balance')}.innerText || '')`, 15000);
-    record('account', 'it opens with USD 10,000.00, labelled virtual', /Virtual balance/.test(await text('fig-balance')) && (await figure('fig-balance')) === '10000.00 USD');
+    record('account', 'it opens with USD 10,000.00, labelled virtual', /Virtual balance/i.test(await text('fig-balance')) && (await figure('fig-balance')) === '10000.00 USD');
     record('no data', 'the order button is disabled while suspended', await tab.evaluate(`document.querySelector('[data-testid="order-form"] button[type="submit"]').disabled`) === true);
     r = await call(A, 'POST', '/trading/orders', orderBody());
     record('no data', 'an order sent anyway is refused and fills nothing', r.status >= 400 && r.status < 500 && await db.collection('tradingPositions').countDocuments({}) === 0, `status ${r.status}`);
@@ -349,7 +350,7 @@ const { EDGE, launchBrowser, sleep } = require('./browser');
     const fit = await small.evaluate(`(() => {
       const w = window.innerWidth;
       const wide = [...document.querySelectorAll('[data-testid="practice-desk"] *')].filter((el) => !el.closest('.overflow-x-auto, .overflow-auto') && el.getBoundingClientRect().right > w + 1).length;
-      const short = [...document.querySelectorAll('[data-testid="practice-desk"] button')].filter((b) => b.getBoundingClientRect().height < 44).map((b) => b.textContent.trim());
+      const short = [...document.querySelectorAll('[data-testid="practice-desk"] button')].filter((b) => b.offsetParent && b.getBoundingClientRect().height < 44).map((b) => b.textContent.trim());
       const unlabelled = [...document.querySelectorAll('[data-testid="practice-desk"] input, [data-testid="practice-desk"] select')].filter((el) => !el.closest('label')).length;
       return { w, sw: document.documentElement.scrollWidth, wide, short, unlabelled };
     })()`);

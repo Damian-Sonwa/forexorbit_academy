@@ -6,7 +6,9 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { AlertTriangle, ArrowDown, ArrowUp, Code2, Copy, FileText, Heading, Image as ImageIcon, Info, Link2, Minus, Paperclip, Plus, RefreshCw, Trash2, Type, UploadCloud, Video, X } from 'lucide-react';
+import { AlertTriangle, ArrowDown, ArrowUp, Code2, Copy, FileText, Heading, Image as ImageIcon, Info, Link2, Minus, Paperclip, Plus, RefreshCw, Smile, Table2, Trash2, Type, UploadCloud, Video, X } from 'lucide-react';
+import EmojiPicker from '@/components/builder/EmojiPicker';
+import TableEditor from '@/components/builder/TableEditor';
 import TextBlockEditor from '@/components/builder/TextBlockEditor';
 import { imageProblem, uploadWithProgress, type UploadHandle } from '@/components/builder/upload';
 import { prepareImage } from '@/components/builder/image-prepare';
@@ -17,11 +19,12 @@ import { sanitizeForStudentView } from '@/lib/html-sanitizer';
 import type { BuilderAsset } from '@/lib/course-curriculum';
 
 export const BLOCK_MENU: Array<{ type: BlockType; label: string; hint: string; Icon: typeof Type }> = [
-  { type: 'text', label: 'Text', hint: 'Paragraphs, lists, emphasis, links', Icon: Type },
+  { type: 'text', label: 'Text', hint: 'Sizes, colours, alignment, lists, emoji', Icon: Type },
   { type: 'heading', label: 'Heading', hint: 'A section title', Icon: Heading },
   { type: 'video', label: 'Video', hint: 'YouTube, Vimeo or an uploaded video', Icon: Video },
   { type: 'image', label: 'Image', hint: 'A chart, diagram or screenshot', Icon: ImageIcon },
   { type: 'file', label: 'File', hint: 'PDF, document, spreadsheet, slides', Icon: Paperclip },
+  { type: 'table', label: 'Table', hint: 'Rows and columns, or paste from Excel', Icon: Table2 },
   { type: 'callout', label: 'Callout', hint: 'A tip, note, caution or key point', Icon: Info },
   { type: 'link', label: 'Link', hint: 'An external learning resource', Icon: Link2 },
   { type: 'code', label: 'Example', hint: 'A worked example in fixed-width text', Icon: Code2 },
@@ -45,6 +48,7 @@ export function emptyBlock(type: BlockType): Block {
     case 'file': return { id, type, url: '', title: '', kind: 'file' };
     case 'link': return { id, type, url: '', title: '', description: '' };
     case 'code': return { id, type, text: '', label: '' };
+    case 'table': return { id, type, rows: Array.from({ length: 3 }, () => ['', '', '']), align: ['left', 'left', 'left'], header: true, caption: '' };
     case 'divider': return { id, type };
     default: return { id, type: 'text', ops: [{ insert: '\n' }] };
   }
@@ -141,6 +145,7 @@ type EditorProps = {
   onAssetAdded: (asset: BuilderAsset) => void;
   /** A text block received an image: split it at the cursor and put the image there. */
   onTextImage?: (file: File, split: { before: DeltaOp[]; after: DeltaOp[] }) => void;
+  onTextTable?: (split: { before: DeltaOp[]; after: DeltaOp[] }) => void;
 };
 
 function Field({ label, children, hint }: { label: string; children: React.ReactNode; hint?: string }) {
@@ -274,6 +279,16 @@ function ImageEditor({ block, readOnly, onChange }: EditorProps & { block: Extra
         <Field label="Caption (optional)">
           <input className="input mt-1.5 w-full" maxLength={300} value={block.caption} readOnly={readOnly} onChange={(e) => onChange({ ...block, caption: e.target.value })} />
         </Field>
+        <Field label="Size">
+          <select className="input mt-1.5 w-full" value={block.size || 'full'} disabled={readOnly} onChange={(e) => onChange({ ...block, size: e.target.value === 'full' ? undefined : (e.target.value as 'small' | 'medium') })}>
+            <option value="small">Small</option><option value="medium">Medium</option><option value="full">Full width</option>
+          </select>
+        </Field>
+        <Field label="Position">
+          <select className="input mt-1.5 w-full" value={block.align || 'center'} disabled={readOnly} onChange={(e) => onChange({ ...block, align: e.target.value === 'center' ? undefined : (e.target.value as 'left' | 'right') })}>
+            <option value="left">Left</option><option value="center">Centre</option><option value="right">Right</option>
+          </select>
+        </Field>
       </div>
     </div>
   );
@@ -288,6 +303,12 @@ export function BlockEditor(props: EditorProps) {
       return (
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <input className="input w-full flex-1 font-display text-lg font-semibold" placeholder="Section heading" maxLength={200} value={block.text} readOnly={readOnly} onChange={(e) => onChange({ ...block, text: e.target.value })} aria-label="Heading text" />
+          <EmojiButton disabled={readOnly} onPick={(e) => onChange({ ...block, text: `${block.text}${e}`.slice(0, 200) })} />
+          <select className="input w-full sm:w-32" value={block.align || 'left'} disabled={readOnly} onChange={(e) => onChange({ ...block, align: e.target.value === 'left' ? undefined : (e.target.value as 'center' | 'right') })} aria-label="Heading alignment">
+            <option value="left">Left</option>
+            <option value="center">Centre</option>
+            <option value="right">Right</option>
+          </select>
           <select className="input w-full sm:w-36" value={block.level} disabled={readOnly} onChange={(e) => onChange({ ...block, level: Number(e.target.value) === 3 ? 3 : 2 })} aria-label="Heading level">
             <option value={2}>Heading</option>
             <option value={3}>Subheading</option>
@@ -295,12 +316,13 @@ export function BlockEditor(props: EditorProps) {
         </div>
       );
     case 'text':
-      return <TextBlockEditor ops={block.ops} readOnly={readOnly} label="Text" onImage={props.onTextImage} onChange={(ops) => { if (JSON.stringify(ops) !== JSON.stringify(block.ops)) onChange({ ...block, ops }); }} />;
+      return <TextBlockEditor ops={block.ops} readOnly={readOnly} label="Text" onImage={props.onTextImage} onTable={props.onTextTable} onChange={(ops) => { if (JSON.stringify(ops) !== JSON.stringify(block.ops)) onChange({ ...block, ops }); }} />;
     case 'callout':
       return (
         <div className="space-y-3">
           <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Callout type">
             {TONES.map((t) => <button key={t.id} type="button" role="radio" aria-checked={block.tone === t.id} disabled={readOnly} onClick={() => onChange({ ...block, tone: t.id })} className={`rounded-full border px-3 py-1 text-xs font-semibold ${block.tone === t.id ? 'border-primary-500 bg-primary-500/10 text-primary-700 dark:text-primary-300' : 'border-line text-ink-muted'}`}>{t.label}</button>)}
+            {!readOnly && <span className="ml-auto"><EmojiButton onPick={(e) => onChange({ ...block, text: `${block.text}${e}`.slice(0, 4000) })} /></span>}
           </div>
           <input className="input w-full" placeholder="Title (optional)" maxLength={120} value={block.title} readOnly={readOnly} onChange={(e) => onChange({ ...block, title: e.target.value })} aria-label="Callout title" />
           <textarea className="input min-h-[5rem] w-full" placeholder="What students should notice" maxLength={4000} value={block.text} readOnly={readOnly} onChange={(e) => onChange({ ...block, text: e.target.value })} aria-label="Callout text" />
@@ -341,6 +363,8 @@ export function BlockEditor(props: EditorProps) {
           <textarea className="input min-h-[8rem] w-full font-mono text-sm" spellCheck={false} maxLength={20000} value={block.text} readOnly={readOnly} onChange={(e) => onChange({ ...block, text: e.target.value })} aria-label="Example text" />
         </div>
       );
+    case 'table':
+      return <TableEditor block={block} readOnly={readOnly} onChange={onChange} />;
     case 'divider':
       return <hr className="border-line" />;
     case 'legacy':
@@ -348,6 +372,17 @@ export function BlockEditor(props: EditorProps) {
     default:
       return null;
   }
+}
+
+/** Emoji for a plain-text field: added at the end. */
+function EmojiButton({ onPick, disabled }: { onPick: (emoji: string) => void; disabled?: boolean }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <span className="relative inline-flex">
+      <button type="button" className="icon-btn" title="Emoji" aria-label="Add an emoji" aria-expanded={open} disabled={disabled} onClick={() => setOpen((v) => !v)}><Smile className="h-5 w-5" aria-hidden /></button>
+      {open && <EmojiPicker onPick={onPick} onClose={() => setOpen(false)} className="right-0 top-11 max-sm:left-0 max-sm:right-auto" />}
+    </span>
+  );
 }
 
 /** Content written before the builder: shown as students see it, convertible to an editable text block. */
@@ -370,7 +405,7 @@ function LegacyEditor({ block, legacy, readOnly, onChange }: EditorProps & { blo
   );
 }
 
-const TYPE_LABEL: Record<BlockType, string> = { heading: 'Heading', text: 'Text', callout: 'Callout', image: 'Image', video: 'Video', file: 'File', link: 'Link', code: 'Example', divider: 'Divider', legacy: 'Earlier content' };
+const TYPE_LABEL: Record<BlockType, string> = { heading: 'Heading', text: 'Text', callout: 'Callout', image: 'Image', video: 'Video', file: 'File', link: 'Link', code: 'Example', table: 'Table', divider: 'Divider', legacy: 'Earlier content' };
 
 export function BlockFrame({ block, index, count, readOnly, issue, children, onMove, onDuplicate, onRemove, onInsert }: {
   block: Block; index: number; count: number; readOnly: boolean; issue?: string; children: React.ReactNode;

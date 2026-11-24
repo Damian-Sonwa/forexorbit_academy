@@ -599,6 +599,41 @@ test('replacing a photo records the new one first, then deletes the old one', as
   assert.equal(await photos.currentPhotoId(db, String(new ObjectId())), null);
 });
 
+test('without a storage service the photo is kept on the account record and served by its unguessable name', async () => {
+  const db = memoryDb();
+  const user = await addUser(db);
+  const store = storage();
+  const deleteImage = photos.photoDeleter({ cloudinary: store.deleteImage, r2: async () => {} });
+  const upload = photos.embeddedPhoto(String(user._id), { mime: 'image/webp', ext: 'webp', bytes: Buffer.from('photo-1') });
+  assert.match(upload.secureUrl, new RegExp(`^/api/profile-photos/${user._id}-[a-f0-9]{32}\\.webp$`));
+  assert.deepEqual(await photos.replaceProfilePhoto(db, { userId: String(user._id), previousPublicId: null, upload, deleteImage }), { ok: true });
+  const name = upload.secureUrl.split('/').pop();
+  const read = await photos.readEmbeddedPhoto(db, name);
+  assert.deepEqual([read.mime, read.bytes.toString()], ['image/webp', 'photo-1']);
+  assert.equal(await photos.readEmbeddedPhoto(db, name.replace(/-[a-f0-9]{32}/, `-${'0'.repeat(32)}`)), null, 'the account id alone is not enough');
+  assert.equal(await photos.readEmbeddedPhoto(db, '../x'), null);
+  assert.deepEqual(await photos.removeProfilePhoto(db, { userId: String(user._id), deleteImage }), { ok: true, removed: true });
+  assert.equal(await photos.readEmbeddedPhoto(db, name), null);
+  assert.equal('profilePhotoData' in row(db, user), false);
+  assert.deepEqual(store.deleted, [], 'nothing to delete elsewhere');
+});
+
+test('a profile photo is re-encoded: hidden data, extra bytes and other formats do not survive', async () => {
+  const sharp = require('sharp');
+  const { reencodeProfileImage } = require('../lib/profile-image');
+  const source = await sharp({ create: { width: 900, height: 600, channels: 3, background: '#c24e00' } })
+    .withExif({ IFD0: { Copyright: 'SECRET-LOCATION' } }).jpeg().toBuffer();
+  assert.ok(source.includes('SECRET-LOCATION'));
+  const out = await reencodeProfileImage(Buffer.concat([source, Buffer.from('<script>trailing</script>')]));
+  assert.equal(out.ok, true);
+  const meta = await sharp(out.bytes).metadata();
+  assert.deepEqual([meta.format, meta.width, meta.height, meta.exif, out.mime], ['webp', 400, 400, undefined, 'image/webp']);
+  assert.equal(out.bytes.includes('SECRET-LOCATION') || out.bytes.includes('trailing'), false);
+  for (const bad of [Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"/>'), Buffer.concat([source.subarray(0, 20), Buffer.from('not an image')]), Buffer.alloc(0), 'text']) {
+    assert.deepEqual([(await reencodeProfileImage(bad)).ok, (await reencodeProfileImage(bad)).status], [false, 400]);
+  }
+});
+
 test('a failed or overtaken update deletes the new upload and keeps the photo in use', async () => {
   const db = memoryDb();
   const user = await addUser(db, { profilePhoto: 'https://img/old.jpg', profilePhotoPublicId: 'profiles/old' });

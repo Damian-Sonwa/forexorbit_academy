@@ -127,7 +127,7 @@ export default function TodoList() {
 
   if (loading) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+      <div className="card !p-5">
         <div className="animate-pulse space-y-3">
           <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/3"></div>
           <div className="h-20 bg-gray-200 dark:bg-gray-700 rounded"></div>
@@ -137,9 +137,9 @@ export default function TodoList() {
   }
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+    <div className="card !p-5">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">To-Do List</h3>
+        <h3 className="section-title !text-base">To-Do List</h3>
         <button
           onClick={() => setShowAddForm(!showAddForm)}
           className="text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 font-medium"

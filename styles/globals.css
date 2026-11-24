@@ -740,6 +740,28 @@
     font-family: inherit;
     font-size: 1rem;
   }
+  .builder-quill .ql-toolbar.ql-snow { display: flex; flex-wrap: wrap; row-gap: 0.25rem; padding: 0.375rem; position: relative; z-index: 5; }
+  .builder-quill .ql-toolbar.ql-snow .ql-formats { margin-right: 0.375rem; padding-right: 0.375rem; border-right: 1px solid var(--fo-line); }
+  .builder-quill .ql-toolbar.ql-snow .ql-formats:last-child { border-right: 0; }
+  .builder-quill .ql-snow.ql-toolbar button { width: 2.125rem; height: 2.125rem; padding: 0.375rem; border-radius: 0.5rem; }
+  .builder-quill .ql-snow .ql-picker { height: 2.125rem; color: var(--fo-text-muted); border-radius: 0.5rem; }
+  .builder-quill .ql-snow .ql-picker-label { display: inline-flex; align-items: center; padding: 0 0.375rem; }
+  .builder-quill .ql-snow .ql-color-picker, .builder-quill .ql-snow .ql-icon-picker { width: 2.125rem; }
+  .builder-quill .ql-snow .ql-picker.ql-size { width: 5.75rem; }
+  .builder-quill .ql-snow .ql-picker.ql-header { width: 6.5rem; }
+  .builder-quill .ql-snow.ql-toolbar button:hover, .builder-quill .ql-snow .ql-picker:hover { background: var(--fo-brand-tint); }
+  .builder-quill .ql-snow .ql-picker-options { background: var(--fo-surface-1) !important; border: 1px solid var(--fo-line-strong) !important; border-radius: 0.75rem; color: var(--fo-text); box-shadow: var(--fo-shadow-lift); }
+  .builder-quill .ql-snow .ql-picker.ql-size .ql-picker-label:not([data-value])::before { content: 'Size'; }
+  .builder-quill .ql-snow .ql-picker.ql-header .ql-picker-label:not([data-value])::before { content: 'Paragraph'; }
+  .builder-quill .ql-snow .ql-picker-label.ql-active, .builder-quill .ql-snow .ql-picker-item.ql-selected { color: var(--fo-brand) !important; }
+  .builder-quill .ql-snow .ql-picker-label.ql-active .ql-stroke { stroke: var(--fo-brand) !important; }
+  .builder-quill .ql-snow .ql-fo-icon { width: 1.125rem; height: 1.125rem; }
+  .builder-quill .ql-snow .ql-editor h4 { font-size: 1.05em; font-weight: 600; }
+  .builder-quill .ql-tooltip.ql-snow { background: var(--fo-surface-1); border-color: var(--fo-line-strong); color: var(--fo-text); border-radius: 0.75rem; box-shadow: var(--fo-shadow-lift); z-index: 20; }
+  .builder-quill .ql-tooltip.ql-snow input[type='text'] { background: var(--fo-surface-2); border-color: var(--fo-line-strong); color: var(--fo-text); }
+  /* The highlight colours are light in both themes while editing, so their text is dark. */
+  .dark .builder-quill .ql-editor [style*='background-color'] { color: #17130e; }
+  .dark .builder-quill .ql-editor [style*='color: rgb(23, 43, 69)']:not([style*='background-color']) { color: #a9c4e6 !important; }
   .builder-quill .ql-editor {
     min-height: 7.5rem;
     color: var(--fo-text);

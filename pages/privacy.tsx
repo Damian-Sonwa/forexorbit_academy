@@ -49,7 +49,7 @@ export default function PrivacyPolicy() {
                 <ul className="list-disc list-inside space-y-1 text-gray-600 dark:text-gray-400 ml-4">
                   <li>Date of birth and gender</li>
                   <li>Contact number</li>
-                  <li>Education level and certifications</li>
+                  <li>Education level and certifications, if you add them in Settings</li>
                   <li>Trading experience level (Beginner, Intermediate, Advanced)</li>
                   <li>Years of trading experience</li>
                   <li>Preferred learning topics</li>

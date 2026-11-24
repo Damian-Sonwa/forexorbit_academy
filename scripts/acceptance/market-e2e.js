@@ -154,7 +154,7 @@ function record(area, check, ok, detail = '') {
     await tab.waitFor(`Boolean(document.querySelector('[data-testid="order-form"]'))`, 20000);
     record('page', 'the label is on the page', /SIMULATED MARKET — NOT LIVE MARKET DATA/.test(await text('market-label')));
     record('page', 'simulated clock and active sessions are shown', /Simulated market open · simulated time .*2026/.test(await text('market-clock')), await text('market-clock'));
-    record('page', 'quotes show bid, ask and spread', /bid \d+\.\d+ · ask \d+\.\d+ · spread \d+\.\d pips/.test(await text('quotes')));
+    record('page', 'quotes show bid, ask and spread', /bid \d+\.\d+ · ask \d+\.\d+[\s·]*spread \d+\.\d pips/.test(await text('quotes')));
     record('chart', 'a candlestick chart is drawn', await tab.waitFor(`document.querySelectorAll('[data-testid="candle-chart"] rect').length > 20`, 30000), String(await tab.evaluate(`document.querySelectorAll('[data-testid="candle-chart"] rect').length`)));
     record('chart', 'the chart carries the label and has an accessible name', /NOT LIVE MARKET DATA/.test(await text('chart')) && Boolean(await tab.evaluate(`document.querySelector('[data-testid="candle-chart"]').getAttribute('aria-label')`)));
     const before = await tab.evaluate(`document.querySelector('[data-testid="candle-chart"]').getAttribute('aria-label')`);
@@ -182,7 +182,7 @@ function record(area, check, ok, detail = '') {
     await fields({ Units: '10000' });
     await sleep(100);
     await fields({ 'Stop-loss': stop });
-    record('preview', 'the ticket previews margin and planned risk from the server', await tab.waitFor(`/Planned risk/.test(${q('risk-preview')}.innerText || '')`, 15000), (await text('risk-preview')).replace(/\s+/g, ' '));
+    record('preview', 'the ticket previews margin and planned risk from the server', await tab.waitFor(`/Planned risk/i.test(${q('risk-preview')}.innerText || '')`, 15000), (await text('risk-preview')).replace(/\s+/g, ' '));
     record('preview', 'a preview is not an order', await db.collection('tradingOrders').countDocuments({}) === 0);
     await tab.evaluate(`document.querySelector('[data-testid="order-form"] button[type="submit"]').click(); true`);
     record('order', 'the order fills, and the confirmation says simulated', await tab.waitFor(`/Filled at \\d+\\.\\d+\\. Simulated execution, virtual funds/.test(${q('desk-notice')}.innerText || '')`, 20000), await text('desk-notice'));
@@ -267,7 +267,7 @@ function record(area, check, ok, detail = '') {
       const w = window.innerWidth;
       const desk = document.querySelector('[data-testid="practice-desk"]');
       const wide = [...desk.querySelectorAll('*')].filter((el) => !el.closest('svg, .overflow-x-auto, .overflow-auto') && el.getBoundingClientRect().right > w + 1).length;
-      const short = [...desk.querySelectorAll('button')].filter((b) => b.getBoundingClientRect().height < 44).map((b) => b.textContent.trim());
+      const short = [...desk.querySelectorAll('button')].filter((b) => b.offsetParent && b.getBoundingClientRect().height < 44).map((b) => b.textContent.trim());
       const chart = document.querySelector('[data-testid="candle-chart"]').getBoundingClientRect();
       return { w, sw: document.documentElement.scrollWidth, wide, short, chartRight: Math.round(chart.right) };
     })()`);

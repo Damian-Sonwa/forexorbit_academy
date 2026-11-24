@@ -4,7 +4,7 @@
  * (components/builder/useLessonAutosave.ts); conflicts and recovered work are explained in place.
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, CheckCircle2, CloudOff, Eye, History, Loader2, PenLine } from 'lucide-react';
 import { AddBlockMenu, BlockEditor, BlockFrame, copyBlocks, emptyBlock, pendingImages } from '@/components/builder/BlockEditors';
 import ActivitiesPanel from '@/components/builder/ActivitiesPanel';
@@ -58,6 +58,8 @@ type Props = {
   prev: { id: string; title: string } | null;
   next: { id: string; title: string } | null;
   onSelect: (lessonId: string) => void;
+  /** Changes when the author asks to rename this lesson: the title field takes the focus. */
+  renameRequest?: number;
 };
 
 export default function LessonEditor(props: Props) {
@@ -72,6 +74,14 @@ export default function LessonEditor(props: Props) {
   });
   const { draft, update } = auto;
   const dirty = auto.status !== 'saved';
+  const titleId = useId();
+  const titleInput = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (!props.renameRequest || view !== 'edit') return;
+    titleInput.current?.scrollIntoView({ block: 'center' });
+    titleInput.current?.focus({ preventScroll: true });
+    titleInput.current?.select();
+  }, [props.renameRequest, view]);
   const { onDirtyChange } = props;
   useEffect(() => { onDirtyChange(lesson.id, dirty); }, [dirty, lesson.id, onDirtyChange]);
 
@@ -91,19 +101,22 @@ export default function LessonEditor(props: Props) {
     blocks.splice(index, 0, emptyBlock(type));
     setBlocks(blocks);
   };
-  // An image added inside a text block: the text before the cursor, the image, then the rest.
+  // An image or a table added inside a text block: the text before the cursor, it, then the rest.
   // New ids for the text parts so their editors open with the split text.
-  const textImage = (index: number, file: File, split: { before: DeltaOp[]; after: DeltaOp[] }) => {
+  const placeInText = (index: number, placed: Block, split: { before: DeltaOp[]; after: DeltaOp[] }) => {
     const hasText = (ops: DeltaOp[]) => ops.some((o) => typeof o.insert === 'string' && o.insert.trim() !== '');
-    const image = emptyBlock('image');
-    pendingImages.set(image.id, file);
     const parts: Block[] = [];
     if (hasText(split.before)) parts.push({ id: newId(), type: 'text', ops: split.before });
-    parts.push(image);
+    parts.push(placed);
     if (hasText(split.after)) parts.push({ id: newId(), type: 'text', ops: split.after });
     const blocks = [...draft.blocks];
     blocks.splice(index, 1, ...parts);
     setBlocks(blocks);
+  };
+  const textImage = (index: number, file: File, split: { before: DeltaOp[]; after: DeltaOp[] }) => {
+    const image = emptyBlock('image');
+    pendingImages.set(image.id, file);
+    placeInText(index, image, split);
   };
   const assetNames = useMemo(() => Object.fromEntries(props.assets.map((a) => [a.id, { name: a.name, bytes: a.bytes }])), [props.assets]);
   const resolveAsset = (assetId: string) => `/api/courses/${courseId}/assets?assetId=${assetId}`;
@@ -143,7 +156,7 @@ export default function LessonEditor(props: Props) {
         <p className={`notice ${auto.status === 'invalid' ? 'notice-caution' : 'notice-brand'} mb-4 text-sm`} role="alert">{auto.message}</p>
       )}
       {!editable && (
-        <p className="notice notice-brand mb-4 text-sm">This course is in review or live, so only an administrator can change its content. To edit it yourself, withdraw it from review on the Publish tab.</p>
+        <p className="notice notice-brand mb-4 text-sm">{props.live ? 'This course is live, so only an administrator can change its lessons, including their titles.' : 'This course is in review, so only an administrator can change its lessons, including their titles. To edit it yourself, withdraw it from review on the Publish tab.'}</p>
       )}
 
       {view === 'preview' ? (
@@ -168,16 +181,19 @@ export default function LessonEditor(props: Props) {
         <div className="space-y-6">
           <div>
             <p className="page-kicker mb-2">Lesson {props.position} of {props.total}{props.moduleTitle ? ` · ${props.moduleTitle}` : ''}</p>
+            <label htmlFor={titleId} className="label">Lesson title</label>
             <input
-              className="w-full border-0 border-b border-transparent bg-transparent pb-1 font-display text-[1.75rem] font-semibold leading-tight tracking-[-0.02em] text-ink outline-none placeholder:text-ink-subtle focus:border-primary-500 sm:text-[2rem]"
-              placeholder="Lesson title"
+              id={titleId}
+              ref={titleInput}
+              className="input !py-2 font-display !text-xl font-semibold tracking-[-0.02em] sm:!text-2xl"
+              placeholder="Name this lesson"
               maxLength={500}
               value={draft.title}
               readOnly={!editable}
               onChange={(e) => update({ ...draft, title: e.target.value })}
-              aria-label="Lesson title"
               data-testid="lesson-title"
             />
+            <p className="mt-1.5 text-xs text-ink-subtle">{editable ? `${draft.title.trim() ? '' : 'A title is needed before publishing. '}Saved automatically. Students see it in the course outline.` : 'The title cannot be changed while the course is in review or live.'}</p>
             <label className="mt-3 inline-flex items-center gap-2 text-sm text-ink-muted">
               <input type="checkbox" className="h-4 w-4 accent-[var(--fo-brand)]" checked={draft.isFreePreview} disabled={!editable} onChange={(e) => update({ ...draft, isFreePreview: e.target.checked })} />
               Free preview (anyone signed in can open this lesson before buying the course)
@@ -224,7 +240,7 @@ export default function LessonEditor(props: Props) {
                 onMove={(delta) => { const blocks = [...draft.blocks]; const [b] = blocks.splice(index, 1); blocks.splice(index + delta, 0, b); setBlocks(blocks); }}
                 onDuplicate={() => { const blocks = [...draft.blocks]; blocks.splice(index + 1, 0, copyBlocks([block])[0]); setBlocks(blocks); }}
                 onRemove={() => {
-                  const significant = block.type === 'text' || block.type === 'legacy' || ('assetId' in block && block.assetId);
+                  const significant = block.type === 'text' || block.type === 'legacy' || block.type === 'table' || ('assetId' in block && block.assetId);
                   if (significant && !window.confirm('Delete this block and everything in it?')) return;
                   setBlocks(draft.blocks.filter((b) => b.id !== block.id));
                 }}
@@ -238,6 +254,7 @@ export default function LessonEditor(props: Props) {
                   readOnly={!editable}
                   onChange={(next) => setBlocks(draft.blocks.map((b) => (b.id === block.id ? next : b)))}
                   onAssetAdded={props.onAssetAdded}
+                  onTextTable={editable ? (split) => placeInText(index, emptyBlock('table'), split) : undefined}
                   onTextImage={editable ? (file, split) => textImage(index, file, split) : undefined}
                 />
               </BlockFrame>
