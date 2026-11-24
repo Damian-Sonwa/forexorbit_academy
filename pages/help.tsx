@@ -204,7 +204,7 @@ export default function HelpCenter() {
             <div>
               <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">Profile Photo Not Uploading</h3>
               <ul className="list-disc list-inside space-y-2 text-gray-600 dark:text-gray-400">
-                <li>Ensure the image file is less than 5MB</li>
+                <li>Ensure the image file is 5MB or less</li>
                 <li>Use supported formats: JPG, PNG, or GIF</li>
                 <li>Try a different image if the current one fails</li>
                 <li>Check your internet connection</li>

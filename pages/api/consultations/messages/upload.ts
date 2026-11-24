@@ -11,6 +11,7 @@ import { ObjectId } from 'mongodb';
 import formidable from 'formidable';
 import fs from 'fs';
 import os from 'os';
+import { CHAT_EXTS, inspectUpload } from '@/lib/upload-check';
 import { isActiveContent } from '@/lib/upload-safety';
 import { allowRequest, uploadLimiter } from '@/lib/content-rate-limit';
 import { ATTACHMENT_MAX_BYTES, attachmentPath, attachmentsAvailable, storeChatAttachment } from '@/lib/chat-attachments';
@@ -79,7 +80,9 @@ async function uploadMessageFile(req: AuthRequest, res: NextApiResponse) {
       return res.status(400).json({ error: 'Session is not active' });
     }
 
-    // Store privately; the message links to the authorized reader route.
+    // Look inside, then store privately under a random name; the message links to the authorized reader route.
+    const checked = await inspectUpload(file.filepath, { name: file.originalFilename, allow: CHAT_EXTS });
+    if (!checked.ok) return res.status(checked.status).json({ error: checked.error, code: checked.code });
     const messageId = new ObjectId();
     const attachment = await storeChatAttachment(file.filepath, 'consultation-chat');
     const fileUrl = attachmentPath('consultation', messageId.toString());
@@ -96,10 +99,10 @@ async function uploadMessageFile(req: AuthRequest, res: NextApiResponse) {
       senderId: req.user!.userId,
       attachment,
       type,
-      content: file.originalFilename || 'File',
+      content: checked.fileName,
       fileUrl,
-      fileName: file.originalFilename || 'file',
-      fileSize: file.size,
+      fileName: checked.fileName,
+      fileSize: checked.bytes,
       createdAt: new Date(),
     };
 

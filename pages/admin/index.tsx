@@ -607,9 +607,9 @@ export default function AdminPanel() {
         alert('Please select an image file');
         return;
       }
-      // Validate file size (5MB max)
-      if (file.size > 5 * 1024 * 1024) {
-        alert('Image size must be less than 5MB');
+      // Validate file size (2MB max)
+      if (file.size > 2 * 1024 * 1024) {
+        alert('Image size must be 2MB or less');
         return;
       }
       setSelectedImage(file);
@@ -633,7 +633,7 @@ export default function AdminPanel() {
       formData.append('image', selectedImage);
 
       // FIX: Use apiClient instead of fetch for consistent auth handling
-      const response = await apiClient.post('/upload/instructor', formData);
+      const response = await apiClient.post('/upload/instructor?kind=portrait', formData);
       
       // FIX: Handle both 'url' and 'imageUrl' response formats
       const imageUrl = (response as any).url || (response as any).imageUrl;
@@ -1056,7 +1056,7 @@ export default function AdminPanel() {
                       className="input w-full py-3 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 cursor-pointer"
                     />
                     <p className="text-xs mt-1 text-ink-muted">
-                      Upload an image from your computer (JPG, PNG, GIF - Max 5MB)
+                      Upload an image from your computer (JPG, PNG, GIF - Max 2MB)
                     </p>
                     {(imagePreview || instructorForm.imageUrl) && (
                       <div className="mt-3">

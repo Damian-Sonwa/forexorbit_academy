@@ -4,8 +4,8 @@
  * DELETE /api/courses/:id/assets?assetId=   removes a file that no lesson uses
  *
  * Course owners only, while they may edit the content (instructors: drafts). The file's extension
- * must be supported and its first bytes must match it (lib/course-asset-files.js); the display name
- * is cleaned; the stored file has no public address (lib/course-assets.ts). The temporary file is
+ * must be supported and its contents must match it (lib/course-asset-files.js, lib/upload-check.js); the
+ * file is renamed at random and its cleaned original name is only a label; the stored file has no public address (lib/course-assets.ts). The temporary file is
  * always removed. A file that is in use cannot be removed: take it out of the lesson first.
  */
 
@@ -18,6 +18,7 @@ import { getDb } from '@/lib/mongodb';
 import { loadOwnedCourse } from '@/lib/course-builder-access';
 import { MAX_COURSE_ASSETS, MAX_UPLOAD_BYTES, checkCourseFile } from '@/lib/course-asset-files';
 import { courseAssetStorage, presentCourseAsset, removeCourseAsset, signedCourseAssetUrl, storeCourseAsset, type CourseAsset } from '@/lib/course-assets';
+import { inspectUpload } from '@/lib/upload-check';
 import { setPrivateNoStore } from '@/lib/lesson-documents';
 import { allowRequest, authoringLimiter, uploadLimiter } from '@/lib/content-rate-limit';
 import { unexpectedBody } from '@/lib/public-error';
@@ -58,10 +59,12 @@ async function upload(req: AuthRequest, res: NextApiResponse, courseId: string) 
     if (!file) return res.status(400).json({ error: 'Choose a file to upload.', code: 'no_file' });
     const checked = checkCourseFile({ name: file.originalFilename, size: file.size, head: await readHead(file.filepath) });
     if (!checked.ok) return res.status(checked.status).json({ error: checked.error, code: checked.code });
+    const inside = await inspectUpload(file.filepath, { name: file.originalFilename, allow: [checked.ext] });
+    if (!inside.ok) return res.status(inside.status).json({ error: inside.error, code: inside.code });
 
     let asset: CourseAsset;
     try {
-      asset = await storeCourseAsset(file.filepath, { ext: checked.ext, kind: checked.kind, mime: checked.mime, name: checked.name, bytes: file.size, uploadedBy: owned.member.userId });
+      asset = await storeCourseAsset(file.filepath, { ext: checked.ext, kind: checked.kind, mime: checked.mime, name: checked.name, fileName: inside.fileName, bytes: file.size, uploadedBy: owned.member.userId });
     } catch {
       console.error(JSON.stringify({ event: 'courseAssetUpload', result: 'storage_failed' }));
       return res.status(503).json({ error: 'The file could not be stored. Try again in a moment.', code: 'storage_failed' });

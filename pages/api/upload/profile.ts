@@ -29,6 +29,9 @@ export const config = {
   },
 };
 
+/** Enforced while the upload arrives. The app shrinks a photo to about 30 KB before sending it. */
+const MAX_PHOTO_BYTES = 2 * 1024 * 1024;
+
 /** Deletes a stored photo wherever it is kept. */
 const deleteStored = photoDeleter({
   cloudinary: (publicId: string) => deleteImage(publicId),
@@ -44,8 +47,9 @@ async function uploadProfilePhoto(req: AuthRequest, res: NextApiResponse) {
   try {
     const form = formidable({
       uploadDir: os.tmpdir(),
-      keepExtensions: true,
-      maxFileSize: 10 * 1024 * 1024, // 10MB
+      keepExtensions: false,
+      maxFiles: 1,
+      maxFileSize: MAX_PHOTO_BYTES,
       filter: ({ name }) => name === 'profilePhoto',
     });
     const [, files] = await form.parse(req);
@@ -91,7 +95,7 @@ async function uploadProfilePhoto(req: AuthRequest, res: NextApiResponse) {
     return res.json({ success: true, imageUrl: upload.secureUrl, message: 'Profile photo uploaded successfully' });
   } catch (error: unknown) {
     console.error(JSON.stringify({ event: 'profilePhotoUpload', result: 'failed' }));
-    const failure = publicUploadFailure(error, { limitMessage: 'File size exceeds 10MB limit' });
+    const failure = publicUploadFailure(error, { limitMessage: 'Profile photos can be at most 2 MB.' });
     return res.status(failure.status).json(failure.body);
   } finally {
     for (const filepath of tempPaths) await fs.promises.unlink(filepath).catch(() => undefined);

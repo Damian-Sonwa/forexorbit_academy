@@ -83,8 +83,8 @@ test('the builder accepts image links and uses R2, then Cloudinary, then the dat
   assert.match(read('components/builder/CoursePanels.tsx'), /data-testid="cover-link"/);
   const upload = read('lib/course-image-upload.ts');
   assert.ok(upload.indexOf('if (r2 || !cloudinary) {') < upload.indexOf('uploadImageFromPath(file.filepath, folder)'), 'R2 (and the database without Cloudinary) before Cloudinary');
-  assert.ok(upload.indexOf('if (!r2) {') > upload.indexOf('const kind = detectImage(head);'), 'the database store also checks the bytes');
-  assert.match(upload, /const kind = detectImage\(head\);/);
+  assert.ok(upload.indexOf('if (!r2) {') > upload.indexOf('const kind = await inspectUpload('), 'the database store also checks the bytes');
+  assert.match(upload, /const kind = await inspectUpload\(/);
   assert.match(upload, /contentType: kind\.mime/, 'the stored type comes from the bytes, not the browser');
   assert.match(read('lib/course-image-store.js'), /Paste a link to the image instead for now\./);
   const assets = read('lib/course-assets.ts');

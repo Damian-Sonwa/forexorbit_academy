@@ -161,7 +161,9 @@ export default function Certificates() {
           setUploadProgress(0);
           fetchTemplates();
         } else {
-          alert('Upload failed');
+          let reason = '';
+          try { reason = JSON.parse(xhr.responseText).error || ''; } catch { /* no details */ }
+          alert(reason || 'Upload failed');
         }
         setUploading(false);
       });

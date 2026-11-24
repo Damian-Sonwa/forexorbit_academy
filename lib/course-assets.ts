@@ -37,7 +37,10 @@ export type CourseAsset = {
   format: string;
   kind: string;
   mime: string;
+  /** A label for people; the file itself carries `fileName`. */
   name: string;
+  /** Random name the file downloads under (absent on files stored before it existed). */
+  fileName?: string;
   bytes: number;
   uploadedBy: string;
   uploadedAt: Date;
@@ -64,11 +67,11 @@ export function newAssetId(): string {
 /** Stores a checked temporary file. Throws when storage fails (the route answers 503). */
 export async function storeCourseAsset(
   filePath: string,
-  meta: { ext: string; kind: string; mime: string; name: string; bytes: number; uploadedBy: string }
+  meta: { ext: string; kind: string; mime: string; name: string; fileName: string; bytes: number; uploadedBy: string }
 ): Promise<CourseAsset> {
   const id = newAssetId();
   const resourceType: CourseAsset['resourceType'] = meta.kind === 'video' ? 'video' : 'raw';
-  const base = { id, resourceType, format: meta.ext, kind: meta.kind, mime: meta.mime, name: meta.name, bytes: meta.bytes, uploadedBy: meta.uploadedBy, uploadedAt: new Date() };
+  const base = { id, resourceType, format: meta.ext, kind: meta.kind, mime: meta.mime, name: meta.name, fileName: meta.fileName, bytes: meta.bytes, uploadedBy: meta.uploadedBy, uploadedAt: new Date() };
   const dir = localDir();
   if (dir) {
     await fs.promises.mkdir(dir, { recursive: true });
@@ -127,8 +130,8 @@ export function signedCourseAssetUrl(asset: CourseAsset, courseId: string): stri
   if (asset.driver === 'r2') {
     const r2 = r2FilesConfig();
     if (!r2) throw new Error('R2 file storage is no longer configured');
-    // Videos and PDFs open in the browser; other files download under their own name.
-    return signedGetUrl(r2, asset.publicId, { expires: SIGNED_SECONDS, filename: asset.name, inline: asset.kind === 'video' || asset.kind === 'pdf' });
+    // Videos and PDFs open in the browser; other files download under their random name.
+    return signedGetUrl(r2, asset.publicId, { expires: SIGNED_SECONDS, filename: asset.fileName || asset.name, inline: asset.kind === 'video' || asset.kind === 'pdf' });
   }
   if (asset.resourceType === 'video') {
     return cloudinary.url(asset.publicId, { resource_type: 'video', type: 'authenticated', sign_url: true, secure: true, format: asset.format });

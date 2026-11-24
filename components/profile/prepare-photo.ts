@@ -6,7 +6,7 @@
  */
 
 const SIDE = 400;
-export const MAX_SOURCE_BYTES = 25 * 1024 * 1024;
+export const MAX_SOURCE_BYTES = 5 * 1024 * 1024;
 
 const toBlob = (canvas: HTMLCanvasElement, type: string) => new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, type, 0.86));
 
@@ -33,7 +33,7 @@ async function decode(file: File): Promise<{ source: CanvasImageSource; width: n
 
 export async function preparePhoto(file: File): Promise<File> {
   if (file.type && !file.type.startsWith('image/')) throw new Error('Choose an image file.');
-  if (file.size > MAX_SOURCE_BYTES) throw new Error('Choose a photo under 25 MB.');
+  if (file.size > MAX_SOURCE_BYTES) throw new Error('Choose a photo of 5 MB or less.');
   const { source, width, height, done } = await decode(file);
   try {
     const side = Math.min(width, height);

@@ -12,6 +12,7 @@ import os from 'os';
 import fs from 'fs';
 import { setPrivateNoStore } from '@/lib/lesson-documents';
 import { allowRequest, tradingLimiter } from '@/lib/content-rate-limit';
+import { IMAGE_EXTS, inspectUpload } from '@/lib/upload-check';
 import { uploadImageFromPath, validateImageFile, isCloudinaryConfigured } from '@/lib/cloudinary';
 
 export const config = {
@@ -36,7 +37,8 @@ async function uploadJournalScreenshot(req: AuthRequest, res: NextApiResponse) {
     // Use /tmp for temporary file storage (works in both serverless and regular environments)
     const form = formidable({
       uploadDir: os.tmpdir(),
-      keepExtensions: true,
+      keepExtensions: false,
+      maxFiles: 1,
       maxFileSize: 10 * 1024 * 1024, // 10MB
       filter: ({ name, originalFilename, mimetype }) => {
         // Only allow image files
@@ -91,6 +93,12 @@ async function uploadJournalScreenshot(req: AuthRequest, res: NextApiResponse) {
       return res.status(400).json({ error: validation.error });
     }
 
+    const checked = await inspectUpload(file.filepath, { name: file.originalFilename, allow: IMAGE_EXTS });
+    if (!checked.ok) {
+      await fs.promises.unlink(file.filepath).catch(() => undefined);
+      return res.status(checked.status).json({ error: checked.error, code: checked.code });
+    }
+
     // Upload to Cloudinary directly from file path (more efficient)
     const uploadResult = await uploadImageFromPath(file.filepath, 'journal-screenshots', {
       userId: req.user!.userId,
@@ -113,9 +121,9 @@ async function uploadJournalScreenshot(req: AuthRequest, res: NextApiResponse) {
       studentId: req.user!.userId,
       url: uploadResult.secureUrl,
       publicId: uploadResult.publicId, // Store public ID for future deletion
-      originalFilename: file.originalFilename || 'screenshot',
-      fileSize: uploadResult.bytes || file.size || 0,
-      mimeType: file.mimetype || 'image/jpeg',
+      originalFilename: checked.fileName, // the uploader's own file name is not kept
+      fileSize: uploadResult.bytes || checked.bytes,
+      mimeType: checked.mime,
       width: uploadResult.width,
       height: uploadResult.height,
       format: uploadResult.format,

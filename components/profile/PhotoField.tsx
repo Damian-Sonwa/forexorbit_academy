@@ -66,7 +66,7 @@ export default function PhotoField({ photo, name, onChange }: { photo: string; n
           <button type="button" className="btn btn-secondary min-h-[2.75rem]" onClick={() => input.current?.click()} disabled={busy}>{busy ? 'Uploading…' : photo ? 'Change photo' : 'Add a photo'}</button>
           {photo && !busy && <button type="button" className="btn btn-ghost min-h-[2.75rem]" onClick={() => setConfirming(true)}>Remove photo</button>}
         </div>
-        <p className="studio-hint mt-1.5">Optional. It is cropped to a square.</p>
+        <p className="studio-hint mt-1.5">Optional. JPEG, PNG or WebP, up to 5 MB. It is cropped to a square.</p>
         <p className="studio-hint" role="status">{status}</p>
         {error && <p className="studio-error" role="alert">{error}</p>}
         <input ref={input} type="file" accept="image/*" className="hidden" aria-label="Profile photo file" tabIndex={-1} onChange={(e) => { const file = e.target.files?.[0]; e.target.value = ''; if (file) void upload(file); }} />

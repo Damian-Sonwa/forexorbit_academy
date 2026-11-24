@@ -8,9 +8,9 @@
  *
  * Storage, in order: Cloudflare R2 when R2_IMAGES_BUCKET and R2_PUBLIC_BASE_URL are set
  * (lib/r2-storage.js); Cloudinary when it is set up; otherwise the app's own database
- * (lib/course-image-store.js), so uploads work with no storage service or API keys at all. For R2
- * and the database the image's real type is read from its first bytes and the stored content type
- * comes from that, never from the browser, so only JPEG, PNG, GIF and WebP images are ever served.
+ * (lib/course-image-store.js), so uploads work with no storage service or API keys at all. Every
+ * image is decoded and written again (lib/upload-check.js) and the stored content type comes
+ * from that, never from the browser, so only JPEG, PNG, GIF and WebP images are ever served.
  *
  * An image uploaded here is only referenced once the lesson or course that uses it is saved. If
  * that save never happens the image stays unreferenced in storage; see
@@ -27,7 +27,7 @@ import { publicUploadFailure } from '@/lib/public-error';
 import { uploadImageFromPath, validateImageFile, isCloudinaryConfigured } from '@/lib/cloudinary';
 import { allowRequest, uploadLimiter } from '@/lib/content-rate-limit';
 import { publicUrl, putObject, r2ImagesConfig, r2ImagesMissing } from '@/lib/r2-storage';
-import { detectImage } from '@/lib/course-asset-files';
+import { IMAGE_EXTS, inspectUpload } from '@/lib/upload-check';
 import { randomPublicId } from '@/lib/cloudinary';
 import { ImageStoreError, storeImage } from '@/lib/course-image-store';
 
@@ -53,13 +53,16 @@ export async function handleCourseImageUpload(
   }
   if (!(await allowRequest(uploadLimiter, { userId: req.user.userId, res, getDb }))) return;
 
+  // Instructor portraits (admin) have the profile photo limit.
+  const maxBytes = req.query.kind === 'portrait' ? 2 * 1024 * 1024 : MAX_BYTES;
   const tempPaths: string[] = [];
   try {
     // Use /tmp for temporary file storage (works in both serverless and regular environments)
     const form = formidable({
       uploadDir: os.tmpdir(),
-      keepExtensions: true,
-      maxFileSize: MAX_BYTES,
+      keepExtensions: false,
+      maxFiles: 1,
+      maxFileSize: maxBytes,
       filter: ({ name, mimetype }) => name === field && Boolean(mimetype && mimetype.startsWith('image/')),
     });
     const [, files] = await form.parse(req);
@@ -81,12 +84,10 @@ export async function handleCourseImageUpload(
     if (!validation.valid) {
       return res.status(400).json({ error: validation.error });
     }
+    // Decoded in full and written again, whichever storage is used (lib/upload-check.js).
+    const kind = await inspectUpload(file.filepath, { name: file.originalFilename, allow: IMAGE_EXTS });
+    if (!kind.ok) return res.status(kind.status).json({ error: kind.error, code: kind.code });
     if (r2 || !cloudinary) {
-      const head = Buffer.alloc(16);
-      const handle = await fs.promises.open(file.filepath, 'r');
-      try { await handle.read(head, 0, 16, 0); } finally { await handle.close(); }
-      const kind = detectImage(head);
-      if (!kind) return res.status(400).json({ error: 'This file is not a valid JPEG, PNG, GIF or WebP image.' });
       if (!r2) {
         // No storage service: keep the image in the app's own database (lib/course-image-store.js).
         try {
@@ -116,7 +117,7 @@ export async function handleCourseImageUpload(
     });
   } catch (error: unknown) {
     console.error(JSON.stringify({ event: 'courseImageUpload', folder, result: 'failed' }));
-    const failure = publicUploadFailure(error, { limitMessage: 'File size exceeds 10MB limit' });
+    const failure = publicUploadFailure(error, { limitMessage: `Images can be at most ${maxBytes / 1024 / 1024} MB.` });
     return res.status(failure.status).json(failure.body);
   } finally {
     removeTemp(tempPaths);

@@ -87,7 +87,6 @@ function Workspace({ detail, attempt, reload }: { detail: StudentTaskDetail; att
     try {
       const body = new FormData();
       body.append('file', file);
-      body.append('name', file.name.slice(0, 120));
       await apiClient.post(`/practical-tasks/${task.id}/evidence`, body);
       await reload();
     } catch (err) {

@@ -12,6 +12,7 @@ import { allowRequest, uploadLimiter } from '@/lib/content-rate-limit';
 import formidable from 'formidable';
 import os from 'os';
 import fs from 'fs';
+import { IMAGE_EXTS, inspectUpload } from '@/lib/upload-check';
 import { uploadImageFromPath, isCloudinaryConfigured } from '@/lib/cloudinary';
 
 export const config = {
@@ -31,7 +32,8 @@ async function uploadCertificate(req: AuthRequest, res: NextApiResponse) {
     // Use /tmp for temporary file storage (works in both serverless and regular environments)
     const form = formidable({
       uploadDir: os.tmpdir(),
-      keepExtensions: true,
+      keepExtensions: false,
+      maxFiles: 1,
       maxFileSize: 10 * 1024 * 1024, // 10MB limit
       filter: ({ name, mimetype }) => {
         if (name === 'certificate' && mimetype && (mimetype.startsWith('image/') || mimetype === 'application/pdf')) {
@@ -76,6 +78,12 @@ async function uploadCertificate(req: AuthRequest, res: NextApiResponse) {
       return res.status(500).json({
         error: 'Image upload service is not configured. Please contact support.',
       });
+    }
+
+    const checked = await inspectUpload(file.filepath, { name: file.originalFilename, allow: [...IMAGE_EXTS, 'pdf'] });
+    if (!checked.ok) {
+      await fs.promises.unlink(file.filepath).catch(() => undefined);
+      return res.status(checked.status).json({ error: checked.error, code: checked.code });
     }
 
     // Upload to Cloudinary directly from file path (more efficient)

@@ -28,6 +28,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   res.setHeader('Content-Type', asset.mime || 'application/octet-stream');
   res.setHeader('Cache-Control', 'private, no-store');
   res.setHeader('X-Content-Type-Options', 'nosniff');
-  if (asset.kind !== 'video' && asset.kind !== 'pdf') res.setHeader('Content-Disposition', `attachment; filename="${asset.name.replace(/"/g, '')}"`);
+  if (asset.kind !== 'video' && asset.kind !== 'pdf') res.setHeader('Content-Disposition', `attachment; filename="${(asset.fileName || asset.name).replace(/"/g, '')}"`);
   fs.createReadStream(file).pipe(res);
 }

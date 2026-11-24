@@ -203,7 +203,7 @@ async function main() {
     //    input the button opens is captured and given a file directly (headless file-chooser
     //    events are unreliable), which still runs the real button, handler and placement.
     const chosen = path.join(ASSETS, '..', `fo-pick-${Date.now()}.png`);
-    const smallPng = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFklEQVR4nGP8z8DwnwEIGBkYGBgYAAAeAAP+5a1ZWQAAAABJRU5ErkJggg==', 'base64');
+    const smallPng = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAAFElEQVQImWM45MdwyI8BhA/5MQAAINYEQfkdUm4AAAAASUVORK5CYII=', 'base64');
     fs.writeFileSync(chosen, smallPng);
     await evaluate(`(() => { window.__pickerInput = null; const orig = HTMLInputElement.prototype.click; HTMLInputElement.prototype.click = function () { if (this.type === 'file' && !this.isConnected) { window.__pickerInput = this; return undefined; } return orig.call(this); }; })()`);
     await evaluate(`(() => { const editor = document.querySelector('[data-block-type=text] .ql-editor'); editor.parentElement.__quill.setSelection(6, 0); document.querySelector('[data-block-type=text] .ql-toolbar .ql-image').click(); })()`);
@@ -260,6 +260,14 @@ async function main() {
     // 7. Students cannot upload images.
     await logout();
     await login('student');
+    // Profile photos: 2 MB on the wire, and the contents decide.
+    const photo = (make) => evaluate(`(async () => { const f = new FormData(); f.append('profilePhoto', ${make}, 'me.png'); const r = await fetch('/api/upload/profile', { method: 'POST', body: f, headers: { 'X-FO-CSRF': '1' } }); const b = await r.json(); return [r.status, b.imageUrl || b.error].join(' '); })()`);
+    const tooBig = await photo("new Blob([new Uint8Array(3 * 1024 * 1024)], { type: 'image/png' })");
+    record('student', 'a profile photo over 2 MB is refused', tooBig.startsWith('413 '), tooBig);
+    const fake = await photo("new Blob(['MZ this is a program'], { type: 'image/png' })");
+    record('student', 'a program named .png is refused', fake.startsWith('400 '), fake);
+    const real = await photo("new Blob([Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAAFElEQVQImWM45MdwyI8BhA/5MQAAINYEQfkdUm4AAAAASUVORK5CYII='), (c) => c.charCodeAt(0))], { type: 'image/png' })");
+    record('student', 'a real photo is stored under a random name', /^200 \/api\/profile-photos\/[a-f0-9]{24}-[a-f0-9]{32}\.webp$/.test(real), real);
     const studentUpload = await evaluate(`(async () => { const f = new FormData(); f.append('image', new Blob([new Uint8Array([137,80,78,71,13,10,26,10])], { type: 'image/png' }), 'x.png'); const r = await fetch('/api/upload/instructor', { method: 'POST', body: f, headers: { 'X-FO-CSRF': '1' } }); return r.status; })()`);
     record('student', 'cannot upload images', studentUpload === 403 || studentUpload === 401, `status ${studentUpload}`);
     record('all', 'no uncaught page errors', errors.length === 0, errors.slice(0, 3).join(' | '));
