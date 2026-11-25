@@ -57,7 +57,7 @@ export default function LessonCompletion({ courseId, lessonId, completed, videoF
   }, [completed, courseId, lessonId, onCompleted]);
 
   return (
-    <section className="card mb-4 rounded-xl p-4 sm:rounded-2xl sm:p-6" data-testid="lesson-completion">
+    <section className="card mb-4 rounded-xl p-4 sm:p-5" data-testid="lesson-completion">
       {completed ? (
         <p className="flex items-center gap-2 text-sm font-semibold text-green-700 dark:text-green-400" role="status">
           <span className="flex h-6 w-6 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/40" aria-hidden>✓</span>
@@ -78,7 +78,7 @@ export default function LessonCompletion({ courseId, lessonId, completed, videoF
             onClick={() => void complete()}
             disabled={submitting}
             aria-busy={submitting}
-            className="inline-flex min-h-[44px] items-center justify-center rounded-xl bg-green-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-green-700 disabled:cursor-wait disabled:opacity-70"
+            className="inline-flex min-h-[44px] shrink-0 items-center whitespace-nowrap justify-center rounded-xl bg-green-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-green-700 disabled:cursor-wait disabled:opacity-70"
           >
             {submitting ? 'Saving…' : 'Mark lesson complete'}
           </button>

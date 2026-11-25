@@ -35,13 +35,13 @@ type Props =
 
 function Frame({ kicker, title, Icon, children, action, testId }: { kicker: string; title: string; Icon: typeof ListChecks; children?: React.ReactNode; action?: React.ReactNode; testId: string }) {
   return (
-    <section className="rounded-2xl border border-line bg-surface-1 p-4 sm:p-6" data-testid={testId}>
+    <section className="rounded-xl border border-line bg-surface-1 p-4 sm:p-5" data-testid={testId}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-3">
           <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary-500/10 text-primary-600 dark:text-primary-400"><Icon className="h-[18px] w-[18px]" aria-hidden /></span>
           <div>
             <p className="page-kicker">{kicker}</p>
-            <h2 className="section-title mt-1">{title}</h2>
+            <h2 className="lesson-h3 mt-1">{title}</h2>
           </div>
         </div>
         {action}
@@ -57,7 +57,7 @@ function StudentQuizPanel({ lessonId, courseId, quiz }: { lessonId: string; cour
   if (!quiz) return null;
   return (
     <Frame kicker="Check your understanding" title="Lesson quiz" Icon={ListChecks} testId="activity-quiz"
-      action={<button type="button" onClick={() => setOpen((v) => !v)} className="btn btn-primary w-full sm:w-auto">{open ? 'Hide quiz' : 'Take quiz'}</button>}>
+      action={<button type="button" onClick={() => setOpen((v) => !v)} className="btn btn-primary w-full shrink-0 sm:w-auto">{open ? 'Hide quiz' : 'Take quiz'}</button>}>
       {open && <div className="border-t border-line pt-4"><Quiz lessonId={lessonId} courseId={courseId} quiz={quiz as never} /></div>}
     </Frame>
   );
@@ -82,7 +82,7 @@ function StudentPracticalTasks({ lessonId }: { lessonId: string }) {
         {tasks.map((t) => (
           <li key={t.id} className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
             <span className="min-w-0">
-              <span className="block font-medium text-ink">{t.title}</span>
+              <span className="block text-[0.9375rem] font-medium text-ink">{t.title}</span>
               <span className="text-xs text-ink-subtle">{TASK_STATE[t.state] || t.state}{t.dueAt ? ` · due ${new Date(t.dueAt).toLocaleDateString()}` : ''}</span>
             </span>
             <Link href={`/student-dashboard/practical/${t.id}`} className="btn btn-secondary btn-sm">Open task</Link>
@@ -117,7 +117,7 @@ export default function LessonActivities(props: Props) {
             {visibleAssignments.map((a) => (
               <li key={a.id} className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
                 <span>
-                  <span className="block font-medium text-ink">{a.title}</span>
+                  <span className="block text-[0.9375rem] font-medium text-ink">{a.title}</span>
                   <span className="text-xs text-ink-subtle">{a.points} points{a.dueDate ? ` · due ${new Date(a.dueDate).toLocaleDateString()}` : ''}{a.status === 'closed' ? ' · closed' : ''}</span>
                 </span>
                 <span className="chip">Submission form · not available in preview</span>
@@ -146,7 +146,7 @@ function PreviewQuizPanel({ quiz, lessonId, courseId }: { quiz: NonNullable<Prev
   const [open, setOpen] = useState(false);
   return (
     <Frame kicker="Check your understanding" title="Lesson quiz" Icon={ListChecks} testId="activity-quiz"
-      action={<button type="button" onClick={() => setOpen((v) => !v)} className="btn btn-primary w-full sm:w-auto">{open ? 'Hide quiz' : 'Take quiz'}</button>}>
+      action={<button type="button" onClick={() => setOpen((v) => !v)} className="btn btn-primary w-full shrink-0 sm:w-auto">{open ? 'Hide quiz' : 'Take quiz'}</button>}>
       {open && <div className="border-t border-line pt-4"><Quiz lessonId={lessonId} courseId={courseId} quiz={{ questions: quiz.questions }} /></div>}
     </Frame>
   );

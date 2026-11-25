@@ -185,7 +185,7 @@ export default function LessonEditor(props: Props) {
             <input
               id={titleId}
               ref={titleInput}
-              className="input !py-2 font-display !text-xl font-semibold tracking-[-0.02em] sm:!text-2xl"
+              className="input !py-2 font-display !text-lg font-semibold tracking-[-0.02em] sm:!text-xl"
               placeholder="Name this lesson"
               maxLength={500}
               value={draft.title}

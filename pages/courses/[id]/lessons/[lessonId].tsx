@@ -222,7 +222,7 @@ export default function LessonPage() {
           </div>
           <div className="flex flex-col gap-5 lg:grid lg:grid-cols-[minmax(0,1fr)_19rem] lg:items-start lg:gap-8">
             <div className="lg:order-2 lg:sticky lg:top-20">{outline}</div>
-            <div className="min-w-0 lg:order-1">{body}</div>
+            <div className="min-w-0 lg:order-1"><div className="lesson-column">{body}</div></div>
           </div>
         </main>
       </div>
@@ -285,7 +285,7 @@ export default function LessonPage() {
     : lockedPayload?.lessonMeta?.title || 'Lesson';
   const isStudent = user?.role === 'student';
 
-  const navButton = 'btn btn-lg min-h-[48px]';
+  const navButton = 'btn min-h-[44px]';
 
   return shell(
     <>
@@ -336,7 +336,7 @@ export default function LessonPage() {
 
       {/* Lesson body: the shared renderer (components/course/LessonBlocks). */}
       {!payBlocked && displayLesson && (
-        <div className="lesson-reading mb-10">
+        <div className="mb-9">
           <LessonBlocks
             lesson={displayLesson as never}
             mode="student"
@@ -374,7 +374,7 @@ export default function LessonPage() {
       )}
 
       {/* Previous / next, from the outline only */}
-      <nav aria-label="Lesson navigation" className="mt-8 flex flex-col items-stretch justify-between gap-3 border-t border-line pt-6 sm:flex-row sm:items-center sm:gap-4" data-testid="lesson-nav">
+      <nav aria-label="Lesson navigation" className="mt-8 flex items-center justify-between gap-3 border-t border-line pt-5 max-sm:[&>.btn]:flex-1 max-sm:[&>.btn]:px-3 max-sm:[&>div]:hidden sm:gap-4" data-testid="lesson-nav">
         {navigation.prev ? (
           <Link
             href={navigation.prev.locked ? `/courses/${courseId}` : lessonHref(courseId, navigation.prev.id)}
@@ -393,7 +393,7 @@ export default function LessonPage() {
           navigation.next.locked ? (
             <Link
               href={`/courses/${courseId}`}
-              className={`${navButton} btn-primary sm:ml-auto`}
+              className={`${navButton} btn-primary ml-auto`}
               data-testid="lesson-next"
             >
               <span className="hidden sm:inline">Unlock full course – {COURSE_PRICE_LABEL}</span>
@@ -405,7 +405,7 @@ export default function LessonPage() {
           ) : (
             <Link
               href={lessonHref(courseId, navigation.next.id)}
-              className={`${navButton} btn-primary sm:ml-auto`}
+              className={`${navButton} btn-primary ml-auto`}
               data-testid="lesson-next"
             >
               <span>Next lesson</span>

@@ -40,9 +40,9 @@ export default function LessonPreview({ courseId, lesson, title, blocks, positio
 }) {
   const legacyLesson = { _id: lesson.id, description: lesson.legacy.description, content: lesson.legacy.content };
   return (
-    <article data-testid="lesson-preview">
+    <article className="lesson-column" data-testid="lesson-preview">
       <LessonHeader title={title} position={position} total={total} moduleTitle={moduleTitle} />
-      <div className="lesson-reading mb-10">
+      <div className="mb-9">
         <LessonBlocks lesson={legacyLesson} blocks={blocks} mode="preview" resolveAsset={resolveAsset} assetNames={assetNames} />
       </div>
       <div className="mb-8">
@@ -52,9 +52,9 @@ export default function LessonPreview({ courseId, lesson, title, blocks, positio
         <p className="text-sm text-ink-muted">Students mark the lesson complete here when they have finished it.</p>
         <button type="button" className="btn btn-primary" disabled title="Not recorded in preview">Mark lesson complete</button>
       </div>
-      <nav aria-label="Lesson navigation" className="mt-8 flex flex-col items-stretch justify-between gap-3 border-t border-line pt-6 sm:flex-row sm:items-center">
-        {prev ? <button type="button" className="btn btn-lg btn-secondary min-h-[48px]" onClick={prev.onClick}>← {prev.label}</button> : <div />}
-        {next ? <button type="button" className="btn btn-lg btn-primary min-h-[48px] sm:ml-auto" onClick={next.onClick}>{next.label} →</button> : <div />}
+      <nav aria-label="Lesson navigation" className="mt-8 flex items-center justify-between gap-3 border-t border-line pt-5 max-sm:[&>.btn]:flex-1 max-sm:[&>.btn]:px-3 max-sm:[&>div]:hidden">
+        {prev ? <button type="button" className="btn btn-secondary min-h-[44px]" onClick={prev.onClick}>← {prev.label}</button> : <div />}
+        {next ? <button type="button" className="btn btn-primary min-h-[44px] ml-auto" onClick={next.onClick}>{next.label} →</button> : <div />}
       </nav>
     </article>
   );

@@ -111,8 +111,8 @@ export default function LessonAssignments({ lessonId }: { lessonId: string }) {
   if (failed) return <p className="text-sm text-ink-muted" role="alert">Assignments could not be loaded.</p>;
   if (!items || items.length === 0) return null;
   return (
-    <section className="card rounded-xl p-4 sm:rounded-2xl sm:p-6" data-testid="lesson-assignments">
-      <h2 className="mb-3 text-xl font-bold sm:text-2xl text-ink">Assignments</h2>
+    <section className="card rounded-xl p-4 sm:p-5" data-testid="lesson-assignments">
+      <h2 className="lesson-h3 mb-3">Assignments</h2>
       <ul className="space-y-3">
         {items.map((assignment) => <AssignmentCard key={assignment._id} assignment={assignment} onSaved={load} />)}
       </ul>

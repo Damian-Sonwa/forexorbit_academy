@@ -243,60 +243,115 @@
     color: var(--color-text);
   }
 
-  .rich-html-readable :where(p) {
-    margin-top: 0.85em;
-    line-height: 1.75;
+  /*
+   * Lesson typography: one scale for builder blocks, rich text and lessons written before the
+   * builder. Phone / desktop: body 15/16, title 22/28, heading 18/21, subheading 16/17.5, minor
+   * 15/16, callouts and tables 14/15, captions 13.
+   */
+  .lesson-title {
+    @apply font-display font-semibold text-ink break-words text-[1.375rem] leading-snug tracking-[-0.02em] sm:text-[1.75rem] sm:leading-tight;
   }
-
-  .rich-html-readable :where(h2) {
-    @apply font-display text-xl font-semibold tracking-tight;
-    margin-top: 1.6em;
-    margin-bottom: 0.4em;
+  .lesson-h2,
+  .rich-html-readable :where(h1, h2) {
+    @apply font-display font-semibold text-ink text-lg leading-snug tracking-[-0.015em] sm:text-[1.3125rem] sm:leading-snug;
   }
-
+  .lesson-h3,
   .rich-html-readable :where(h3) {
-    @apply font-display text-lg font-semibold tracking-tight;
-    margin-top: 1.4em;
-    margin-bottom: 0.3em;
+    @apply font-display font-semibold text-ink text-base leading-snug tracking-[-0.01em] sm:text-[1.09375rem];
+  }
+  .lesson-h4,
+  .rich-html-readable :where(h4, h5, h6) {
+    @apply font-display font-semibold text-ink text-[0.9375rem] leading-snug sm:text-base sm:leading-snug;
+  }
+  .lesson-body {
+    @apply text-[0.9375rem] leading-[1.7] text-ink sm:text-base sm:leading-[1.7];
+  }
+  .lesson-small {
+    @apply text-sm leading-relaxed text-ink sm:text-[0.9375rem];
+  }
+  .lesson-caption {
+    @apply mt-2 text-[0.8125rem] leading-snug text-ink-muted;
   }
 
-  .rich-html-readable :where(ul) {
-    list-style: none;
-    padding-left: 0;
-    margin-top: 0.8em;
+  /* The whole lesson (title, body, activities, navigation) shares one readable column. */
+  .lesson-column {
+    @apply mx-auto w-full max-w-[43rem];
   }
 
-  .rich-html-readable :where(ul > li) {
-    position: relative;
-    padding-left: 1.4em;
-    margin-top: 0.45em;
+  /* Rhythm: a heading sits close to what it introduces and well clear of what came before. */
+  .lesson-prose > * + * { margin-top: 0.85em; }
+  .lesson-prose > :is(h2, h3, h4) + * { margin-top: 0.5rem; }
+  .lesson-prose > * + h2 { margin-top: 2rem; }
+  .lesson-prose > * + h3 { margin-top: 1.5rem; }
+  .lesson-prose > * + h4 { margin-top: 1.25rem; }
+  .lesson-prose :is(ul, ol) { padding-left: 1.5em; }
+  .lesson-prose :is(li + li, li > ul, li > ol) { margin-top: 0.4em; }
+  .lesson-blocks > * + * { margin-top: 1.375rem; }
+  .lesson-blocks > [data-block='text'] + [data-block='text'] { margin-top: 0.85rem; }
+  .lesson-blocks > * + [data-block='divider'],
+  .lesson-blocks > [data-block='divider'] + * { margin-top: 2rem; }
+  .lesson-blocks > * + [data-block='heading'] { margin-top: 2.25rem; }
+  .lesson-blocks > * + [data-block='heading'][data-level='3'] { margin-top: 1.75rem; }
+  .lesson-blocks > [data-block='heading'] + * { margin-top: 0.625rem; }
+  .lesson-blocks > [data-block='heading'] + [data-block='heading'][data-level] { margin-top: 1rem; }
+
+  .rich-html-readable :where(p, ul, ol, blockquote, pre, table, img, video) {
+    margin-top: 0.85em;
+  }
+  .rich-html-readable :where(p, li) {
     line-height: 1.7;
   }
-
-  .rich-html-readable :where(ul > li)::before {
-    content: '';
-    position: absolute;
-    left: 0.15em;
-    top: 0.72em;
-    width: 0.42em;
-    height: 0.42em;
-    border-radius: 9999px;
-    border: 1.5px solid var(--fo-brand);
+  .rich-html-readable :where(h1, h2) {
+    margin-top: 2rem;
+    margin-bottom: 0.5rem;
   }
-
+  .rich-html-readable :where(h3, h4, h5, h6) {
+    margin-top: 1.5rem;
+    margin-bottom: 0.4rem;
+  }
+  .rich-html-readable :where(h1, h2, h3, h4, h5, h6) + :where(p, ul, ol, blockquote, table),
+  .rich-html-readable > :first-child,
+  .rich-html-readable > div > :first-child,
+  .rich-html-readable :where(li > p:first-child) {
+    margin-top: 0;
+  }
+  .rich-html-readable :where(ul, ol) {
+    padding-left: 1.5em;
+  }
+  .rich-html-readable :where(ul) {
+    list-style: disc;
+  }
   .rich-html-readable :where(ol) {
     list-style: decimal;
-    padding-left: 1.4em;
   }
-
+  .rich-html-readable :where(li)::marker {
+    color: var(--fo-brand-strong);
+  }
+  .dark .rich-html-readable :where(li)::marker {
+    color: var(--fo-brand);
+  }
+  .rich-html-readable :where(li + li, li > ul, li > ol) {
+    margin-top: 0.4em;
+  }
   .rich-html-readable :where(blockquote) {
     border-left: 2px solid var(--fo-brand);
     padding-left: 1em;
     color: var(--fo-text-muted);
   }
-
-  .lesson-reading {
-    max-width: 68ch;
+  .rich-html-readable :where(table) {
+    @apply block max-w-full overflow-x-auto border-collapse text-sm sm:text-[0.9375rem];
+  }
+  .rich-html-readable :where(th, td) {
+    @apply border border-line px-3 py-2 text-left align-top;
+  }
+  .rich-html-readable :where(th) {
+    @apply bg-surface-3 font-semibold;
+  }
+  .rich-html-readable :where(img, video) {
+    @apply h-auto max-w-full rounded-xl;
+  }
+  .rich-html-readable :where(pre) {
+    @apply overflow-x-auto whitespace-pre-wrap rounded-xl border border-line bg-surface-2 p-3 font-mono text-[0.8125rem];
   }
 
   .rich-html-readable :where(a) {
@@ -756,7 +811,15 @@
   .builder-quill .ql-snow .ql-picker-label.ql-active, .builder-quill .ql-snow .ql-picker-item.ql-selected { color: var(--fo-brand) !important; }
   .builder-quill .ql-snow .ql-picker-label.ql-active .ql-stroke { stroke: var(--fo-brand) !important; }
   .builder-quill .ql-snow .ql-fo-icon { width: 1.125rem; height: 1.125rem; }
-  .builder-quill .ql-snow .ql-editor h4 { font-size: 1.05em; font-weight: 600; }
+  /* Same proportions students see (components/course/RichText.tsx). */
+  .builder-quill .ql-snow .ql-editor :is(h2, h3, h4) { font-family: Poppins, Inter, sans-serif; font-weight: 600; line-height: 1.375; }
+  .builder-quill .ql-snow .ql-editor :is(p, ul, ol, blockquote) { margin-bottom: 0.6em; }
+  .builder-quill .ql-snow .ql-editor h2 { font-size: 1.3em; margin: 0.6em 0 0.35em; }
+  .builder-quill .ql-snow .ql-editor h3 { font-size: 1.1em; margin: 0.5em 0 0.3em; }
+  .builder-quill .ql-snow .ql-editor h4 { font-size: 1em; margin: 0.4em 0 0.25em; }
+  .builder-quill .ql-snow .ql-editor .ql-size-small { font-size: 0.875em; }
+  .builder-quill .ql-snow .ql-editor .ql-size-large { font-size: 1.15em; }
+  .builder-quill .ql-snow .ql-editor .ql-size-huge { font-size: 1.35em; }
   .builder-quill .ql-tooltip.ql-snow { background: var(--fo-surface-1); border-color: var(--fo-line-strong); color: var(--fo-text); border-radius: 0.75rem; box-shadow: var(--fo-shadow-lift); z-index: 20; }
   .builder-quill .ql-tooltip.ql-snow input[type='text'] { background: var(--fo-surface-2); border-color: var(--fo-line-strong); color: var(--fo-text); }
   /* The highlight colours are light in both themes while editing, so their text is dark. */

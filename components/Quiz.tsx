@@ -314,12 +314,12 @@ function StudentQuiz({ lessonId }: { lessonId: string }) {
         {remaining !== null && remaining <= 0 && <p className="text-sm font-semibold text-red-700" role="status" data-testid="quiz-time-up">Time is up. Submitting your answers…</p>}
         {q && (
           <fieldset className="rounded-xl border border-gray-200 p-4 sm:p-6 dark:border-gray-700">
-            <legend className="px-1 text-base font-semibold sm:text-lg text-ink">{q.question} <span className="text-xs font-normal text-ink-muted">({q.points} pt)</span></legend>
+            <legend className="px-1 text-[0.9375rem] font-semibold sm:text-base text-ink">{q.question} <span className="text-xs font-normal text-ink-muted">({q.points} pt)</span></legend>
             <div className="mt-3 space-y-3">
               {q.options.map((option, index) => (
                 <label key={index} className={`flex min-h-[44px] cursor-pointer items-center gap-3 rounded-xl border-2 p-3 ${answers[q.id] === index ? 'border-primary-500 bg-primary-50 dark:bg-primary-400/10' : 'border-gray-200 hover:border-primary-300 dark:border-gray-700'}`}>
                   <input type="radio" name={`q-${q.id}`} checked={answers[q.id] === index} onChange={() => choose(q.id, index)} className="h-5 w-5" />
-                  <span className="flex-1 break-words text-ink">{option}</span>
+                  <span className="min-w-0 flex-1 break-words text-sm text-ink sm:text-[0.9375rem]">{option}</span>
                 </label>
               ))}
             </div>
